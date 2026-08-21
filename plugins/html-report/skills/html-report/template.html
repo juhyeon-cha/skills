@@ -18,10 +18,14 @@
          기본은 무채색(zinc). 회사 BI 색으로 바꾸려면 이 두 값만 교체한다.
          --brand      : 라이트 배경 위에서 쓸 색. 흰 바탕 대비 4.5:1 이상.
          --brand-dark : 어두운 배경 위에서 쓸 색. 보통 같은 색조의 밝은 단계.
+         --band       : 표지와 꼬리말 색면. 어두운 색으로 둔다.
+         --band-fg    : 그 색면 위의 글자색. --band 대비 4.5:1 이상이어야 한다.
          나머지 강조·연한 배경·막대·링크는 전부 color-mix 로 여기서 파생된다. */
       :root {
         --brand: #3f3f46;
         --brand-dark: #a1a1aa;
+        --band: #26262b;
+        --band-fg: #ffffff;
       }
 
       /* ── 토큰: 라이트가 기본, 다크는 두 경로 모두에서 덮는다 ────────────── */
@@ -44,6 +48,8 @@
         --accent-soft: color-mix(in srgb, var(--brand) 10%, var(--surface));
         --info-soft: color-mix(in srgb, var(--info) 10%, var(--surface));
         --warn-soft: color-mix(in srgb, var(--warn) 10%, var(--surface));
+        --band-muted: color-mix(in srgb, var(--band-fg) 62%, var(--band));
+        --band-line: color-mix(in srgb, var(--band-fg) 22%, var(--band));
 
         --radius: 8px;
         --measure: 48rem;
@@ -149,58 +155,117 @@
         color: var(--fg-muted);
       }
 
-      /* ── 표지: 회사 보고 문서용 머리글 ─────────────────────────────────── */
+      /* ── 표지·꼬리말: 색면 ─────────────────────────────────────────────── */
+      /* 배경만 화면 끝까지 퍼뜨리고 글은 본문 폭 안에 둔다. box-shadow 로 띠를
+         만들고 clip-path 로 위아래를 잘라 다른 섹션까지 번지지 않게 막는다. */
       .cover {
-        margin: 0 0 3rem;
-        padding-bottom: 1.5rem;
-        border-bottom: 2px solid var(--brand);
+        background: var(--band);
+        color: var(--band-fg);
+        box-shadow: 0 0 0 100vmax var(--band);
+        clip-path: inset(-3.5rem -100vmax 0 -100vmax);
+        padding: 0.5rem 0 2.2rem;
+        margin: 0 0 5rem;
       }
       .cover .eyebrow {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 0.6rem;
         font-size: 0.78rem;
         letter-spacing: 0.06em;
         text-transform: uppercase;
-        color: var(--fg-muted);
-        margin: 0 0 0.9rem;
+        color: var(--band-muted);
+        margin: 0 0 0.7rem;
       }
-      .cover .eyebrow .org {
-        font-weight: 700;
-        color: var(--fg);
+      /* 제목과 보안등급을 같은 줄에 둔다. 등급은 오른쪽 위에 붙는다. */
+      .cover-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      .cover-head h1 {
+        flex: 1;
+        font-size: 2.3rem;
+        margin: 0;
       }
       .classification {
-        display: inline-block;
+        flex: none;
+        margin-top: 0.35rem;
         padding: 0.1rem 0.45rem;
         border: 1px solid currentColor;
         border-radius: 3px;
         font-size: 0.72rem;
         font-weight: 700;
         letter-spacing: 0.08em;
-        color: var(--neg);
+        white-space: nowrap;
+        color: #ff7676;
       }
-      /* 문서 메타 — 문서번호·부서·작성자·일자. dl 이라 인쇄본에서도 짝이 유지된다. */
+      .cover .lede {
+        color: var(--band-muted);
+        margin: 0.6rem 0 0;
+      }
+      /* 문서 메타 — 누가 언제 썼는지만 남긴다. 제목을 이기지 않게 작고 흐리게. */
       .docmeta {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
-        gap: 0.5rem 1.5rem;
-        margin: 1.5rem 0 0;
-        padding-top: 1.1rem;
-        border-top: 1px solid var(--border);
-        font-size: 0.85rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 1.6rem;
+        margin: 1.6rem 0 0;
+        padding-top: 1rem;
+        border-top: 1px solid var(--band-line);
+        font-size: 0.78rem;
+        color: var(--band-muted);
       }
       .docmeta > div {
         display: flex;
-        gap: 0.5rem;
+        gap: 0.4rem;
       }
       .docmeta dt {
-        color: var(--fg-muted);
-        white-space: nowrap;
+        opacity: 0.7;
       }
       .docmeta dd {
         margin: 0;
-        font-weight: 600;
+      }
+
+      /* 꼬리말 — 표지와 같은 색면으로 문서의 끝을 맺는다 */
+      .colophon {
+        background: var(--band);
+        color: var(--band-muted);
+        box-shadow: 0 0 0 100vmax var(--band);
+        clip-path: inset(0 -100vmax -100vmax -100vmax);
+        margin: 5rem 0 0;
+        padding: 1.6rem 0 2rem;
+        font-size: 0.8rem;
+      }
+      .colophon p {
+        margin: 0 0 0.35rem;
+      }
+      .colophon > :last-child {
+        margin-bottom: 0;
+      }
+      .colophon .notice {
+        color: var(--band-fg);
+      }
+
+      /* ── 섹션 번호 ─────────────────────────────────────────────────────── */
+      /* 목차 없이도 위치가 잡히게 본문 섹션에만 번호를 매긴다.
+         한눈에·꼬리말은 번호를 받지 않는다. */
+      main {
+        counter-reset: sec;
+      }
+      main > section:not(.summary) {
+        counter-increment: sec;
+      }
+      main > section:not(.summary) > h2 {
+        display: grid;
+        grid-template-columns: 2.6rem 1fr;
+        align-items: baseline;
+        gap: 0.6rem;
+        border-bottom-width: 2px;
+        border-bottom-color: var(--fg);
+      }
+      main > section:not(.summary) > h2::before {
+        content: counter(sec, decimal-leading-zero);
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--fg-muted);
+        font-variant-numeric: tabular-nums;
       }
 
       /* 한눈에 */
@@ -622,6 +687,13 @@
           --surface: #ffffff;
           --surface-2: #f4f4f5;
         }
+        /* 표지·꼬리말 색면은 인쇄에서도 남아야 한다. 이 선언이 없으면 브라우저의
+           "배경 그래픽" 옵션이 꺼졌을 때 색면이 빠지고 흰 글자만 남는다. */
+        .cover,
+        .colophon {
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
         body {
           font-size: 10.5pt;
           line-height: 1.55;
@@ -670,20 +742,17 @@
     <main>
       <!-- SECTION: 표지 | 필수 -->
       <header class="cover">
-        <p class="eyebrow">
-          <span class="org">{{회사·부서}}</span>
-          <span>{{문서 종류}}</span>
+        <p class="eyebrow">{{문서 종류}}</p>
+        <div class="cover-head">
+          <h1>{{제목}}</h1>
           <!-- 보안등급이 필요 없으면 이 span 을 지운다 -->
           <span class="classification">{{대외비}}</span>
-        </p>
-        <h1>{{제목}}</h1>
+        </div>
         <p class="lede">{{한 줄 부제}}</p>
-        <!-- 문서 메타 — 필요 없는 항목은 div 째로 지운다 -->
         <dl class="docmeta">
-          <div><dt>문서번호</dt><dd>{{번호}}</dd></div>
+          <div><dt>부서</dt><dd>{{팀 이름}}</dd></div>
           <div><dt>작성일</dt><dd>{{YYYY-MM-DD}}</dd></div>
           <div><dt>작성자</dt><dd>{{이름}}</dd></div>
-          <div><dt>보고 대상</dt><dd>{{수신처}}</dd></div>
         </dl>
       </header>
       <!-- /SECTION: 표지 -->
@@ -747,6 +816,13 @@
         </ul>
       </section>
       <!-- /SECTION: 참고 -->
+
+      <!-- SECTION: 꼬리말 | 선택 -->
+      <footer class="colophon">
+        <p class="notice">{{이 문서는 대외비입니다. 수신자 외 열람·배포를 금합니다.}}</p>
+        <p>© {{연도}} {{회사명}}. {{문의처}}</p>
+      </footer>
+      <!-- /SECTION: 꼬리말 -->
     </main>
 
     <!-- PRESET:START — 목적별 본문 구성. 하나를 골라 SECTION: 본문 자리에 붙이고,
