@@ -243,10 +243,11 @@
         margin-bottom: 0;
       }
       .colophon .notice {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
         color: var(--band-fg);
-      }
-      .colophon .classification {
-        margin-right: 0.5rem;
       }
 
       /* ── 섹션 번호 ─────────────────────────────────────────────────────── */
@@ -694,12 +695,38 @@
           --surface: #ffffff;
           --surface-2: #f4f4f5;
         }
-        /* 표지·꼬리말 색면은 인쇄에서도 남아야 한다. 이 선언이 없으면 브라우저의
-           "배경 그래픽" 옵션이 꺼졌을 때 색면이 빠지고 흰 글자만 남는다. */
+        /* 색면은 종이에서 걷어낸다. A4 상단을 통째로 칠하면 토너를 크게 먹고
+           뒷면이 비치며, 흑백 출력에서는 글자가 뭉갠다. 화면의 색면이 하던
+           "여기서 문서가 시작하고 끝난다"는 신호는 굵은 괘선이 대신한다. */
         .cover,
         .colophon {
-          print-color-adjust: exact;
-          -webkit-print-color-adjust: exact;
+          background: none;
+          box-shadow: none;
+          clip-path: none;
+          color: var(--fg);
+        }
+        .cover {
+          border-bottom: 2.5pt solid var(--fg);
+          padding: 0 0 0.8rem;
+          margin: 0 0 2rem;
+        }
+        .cover .eyebrow,
+        .cover .lede,
+        .cover .docmeta {
+          color: var(--fg-muted);
+        }
+        .cover .docmeta {
+          border-top-color: var(--border);
+        }
+        .colophon {
+          border-top: 1pt solid var(--border);
+          padding: 0.7rem 0 0;
+          margin: 2.5rem 0 0;
+          color: var(--fg-muted);
+          break-inside: avoid;
+        }
+        .colophon .notice {
+          color: var(--fg);
         }
         body {
           font-size: 10.5pt;
@@ -827,7 +854,8 @@
       <!-- SECTION: 꼬리말 | 선택 -->
       <footer class="colophon">
         <p class="notice">
-          <span class="classification">{{대외비}}</span>{{수신자 외 열람·배포를 금합니다.}}
+          <span>{{이 문서는 대외비입니다. 수신자 외 열람·배포를 금합니다.}}</span>
+          <span class="classification">{{대외비}}</span>
         </p>
         <p>© {{연도}} {{회사명}}. {{문의처}}</p>
       </footer>
