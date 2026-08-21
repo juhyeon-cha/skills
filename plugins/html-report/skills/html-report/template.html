@@ -185,8 +185,8 @@
         margin: 0;
       }
       .classification {
-        flex: none;
-        margin-top: 0.35rem;
+        display: inline-block;
+        vertical-align: 0.08em;
         padding: 0.1rem 0.45rem;
         border: 1px solid currentColor;
         border-radius: 3px;
@@ -195,6 +195,10 @@
         letter-spacing: 0.08em;
         white-space: nowrap;
         color: #ff7676;
+      }
+      .cover-head .classification {
+        flex: none;
+        margin-top: 0.35rem;
       }
       .cover .lede {
         color: var(--band-muted);
@@ -240,6 +244,9 @@
       }
       .colophon .notice {
         color: var(--band-fg);
+      }
+      .colophon .classification {
+        margin-right: 0.5rem;
       }
 
       /* ── 섹션 번호 ─────────────────────────────────────────────────────── */
@@ -819,7 +826,9 @@
 
       <!-- SECTION: 꼬리말 | 선택 -->
       <footer class="colophon">
-        <p class="notice">{{이 문서는 대외비입니다. 수신자 외 열람·배포를 금합니다.}}</p>
+        <p class="notice">
+          <span class="classification">{{대외비}}</span>{{수신자 외 열람·배포를 금합니다.}}
+        </p>
         <p>© {{연도}} {{회사명}}. {{문의처}}</p>
       </footer>
       <!-- /SECTION: 꼬리말 -->
