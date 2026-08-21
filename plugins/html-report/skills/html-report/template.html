@@ -1,0 +1,664 @@
+<!doctype html>
+<!--
+  html-report 템플릿. 쓰는 법은 SKILL.md 에 있다.
+
+  요약: SECTION 주석의 필수 / 선택 / 반복을 따르고, 중괄호는 전부 치환하고,
+  맨 아래 PALETTE 구역에서 필요한 부품만 복사한 뒤, 산출물에서 모든 SECTION 주석과
+  PALETTE 구역을 지운다. CSS 는 지우지 않는다. 외부 참조는 하나도 두지 않는다.
+-->
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{제목}}</title>
+    <style>
+      /* ── 토큰: 라이트가 기본, 다크는 두 경로 모두에서 덮는다 ────────────── */
+      :root {
+        --bg: #fbfbfa;
+        --surface: #ffffff;
+        --surface-2: #f4f4f2;
+        --fg: #1a1a18;
+        --fg-muted: #6b6b66;
+        --border: #e2e2dd;
+        --accent: #2f6f5e;
+        --accent-soft: #e6f0ed;
+        --info: #2b5f9e;
+        --info-soft: #e7effa;
+        --warn: #9a5b12;
+        --warn-soft: #fbf0e2;
+
+        --radius: 10px;
+        --measure: 46rem;
+        --font:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo',
+          'Malgun Gothic', sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --bg: #16161a;
+          --surface: #1e1e23;
+          --surface-2: #26262c;
+          --fg: #ececef;
+          --fg-muted: #9a9aa2;
+          --border: #33333b;
+          --accent: #6dbfa5;
+          --accent-soft: #1d2f2a;
+          --info: #7aa9e0;
+          --info-soft: #1c2733;
+          --warn: #d8a45f;
+          --warn-soft: #302516;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #16161a;
+        --surface: #1e1e23;
+        --surface-2: #26262c;
+        --fg: #ececef;
+        --fg-muted: #9a9aa2;
+        --border: #33333b;
+        --accent: #6dbfa5;
+        --accent-soft: #1d2f2a;
+        --info: #7aa9e0;
+        --info-soft: #1c2733;
+        --warn: #d8a45f;
+        --warn-soft: #302516;
+      }
+
+      /* ── 바탕 ──────────────────────────────────────────────────────────── */
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+        font-size: 16px;
+        line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 3.5rem 1.25rem 6rem;
+      }
+      section {
+        margin: 3.5rem 0;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        margin: 0 0 0.6rem;
+      }
+      h1 {
+        font-size: 2.25rem;
+      }
+      h2 {
+        font-size: 1.4rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid var(--border);
+      }
+      h3 {
+        font-size: 1.08rem;
+        margin-top: 2rem;
+      }
+      p {
+        margin: 0 0 1rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      ul,
+      ol {
+        padding-left: 1.3rem;
+      }
+      li {
+        margin: 0.35rem 0;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 3rem 0;
+      }
+      .muted {
+        color: var(--fg-muted);
+      }
+      .lede {
+        font-size: 1.15rem;
+        color: var(--fg-muted);
+      }
+
+      /* 표지 */
+      .cover {
+        margin: 0 0 4rem;
+      }
+      .cover .meta {
+        font-size: 0.85rem;
+        color: var(--fg-muted);
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+
+      /* 한눈에 */
+      .summary {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 1.25rem 1.5rem;
+      }
+      .summary ul {
+        margin: 0;
+      }
+
+      /* ── 부품: 콜아웃 ──────────────────────────────────────────────────── */
+      .callout {
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--fg-muted);
+        border-radius: var(--radius);
+        background: var(--surface-2);
+        padding: 0.9rem 1.2rem;
+        margin: 1.5rem 0;
+      }
+      .callout > :last-child {
+        margin-bottom: 0;
+      }
+      .callout .label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+      }
+      .callout.info {
+        border-left-color: var(--info);
+        background: var(--info-soft);
+      }
+      .callout.info .label {
+        color: var(--info);
+      }
+      .callout.warn {
+        border-left-color: var(--warn);
+        background: var(--warn-soft);
+      }
+      .callout.warn .label {
+        color: var(--warn);
+      }
+      .callout.emph {
+        border-left-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .callout.emph .label {
+        color: var(--accent);
+      }
+
+      /* ── 부품: 표 ──────────────────────────────────────────────────────── */
+      .table-wrap {
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.93rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.6rem 0.9rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      thead th {
+        background: var(--surface-2);
+        font-size: 0.82rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--fg-muted);
+        white-space: nowrap;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      /* ── 부품: 통계 타일 ───────────────────────────────────────────────── */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+        gap: 0.75rem;
+        margin: 1.5rem 0;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.1rem;
+      }
+      .stat .value {
+        display: block;
+        font-size: 1.9rem;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat .label {
+        display: block;
+        font-size: 0.82rem;
+        color: var(--fg-muted);
+        margin-top: 0.2rem;
+      }
+
+      /* ── 부품: 코드 ────────────────────────────────────────────────────── */
+      pre {
+        overflow-x: auto;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.1rem;
+        margin: 1.5rem 0;
+        font-size: 0.86rem;
+        line-height: 1.6;
+      }
+      code {
+        font-family: var(--font-mono);
+      }
+      :not(pre) > code {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.08em 0.35em;
+        font-size: 0.88em;
+      }
+
+      /* ── 부품: 인용 ────────────────────────────────────────────────────── */
+      blockquote {
+        margin: 1.75rem 0;
+        padding-left: 1.25rem;
+        border-left: 3px solid var(--border);
+        font-size: 1.06rem;
+      }
+      blockquote > :last-child {
+        margin-bottom: 0;
+      }
+      blockquote cite {
+        display: block;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        font-style: normal;
+        color: var(--fg-muted);
+      }
+
+      /* ── 부품: 이미지 ──────────────────────────────────────────────────── */
+      figure {
+        margin: 1.75rem 0;
+      }
+      figure img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+      }
+      figcaption {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--fg-muted);
+      }
+
+      /* ── 부품: 세로 타임라인 ───────────────────────────────────────────── */
+      .timeline {
+        list-style: none;
+        margin: 1.75rem 0;
+        padding: 0 0 0 1.35rem;
+        border-left: 1px solid var(--border);
+      }
+      .timeline > li {
+        position: relative;
+        margin: 0 0 1.5rem;
+      }
+      .timeline > li::before {
+        content: '';
+        position: absolute;
+        left: -1.72rem;
+        top: 0.58rem;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 3px var(--bg);
+      }
+      .timeline .when {
+        display: block;
+        font-size: 0.8rem;
+        letter-spacing: 0.03em;
+        color: var(--fg-muted);
+      }
+      .timeline .what {
+        font-weight: 600;
+      }
+
+      /* ── 부품: 아코디언 ────────────────────────────────────────────────── */
+      details {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        padding: 0.75rem 1.1rem;
+        margin: 0.6rem 0;
+      }
+      details > summary {
+        cursor: pointer;
+        font-weight: 600;
+        list-style-position: outside;
+      }
+      details[open] > summary {
+        margin-bottom: 0.6rem;
+      }
+      details > :last-child {
+        margin-bottom: 0;
+      }
+
+      /* ── 부품: 탭 (라디오 + CSS, JS 없음) ──────────────────────────────── */
+      /* 천장: role="tab" 도 화살표 키 이동도 없고, 감춰진 패널은 Ctrl+F 로 안 잡힌다.
+         검색돼야 하는 내용이면 탭 대신 h3 소제목을 쓴다. */
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 1.25rem;
+        margin: 1.75rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .tabs > input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .tabs > label {
+        order: 0;
+        cursor: pointer;
+        padding: 0.4rem 0;
+        margin-bottom: -1px;
+        font-size: 0.93rem;
+        font-weight: 600;
+        color: var(--fg-muted);
+        border-bottom: 2px solid transparent;
+      }
+      /* input 은 전부 label 앞에 오므로 `+ label` 은 짝이 어긋난다. checked 와 같은 짝짓기를 쓴다. */
+      .tabs > input:nth-of-type(1):focus-visible ~ label:nth-of-type(1),
+      .tabs > input:nth-of-type(2):focus-visible ~ label:nth-of-type(2),
+      .tabs > input:nth-of-type(3):focus-visible ~ label:nth-of-type(3),
+      .tabs > input:nth-of-type(4):focus-visible ~ label:nth-of-type(4) {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .tabs > .tab-panel {
+        order: 1;
+        display: none;
+        width: 100%;
+        padding: 1.1rem 0 1.5rem;
+      }
+      .tabs > input:nth-of-type(1):checked ~ label:nth-of-type(1),
+      .tabs > input:nth-of-type(2):checked ~ label:nth-of-type(2),
+      .tabs > input:nth-of-type(3):checked ~ label:nth-of-type(3),
+      .tabs > input:nth-of-type(4):checked ~ label:nth-of-type(4) {
+        color: var(--fg);
+        border-bottom-color: var(--accent);
+      }
+      .tabs > input:nth-of-type(1):checked ~ .tab-panel:nth-of-type(1),
+      .tabs > input:nth-of-type(2):checked ~ .tab-panel:nth-of-type(2),
+      .tabs > input:nth-of-type(3):checked ~ .tab-panel:nth-of-type(3),
+      .tabs > input:nth-of-type(4):checked ~ .tab-panel:nth-of-type(4) {
+        display: block;
+      }
+
+      /* ── 부품: 차트 ────────────────────────────────────────────────────── */
+      .bars {
+        margin: 1.75rem 0;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .bars > .row {
+        display: grid;
+        grid-template-columns: minmax(4rem, 8rem) 1fr auto;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.9rem;
+      }
+      .bars .name {
+        color: var(--fg-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .bars .track {
+        background: var(--surface-2);
+        border-radius: 999px;
+        height: 0.7rem;
+        overflow: hidden;
+      }
+      .bars .fill {
+        display: block;
+        height: 100%;
+        width: var(--v);
+        background: var(--accent);
+        border-radius: 999px;
+      }
+      .bars .num {
+        font-variant-numeric: tabular-nums;
+        color: var(--fg-muted);
+      }
+      .sparkline {
+        display: inline-block;
+        vertical-align: middle;
+        width: 7rem;
+        height: 1.6rem;
+      }
+      .sparkline polyline {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      @media print {
+        .tabs > .tab-panel {
+          display: block;
+        }
+        details {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <!-- SECTION: 표지 | 필수 -->
+      <header class="cover">
+        <p class="meta">{{날짜}} · {{작성자}}</p>
+        <h1>{{제목}}</h1>
+        <p class="lede">{{한 줄 부제}}</p>
+      </header>
+      <!-- /SECTION: 표지 -->
+
+      <!-- SECTION: 한눈에 | 필수 -->
+      <section class="summary">
+        <ul>
+          <li>{{핵심 1}}</li>
+          <li>{{핵심 2}}</li>
+          <li>{{핵심 3}}</li>
+        </ul>
+      </section>
+      <!-- /SECTION: 한눈에 -->
+
+      <!-- SECTION: 배경 | 선택 -->
+      <section>
+        <h2>배경</h2>
+        <p>{{이 자료가 왜 있는가}}</p>
+      </section>
+      <!-- /SECTION: 배경 -->
+
+      <!-- SECTION: 본문 | 반복 -->
+      <section>
+        <h2>{{소제목}}</h2>
+        <p>{{내용}}</p>
+      </section>
+      <!-- /SECTION: 본문 -->
+
+      <!-- SECTION: 비교 | 선택 -->
+      <section>
+        <h2>{{비교 제목}}</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{{항목}}</th>
+                <th>{{A}}</th>
+                <th>{{B}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{행 이름}}</td>
+                <td>{{값}}</td>
+                <td>{{값}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+      <!-- /SECTION: 비교 -->
+
+      <!-- SECTION: 결론 | 필수 -->
+      <section>
+        <h2>결론</h2>
+        <p>{{그래서 무엇을 하는가}}</p>
+      </section>
+      <!-- /SECTION: 결론 -->
+
+      <!-- SECTION: 다음 단계 | 선택 -->
+      <section>
+        <h2>다음 단계</h2>
+        <ul>
+          <li>{{할 일}}</li>
+        </ul>
+      </section>
+      <!-- /SECTION: 다음 단계 -->
+
+      <!-- SECTION: 참고 | 선택 -->
+      <section>
+        <h2>참고</h2>
+        <ul>
+          <li>{{출처 또는 링크}}</li>
+        </ul>
+      </section>
+      <!-- /SECTION: 참고 -->
+    </main>
+
+    <!-- PALETTE:START — 부품 창고. 필요한 것만 위로 복사하고, 산출물에서는 이 구역을 통째로 지운다. -->
+    <template>
+      <!-- 콜아웃 (info | warn | emph) -->
+      <div class="callout info">
+        <span class="label">참고</span>
+        <p>{{내용}}</p>
+      </div>
+
+      <!-- 표 -->
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>{{열}}</th>
+              <th>{{열}}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{{값}}</td>
+              <td>{{값}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 통계 타일 — .stat 을 2~4개 -->
+      <div class="stats">
+        <div class="stat">
+          <span class="value">{{숫자}}</span><span class="label">{{라벨}}</span>
+        </div>
+        <div class="stat">
+          <span class="value">{{숫자}}</span><span class="label">{{라벨}}</span>
+        </div>
+      </div>
+
+      <!-- 코드 -->
+      <pre><code>{{코드}}</code></pre>
+
+      <!-- 인용 -->
+      <blockquote>
+        <p>{{인용문}}</p>
+        <cite>{{출처}}</cite>
+      </blockquote>
+
+      <!-- 이미지 — src 는 반드시 data: URI -->
+      <figure>
+        <img src="data:image/png;base64,{{BASE64}}" alt="{{대체 텍스트}}" />
+        <figcaption>{{캡션}}</figcaption>
+      </figure>
+
+      <!-- 세로 타임라인 — li 를 반복 -->
+      <ol class="timeline">
+        <li>
+          <span class="when">{{시점}}</span>
+          <span class="what">{{무슨 일}}</span>
+          <p>{{설명}}</p>
+        </li>
+      </ol>
+
+      <!-- 아코디언 — details 를 반복 -->
+      <details>
+        <summary>{{접힌 제목}}</summary>
+        <p>{{펼친 내용}}</p>
+      </details>
+
+      <!-- 탭 — 최대 4개. 그룹이 둘 이상이면 name 과 id 의 `t1` 을 t2, t3 로 바꾼다.
+           input 은 전부 label 보다 앞, label 은 전부 .tab-panel 보다 앞에 둔다. -->
+      <div class="tabs">
+        <input type="radio" name="t1" id="t1-1" checked />
+        <input type="radio" name="t1" id="t1-2" />
+        <label for="t1-1">{{탭 1}}</label>
+        <label for="t1-2">{{탭 2}}</label>
+        <div class="tab-panel"><p>{{내용 1}}</p></div>
+        <div class="tab-panel"><p>{{내용 2}}</p></div>
+      </div>
+
+      <!-- 막대 차트 — --v 는 최댓값 대비 백분율. .row 를 반복 -->
+      <div class="bars">
+        <div class="row">
+          <span class="name">{{항목}}</span>
+          <span class="track"><span class="fill" style="--v: 100%"></span></span>
+          <span class="num">{{값}}</span>
+        </div>
+        <div class="row">
+          <span class="name">{{항목}}</span>
+          <span class="track"><span class="fill" style="--v: 62%"></span></span>
+          <span class="num">{{값}}</span>
+        </div>
+      </div>
+
+      <!-- 스파크라인 — viewBox 는 0 0 100 30 고정. x 는 0→100 등간격,
+           y 는 (1 - (값-최소)/(최대-최소)) * 26 + 2 로 계산해 넣는다. -->
+      <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
+        <polyline points="0,24 25,16 50,19 75,8 100,3" />
+      </svg>
+    </template>
+    <!-- PALETTE:END -->
+  </body>
+</html>

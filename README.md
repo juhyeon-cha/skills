@@ -20,4 +20,6 @@ juhyeon-cha 의 Claude Code 스킬 플러그인 마켓플레이스.
 
 3. `claude plugin validate . --strict` 로 검증한다 — 종료 코드 0 이어야 한다.
 
-현재 등록된 플러그인은 없다.
+## 플러그인
+
+- `html-report` — 발표·공유용 자체 포함 HTML 자료 한 장을 템플릿에서 만든다
