@@ -136,6 +136,11 @@ grep -nE 'https?://' reports/<파일>.html                         # 본문 링�
   A4 상단을 통째로 칠하면 토너를 크게 먹고 뒷면이 비치며 흑백 출력에서 글자가 뭉갠다.
   종이에도 색면을 남기려면 `@media print` 의 해당 블록을 지우고 `print-color-adjust: exact`
   를 넣어야 한다 — 그러면 페이지 여백(`@page margin`) 바깥은 흰 채로 남는다.
+- **페이지 나눔은 작은 단위만 묶는다.** 섹션 전체에 `break-inside: avoid` 를 걸지 않는다 —
+  긴 섹션 하나가 통째로 밀리면서 앞 장에 빈 공간이 크게 남는다. 대신 표의 행·통계 타일·
+  콜아웃·인용처럼 잘리면 못 읽는 것만 묶고, 문단은 `orphans`/`widows` 로 고아줄을 막는다.
+  **`orphans`/`widows` 는 Chrome·Edge·Safari 만 지킨다. Firefox 는 무시한다.**
+  특정 섹션을 반드시 새 장에서 시작해야 하면 그 앞에 `<div class="page-break"></div>` 를 둔다.
 - **페이지 번호와 머리말·꼬리말은 없다.** CSS `@page` 의 `@top-center`·`counter(page)` 는
   브라우저가 구현하지 않았다. 브라우저 인쇄 대화상자의 머리글/바닥글 옵션을 쓴다.
 - **슬라이드 덱이 아니다.** 스크롤되는 문서 한 장이다.

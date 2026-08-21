@@ -743,21 +743,49 @@
         details {
           break-inside: avoid;
         }
+        /* ── 페이지 나눔 ─────────────────────────────────────────────────
+           섹션을 통째로 묶지 않는다. 긴 섹션 하나가 다음 장으로 밀리면서
+           앞 장에 빈 공간이 크게 남는다. 잘리면 곤란한 작은 단위만 묶고,
+           문단은 고아줄을 막는다. */
+
         /* 제목만 남고 내용이 다음 장으로 넘어가는 것을 막는다 */
         h1,
         h2,
-        h3 {
+        h3,
+        caption {
           break-after: avoid;
+        }
+        /* 문단 끝의 한 줄, 다음 장 첫머리의 한 줄을 남기지 않는다.
+           (Blink 계열만 지킨다. Firefox 는 무시한다) */
+        p,
+        li {
+          orphans: 3;
+          widows: 3;
         }
         /* 여러 장에 걸친 표는 장마다 머리행을 반복한다 */
         thead {
           display: table-header-group;
         }
+        /* 합계 행이 표 본문과 떨어져 혼자 넘어가지 않게 한다 */
+        tfoot {
+          break-before: avoid;
+        }
+        /* 단위·기준일 각주는 표를 따라간다 */
+        .table-note {
+          break-before: avoid;
+        }
+        /* 통째로 잘리면 못 읽는 것들 */
         tr,
+        .summary,
+        .stats,
         .stat,
+        .bars,
+        .bars > .row,
+        .timeline > li,
         .callout,
         figure,
-        blockquote {
+        blockquote,
+        .colophon {
           break-inside: avoid;
         }
         a {
