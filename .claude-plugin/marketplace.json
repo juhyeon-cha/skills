@@ -1,0 +1,10 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "skills",
+  "description": "juhyeon-cha 의 Claude Code 스킬 플러그인 마켓플레이스",
+  "owner": {
+    "name": "juhyeon-cha",
+    "url": "https://github.com/juhyeon-cha"
+  },
+  "plugins": []
+}
