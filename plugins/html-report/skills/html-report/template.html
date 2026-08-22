@@ -684,6 +684,23 @@
         color: var(--fg-muted);
       }
 
+      /* ── 참고: 본문의 근거지 본문이 아니다 ─────────────────────────────── */
+      /* 작고 흐리게 — 필요한 사람만 내려와 읽는다. 색은 --fg-muted 그대로라
+         다크·인쇄 배색이 따라온다. 링크는 흐려져도 링크로 보이게 밑줄을 못박는다:
+         이 규칙이 인쇄의 a { text-decoration: none } 보다 명시도가 높아 종이에도
+         남는다. */
+      .refs {
+        font-size: 0.82rem;
+        color: var(--fg-muted);
+      }
+      .refs h2 {
+        font-size: 1rem;
+      }
+      .refs a {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
       /* ── 인쇄: A4 보고서 ───────────────────────────────────────────────── */
       @page {
         size: A4;
@@ -872,7 +889,7 @@
       <!-- /SECTION: 다음 단계 -->
 
       <!-- SECTION: 참고 | 선택 -->
-      <section>
+      <section class="refs">
         <h2>참고</h2>
         <ul>
           <li>{{출처 또는 링크}}</li>
