@@ -3,8 +3,10 @@
   html-report 템플릿. 쓰는 법은 SKILL.md 에 있다.
 
   요약: SECTION 주석의 필수 / 선택 / 반복을 따르고, 중괄호는 전부 치환하고,
-  맨 아래 PALETTE 구역에서 필요한 부품만 복사한 뒤, 산출물에서 모든 SECTION 주석과
-  PALETTE 구역을 지운다. CSS 는 지우지 않는다. 외부 참조는 하나도 두지 않는다.
+  맨 아래 PRESET 과 PALETTE 구역에서 필요한 것만 복사한 뒤, 산출물에서 모든 SECTION 주석과
+  PRESET·PALETTE 구역을 지운다. CSS 는 지우지 않는다. 외부 참조는 하나도 두지 않는다.
+
+  색을 바꾸려면 아래 "BRAND" 블록 두 줄만 고친다. 나머지는 전부 거기서 파생된다.
 -->
 <html lang="ko">
   <head>
@@ -12,57 +14,79 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{제목}}</title>
     <style>
+      /* ══ BRAND — 색을 바꾸는 곳은 여기 두 줄뿐이다 ═══════════════════════
+         기본은 무채색(zinc). 회사 BI 색으로 바꾸려면 이 두 값만 교체한다.
+         --brand      : 라이트 배경 위에서 쓸 색. 흰 바탕 대비 4.5:1 이상.
+         --brand-dark : 어두운 배경 위에서 쓸 색. 보통 같은 색조의 밝은 단계.
+         --band       : 표지와 꼬리말 색면. 어두운 색으로 둔다.
+         --band-fg    : 그 색면 위의 글자색. --band 대비 4.5:1 이상이어야 한다.
+         나머지 강조·연한 배경·막대·링크는 전부 color-mix 로 여기서 파생된다. */
+      :root {
+        --brand: #3f3f46;
+        --brand-dark: #a1a1aa;
+        --band: #26262b;
+        --band-fg: #ffffff;
+      }
+
       /* ── 토큰: 라이트가 기본, 다크는 두 경로 모두에서 덮는다 ────────────── */
       :root {
-        --bg: #fbfbfa;
+        --bg: #f7f7f8;
         --surface: #ffffff;
-        --surface-2: #f4f4f2;
-        --fg: #1a1a18;
-        --fg-muted: #6b6b66;
-        --border: #e2e2dd;
-        --accent: #2f6f5e;
-        --accent-soft: #e6f0ed;
-        --info: #2b5f9e;
-        --info-soft: #e7effa;
-        --warn: #9a5b12;
-        --warn-soft: #fbf0e2;
+        --surface-2: #f1f1f3;
+        --fg: #18181b;
+        --fg-muted: #6b6b73;
+        --border: #e0e0e4;
 
-        --radius: 10px;
-        --measure: 46rem;
+        /* 의미색 — 브랜드와 무관하다. 무채색 기조에 맞춰 채도를 낮게 잡았다. */
+        --info: #40566f;
+        --warn: #7f6320;
+        --pos: #3f6349;
+        --neg: #8a4444;
+
+        /* 파생 — 손대지 않는다 */
+        --accent: var(--brand);
+        --accent-soft: color-mix(in srgb, var(--brand) 10%, var(--surface));
+        --info-soft: color-mix(in srgb, var(--info) 10%, var(--surface));
+        --warn-soft: color-mix(in srgb, var(--warn) 10%, var(--surface));
+        --band-muted: color-mix(in srgb, var(--band-fg) 62%, var(--band));
+        --band-line: color-mix(in srgb, var(--band-fg) 22%, var(--band));
+
+        --radius: 8px;
+        --measure: 48rem;
         --font:
           -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo',
           'Malgun Gothic', sans-serif;
         --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
       }
+
+      /* 다크에서 바뀌는 값만 나열한다. 파생 토큰은 자동으로 따라온다. */
       @media (prefers-color-scheme: dark) {
         :root:not([data-theme='light']) {
-          --bg: #16161a;
-          --surface: #1e1e23;
-          --surface-2: #26262c;
-          --fg: #ececef;
-          --fg-muted: #9a9aa2;
-          --border: #33333b;
-          --accent: #6dbfa5;
-          --accent-soft: #1d2f2a;
-          --info: #7aa9e0;
-          --info-soft: #1c2733;
-          --warn: #d8a45f;
-          --warn-soft: #302516;
+          --brand: var(--brand-dark);
+          --bg: #131316;
+          --surface: #1a1a1e;
+          --surface-2: #232329;
+          --fg: #ebebee;
+          --fg-muted: #9b9ba4;
+          --border: #303038;
+          --info: #8fa8c4;
+          --warn: #c4a05c;
+          --pos: #7fae90;
+          --neg: #c98d8d;
         }
       }
       :root[data-theme='dark'] {
-        --bg: #16161a;
-        --surface: #1e1e23;
-        --surface-2: #26262c;
-        --fg: #ececef;
-        --fg-muted: #9a9aa2;
-        --border: #33333b;
-        --accent: #6dbfa5;
-        --accent-soft: #1d2f2a;
-        --info: #7aa9e0;
-        --info-soft: #1c2733;
-        --warn: #d8a45f;
-        --warn-soft: #302516;
+        --brand: var(--brand-dark);
+        --bg: #131316;
+        --surface: #1a1a1e;
+        --surface-2: #232329;
+        --fg: #ebebee;
+        --fg-muted: #9b9ba4;
+        --border: #303038;
+        --info: #8fa8c4;
+        --warn: #c4a05c;
+        --pos: #7fae90;
+        --neg: #c98d8d;
       }
 
       /* ── 바탕 ──────────────────────────────────────────────────────────── */
@@ -84,7 +108,7 @@
         padding: 3.5rem 1.25rem 6rem;
       }
       section {
-        margin: 3.5rem 0;
+        margin: 3rem 0;
       }
       h1,
       h2,
@@ -94,15 +118,15 @@
         margin: 0 0 0.6rem;
       }
       h1 {
-        font-size: 2.25rem;
+        font-size: 2rem;
       }
       h2 {
-        font-size: 1.4rem;
+        font-size: 1.32rem;
         padding-bottom: 0.4rem;
         border-bottom: 1px solid var(--border);
       }
       h3 {
-        font-size: 1.08rem;
+        font-size: 1.05rem;
         margin-top: 2rem;
       }
       p {
@@ -127,19 +151,129 @@
         color: var(--fg-muted);
       }
       .lede {
-        font-size: 1.15rem;
+        font-size: 1.12rem;
         color: var(--fg-muted);
       }
 
-      /* 표지 */
+      /* ── 표지·꼬리말: 색면 ─────────────────────────────────────────────── */
+      /* 배경만 화면 끝까지 퍼뜨리고 글은 본문 폭 안에 둔다. box-shadow 로 띠를
+         만들고 clip-path 로 위아래를 잘라 다른 섹션까지 번지지 않게 막는다. */
       .cover {
-        margin: 0 0 4rem;
+        background: var(--band);
+        color: var(--band-fg);
+        box-shadow: 0 0 0 100vmax var(--band);
+        clip-path: inset(-3.5rem -100vmax 0 -100vmax);
+        padding: 0.5rem 0 2.2rem;
+        margin: 0 0 5rem;
       }
-      .cover .meta {
-        font-size: 0.85rem;
-        color: var(--fg-muted);
-        letter-spacing: 0.03em;
+      .cover .eyebrow {
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
+        color: var(--band-muted);
+        margin: 0 0 0.7rem;
+      }
+      /* 제목과 보안등급을 같은 줄에 둔다. 등급은 오른쪽 위에 붙는다. */
+      .cover-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      .cover-head h1 {
+        flex: 1;
+        font-size: 2.3rem;
+        margin: 0;
+      }
+      .classification {
+        display: inline-block;
+        vertical-align: 0.08em;
+        padding: 0.1rem 0.45rem;
+        border: 1px solid currentColor;
+        border-radius: 3px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        color: #ff7676;
+      }
+      .cover-head .classification {
+        flex: none;
+        margin-top: 0.35rem;
+      }
+      .cover .lede {
+        color: var(--band-muted);
+        margin: 0.6rem 0 0;
+      }
+      /* 문서 메타 — 누가 언제 썼는지만 남긴다. 제목을 이기지 않게 작고 흐리게. */
+      .docmeta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 1.6rem;
+        margin: 1.6rem 0 0;
+        padding-top: 1rem;
+        border-top: 1px solid var(--band-line);
+        font-size: 0.78rem;
+        color: var(--band-muted);
+      }
+      .docmeta > div {
+        display: flex;
+        gap: 0.4rem;
+      }
+      .docmeta dt {
+        opacity: 0.7;
+      }
+      .docmeta dd {
+        margin: 0;
+      }
+
+      /* 꼬리말 — 표지와 같은 색면으로 문서의 끝을 맺는다 */
+      .colophon {
+        background: var(--band);
+        color: var(--band-muted);
+        box-shadow: 0 0 0 100vmax var(--band);
+        clip-path: inset(0 -100vmax -100vmax -100vmax);
+        margin: 5rem 0 0;
+        padding: 1.6rem 0 2rem;
+        font-size: 0.8rem;
+      }
+      .colophon p {
+        margin: 0 0 0.35rem;
+      }
+      .colophon > :last-child {
+        margin-bottom: 0;
+      }
+      .colophon .notice {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        color: var(--band-fg);
+      }
+
+      /* ── 섹션 번호 ─────────────────────────────────────────────────────── */
+      /* 목차 없이도 위치가 잡히게 본문 섹션에만 번호를 매긴다.
+         한눈에·꼬리말은 번호를 받지 않는다. */
+      main {
+        counter-reset: sec;
+      }
+      main > section:not(.summary) {
+        counter-increment: sec;
+      }
+      main > section:not(.summary) > h2 {
+        display: grid;
+        grid-template-columns: 2.6rem 1fr;
+        align-items: baseline;
+        gap: 0.6rem;
+        border-bottom-width: 2px;
+        border-bottom-color: var(--fg);
+      }
+      main > section:not(.summary) > h2::before {
+        content: counter(sec, decimal-leading-zero);
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--fg-muted);
+        font-variant-numeric: tabular-nums;
       }
 
       /* 한눈에 */
@@ -206,18 +340,26 @@
       table {
         border-collapse: collapse;
         width: 100%;
-        font-size: 0.93rem;
+        font-size: 0.92rem;
+      }
+      caption {
+        caption-side: top;
+        text-align: left;
+        padding: 0.7rem 0.9rem 0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--fg-muted);
       }
       th,
       td {
         text-align: left;
-        padding: 0.6rem 0.9rem;
+        padding: 0.55rem 0.9rem;
         border-bottom: 1px solid var(--border);
         vertical-align: top;
       }
       thead th {
         background: var(--surface-2);
-        font-size: 0.82rem;
+        font-size: 0.8rem;
         letter-spacing: 0.03em;
         text-transform: uppercase;
         color: var(--fg-muted);
@@ -225,6 +367,51 @@
       }
       tbody tr:last-child td {
         border-bottom: 0;
+      }
+
+      /* ── 부품: 숫자 표 (회계·재무) ─────────────────────────────────────── */
+      /* table.num — 첫 열은 계정·항목명, 나머지 열은 전부 숫자로 본다.
+         자릿수가 흔들리지 않게 tabular-nums 를 쓰고 오른쪽으로 붙인다. */
+      table.num th:not(:first-child),
+      table.num td:not(:first-child) {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      table.num tbody tr.subtotal td {
+        border-top: 1px solid var(--border);
+        font-weight: 600;
+      }
+      table.num tfoot td {
+        border-top: 2px solid var(--fg-muted);
+        border-bottom: 0;
+        background: var(--surface-2);
+        font-weight: 700;
+      }
+      /* 들여쓴 하위 계정 */
+      table.num td.indent {
+        padding-left: 2rem;
+        color: var(--fg-muted);
+      }
+      /* 증감 — 색만으로 구분하지 않는다. ▲▼ 기호를 반드시 같이 쓴다. */
+      .delta {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .delta.pos {
+        color: var(--pos);
+      }
+      .delta.neg {
+        color: var(--neg);
+      }
+      .delta.flat {
+        color: var(--fg-muted);
+      }
+      /* 각주 — 표 아래 단위·기준일 표기 */
+      .table-note {
+        margin: -0.9rem 0 1.5rem;
+        font-size: 0.8rem;
+        color: var(--fg-muted);
       }
 
       /* ── 부품: 통계 타일 ───────────────────────────────────────────────── */
@@ -242,7 +429,7 @@
       }
       .stat .value {
         display: block;
-        font-size: 1.9rem;
+        font-size: 1.8rem;
         font-weight: 700;
         line-height: 1.15;
         letter-spacing: -0.02em;
@@ -253,6 +440,11 @@
         font-size: 0.82rem;
         color: var(--fg-muted);
         margin-top: 0.2rem;
+      }
+      .stat .delta {
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.35rem;
       }
 
       /* ── 부품: 코드 ────────────────────────────────────────────────────── */
@@ -282,7 +474,7 @@
         margin: 1.75rem 0;
         padding-left: 1.25rem;
         border-left: 3px solid var(--border);
-        font-size: 1.06rem;
+        font-size: 1.04rem;
       }
       blockquote > :last-child {
         margin-bottom: 0;
@@ -468,12 +660,142 @@
         vector-effect: non-scaling-stroke;
       }
 
+      /* ── 부품: 진척 배지 ───────────────────────────────────────────────── */
+      /* 현황 보고의 상태 열. 색과 함께 글자가 상태를 말한다. */
+      .badge {
+        display: inline-block;
+        padding: 0.05rem 0.5rem;
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .badge.done {
+        color: var(--pos);
+      }
+      .badge.risk {
+        color: var(--neg);
+      }
+      .badge.hold {
+        color: var(--warn);
+      }
+      .badge.going {
+        color: var(--fg-muted);
+      }
+
+      /* ── 인쇄: A4 보고서 ───────────────────────────────────────────────── */
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
       @media print {
+        :root {
+          --bg: #ffffff;
+          --surface: #ffffff;
+          --surface-2: #f4f4f5;
+        }
+        /* 색면은 종이에서 걷어낸다. A4 상단을 통째로 칠하면 토너를 크게 먹고
+           뒷면이 비치며, 흑백 출력에서는 글자가 뭉갠다. 화면의 색면이 하던
+           "여기서 문서가 시작하고 끝난다"는 신호는 굵은 괘선이 대신한다. */
+        .cover,
+        .colophon {
+          background: none;
+          box-shadow: none;
+          clip-path: none;
+          color: var(--fg);
+        }
+        .cover {
+          border-bottom: 2.5pt solid var(--fg);
+          padding: 0 0 0.8rem;
+          margin: 0 0 2rem;
+        }
+        .cover .eyebrow,
+        .cover .lede,
+        .cover .docmeta {
+          color: var(--fg-muted);
+        }
+        .cover .docmeta {
+          border-top-color: var(--border);
+        }
+        .colophon {
+          border-top: 1pt solid var(--border);
+          padding: 0.7rem 0 0;
+          margin: 2.5rem 0 0;
+          color: var(--fg-muted);
+          break-inside: avoid;
+        }
+        .colophon .notice {
+          color: var(--fg);
+        }
+        body {
+          font-size: 10.5pt;
+          line-height: 1.55;
+        }
+        main {
+          max-width: none;
+          padding: 0;
+        }
+        /* 감춘 탭 패널이 인쇄에서 사라지면 안 된다 */
         .tabs > .tab-panel {
           display: block;
         }
         details {
           break-inside: avoid;
+        }
+        /* ── 페이지 나눔 ─────────────────────────────────────────────────
+           섹션을 통째로 묶지 않는다. 긴 섹션 하나가 다음 장으로 밀리면서
+           앞 장에 빈 공간이 크게 남는다. 잘리면 곤란한 작은 단위만 묶고,
+           문단은 고아줄을 막는다. */
+
+        /* 제목만 남고 내용이 다음 장으로 넘어가는 것을 막는다 */
+        h1,
+        h2,
+        h3,
+        caption {
+          break-after: avoid;
+        }
+        /* 문단 끝의 한 줄, 다음 장 첫머리의 한 줄을 남기지 않는다.
+           (Blink 계열만 지킨다. Firefox 는 무시한다) */
+        p,
+        li {
+          orphans: 3;
+          widows: 3;
+        }
+        /* 여러 장에 걸친 표는 장마다 머리행을 반복한다 */
+        thead {
+          display: table-header-group;
+        }
+        /* 합계 행이 표 본문과 떨어져 혼자 넘어가지 않게 한다 */
+        tfoot {
+          break-before: avoid;
+        }
+        /* 단위·기준일 각주는 표를 따라간다 */
+        .table-note {
+          break-before: avoid;
+        }
+        /* 통째로 잘리면 못 읽는 것들 */
+        tr,
+        .summary,
+        .stats,
+        .stat,
+        .bars,
+        .bars > .row,
+        .timeline > li,
+        .callout,
+        figure,
+        blockquote,
+        .colophon {
+          break-inside: avoid;
+        }
+        a {
+          text-decoration: none;
+        }
+        .page-break {
+          break-before: page;
+        }
+        .no-print {
+          display: none;
         }
       }
     </style>
@@ -482,13 +804,23 @@
     <main>
       <!-- SECTION: 표지 | 필수 -->
       <header class="cover">
-        <p class="meta">{{날짜}} · {{작성자}}</p>
-        <h1>{{제목}}</h1>
+        <p class="eyebrow">{{문서 종류}}</p>
+        <div class="cover-head">
+          <h1>{{제목}}</h1>
+          <!-- 보안등급이 필요 없으면 이 span 을 지운다 -->
+          <span class="classification">{{대외비}}</span>
+        </div>
         <p class="lede">{{한 줄 부제}}</p>
+        <dl class="docmeta">
+          <div><dt>부서</dt><dd>{{팀 이름}}</dd></div>
+          <div><dt>작성일</dt><dd>{{YYYY-MM-DD}}</dd></div>
+          <div><dt>작성자</dt><dd>{{이름}}</dd></div>
+        </dl>
       </header>
       <!-- /SECTION: 표지 -->
 
       <!-- SECTION: 한눈에 | 필수 -->
+      <!-- 결론부터 쓴다. 이 상자만 읽고 회의에 들어와도 되게 한다. -->
       <section class="summary">
         <ul>
           <li>{{핵심 1}}</li>
@@ -498,43 +830,14 @@
       </section>
       <!-- /SECTION: 한눈에 -->
 
-      <!-- SECTION: 배경 | 선택 -->
-      <section>
-        <h2>배경</h2>
-        <p>{{이 자료가 왜 있는가}}</p>
-      </section>
-      <!-- /SECTION: 배경 -->
-
       <!-- SECTION: 본문 | 반복 -->
+      <!-- 목적에 맞는 프리셋을 아래 PRESET 창고에서 골라 이 자리에 붙인다.
+           맞는 프리셋이 없을 때만 이 빈 섹션을 복제해 쓴다. -->
       <section>
         <h2>{{소제목}}</h2>
         <p>{{내용}}</p>
       </section>
       <!-- /SECTION: 본문 -->
-
-      <!-- SECTION: 비교 | 선택 -->
-      <section>
-        <h2>{{비교 제목}}</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{{항목}}</th>
-                <th>{{A}}</th>
-                <th>{{B}}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{{행 이름}}</td>
-                <td>{{값}}</td>
-                <td>{{값}}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <!-- /SECTION: 비교 -->
 
       <!-- SECTION: 결론 | 필수 -->
       <section>
@@ -546,9 +849,24 @@
       <!-- SECTION: 다음 단계 | 선택 -->
       <section>
         <h2>다음 단계</h2>
-        <ul>
-          <li>{{할 일}}</li>
-        </ul>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>할 일</th>
+                <th>담당</th>
+                <th>기한</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{할 일}}</td>
+                <td>{{담당}}</td>
+                <td>{{YYYY-MM-DD}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
       <!-- /SECTION: 다음 단계 -->
 
@@ -560,7 +878,382 @@
         </ul>
       </section>
       <!-- /SECTION: 참고 -->
+
+      <!-- SECTION: 꼬리말 | 선택 -->
+      <footer class="colophon">
+        <p class="notice">
+          <span>{{이 문서는 대외비입니다. 수신자 외 열람·배포를 금합니다.}}</span>
+          <span class="classification">{{대외비}}</span>
+        </p>
+        <p>© {{연도}} {{회사명}}. {{문의처}}</p>
+      </footer>
+      <!-- /SECTION: 꼬리말 -->
     </main>
+
+    <!-- PRESET:START — 목적별 본문 구성. 하나를 골라 SECTION: 본문 자리에 붙이고,
+         이 구역은 산출물에서 통째로 지운다. 프리셋 안의 절도 필요 없으면 지운다. -->
+    <template>
+      <!-- ══ 프리셋 A. 분석 보고서 ═══════════════════════════════════════ -->
+      <!-- 무엇을 왜 봤고, 무엇이 나왔고, 그래서 뭘 하자는가. -->
+      <section>
+        <h2>배경과 목적</h2>
+        <p>{{왜 이 분석을 했는가}}</p>
+        <h3>범위</h3>
+        <ul>
+          <li>대상 기간: {{기간}}</li>
+          <li>대상 범위: {{무엇을 포함하고 무엇을 뺐는가}}</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>데이터와 방법</h2>
+        <p>{{어떤 데이터를 어떤 방법으로 봤는가}}</p>
+        <div class="callout info">
+          <span class="label">전제</span>
+          <p>{{이 결론이 성립하려면 참이어야 하는 것}}</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>발견</h2>
+        <div class="stats">
+          <div class="stat">
+            <span class="value">{{숫자}}</span><span class="label">{{지표명}}</span>
+            <span class="delta pos">▲ {{증감}}</span>
+          </div>
+          <div class="stat">
+            <span class="value">{{숫자}}</span><span class="label">{{지표명}}</span>
+            <span class="delta neg">▼ {{증감}}</span>
+          </div>
+        </div>
+        <h3>{{발견 1}}</h3>
+        <p>{{근거와 해석}}</p>
+        <div class="bars">
+          <div class="row">
+            <span class="name">{{항목}}</span>
+            <span class="track"><span class="fill" style="--v: 100%"></span></span>
+            <span class="num">{{값}}</span>
+          </div>
+          <div class="row">
+            <span class="name">{{항목}}</span>
+            <span class="track"><span class="fill" style="--v: 62%"></span></span>
+            <span class="num">{{값}}</span>
+          </div>
+        </div>
+        <h3>{{발견 2}}</h3>
+        <p>{{근거와 해석}}</p>
+      </section>
+
+      <section>
+        <h2>시사점과 권고</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>권고</th>
+                <th>근거</th>
+                <th>예상 효과</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{무엇을 하자}}</td>
+                <td>{{어떤 발견에서}}</td>
+                <td>{{얼마나}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>한계</h2>
+        <!-- 이 절을 지우지 않는다. 한계 없는 분석은 검토받지 못한 분석으로 읽힌다. -->
+        <ul>
+          <li>{{이 분석이 답하지 못하는 것}}</li>
+        </ul>
+      </section>
+
+      <!-- ══ 프리셋 B. 회계·재무 보고서 ══════════════════════════════════ -->
+      <!-- 숫자가 주인공이다. 단위와 기준일을 표마다 명시한다. -->
+      <section>
+        <h2>재무 요약</h2>
+        <div class="stats">
+          <div class="stat">
+            <span class="value">{{금액}}</span><span class="label">매출</span>
+            <span class="delta pos">▲ {{전년 대비}}</span>
+          </div>
+          <div class="stat">
+            <span class="value">{{금액}}</span><span class="label">영업이익</span>
+            <span class="delta neg">▼ {{전년 대비}}</span>
+          </div>
+          <div class="stat">
+            <span class="value">{{비율}}</span><span class="label">영업이익률</span>
+            <span class="delta flat">— {{전년 대비}}</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>손익 계산</h2>
+        <div class="table-wrap">
+          <table class="num">
+            <caption>
+              {{기간}} 손익계산서 요약
+            </caption>
+            <thead>
+              <tr>
+                <th>계정</th>
+                <th>당기</th>
+                <th>전기</th>
+                <th>증감</th>
+                <th>증감률</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>매출액</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+                <td class="delta pos">▲ {{금액}}</td>
+                <td class="delta pos">▲ {{%}}</td>
+              </tr>
+              <tr>
+                <td class="indent">{{제품 매출}}</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+                <td class="delta pos">▲ {{금액}}</td>
+                <td class="delta pos">▲ {{%}}</td>
+              </tr>
+              <tr>
+                <td>매출원가</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+                <td class="delta neg">▼ {{금액}}</td>
+                <td class="delta neg">▼ {{%}}</td>
+              </tr>
+              <tr class="subtotal">
+                <td>매출총이익</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+                <td class="delta pos">▲ {{금액}}</td>
+                <td class="delta pos">▲ {{%}}</td>
+              </tr>
+              <tr>
+                <td>판매관리비</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+                <td class="delta flat">— {{금액}}</td>
+                <td class="delta flat">— {{%}}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>영업이익</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+                <td class="delta pos">▲ {{금액}}</td>
+                <td class="delta pos">▲ {{%}}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="table-note">단위: {{백만 원}} · 기준일: {{YYYY-MM-DD}} · {{감사 전 수치}}</p>
+      </section>
+
+      <section>
+        <h2>주요 증감 사유</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>계정</th>
+                <th>증감</th>
+                <th>사유</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{계정}}</td>
+                <td class="delta neg">▼ {{금액}}</td>
+                <td>{{무슨 일이 있었는가}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>특이사항</h2>
+        <div class="callout warn">
+          <span class="label">주의</span>
+          <p>{{일회성 손익·회계 처리 변경·소송 등 숫자만 봐서는 안 보이는 것}}</p>
+        </div>
+      </section>
+
+      <!-- ══ 프리셋 C. 현황 보고 (주간·월간) ════════════════════════════ -->
+      <!-- 지난 기간에 무엇이 됐고, 무엇이 막혔고, 다음에 무엇을 하는가. -->
+      <section>
+        <h2>이번 {{주}} 진척</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>과제</th>
+                <th>상태</th>
+                <th>진척</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{과제}}</td>
+                <td><span class="badge done">완료</span></td>
+                <td>100%</td>
+                <td>{{한 줄}}</td>
+              </tr>
+              <tr>
+                <td>{{과제}}</td>
+                <td><span class="badge going">진행</span></td>
+                <td>{{%}}</td>
+                <td>{{한 줄}}</td>
+              </tr>
+              <tr>
+                <td>{{과제}}</td>
+                <td><span class="badge risk">지연</span></td>
+                <td>{{%}}</td>
+                <td>{{한 줄}}</td>
+              </tr>
+              <tr>
+                <td>{{과제}}</td>
+                <td><span class="badge hold">보류</span></td>
+                <td>—</td>
+                <td>{{한 줄}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>이슈와 리스크</h2>
+        <!-- 결정을 요구하는 항목만 쓴다. 공유만 할 것은 비고로 내린다. -->
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>이슈</th>
+                <th>영향</th>
+                <th>필요한 결정</th>
+                <th>기한</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{무엇이 막혔는가}}</td>
+                <td>{{일정·비용·품질에 얼마나}}</td>
+                <td>{{누가 무엇을 정해줘야 하는가}}</td>
+                <td>{{YYYY-MM-DD}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>다음 {{주}} 계획</h2>
+        <ol class="timeline">
+          <li>
+            <span class="when">{{시점}}</span>
+            <span class="what">{{무엇을}}</span>
+            <p>{{설명}}</p>
+          </li>
+        </ol>
+      </section>
+
+      <!-- ══ 프리셋 D. 제안서 ════════════════════════════════════════════ -->
+      <!-- 승인을 받으러 가는 문서다. 요청 사항을 마지막에 명시한다. -->
+      <section>
+        <h2>문제</h2>
+        <p>{{지금 무엇이 문제이고, 그대로 두면 어떻게 되는가}}</p>
+        <div class="stats">
+          <div class="stat">
+            <span class="value">{{숫자}}</span><span class="label">{{문제의 크기}}</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>제안</h2>
+        <p>{{무엇을 하자는 것인가}}</p>
+        <h3>검토한 대안</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>안</th>
+                <th>비용</th>
+                <th>기간</th>
+                <th>선택 여부</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{1안}}</td>
+                <td>{{금액}}</td>
+                <td>{{기간}}</td>
+                <td><span class="badge done">채택</span></td>
+              </tr>
+              <tr>
+                <td>{{2안}}</td>
+                <td>{{금액}}</td>
+                <td>{{기간}}</td>
+                <td>{{탈락 사유}}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>비용과 일정</h2>
+        <div class="table-wrap">
+          <table class="num">
+            <thead>
+              <tr>
+                <th>항목</th>
+                <th>{{1년차}}</th>
+                <th>{{2년차}}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>{{항목}}</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>합계</td>
+                <td>{{금액}}</td>
+                <td>{{금액}}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="table-note">단위: {{백만 원}}</p>
+      </section>
+
+      <section>
+        <h2>요청 사항</h2>
+        <div class="callout emph">
+          <span class="label">결정 요청</span>
+          <p>{{누가 언제까지 무엇을 승인해줘야 하는가}}</p>
+        </div>
+      </section>
+    </template>
+    <!-- PRESET:END -->
 
     <!-- PALETTE:START — 부품 창고. 필요한 것만 위로 복사하고, 산출물에서는 이 구역을 통째로 지운다. -->
     <template>
@@ -588,10 +1281,64 @@
         </table>
       </div>
 
-      <!-- 통계 타일 — .stat 을 2~4개 -->
+      <!-- 숫자 표 — table.num. 첫 열만 왼쪽, 나머지는 자동으로 오른쪽 정렬된다.
+           tr.subtotal 은 소계, tfoot 은 합계. td.indent 는 하위 계정.
+           단위와 기준일은 .table-note 로 표 밖에 적는다. -->
+      <div class="table-wrap">
+        <table class="num">
+          <caption>
+            {{표 제목}}
+          </caption>
+          <thead>
+            <tr>
+              <th>{{항목}}</th>
+              <th>{{당기}}</th>
+              <th>{{전기}}</th>
+              <th>증감</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{{항목}}</td>
+              <td>{{금액}}</td>
+              <td>{{금액}}</td>
+              <td class="delta pos">▲ {{금액}}</td>
+            </tr>
+            <tr class="subtotal">
+              <td>{{소계}}</td>
+              <td>{{금액}}</td>
+              <td>{{금액}}</td>
+              <td class="delta neg">▼ {{금액}}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>합계</td>
+              <td>{{금액}}</td>
+              <td>{{금액}}</td>
+              <td class="delta flat">— {{금액}}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p class="table-note">단위: {{백만 원}} · 기준일: {{YYYY-MM-DD}}</p>
+
+      <!-- 증감 표기 — 색만으로 구분하지 않는다. ▲ 증가 / ▼ 감소 / — 변동 없음 -->
+      <span class="delta pos">▲ {{값}}</span>
+      <span class="delta neg">▼ {{값}}</span>
+      <span class="delta flat">— {{값}}</span>
+
+      <!-- 상태 배지 — done | going | risk | hold -->
+      <span class="badge done">완료</span>
+      <span class="badge going">진행</span>
+      <span class="badge risk">지연</span>
+      <span class="badge hold">보류</span>
+
+      <!-- 통계 타일 — .stat 을 2~4개. .delta 줄은 없어도 된다 -->
       <div class="stats">
         <div class="stat">
           <span class="value">{{숫자}}</span><span class="label">{{라벨}}</span>
+          <span class="delta pos">▲ {{증감}}</span>
         </div>
         <div class="stat">
           <span class="value">{{숫자}}</span><span class="label">{{라벨}}</span>
@@ -658,6 +1405,9 @@
       <svg class="sparkline" viewBox="0 0 100 30" preserveAspectRatio="none" aria-hidden="true">
         <polyline points="0,24 25,16 50,19 75,8 100,3" />
       </svg>
+
+      <!-- 인쇄에서 여기부터 새 장 -->
+      <div class="page-break"></div>
     </template>
     <!-- PALETTE:END -->
   </body>
