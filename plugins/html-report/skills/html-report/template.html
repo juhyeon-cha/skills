@@ -696,6 +696,13 @@
       .refs h2 {
         font-size: 1rem;
       }
+      /* 제목만 줄이면 2px --fg 괘선이 그 블록에서 가장 큰 목소리로 남는다.
+         괘선은 main > section:not(.summary) > h2 가 쥐고 있어 .refs h2 로는
+         이기지 못하므로, 같은 자식 결합자 형태로 낮춘다. */
+      main > section.refs > h2 {
+        border-bottom-width: 1px;
+        border-bottom-color: var(--border);
+      }
       .refs a {
         text-decoration: underline;
         text-underline-offset: 2px;
