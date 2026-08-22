@@ -111,9 +111,9 @@ description: 회사 보고·공유용 HTML 자료 한 장을 `template.html` 에
 **외부 참조는 하나도 두지 않는다.** CDN, 웹폰트, 원격 이미지, `fetch` 전부 안 된다.
 이미지는 `data:` URI 로 인라인한다. 나중에 아티팩트로 올려도 그대로 열린다.
 
-## 7. 검증 — 실증 한 번과 grep 두 줄
+## 7. 검증 — 할 수 있는 것만 하고, 못 한 것은 못 했다고 쓴다
 
-만든 파일을 **실제로 열어본다.** 그리고:
+### 반드시 돌린다
 
 ```bash
 grep -nE '\{\{|SECTION:|PRESET:|PALETTE:' <만든 파일>   # 아무것도 안 나와야 한다
@@ -129,6 +129,40 @@ grep -nE 'https?://' <만든 파일>                          # 본문 링크만
 
 **출력을 `head` 나 개수로 줄여 읽지 않는다.** 없어야 할 것을 확인하는 검사라, 잘린 목록의
 침묵은 증거가 아니다.
+
+태그가 닫혔는지도 본다. 표를 복제하다 `</tr>` 하나를 빠뜨리면 그 아래가 통째로 무너진다:
+
+```bash
+python3 - <<'EOF'
+from html.parser import HTMLParser
+VOID={'meta','link','br','hr','img','input','source','area','base','col','embed','param',
+      'track','wbr','polyline','path','circle','rect','line'}
+class P(HTMLParser):
+    def __init__(s): super().__init__(convert_charrefs=True); s.st=[]
+    def handle_starttag(s,t,a):
+        if t not in VOID: s.st.append((t,s.getpos()[0]))
+    def handle_endtag(s,t):
+        if t in VOID: return
+        if not s.st: print(f"line {s.getpos()[0]}: </{t}> 짝 없음"); return
+        o,l=s.st.pop()
+        if o!=t: print(f"line {s.getpos()[0]}: </{t}> 인데 열린 것은 <{o}> (line {l})")
+p=P(); p.feed(open('<만든 파일>',encoding='utf-8').read())
+for t,l in p.st: print(f"line {l}: <{t}> 안 닫힘")
+print('태그 균형 OK' if not p.st else '')
+EOF
+```
+
+### 렌더는 확인할 수 있을 때만 확인한다
+
+**"열어봤다"고 쓰려면 실제로 픽셀을 봤어야 한다.** 파일을 만든 것은 렌더를 본 것이 아니다.
+
+- headless 브라우저가 있으면 스크린샷을 찍어 눈으로 본다. 예:
+  `<브라우저> --headless=new --screenshot=/tmp/shot.png --window-size=1000,1500 <만든 파일>`
+- 인쇄 결과를 봐야 하면 `--print-to-pdf` 로 뽑는다. 다만 **PDF 바이트를 뒤져 배경색이
+  들어갔는지 판정하려 들지 않는다** — 색면과 글자색이 같은 연산자로 기록돼 구분되지 않는다.
+  인쇄 스타일을 보려면 `@media print` 를 `@media all` 로 바꾼 사본을 렌더하는 편이 확실하다.
+- 아무것도 없으면 위 grep·태그 검사까지만 하고, **"렌더는 확인하지 못했다"고 보고에 적는다.**
+  사람에게 열어보라고 경로를 알려준다.
 
 ## 8. 부품
 
