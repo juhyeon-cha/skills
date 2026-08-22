@@ -61,10 +61,14 @@
       }
 
       /* 다크에서 바뀌는 값만 나열한다. 파생 토큰은 자동으로 따라온다.
-         두 다크 블록 모두 screen 에 가둔다. 종이에는 다크 배색을 쓰지 않고,
-         가두지 않으면 인쇄가 다크를 물고 간다 — :root:not([data-theme='light'])
-         는 명시도 (0,2,0) 이라 @media print 의 :root (0,1,0) 를 이기고, 미디어
-         타입은 명시도에 기여하지 않아 print 블록을 뒤에 둬도 뒤집히지 않는다. */
+         두 다크 블록 모두 screen 에 가둔다. 종이에는 다크 배색을 쓸 일이 없다.
+         가두지 않으면 명시도가 이렇게 된다: :root:not([data-theme='light']) 는
+         (0,2,0) 이라 @media print 의 :root (0,1,0) 를 이기고, 미디어 타입은
+         명시도에 기여하지 않아 print 블록을 뒤에 둬도 뒤집히지 않는다.
+         다만 그 싸움에 도달하려면 엔진이 인쇄에서 prefers-color-scheme 을
+         light 로 강제하지 않아야 한다. Chromium 은 강제하므로 거기서는 증상이
+         나타나지 않는다(Edge 151 로 실측 — 가두기 전에도 인쇄는 흰 바탕이었다).
+         WebKit·Gecko 가 어떤지는 재지 못했다. 강제에 기대지 않으려고 가둔다. */
       @media screen and (prefers-color-scheme: dark) {
         :root:not([data-theme='light']) {
           --brand: var(--brand-dark);

@@ -198,6 +198,11 @@ python3 finalize.py <초안>.html > <산출물>.html; echo "rc=$?"
   인쇄 스타일을 보려면 사본에서 `@media print` 를 `@media all` 로, **`@media screen` 을
   `@media not all` 로** 바꿔 렌더한다. 뒤엣것을 빼먹으면 종이에는 적용되지 않을 다크 배색이
   섞여 든다 — 다크 팔레트가 `@media screen` 안에 있기 때문이다.
+- **이 흉내는 Chromium 이 인쇄에서 하는 일 하나를 재현하지 못한다.** Chromium 은 인쇄할 때
+  `prefers-color-scheme` 을 light 로 강제한다(Edge 151 실측). 그래서 다크를 선호하는
+  기기에서 흉내를 돌리면 실제 인쇄보다 어둡게 나온다 — **흉내가 다크로 나와도 Chromium
+  실제 인쇄는 라이트다.** 배색이 걸린 판정이면 `--print-to-pdf` 로 뽑은 실제 인쇄를 함께
+  본다. (WebKit·Gecko 도 강제하는지는 재지 못했다)
 - 아무것도 없으면 위 grep·태그 검사까지만 하고, **"렌더는 확인하지 못했다"고 보고에 적는다.**
   사람에게 열어보라고 경로를 알려준다.
 
