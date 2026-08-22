@@ -195,7 +195,9 @@ python3 finalize.py <초안>.html > <산출물>.html; echo "rc=$?"
   `<브라우저> --headless=new --screenshot=/tmp/shot.png --window-size=1000,1500 <만든 파일>`
 - 인쇄 결과를 봐야 하면 `--print-to-pdf` 로 뽑는다. 다만 **PDF 바이트를 뒤져 배경색이
   들어갔는지 판정하려 들지 않는다** — 색면과 글자색이 같은 연산자로 기록돼 구분되지 않는다.
-  인쇄 스타일을 보려면 `@media print` 를 `@media all` 로 바꾼 사본을 렌더하는 편이 확실하다.
+  인쇄 스타일을 보려면 사본에서 `@media print` 를 `@media all` 로, **`@media screen` 을
+  `@media not all` 로** 바꿔 렌더한다. 뒤엣것을 빼먹으면 종이에는 적용되지 않을 다크 배색이
+  섞여 든다 — 다크 팔레트가 `@media screen` 안에 있기 때문이다.
 - 아무것도 없으면 위 grep·태그 검사까지만 하고, **"렌더는 확인하지 못했다"고 보고에 적는다.**
   사람에게 열어보라고 경로를 알려준다.
 

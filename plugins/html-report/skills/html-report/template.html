@@ -60,8 +60,12 @@
         --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
       }
 
-      /* 다크에서 바뀌는 값만 나열한다. 파생 토큰은 자동으로 따라온다. */
-      @media (prefers-color-scheme: dark) {
+      /* 다크에서 바뀌는 값만 나열한다. 파생 토큰은 자동으로 따라온다.
+         두 다크 블록 모두 screen 에 가둔다. 종이에는 다크 배색을 쓰지 않고,
+         가두지 않으면 인쇄가 다크를 물고 간다 — :root:not([data-theme='light'])
+         는 명시도 (0,2,0) 이라 @media print 의 :root (0,1,0) 를 이기고, 미디어
+         타입은 명시도에 기여하지 않아 print 블록을 뒤에 둬도 뒤집히지 않는다. */
+      @media screen and (prefers-color-scheme: dark) {
         :root:not([data-theme='light']) {
           --brand: var(--brand-dark);
           --bg: #131316;
@@ -76,18 +80,20 @@
           --neg: #c98d8d;
         }
       }
-      :root[data-theme='dark'] {
-        --brand: var(--brand-dark);
-        --bg: #131316;
-        --surface: #1a1a1e;
-        --surface-2: #232329;
-        --fg: #ebebee;
-        --fg-muted: #9b9ba4;
-        --border: #303038;
-        --info: #8fa8c4;
-        --warn: #c4a05c;
-        --pos: #7fae90;
-        --neg: #c98d8d;
+      @media screen {
+        :root[data-theme='dark'] {
+          --brand: var(--brand-dark);
+          --bg: #131316;
+          --surface: #1a1a1e;
+          --surface-2: #232329;
+          --fg: #ebebee;
+          --fg-muted: #9b9ba4;
+          --border: #303038;
+          --info: #8fa8c4;
+          --warn: #c4a05c;
+          --pos: #7fae90;
+          --neg: #c98d8d;
+        }
       }
 
       /* ── 바탕 ──────────────────────────────────────────────────────────── */
