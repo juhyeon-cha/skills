@@ -1,0 +1,1239 @@
+<!doctype html>
+<!--
+  폰트 고르기용 깡통. 산출물이 아니다.
+
+  이 파일만 외부 참조(CDN)를 허용한다. SKILL.md 의 "외부 참조를 하나도 두지 않는다"는
+  산출물에 걸리는 규칙이고, 여기는 그 예외다 — 사용자가 폰트를 고르면 그때 내려받아
+  embed-font.py 로 임베드하므로 이 CDN 참조가 산출물로 새지 않는다.
+
+  아래 <style> 두 벌 중 첫 벌은 template.html 의 <style> 를 그대로 복사한 것이다
+  — template.html 21~853행이 이 파일 32~864행이다. 갈라졌는지는 한 줄로 잡는다:
+    diff <(sed -n '21,853p' template.html) <(sed -n '32,864p' preview.html)
+  두 번째 <style> 만 이 파일 것이다(@font-face · 폰트 전환 · 툴바).
+  본문은 template.html 의 회계·재무 프리셋을 가짜 숫자로 채운 것이다.
+
+  CDN URL 은 2026-08-22 에 전부 http 200 + wOF2 매직으로 확인했다.
+  마루부리 woff2 변환본에는 원본 OTF 에 있던 tnum(고정폭 숫자)이 빠져 있다 —
+  마루부리로 볼 때 표 숫자 폭이 고르지 않은 것은 폰트가 아니라 변환본 탓이다.
+  리디바탕은 굵기가 1벌뿐이라 600·700 은 브라우저 합성 볼드로 나온다.
+-->
+<html lang="ko" data-font="pretendard">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>폰트 프리뷰 — 회계 보고서 샘플</title>
+    <!-- 본고딕만 Google Fonts CSS API 로 부른다. @fontsource 조각 URL 은 200 이 뜨지만
+         한글 2,350자만 들어 있고 OpenType 피처가 날아가 있다(fontTools 확인). -->
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&amp;display=swap"
+    />
+    <style>
+      /* ══ BRAND — 색을 바꾸는 곳은 여기 네 줄뿐이다 ═══════════════════════
+         기본은 무채색(zinc). 회사 BI 색으로 바꾸려면 이 네 값만 교체한다.
+         --brand      : 라이트 배경 위에서 쓸 색. 흰 바탕 대비 4.5:1 이상.
+         --brand-dark : 어두운 배경 위에서 쓸 색. 보통 같은 색조의 밝은 단계.
+         --band       : 표지와 꼬리말 색면. 어두운 색으로 둔다.
+         --band-fg    : 그 색면 위의 글자색. --band 대비 4.5:1 이상이어야 한다.
+         나머지 강조·연한 배경·막대·링크는 전부 color-mix 로 여기서 파생된다. */
+      :root {
+        --brand: #3f3f46;
+        --brand-dark: #a1a1aa;
+        --band: #26262b;
+        --band-fg: #ffffff;
+      }
+
+      /* ── 토큰: 라이트가 기본, 다크는 두 경로 모두에서 덮는다 ────────────── */
+      :root {
+        --bg: #f7f7f8;
+        --surface: #ffffff;
+        --surface-2: #f1f1f3;
+        --fg: #18181b;
+        --fg-muted: #6b6b73;
+        --border: #e0e0e4;
+
+        /* 의미색 — 브랜드와 무관하다. 무채색 기조에 맞춰 채도를 낮게 잡았다. */
+        --info: #40566f;
+        --warn: #7f6320;
+        --pos: #3f6349;
+        --neg: #8a4444;
+
+        /* 파생 — 손대지 않는다 */
+        --accent: var(--brand);
+        --accent-soft: color-mix(in srgb, var(--brand) 10%, var(--surface));
+        --info-soft: color-mix(in srgb, var(--info) 10%, var(--surface));
+        --warn-soft: color-mix(in srgb, var(--warn) 10%, var(--surface));
+        --band-muted: color-mix(in srgb, var(--band-fg) 62%, var(--band));
+        --band-line: color-mix(in srgb, var(--band-fg) 22%, var(--band));
+
+        --radius: 8px;
+        --measure: 48rem;
+        /* 첫 자리는 embed-font.py 가 심는 CSS family 이름이다(폰트키와 무관하게
+           'ReportSans' 고정). 뒤의 시스템 폰트는 심은 뒤에도 지우지 마라 —
+           fonts/FONT-LICENSE.md 의 실측 기록으로 두 폰트 다 한자가 0자다. 심어도
+           한자는 임베드 폰트에 없어서 글자 단위로 이 뒤쪽 폰트로 떨어진다. */
+        --font:
+          'ReportSans',
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', 'Apple SD Gothic Neo',
+          'Malgun Gothic', sans-serif;
+        --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+      }
+
+      /* 다크에서 바뀌는 값만 나열한다. 파생 토큰은 자동으로 따라온다.
+         두 다크 블록 모두 screen 에 가둔다. 종이에는 다크 배색을 쓸 일이 없다.
+         가두지 않으면 명시도가 이렇게 된다: :root:not([data-theme='light']) 는
+         (0,2,0) 이라 @media print 의 :root (0,1,0) 를 이기고, 미디어 타입은
+         명시도에 기여하지 않아 print 블록을 뒤에 둬도 뒤집히지 않는다.
+         다만 두 경로의 사정이 다르다(Edge 151, --print-to-pdf 의 색 연산자로 실측.
+         바탕색은 신호가 못 된다 — Chrome 은 기본적으로 배경을 인쇄하지 않아
+         강제가 없어도 희게 나온다. 글자색으로 본다).
+         · prefers-color-scheme: Chromium 이 인쇄에서 light 로 강제하므로 이
+           싸움에 도달하지 않는다. 거기서는 가두기 전에도 증상이 없었다.
+         · data-theme='dark': 미디어 특성이 아니라 속성 셀렉터라 그 강제가 닿지
+           않는다. 가두기 전에는 인쇄 PDF 에 다크 팔레트가 그대로 실렸다
+           (--fg 의 #ebebee 포함 12색 → 가둔 뒤 11색, #ebebee 없음).
+         WebKit·Gecko 는 재지 못했다. 강제에 기대지 않으려고 둘 다 가둔다. */
+      @media screen and (prefers-color-scheme: dark) {
+        :root:not([data-theme='light']) {
+          --brand: var(--brand-dark);
+          --bg: #131316;
+          --surface: #1a1a1e;
+          --surface-2: #232329;
+          --fg: #ebebee;
+          --fg-muted: #9b9ba4;
+          --border: #303038;
+          --info: #8fa8c4;
+          --warn: #c4a05c;
+          --pos: #7fae90;
+          --neg: #c98d8d;
+        }
+      }
+      @media screen {
+        :root[data-theme='dark'] {
+          --brand: var(--brand-dark);
+          --bg: #131316;
+          --surface: #1a1a1e;
+          --surface-2: #232329;
+          --fg: #ebebee;
+          --fg-muted: #9b9ba4;
+          --border: #303038;
+          --info: #8fa8c4;
+          --warn: #c4a05c;
+          --pos: #7fae90;
+          --neg: #c98d8d;
+        }
+      }
+
+      /* ── 바탕 ──────────────────────────────────────────────────────────── */
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: var(--font);
+        font-size: 16px;
+        line-height: 1.7;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        max-width: var(--measure);
+        margin: 0 auto;
+        padding: 3.5rem 1.25rem 6rem;
+      }
+      section {
+        margin: 3rem 0;
+      }
+      h1,
+      h2,
+      h3 {
+        line-height: 1.3;
+        letter-spacing: -0.01em;
+        margin: 0 0 0.6rem;
+      }
+      h1 {
+        font-size: 2rem;
+      }
+      h2 {
+        font-size: 1.32rem;
+        padding-bottom: 0.4rem;
+        border-bottom: 1px solid var(--border);
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin-top: 2rem;
+      }
+      p {
+        margin: 0 0 1rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      ul,
+      ol {
+        padding-left: 1.3rem;
+      }
+      li {
+        margin: 0.35rem 0;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--border);
+        margin: 3rem 0;
+      }
+      .muted {
+        color: var(--fg-muted);
+      }
+      .lede {
+        font-size: 1.12rem;
+        color: var(--fg-muted);
+      }
+
+      /* ── 표지·꼬리말: 색면 ─────────────────────────────────────────────── */
+      /* 배경만 화면 끝까지 퍼뜨리고 글은 본문 폭 안에 둔다. box-shadow 로 띠를
+         만들고 clip-path 로 위아래를 잘라 다른 섹션까지 번지지 않게 막는다. */
+      .cover {
+        background: var(--band);
+        color: var(--band-fg);
+        box-shadow: 0 0 0 100vmax var(--band);
+        clip-path: inset(-3.5rem -100vmax 0 -100vmax);
+        padding: 0.5rem 0 2.2rem;
+        margin: 0 0 5rem;
+      }
+      .cover .eyebrow {
+        font-size: 0.78rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--band-muted);
+        margin: 0 0 0.7rem;
+      }
+      /* 제목과 보안등급을 같은 줄에 둔다. 등급은 오른쪽 위에 붙는다. */
+      .cover-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+      .cover-head h1 {
+        flex: 1;
+        font-size: 2.3rem;
+        margin: 0;
+      }
+      .classification {
+        display: inline-block;
+        vertical-align: 0.08em;
+        padding: 0.1rem 0.45rem;
+        border: 1px solid currentColor;
+        border-radius: 3px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        white-space: nowrap;
+        color: #ff7676;
+      }
+      .cover-head .classification {
+        flex: none;
+        margin-top: 0.35rem;
+      }
+      .cover .lede {
+        color: var(--band-muted);
+        margin: 0.6rem 0 0;
+      }
+      /* 문서 메타 — 누가 언제 썼는지만 남긴다. 제목을 이기지 않게 작고 흐리게. */
+      .docmeta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.3rem 1.6rem;
+        margin: 1.6rem 0 0;
+        padding-top: 1rem;
+        border-top: 1px solid var(--band-line);
+        font-size: 0.78rem;
+        color: var(--band-muted);
+      }
+      .docmeta > div {
+        display: flex;
+        gap: 0.4rem;
+      }
+      .docmeta dt {
+        opacity: 0.7;
+      }
+      .docmeta dd {
+        margin: 0;
+      }
+
+      /* 꼬리말 — 표지와 같은 색면으로 문서의 끝을 맺는다 */
+      .colophon {
+        background: var(--band);
+        color: var(--band-muted);
+        box-shadow: 0 0 0 100vmax var(--band);
+        clip-path: inset(0 -100vmax -100vmax -100vmax);
+        margin: 5rem 0 0;
+        padding: 1.6rem 0 2rem;
+        font-size: 0.8rem;
+      }
+      .colophon p {
+        margin: 0 0 0.35rem;
+      }
+      .colophon > :last-child {
+        margin-bottom: 0;
+      }
+      .colophon .notice {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        color: var(--band-fg);
+      }
+
+      /* ── 섹션 번호 ─────────────────────────────────────────────────────── */
+      /* 목차 없이도 위치가 잡히게 본문 섹션에만 번호를 매긴다.
+         한눈에·꼬리말·참고는 번호를 받지 않는다 — 참고는 본문의 근거지 본문이
+         아니라서, 번호를 주면 글자만 작아지고 번호가 제목만 한 크기로 남는다.
+
+         세 규칙에 :not(.refs) 를 함께 거는 이유는 규칙마다 다르다. 하나라도
+         빠뜨리면 조용히 되돌아가는 것이 있다.
+         · counter-increment 만 빼면 ::before 가 앞 섹션의 번호를 그대로 찍는다.
+         · 아래 h2 규칙은 번호 칸(grid)만 쥐고 있는 것이 아니라 2px var(--fg)
+           괘선을 함께 쥐고 있다. 여기서 .refs 를 빼지 않으면 참고 제목 아래에
+           본문과 똑같은 굵은 검은 괘선이 걸린다 — 참고를 부가 정보로 낮추면서
+           없앤 바로 그것이다. 한동안은 .refs 전용 규칙이 그 위를 덮고 있었지만
+           그것은 base h2 와 같은 값이라 지웠다. **이제 이 :not(.refs) 가 참고
+           제목의 얇은 괘선을 지키는 유일한 규칙이다** — 떼면 base h2 의 1px
+           var(--border) 를 2px var(--fg) 가 덮어 곧바로 돌아온다(대조군 실측). */
+      main {
+        counter-reset: sec;
+      }
+      main > section:not(.summary):not(.refs) {
+        counter-increment: sec;
+      }
+      main > section:not(.summary):not(.refs) > h2 {
+        display: grid;
+        grid-template-columns: 2.6rem 1fr;
+        align-items: baseline;
+        gap: 0.6rem;
+        border-bottom-width: 2px;
+        border-bottom-color: var(--fg);
+      }
+      main > section:not(.summary):not(.refs) > h2::before {
+        content: counter(sec, decimal-leading-zero);
+        font-size: 0.95rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        color: var(--fg-muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* 한눈에 */
+      .summary {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 1.25rem 1.5rem;
+      }
+      .summary ul {
+        margin: 0;
+      }
+
+      /* ── 부품: 콜아웃 ──────────────────────────────────────────────────── */
+      .callout {
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--fg-muted);
+        border-radius: var(--radius);
+        background: var(--surface-2);
+        padding: 0.9rem 1.2rem;
+        margin: 1.5rem 0;
+      }
+      .callout > :last-child {
+        margin-bottom: 0;
+      }
+      .callout .label {
+        display: block;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        margin-bottom: 0.3rem;
+      }
+      .callout.info {
+        border-left-color: var(--info);
+        background: var(--info-soft);
+      }
+      .callout.info .label {
+        color: var(--info);
+      }
+      .callout.warn {
+        border-left-color: var(--warn);
+        background: var(--warn-soft);
+      }
+      .callout.warn .label {
+        color: var(--warn);
+      }
+      .callout.emph {
+        border-left-color: var(--accent);
+        background: var(--accent-soft);
+      }
+      .callout.emph .label {
+        color: var(--accent);
+      }
+
+      /* ── 부품: 표 ──────────────────────────────────────────────────────── */
+      .table-wrap {
+        overflow-x: auto;
+        margin: 1.5rem 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        font-size: 0.92rem;
+      }
+      caption {
+        caption-side: top;
+        text-align: left;
+        padding: 0.7rem 0.9rem 0;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--fg-muted);
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.55rem 0.9rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      thead th {
+        background: var(--surface-2);
+        font-size: 0.8rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--fg-muted);
+        white-space: nowrap;
+      }
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      /* ── 부품: 숫자 표 (회계·재무) ─────────────────────────────────────── */
+      /* table.num — 첫 열은 계정·항목명, 나머지 열은 전부 숫자로 본다.
+         자릿수가 흔들리지 않게 tabular-nums 를 쓰고 오른쪽으로 붙인다. */
+      table.num th:not(:first-child),
+      table.num td:not(:first-child) {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      table.num tbody tr.subtotal td {
+        border-top: 1px solid var(--border);
+        font-weight: 600;
+      }
+      table.num tfoot td {
+        border-top: 2px solid var(--fg-muted);
+        border-bottom: 0;
+        background: var(--surface-2);
+        font-weight: 700;
+      }
+      /* 들여쓴 하위 계정 */
+      table.num td.indent {
+        padding-left: 2rem;
+        color: var(--fg-muted);
+      }
+      /* 증감 — 색만으로 구분하지 않는다. ▲▼ 기호를 반드시 같이 쓴다. */
+      .delta {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .delta.pos {
+        color: var(--pos);
+      }
+      .delta.neg {
+        color: var(--neg);
+      }
+      .delta.flat {
+        color: var(--fg-muted);
+      }
+      /* 각주 — 표 아래 단위·기준일 표기 */
+      .table-note {
+        margin: -0.9rem 0 1.5rem;
+        font-size: 0.8rem;
+        color: var(--fg-muted);
+      }
+
+      /* ── 부품: 통계 타일 ───────────────────────────────────────────────── */
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+        gap: 0.75rem;
+        margin: 1.5rem 0;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.1rem;
+      }
+      .stat .value {
+        display: block;
+        font-size: 1.8rem;
+        font-weight: 700;
+        line-height: 1.15;
+        letter-spacing: -0.02em;
+        font-variant-numeric: tabular-nums;
+      }
+      .stat .label {
+        display: block;
+        font-size: 0.82rem;
+        color: var(--fg-muted);
+        margin-top: 0.2rem;
+      }
+      .stat .delta {
+        display: block;
+        font-size: 0.82rem;
+        margin-top: 0.35rem;
+      }
+
+      /* ── 부품: 코드 ────────────────────────────────────────────────────── */
+      pre {
+        overflow-x: auto;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 1rem 1.1rem;
+        margin: 1.5rem 0;
+        font-size: 0.86rem;
+        line-height: 1.6;
+      }
+      code {
+        font-family: var(--font-mono);
+      }
+      :not(pre) > code {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 0.08em 0.35em;
+        font-size: 0.88em;
+      }
+
+      /* ── 부품: 인용 ────────────────────────────────────────────────────── */
+      blockquote {
+        margin: 1.75rem 0;
+        padding-left: 1.25rem;
+        border-left: 3px solid var(--border);
+        font-size: 1.04rem;
+      }
+      blockquote > :last-child {
+        margin-bottom: 0;
+      }
+      blockquote cite {
+        display: block;
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        font-style: normal;
+        color: var(--fg-muted);
+      }
+
+      /* ── 부품: 이미지 ──────────────────────────────────────────────────── */
+      figure {
+        margin: 1.75rem 0;
+      }
+      figure img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+      }
+      figcaption {
+        margin-top: 0.5rem;
+        font-size: 0.85rem;
+        color: var(--fg-muted);
+      }
+
+      /* ── 부품: 세로 타임라인 ───────────────────────────────────────────── */
+      .timeline {
+        list-style: none;
+        margin: 1.75rem 0;
+        padding: 0 0 0 1.35rem;
+        border-left: 1px solid var(--border);
+      }
+      .timeline > li {
+        position: relative;
+        margin: 0 0 1.5rem;
+      }
+      .timeline > li::before {
+        content: '';
+        position: absolute;
+        left: -1.72rem;
+        top: 0.58rem;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--accent);
+        box-shadow: 0 0 0 3px var(--bg);
+      }
+      .timeline .when {
+        display: block;
+        font-size: 0.8rem;
+        letter-spacing: 0.03em;
+        color: var(--fg-muted);
+      }
+      .timeline .what {
+        font-weight: 600;
+      }
+
+      /* ── 부품: 아코디언 ────────────────────────────────────────────────── */
+      details {
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        padding: 0.75rem 1.1rem;
+        margin: 0.6rem 0;
+      }
+      details > summary {
+        cursor: pointer;
+        font-weight: 600;
+        list-style-position: outside;
+      }
+      details[open] > summary {
+        margin-bottom: 0.6rem;
+      }
+      details > :last-child {
+        margin-bottom: 0;
+      }
+
+      /* ── 부품: 탭 (라디오 + CSS, JS 없음) ──────────────────────────────── */
+      /* 천장: role="tab" 도 화살표 키 이동도 없고, 감춰진 패널은 Ctrl+F 로 안 잡힌다.
+         검색돼야 하는 내용이면 탭 대신 h3 소제목을 쓴다. */
+      .tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 1.25rem;
+        margin: 1.75rem 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .tabs > input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .tabs > label {
+        order: 0;
+        cursor: pointer;
+        padding: 0.4rem 0;
+        margin-bottom: -1px;
+        font-size: 0.93rem;
+        font-weight: 600;
+        color: var(--fg-muted);
+        border-bottom: 2px solid transparent;
+      }
+      /* input 은 전부 label 앞에 오므로 `+ label` 은 짝이 어긋난다. checked 와 같은 짝짓기를 쓴다. */
+      .tabs > input:nth-of-type(1):focus-visible ~ label:nth-of-type(1),
+      .tabs > input:nth-of-type(2):focus-visible ~ label:nth-of-type(2),
+      .tabs > input:nth-of-type(3):focus-visible ~ label:nth-of-type(3),
+      .tabs > input:nth-of-type(4):focus-visible ~ label:nth-of-type(4) {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .tabs > .tab-panel {
+        order: 1;
+        display: none;
+        width: 100%;
+        padding: 1.1rem 0 1.5rem;
+      }
+      .tabs > input:nth-of-type(1):checked ~ label:nth-of-type(1),
+      .tabs > input:nth-of-type(2):checked ~ label:nth-of-type(2),
+      .tabs > input:nth-of-type(3):checked ~ label:nth-of-type(3),
+      .tabs > input:nth-of-type(4):checked ~ label:nth-of-type(4) {
+        color: var(--fg);
+        border-bottom-color: var(--accent);
+      }
+      .tabs > input:nth-of-type(1):checked ~ .tab-panel:nth-of-type(1),
+      .tabs > input:nth-of-type(2):checked ~ .tab-panel:nth-of-type(2),
+      .tabs > input:nth-of-type(3):checked ~ .tab-panel:nth-of-type(3),
+      .tabs > input:nth-of-type(4):checked ~ .tab-panel:nth-of-type(4) {
+        display: block;
+      }
+
+      /* ── 부품: 차트 ────────────────────────────────────────────────────── */
+      .bars {
+        margin: 1.75rem 0;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .bars > .row {
+        display: grid;
+        grid-template-columns: minmax(4rem, 8rem) 1fr auto;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 0.9rem;
+      }
+      .bars .name {
+        color: var(--fg-muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .bars .track {
+        background: var(--surface-2);
+        border-radius: 999px;
+        height: 0.7rem;
+        overflow: hidden;
+      }
+      .bars .fill {
+        display: block;
+        height: 100%;
+        width: var(--v);
+        background: var(--accent);
+        border-radius: 999px;
+      }
+      .bars .num {
+        font-variant-numeric: tabular-nums;
+        color: var(--fg-muted);
+      }
+      .sparkline {
+        display: inline-block;
+        vertical-align: middle;
+        width: 7rem;
+        height: 1.6rem;
+      }
+      .sparkline polyline {
+        fill: none;
+        stroke: var(--accent);
+        stroke-width: 2;
+        stroke-linejoin: round;
+        stroke-linecap: round;
+        vector-effect: non-scaling-stroke;
+      }
+
+      /* ── 부품: 진척 배지 ───────────────────────────────────────────────── */
+      /* 현황 보고의 상태 열. 색과 함께 글자가 상태를 말한다. */
+      .badge {
+        display: inline-block;
+        padding: 0.05rem 0.5rem;
+        border: 1px solid currentColor;
+        border-radius: 999px;
+        font-size: 0.76rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .badge.done {
+        color: var(--pos);
+      }
+      .badge.risk {
+        color: var(--neg);
+      }
+      .badge.hold {
+        color: var(--warn);
+      }
+      .badge.going {
+        color: var(--fg-muted);
+      }
+
+      /* ── 참고: 본문의 근거지 본문이 아니다 ─────────────────────────────── */
+      /* 작고 흐리게 — 필요한 사람만 내려와 읽는다. 색은 --fg-muted 그대로라
+         다크·인쇄 배색이 따라온다. 링크는 흐려져도 링크로 보이게 밑줄을 못박는다:
+         이 규칙이 인쇄의 a { text-decoration: none } 보다 명시도가 높아 종이에도
+         남는다. */
+      .refs {
+        font-size: 0.82rem;
+        color: var(--fg-muted);
+      }
+      .refs h2 {
+        font-size: 1rem;
+      }
+      .refs a {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
+      /* ── 인쇄: A4 보고서 ───────────────────────────────────────────────── */
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+      @media print {
+        :root {
+          --bg: #ffffff;
+          --surface: #ffffff;
+          --surface-2: #f4f4f5;
+        }
+        /* 색면은 종이에서 걷어낸다. A4 상단을 통째로 칠하면 토너를 크게 먹고
+           뒷면이 비치며, 흑백 출력에서는 글자가 뭉갠다. 화면의 색면이 하던
+           "여기서 문서가 시작하고 끝난다"는 신호는 굵은 괘선이 대신한다. */
+        .cover,
+        .colophon {
+          background: none;
+          box-shadow: none;
+          clip-path: none;
+          color: var(--fg);
+        }
+        .cover {
+          border-bottom: 2.5pt solid var(--fg);
+          padding: 0 0 0.8rem;
+          margin: 0 0 2rem;
+        }
+        .cover .eyebrow,
+        .cover .lede,
+        .cover .docmeta {
+          color: var(--fg-muted);
+        }
+        .cover .docmeta {
+          border-top-color: var(--border);
+        }
+        .colophon {
+          border-top: 1pt solid var(--border);
+          padding: 0.7rem 0 0;
+          margin: 2.5rem 0 0;
+          color: var(--fg-muted);
+          break-inside: avoid;
+        }
+        .colophon .notice {
+          color: var(--fg);
+        }
+        body {
+          font-size: 10.5pt;
+          line-height: 1.55;
+        }
+        main {
+          max-width: none;
+          padding: 0;
+        }
+        /* 감춘 탭 패널이 인쇄에서 사라지면 안 된다 */
+        .tabs > .tab-panel {
+          display: block;
+        }
+        details {
+          break-inside: avoid;
+        }
+        /* ── 페이지 나눔 ─────────────────────────────────────────────────
+           섹션을 통째로 묶지 않는다. 긴 섹션 하나가 다음 장으로 밀리면서
+           앞 장에 빈 공간이 크게 남는다. 잘리면 곤란한 작은 단위만 묶고,
+           문단은 고아줄을 막는다. */
+
+        /* 제목만 남고 내용이 다음 장으로 넘어가는 것을 막는다 */
+        h1,
+        h2,
+        h3,
+        caption {
+          break-after: avoid;
+        }
+        /* 문단 끝의 한 줄, 다음 장 첫머리의 한 줄을 남기지 않는다.
+           (Blink 계열만 지킨다. Firefox 는 무시한다) */
+        p,
+        li {
+          orphans: 3;
+          widows: 3;
+        }
+        /* 여러 장에 걸친 표는 장마다 머리행을 반복한다 */
+        thead {
+          display: table-header-group;
+        }
+        /* 합계 행이 표 본문과 떨어져 혼자 넘어가지 않게 한다 */
+        tfoot {
+          break-before: avoid;
+        }
+        /* 단위·기준일 각주는 표를 따라간다 */
+        .table-note {
+          break-before: avoid;
+        }
+        /* 통째로 잘리면 못 읽는 것들 */
+        tr,
+        .summary,
+        .stats,
+        .stat,
+        .bars,
+        .bars > .row,
+        .timeline > li,
+        .callout,
+        figure,
+        blockquote,
+        .colophon {
+          break-inside: avoid;
+        }
+        a {
+          text-decoration: none;
+        }
+        .page-break {
+          break-before: page;
+        }
+        .no-print {
+          display: none;
+        }
+      }
+    </style>
+    <style>
+      /* ══ 프리뷰 전용 ═══════════════════════════════════════════════════ */
+      /* 가족 이름에 Pv 접두사를 붙인다 — 같은 이름의 로컬 설치 폰트가 조용히
+         대신 그려지는 것을 막고, CDN 이 죽으면 시스템 폰트로 떨어져 눈에 띈다. */
+      /* font-display 는 전부 block 이다. swap 이면 버튼을 처음 누른 순간 CDN 을
+         받는 동안 폴백이 그 폰트인 척 그려진다 — 폰트를 고르는 화면에서 그것이
+         유일한 실패 방식이다. block 은 잠깐 안 보일 뿐 거짓말은 하지 않는다. */
+      @font-face {
+        font-family: 'PvPretendard';
+        font-weight: 400;
+        font-display: block;
+        src: url(https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Regular.woff2)
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'PvPretendard';
+        font-weight: 600;
+        font-display: block;
+        src: url(https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-SemiBold.woff2)
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'PvPretendard';
+        font-weight: 700;
+        font-display: block;
+        src: url(https://cdn.jsdelivr.net/npm/pretendard@1.3.9/dist/web/static/woff2/Pretendard-Bold.woff2)
+          format('woff2');
+      }
+
+      @font-face {
+        font-family: 'PvPaperlogy';
+        font-weight: 400;
+        font-display: block;
+        src: url(https://raw.githubusercontent.com/projectnoonnu/2408-3/v1.0/Paperlogy-4Regular.woff2)
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'PvPaperlogy';
+        font-weight: 600;
+        font-display: block;
+        src: url(https://raw.githubusercontent.com/projectnoonnu/2408-3/v1.0/Paperlogy-6SemiBold.woff2)
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'PvPaperlogy';
+        font-weight: 700;
+        font-display: block;
+        src: url(https://raw.githubusercontent.com/projectnoonnu/2408-3/v1.0/Paperlogy-7Bold.woff2)
+          format('woff2');
+      }
+
+      @font-face {
+        font-family: 'PvMaruBuri';
+        font-weight: 400;
+        font-display: block;
+        src: url(https://cdn.jsdelivr.net/gh/fonts-archive/MaruBuri@main/MaruBuri-Regular.woff2)
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'PvMaruBuri';
+        font-weight: 600;
+        font-display: block;
+        src: url(https://cdn.jsdelivr.net/gh/fonts-archive/MaruBuri@main/MaruBuri-SemiBold.woff2)
+          format('woff2');
+      }
+      @font-face {
+        font-family: 'PvMaruBuri';
+        font-weight: 700;
+        font-display: block;
+        src: url(https://cdn.jsdelivr.net/gh/fonts-archive/MaruBuri@main/MaruBuri-Bold.woff2)
+          format('woff2');
+      }
+
+      /* 리디바탕은 굵기가 이 한 벌뿐이다. 600·700 은 브라우저가 합성한다. */
+      @font-face {
+        font-family: 'PvRIDIBatang';
+        font-weight: 400;
+        font-display: block;
+        src: url(https://cdn.jsdelivr.net/gh/fonts-archive/RIDIBatang@main/RIDIBatang.woff2)
+          format('woff2');
+      }
+
+      /* 꼬리에 'Noto Sans KR' 을 넣지 않는다 — 위 link 로 이미 실려 있어서,
+         넣으면 "현재 시스템 폰트" 대조군이 몰래 본고딕으로 그려진다.
+         'Segoe UI' 는 system 스택에만 남긴다 — Windows 의 시스템 폰트라 대조군에
+         필요하다. 나머지 5종에 두면 폴백이 갈려 비교가 흐려진다.
+         noto 만 Pv 접두사가 없는 것은 이름을 Google Fonts CSS API 가 정해서다.
+         일관성을 이유로 손대지 마라 — 떨어질 대상이 설치본 Noto 라 같은 서체이고,
+         그래서 이 자리만은 접두사가 없어도 비교가 오염되지 않는다. */
+      :root[data-font='pretendard'] {
+        --font: 'PvPretendard', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      }
+      :root[data-font='paperlogy'] {
+        --font: 'PvPaperlogy', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      }
+      :root[data-font='noto'] {
+        --font: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      }
+      :root[data-font='maruburi'] {
+        --font: 'PvMaruBuri', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', serif;
+      }
+      :root[data-font='ridibatang'] {
+        --font: 'PvRIDIBatang', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', serif;
+      }
+      :root[data-font='system'] {
+        --font: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      }
+
+      /* 툴바는 시스템 폰트로 고정한다 — 고른 폰트가 조작부까지 흔들면 비교가 흐려진다 */
+      #fontbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.6rem 1.25rem;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        font-family: system-ui, -apple-system, sans-serif;
+      }
+      #fontbar .bar-label {
+        margin-right: 0.4rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--fg-muted);
+      }
+      #fontbar button {
+        cursor: pointer;
+        padding: 0.3rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface-2);
+        color: var(--fg);
+        font: inherit;
+        font-size: 0.85rem;
+      }
+      #fontbar button[aria-pressed='true'] {
+        background: var(--fg);
+        color: var(--bg);
+        border-color: var(--fg);
+      }
+      #fontbar .bar-note {
+        flex-basis: 100%;
+        margin: 0.35rem 0 0;
+        font-size: 0.76rem;
+        line-height: 1.55;
+        color: var(--fg-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="fontbar" class="no-print">
+      <span class="bar-label">폰트</span>
+      <button type="button" data-f="pretendard" aria-pressed="true">Pretendard</button>
+      <button type="button" data-f="paperlogy" aria-pressed="false">Paperlogy</button>
+      <button type="button" data-f="noto" aria-pressed="false">본고딕 Noto Sans KR</button>
+      <button type="button" data-f="maruburi" aria-pressed="false">마루부리</button>
+      <button type="button" data-f="ridibatang" aria-pressed="false">리디바탕</button>
+      <button type="button" data-f="system" aria-pressed="false">현재 시스템 폰트</button>
+      <p class="bar-note">
+        리디바탕은 굵기가 1벌뿐이라 합계행·KPI 의 굵은 글자는 브라우저 합성 볼드다.
+        마루부리 woff2 변환본은 원본 OTF 에 있던 tnum 이 빠져 있어 표 숫자 폭이 고르지
+        않게 보일 수 있다 — 폰트가 아니라 변환본 탓이다. 본고딕은 조각 URL 대신 Google
+        Fonts CSS API 로 부른다.
+      </p>
+    </div>
+
+    <main>
+      <header class="cover">
+        <p class="eyebrow">분기 재무 보고</p>
+        <div class="cover-head">
+          <h1>2026년 2분기 손익 보고</h1>
+          <span class="classification">대외비</span>
+        </div>
+        <p class="lede">매출 1,284억 · 영업이익 96억 — Zürich 법인 편입 첫 분기</p>
+        <dl class="docmeta">
+          <div><dt>부서</dt><dd>재무기획팀</dd></div>
+          <div><dt>작성일</dt><dd>2026-07-14</dd></div>
+          <div><dt>작성자</dt><dd>차주현</dd></div>
+        </dl>
+      </header>
+
+      <section class="summary">
+        <ul>
+          <li>매출 128,400백만 원으로 전년 동기 대비 11.0% 늘었다. 증가분의 34%는 Zürich 법인 편입 효과다.</li>
+          <li>영업이익률은 7.5%로 0.6%p 올랐다. 원가율 상승(68.7%)을 판관비 통제가 상쇄했다.</li>
+          <li>Café Nord 사업부는 매장 3곳 임차 종료로 매출이 △412 줄었다. 3분기부터 영향이 없다.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>재무 요약</h2>
+        <div class="stats">
+          <div class="stat">
+            <span class="value">1,284억</span><span class="label">매출</span>
+            <span class="delta pos">▲ 11.0%</span>
+          </div>
+          <div class="stat">
+            <span class="value">96억</span><span class="label">영업이익</span>
+            <span class="delta pos">▲ 20.7%</span>
+          </div>
+          <div class="stat">
+            <span class="value">7.5%</span><span class="label">영업이익률</span>
+            <span class="delta pos">▲ 0.6%p</span>
+          </div>
+          <div class="stat">
+            <span class="value">68.7%</span><span class="label">매출원가율</span>
+            <span class="delta neg">▲ 0.7%p</span>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>손익 계산</h2>
+        <div class="table-wrap">
+          <table class="num">
+            <caption>
+              2026년 2분기 손익계산서 요약
+            </caption>
+            <thead>
+              <tr>
+                <th>계정</th>
+                <th>당기</th>
+                <th>전기</th>
+                <th>증감</th>
+                <th>증감률</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>매출액</td>
+                <td>128,400</td>
+                <td>115,720</td>
+                <td class="delta pos">▲ 12,680</td>
+                <td class="delta pos">▲ 11.0%</td>
+              </tr>
+              <tr>
+                <td class="indent">제품 매출</td>
+                <td>96,310</td>
+                <td>88,940</td>
+                <td class="delta pos">▲ 7,370</td>
+                <td class="delta pos">▲ 8.3%</td>
+              </tr>
+              <tr>
+                <td class="indent">Zürich 법인</td>
+                <td>18,470</td>
+                <td>14,206</td>
+                <td class="delta pos">▲ 4,264</td>
+                <td class="delta pos">▲ 30.0%</td>
+              </tr>
+              <tr>
+                <td class="indent">기타 (Café Nord 포함)</td>
+                <td>13,620</td>
+                <td>12,574</td>
+                <td class="delta pos">▲ 1,046</td>
+                <td class="delta pos">▲ 8.3%</td>
+              </tr>
+              <tr>
+                <td>매출원가</td>
+                <td>88,196</td>
+                <td>79,842</td>
+                <td class="delta neg">▲ 8,354</td>
+                <td class="delta neg">▲ 10.5%</td>
+              </tr>
+              <tr class="subtotal">
+                <td>매출총이익</td>
+                <td>40,204</td>
+                <td>35,878</td>
+                <td class="delta pos">▲ 4,326</td>
+                <td class="delta pos">▲ 12.1%</td>
+              </tr>
+              <tr>
+                <td>판매관리비</td>
+                <td>30,592</td>
+                <td>27,913</td>
+                <td class="delta neg">▲ 2,679</td>
+                <td class="delta neg">▲ 9.6%</td>
+              </tr>
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>영업이익</td>
+                <td>9,612</td>
+                <td>7,965</td>
+                <td class="delta pos">▲ 1,647</td>
+                <td class="delta pos">▲ 20.7%</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+        <p class="table-note">단위: 백만 원 · 기준일: 2026-06-30 · 감사 전 수치 · 화살표는 증감 방향, 색은 손익 영향</p>
+      </section>
+
+      <section>
+        <h2>주요 증감 사유</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>계정</th>
+                <th>증감</th>
+                <th>사유</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Zürich 법인 매출</td>
+                <td class="delta pos">▲ 4,264</td>
+                <td>4월 지분 인수 완료로 연결 편입. 전기는 지분법 3개월치만 반영돼 있다.</td>
+              </tr>
+              <tr>
+                <td>판매관리비</td>
+                <td class="delta neg">▲ 2,679</td>
+                <td>편입 법인 인건비 1,880 과 통합 ERP 도입 비용 610 이 대부분이다.</td>
+              </tr>
+              <tr>
+                <td>Café Nord 매출</td>
+                <td class="delta neg">△ 412</td>
+                <td>Zürich·Genève 매장 3곳 임차 종료. 재계약하지 않기로 3월에 결정했다.</td>
+              </tr>
+              <tr>
+                <td>외화환산손실</td>
+                <td class="delta pos">▼ 178</td>
+                <td>CHF 헤지 비율을 60%에서 85%로 올린 효과다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="table-note">△ 는 회계 관례상 감소를 뜻한다. 표의 ▲▼ 와 섞여 있으니 폰트별로 세 기호가 다 보이는지 확인한다.</p>
+      </section>
+
+      <section>
+        <h2>특이사항</h2>
+        <div class="callout warn">
+          <span class="label">주의</span>
+          <p>
+            Zürich 법인 편입에 따른 염가매수차익 1,240 은 영업외수익이라 위 표에 없다.
+            당기순이익을 볼 때는 이 일회성 이익을 빼고 본다.
+          </p>
+        </div>
+      </section>
+
+      <section>
+        <h2>결론</h2>
+        <p>
+          외형 성장은 편입 효과가 크지만 영업이익률 개선 0.6%p 는 기존 사업에서 나왔다.
+          3분기는 편입 법인의 원가 구조 통합이 관건이다.
+        </p>
+      </section>
+
+      <footer class="colophon">
+        <p class="notice">
+          <span>이 문서는 대외비입니다. 수신자 외 열람·배포를 금합니다.</span>
+          <span class="classification">대외비</span>
+        </p>
+        <p>© 2026 Nordwerk AG. 재무기획팀 (finance@example.com)</p>
+      </footer>
+    </main>
+
+    <script>
+      const bar = document.getElementById('fontbar');
+      bar.addEventListener('click', (e) => {
+        const hit = e.target.closest('button[data-f]');
+        if (!hit) return;
+        document.documentElement.dataset.font = hit.dataset.f;
+        bar.querySelectorAll('button[data-f]').forEach((b) => b.setAttribute('aria-pressed', String(b === hit)));
+      });
+    </script>
+  </body>
+</html>
