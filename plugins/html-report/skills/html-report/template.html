@@ -807,7 +807,7 @@
         <p class="eyebrow">{{문서 종류}}</p>
         <div class="cover-head">
           <h1>{{제목}}</h1>
-          <!-- 보안등급이 필요 없으면 이 span 을 지운다 -->
+          <!-- 기본은 대외비다. 사용자가 공개 문서라고 명시할 때만 이 span 을 지운다 -->
           <span class="classification">{{대외비}}</span>
         </div>
         <p class="lede">{{한 줄 부제}}</p>
@@ -881,6 +881,7 @@
 
       <!-- SECTION: 꼬리말 | 선택 -->
       <footer class="colophon">
+        <!-- 대외비 문구와 배지도 기본으로 남긴다. 사용자가 공개 문서라고 명시할 때만 지운다 -->
         <p class="notice">
           <span>{{이 문서는 대외비입니다. 수신자 외 열람·배포를 금합니다.}}</span>
           <span class="classification">{{대외비}}</span>
