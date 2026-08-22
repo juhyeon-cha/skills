@@ -7,8 +7,8 @@
   embed-font.py 로 임베드하므로 이 CDN 참조가 산출물로 새지 않는다.
 
   아래 <style> 두 벌 중 첫 벌은 template.html 의 <style> 를 그대로 복사한 것이다
-  — template.html 21~853행이 이 파일 32~864행이다. 갈라졌는지는 한 줄로 잡는다:
-    diff <(sed -n '21,853p' template.html) <(sed -n '32,864p' preview.html)
+  — template.html 21~853행이 이 파일 37~869행이다. 갈라졌는지는 한 줄로 잡는다:
+    diff <(sed -n '21,853p' template.html) <(sed -n '37,869p' preview.html)
   두 번째 <style> 만 이 파일 것이다(@font-face · 폰트 전환 · 툴바).
   본문은 template.html 의 회계·재무 프리셋을 가짜 숫자로 채운 것이다.
 
@@ -22,8 +22,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>폰트 프리뷰 — 회계 보고서 샘플</title>
-    <!-- 본고딕만 Google Fonts CSS API 로 부른다. @fontsource 조각 URL 은 200 이 뜨지만
-         한글 2,350자만 들어 있고 OpenType 피처가 날아가 있다(fontTools 확인). -->
+    <!-- 본고딕만 Google Fonts CSS API 로 부른다. @fontsource 조각 URL 도 200 이 뜨지만
+         한글이 2,350자뿐이다(원본 OTF 는 11,172자) — 그 밖의 음절은 폴백으로 떨어진다.
+         조각의 실질 제약은 그 커버리지다. 피처는 원본 23개 중 9개가 남고
+         (calt ccmp kern liga locl vert vjmo vpal vrt2), 빠진 14개는 세로쓰기·전각/반각·
+         루비 쪽이라 가로쓰기 보고서와 무관하다. 표 숫자 정렬도 조각에서 그대로다 —
+         Noto 는 원본에도 tnum 이 없고 0~9 의 폭이 555 로 이미 같다.
+         (fontTools 4.63.0 으로 cmap·GSUB/GPOS·hmtx 실측, 2026-08-23) -->
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&amp;display=swap"
