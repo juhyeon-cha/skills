@@ -65,10 +65,15 @@
          가두지 않으면 명시도가 이렇게 된다: :root:not([data-theme='light']) 는
          (0,2,0) 이라 @media print 의 :root (0,1,0) 를 이기고, 미디어 타입은
          명시도에 기여하지 않아 print 블록을 뒤에 둬도 뒤집히지 않는다.
-         다만 그 싸움에 도달하려면 엔진이 인쇄에서 prefers-color-scheme 을
-         light 로 강제하지 않아야 한다. Chromium 은 강제하므로 거기서는 증상이
-         나타나지 않는다(Edge 151 로 실측 — 가두기 전에도 인쇄는 흰 바탕이었다).
-         WebKit·Gecko 가 어떤지는 재지 못했다. 강제에 기대지 않으려고 가둔다. */
+         다만 두 경로의 사정이 다르다(Edge 151, --print-to-pdf 의 색 연산자로 실측.
+         바탕색은 신호가 못 된다 — Chrome 은 기본적으로 배경을 인쇄하지 않아
+         강제가 없어도 희게 나온다. 글자색으로 본다).
+         · prefers-color-scheme: Chromium 이 인쇄에서 light 로 강제하므로 이
+           싸움에 도달하지 않는다. 거기서는 가두기 전에도 증상이 없었다.
+         · data-theme='dark': 미디어 특성이 아니라 속성 셀렉터라 그 강제가 닿지
+           않는다. 가두기 전에는 인쇄 PDF 에 다크 팔레트가 그대로 실렸다
+           (--fg 의 #ebebee 포함 12색 → 가둔 뒤 11색, #ebebee 없음).
+         WebKit·Gecko 는 재지 못했다. 강제에 기대지 않으려고 둘 다 가둔다. */
       @media screen and (prefers-color-scheme: dark) {
         :root:not([data-theme='light']) {
           --brand: var(--brand-dark);
