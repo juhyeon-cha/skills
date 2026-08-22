@@ -253,14 +253,17 @@
 
       /* ── 섹션 번호 ─────────────────────────────────────────────────────── */
       /* 목차 없이도 위치가 잡히게 본문 섹션에만 번호를 매긴다.
-         한눈에·꼬리말은 번호를 받지 않는다. */
+         한눈에·꼬리말·참고는 번호를 받지 않는다 — 참고는 본문의 근거지 본문이
+         아니라서, 번호를 주면 글자만 작아지고 번호가 제목만 한 크기로 남는다.
+         세 규칙을 같은 셀렉터로 묶어 둔 것은 일부러다: 카운터만 빼고 ::before 를
+         남기면 참고가 앞 섹션의 번호를 그대로 찍는다. */
       main {
         counter-reset: sec;
       }
-      main > section:not(.summary) {
+      main > section:not(.summary):not(.refs) {
         counter-increment: sec;
       }
-      main > section:not(.summary) > h2 {
+      main > section:not(.summary):not(.refs) > h2 {
         display: grid;
         grid-template-columns: 2.6rem 1fr;
         align-items: baseline;
@@ -268,7 +271,7 @@
         border-bottom-width: 2px;
         border-bottom-color: var(--fg);
       }
-      main > section:not(.summary) > h2::before {
+      main > section:not(.summary):not(.refs) > h2::before {
         content: counter(sec, decimal-leading-zero);
         font-size: 0.95rem;
         font-weight: 700;
