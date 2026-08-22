@@ -3,10 +3,11 @@
   html-report 템플릿. 쓰는 법은 SKILL.md 에 있다.
 
   요약: SECTION 주석의 필수 / 선택 / 반복을 따르고, 중괄호는 전부 치환하고,
-  맨 아래 PRESET 과 PALETTE 구역에서 필요한 것만 복사한 뒤, 산출물에서 모든 SECTION 주석과
-  PRESET·PALETTE 구역을 지운다. CSS 는 지우지 않는다. 외부 참조는 하나도 두지 않는다.
+  맨 아래 PRESET 과 PALETTE 구역에서 필요한 것만 복사한다. 그 뒤 초안을 finalize.py 에
+  통과시키면 주석과 창고가 지워지고 검사가 돈다 — 손으로 지우지 않는다.
+  CSS 는 지우지 않는다. 외부 참조는 하나도 두지 않는다.
 
-  색을 바꾸려면 아래 "BRAND" 블록 두 줄만 고친다. 나머지는 전부 거기서 파생된다.
+  색을 바꾸려면 아래 "BRAND" 블록 네 줄만 고친다. 나머지는 전부 거기서 파생된다.
 -->
 <html lang="ko">
   <head>
@@ -14,8 +15,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{제목}}</title>
     <style>
-      /* ══ BRAND — 색을 바꾸는 곳은 여기 두 줄뿐이다 ═══════════════════════
-         기본은 무채색(zinc). 회사 BI 색으로 바꾸려면 이 두 값만 교체한다.
+      /* ══ BRAND — 색을 바꾸는 곳은 여기 네 줄뿐이다 ═══════════════════════
+         기본은 무채색(zinc). 회사 BI 색으로 바꾸려면 이 네 값만 교체한다.
          --brand      : 라이트 배경 위에서 쓸 색. 흰 바탕 대비 4.5:1 이상.
          --brand-dark : 어두운 배경 위에서 쓸 색. 보통 같은 색조의 밝은 단계.
          --band       : 표지와 꼬리말 색면. 어두운 색으로 둔다.
@@ -59,8 +60,21 @@
         --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
       }
 
-      /* 다크에서 바뀌는 값만 나열한다. 파생 토큰은 자동으로 따라온다. */
-      @media (prefers-color-scheme: dark) {
+      /* 다크에서 바뀌는 값만 나열한다. 파생 토큰은 자동으로 따라온다.
+         두 다크 블록 모두 screen 에 가둔다. 종이에는 다크 배색을 쓸 일이 없다.
+         가두지 않으면 명시도가 이렇게 된다: :root:not([data-theme='light']) 는
+         (0,2,0) 이라 @media print 의 :root (0,1,0) 를 이기고, 미디어 타입은
+         명시도에 기여하지 않아 print 블록을 뒤에 둬도 뒤집히지 않는다.
+         다만 두 경로의 사정이 다르다(Edge 151, --print-to-pdf 의 색 연산자로 실측.
+         바탕색은 신호가 못 된다 — Chrome 은 기본적으로 배경을 인쇄하지 않아
+         강제가 없어도 희게 나온다. 글자색으로 본다).
+         · prefers-color-scheme: Chromium 이 인쇄에서 light 로 강제하므로 이
+           싸움에 도달하지 않는다. 거기서는 가두기 전에도 증상이 없었다.
+         · data-theme='dark': 미디어 특성이 아니라 속성 셀렉터라 그 강제가 닿지
+           않는다. 가두기 전에는 인쇄 PDF 에 다크 팔레트가 그대로 실렸다
+           (--fg 의 #ebebee 포함 12색 → 가둔 뒤 11색, #ebebee 없음).
+         WebKit·Gecko 는 재지 못했다. 강제에 기대지 않으려고 둘 다 가둔다. */
+      @media screen and (prefers-color-scheme: dark) {
         :root:not([data-theme='light']) {
           --brand: var(--brand-dark);
           --bg: #131316;
@@ -75,18 +89,20 @@
           --neg: #c98d8d;
         }
       }
-      :root[data-theme='dark'] {
-        --brand: var(--brand-dark);
-        --bg: #131316;
-        --surface: #1a1a1e;
-        --surface-2: #232329;
-        --fg: #ebebee;
-        --fg-muted: #9b9ba4;
-        --border: #303038;
-        --info: #8fa8c4;
-        --warn: #c4a05c;
-        --pos: #7fae90;
-        --neg: #c98d8d;
+      @media screen {
+        :root[data-theme='dark'] {
+          --brand: var(--brand-dark);
+          --bg: #131316;
+          --surface: #1a1a1e;
+          --surface-2: #232329;
+          --fg: #ebebee;
+          --fg-muted: #9b9ba4;
+          --border: #303038;
+          --info: #8fa8c4;
+          --warn: #c4a05c;
+          --pos: #7fae90;
+          --neg: #c98d8d;
+        }
       }
 
       /* ── 바탕 ──────────────────────────────────────────────────────────── */
@@ -252,14 +268,26 @@
 
       /* ── 섹션 번호 ─────────────────────────────────────────────────────── */
       /* 목차 없이도 위치가 잡히게 본문 섹션에만 번호를 매긴다.
-         한눈에·꼬리말은 번호를 받지 않는다. */
+         한눈에·꼬리말·참고는 번호를 받지 않는다 — 참고는 본문의 근거지 본문이
+         아니라서, 번호를 주면 글자만 작아지고 번호가 제목만 한 크기로 남는다.
+
+         세 규칙에 :not(.refs) 를 함께 거는 이유는 규칙마다 다르다. 하나라도
+         빠뜨리면 조용히 되돌아가는 것이 있다.
+         · counter-increment 만 빼면 ::before 가 앞 섹션의 번호를 그대로 찍는다.
+         · 아래 h2 규칙은 번호 칸(grid)만 쥐고 있는 것이 아니라 2px var(--fg)
+           괘선을 함께 쥐고 있다. 여기서 .refs 를 빼지 않으면 참고 제목 아래에
+           본문과 똑같은 굵은 검은 괘선이 걸린다 — 참고를 부가 정보로 낮추면서
+           없앤 바로 그것이다. 한동안은 .refs 전용 규칙이 그 위를 덮고 있었지만
+           그것은 base h2 와 같은 값이라 지웠다. **이제 이 :not(.refs) 가 참고
+           제목의 얇은 괘선을 지키는 유일한 규칙이다** — 떼면 base h2 의 1px
+           var(--border) 를 2px var(--fg) 가 덮어 곧바로 돌아온다(대조군 실측). */
       main {
         counter-reset: sec;
       }
-      main > section:not(.summary) {
+      main > section:not(.summary):not(.refs) {
         counter-increment: sec;
       }
-      main > section:not(.summary) > h2 {
+      main > section:not(.summary):not(.refs) > h2 {
         display: grid;
         grid-template-columns: 2.6rem 1fr;
         align-items: baseline;
@@ -267,7 +295,7 @@
         border-bottom-width: 2px;
         border-bottom-color: var(--fg);
       }
-      main > section:not(.summary) > h2::before {
+      main > section:not(.summary):not(.refs) > h2::before {
         content: counter(sec, decimal-leading-zero);
         font-size: 0.95rem;
         font-weight: 700;
@@ -684,6 +712,23 @@
         color: var(--fg-muted);
       }
 
+      /* ── 참고: 본문의 근거지 본문이 아니다 ─────────────────────────────── */
+      /* 작고 흐리게 — 필요한 사람만 내려와 읽는다. 색은 --fg-muted 그대로라
+         다크·인쇄 배색이 따라온다. 링크는 흐려져도 링크로 보이게 밑줄을 못박는다:
+         이 규칙이 인쇄의 a { text-decoration: none } 보다 명시도가 높아 종이에도
+         남는다. */
+      .refs {
+        font-size: 0.82rem;
+        color: var(--fg-muted);
+      }
+      .refs h2 {
+        font-size: 1rem;
+      }
+      .refs a {
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+
       /* ── 인쇄: A4 보고서 ───────────────────────────────────────────────── */
       @page {
         size: A4;
@@ -807,10 +852,11 @@
         <p class="eyebrow">{{문서 종류}}</p>
         <div class="cover-head">
           <h1>{{제목}}</h1>
-          <!-- 보안등급이 필요 없으면 이 span 을 지운다 -->
+          <!-- 기본은 대외비다. 사용자가 공개 문서라고 명시할 때만 이 span 을 지운다 -->
           <span class="classification">{{대외비}}</span>
         </div>
         <p class="lede">{{한 줄 부제}}</p>
+        <!-- 부서·작성일·작성자 세 필드로 고정 — 이름 변경·치환·추가 금지. 작성자는 이 자료를 지시한 사용자다(모델 이름 금지, 모르면 묻는다). 공유 대상·수신처 같은 것은 본문이나 꼬리말에 쓴다 -->
         <dl class="docmeta">
           <div><dt>부서</dt><dd>{{팀 이름}}</dd></div>
           <div><dt>작성일</dt><dd>{{YYYY-MM-DD}}</dd></div>
@@ -871,7 +917,7 @@
       <!-- /SECTION: 다음 단계 -->
 
       <!-- SECTION: 참고 | 선택 -->
-      <section>
+      <section class="refs">
         <h2>참고</h2>
         <ul>
           <li>{{출처 또는 링크}}</li>
@@ -881,6 +927,8 @@
 
       <!-- SECTION: 꼬리말 | 선택 -->
       <footer class="colophon">
+        <!-- 대외비 문구와 배지도 기본으로 남긴다. 사용자가 공개 문서라고 명시할 때만 지운다.
+             선택 섹션이지만 아래 저작권 줄을 못 채워도 꼬리말째 지우지 않는다 — 그 p 만 지운다 -->
         <p class="notice">
           <span>{{이 문서는 대외비입니다. 수신자 외 열람·배포를 금합니다.}}</span>
           <span class="classification">{{대외비}}</span>
