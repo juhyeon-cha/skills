@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# 두 추출기를 고정 커밋 샘플에 돌려 같은 스냅샷 스키마를 만족하는지 단언한다.
+# 두 추출기를 고정 커밋 샘플에 돌려 같은 스냅샷 스키마를 만족하는지, 그 스냅샷으로
+# render.py 가 자체 포함 HTML 을 내는지 단언한다.
 #
-#   check.sh              전체 자기검사 (샘플 확보 → 추출 → 단언 → 부정 대조군)
+#   check.sh              전체 자기검사 (샘플 확보 → 추출 → 단언 → render → 부정 대조군)
 #   check.sh <파일.json>  그 스냅샷 하나에 스키마 단언만 (부정 대조군이 이 모드를 쓴다)
 #
 # 스키마는 같은 폴더의 snapshot-schema.md 가 정의한다.
@@ -66,7 +67,13 @@ run_one() { # 이름 추출기 URL SHA
   dir=$(fetch_sample "$1" "$3" "$4") || { echo "$name: 샘플 $4 확보 실패 ($3)" >&2; return 1; }
   python3 "$HERE/$script" "$dir" > "$out" || { echo "$name: 추출 실패" >&2; return 1; }
   assert_schema "$out" || { echo "$name: 스키마 단언 실패 — $out" >&2; return 1; }
-  echo "$name: 엔드포인트 $(jq '.endpoints | length' "$out")개 · 모델 $(jq '.models | length' "$out")개 · enum $(jq '.enums | length' "$out")개 — 스키마 단언 통과"
+  local html=$TMP/$1.html ext
+  python3 "$HERE/render.py" "$out" > "$html" || { echo "$name: render 실패" >&2; return 1; }
+  [ -s "$html" ] || { echo "$name: 산출 HTML 이 비었다 — $html" >&2; return 1; }
+  # 자체 포함 단언 — 외부 리소스를 참조하면 그 호스트가 죽을 때 화면이 죽는다.
+  ext=$(grep -cE '(src|href)="https?://' "$html")
+  [ "$ext" -eq 0 ] || { echo "$name: 산출 HTML 이 외부 리소스를 $ext 건 참조한다" >&2; return 1; }
+  echo "$name: 엔드포인트 $(jq '.endpoints | length' "$out")개 · 모델 $(jq '.models | length' "$out")개 · enum $(jq '.enums | length' "$out")개 — 스키마 단언 통과, HTML $(wc -c < "$html" | tr -d ' ')바이트 자체 포함"
   checked=$((checked + 1))
 }
 
@@ -102,5 +109,17 @@ else
 fi
 negative "엔드포인트가 빈 스냅샷" "$empty" || rc=1
 negative "없는 입력 파일" "$TMP/없는파일.json" || rc=1
+
+# render.py 의 실패 경로도 같은 사본으로 본다 — 스키마 단언과 판정 지점이 다르다.
+negative_render() { # 설명 파일
+  if python3 "$HERE/render.py" "$2" > /dev/null 2>&1; then
+    echo "render 부정 대조군이 통과했다(실패해야 한다): $1" >&2
+    return 1
+  fi
+  echo "render 부정 대조군 확인: $1"
+}
+negative_render "스키마 키를 하나 뺀 사본" "$broken" || rc=1
+negative_render "엔드포인트가 빈 스냅샷" "$empty" || rc=1
+negative_render "없는 입력 파일" "$TMP/없는파일.json" || rc=1
 
 exit $rc
