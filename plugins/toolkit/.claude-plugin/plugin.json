@@ -18,6 +18,8 @@
     "./skills/html-report",
     "./skills/api-spec-viewer",
     "./skills/api-contract-diff",
-    "./skills/pr-body"
+    "./skills/pr-body",
+    "./skills/plan-issue",
+    "./skills/issue-resolution"
   ]
 }
