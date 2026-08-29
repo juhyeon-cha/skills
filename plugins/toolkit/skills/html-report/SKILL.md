@@ -391,7 +391,7 @@ python3 finalize.py <초안>-font.html > <산출물>.html; echo "rc=$?"
 
 | 설치 형태 | 고치는 곳 |
 | :-------- | :-------- |
-| 플러그인 (`/plugin install html-report@skills`) | 캐시 안의 파일을 고치지 않는다 — **다음 업데이트에 덮인다.** 원본 레포(`juhyeon-cha/skills`)의 `plugins/html-report/` 를 고치고 커밋한다 |
+| 플러그인 (`/plugin install toolkit@skills`) | 캐시 안의 파일을 고치지 않는다 — **다음 업데이트에 덮인다.** 원본 레포(`juhyeon-cha/skills`)의 `plugins/toolkit/` 를 고치고 커밋한다 |
 | 프로젝트에 복사 (`.claude/skills/html-report/`) | 그 파일을 바로 고친다 |
 
 **회사 BI 색처럼 프로젝트마다 다른 값은 템플릿에 박지 않는다.** 프로젝트 지침
