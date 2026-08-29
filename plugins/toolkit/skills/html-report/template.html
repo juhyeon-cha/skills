@@ -482,6 +482,15 @@
         font-size: 0.82rem;
         margin-top: 0.35rem;
       }
+      /* 성과 메트릭 카드 — 통계 타일의 변형이지 새 상자가 아니다. .stats/.stat/.delta
+         를 그대로 쓰고 개선 전 값을 담을 .from 한 칸만 더한다. 성과 보고는 "얼마에서
+         얼마로" 가 본체라, 개선 후 값과 증감만 두면 읽는 사람이 뺄셈을 해야 한다.
+         작고 흐리게 둬서 카드가 말하는 값은 개선 후 하나로 남긴다. */
+      .stat .from {
+        font-size: 0.62em;
+        font-weight: 400;
+        color: var(--fg-muted);
+      }
 
       /* ── 부품: 코드 ────────────────────────────────────────────────────── */
       pre {
@@ -1398,6 +1407,21 @@
         </div>
         <div class="stat">
           <span class="value">{{숫자}}</span><span class="label">{{라벨}}</span>
+        </div>
+      </div>
+
+      <!-- 성과 메트릭 카드 — 통계 타일과 같은 .stats 그리드에 섞어 쓴다. 다른 점은
+           .from 하나뿐이다: 개선 전 값을 흐리게 앞에 두고 → 로 개선 후와 잇는다.
+           "무엇이 얼마에서 얼마로" 를 한 칸에 담는 자리라, 전·후 중 하나만 있으면
+           .from 을 지우고 그냥 통계 타일로 쓴다.
+           .delta 의 pos/neg 와 ▲/▼ 는 값의 증감이 아니라 좋아졌는지 나빠졌는지로 고른다.
+           응답시간·장애시간·오류율처럼 낮을수록 좋은 지표는 값이 줄어든 것이 개선이라
+           pos 에 ▼ 다. 복사한 뒤 이 둘을 지표에 맞춰 고친다. -->
+      <div class="stats">
+        <div class="stat">
+          <span class="value"><span class="from">{{개선 전}}</span> → {{개선 후}}</span>
+          <span class="label">{{지표명}}</span>
+          <span class="delta pos">▲ {{효과}}</span>
         </div>
       </div>
 
