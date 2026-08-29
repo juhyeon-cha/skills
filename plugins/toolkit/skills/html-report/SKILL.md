@@ -51,7 +51,9 @@ description: 회사 보고·공유용 HTML 자료 한 장을 `template.html` 에
 앞의 둘은 원자료를 다루고 `report-writer` 는 그 결과를 문장으로 만든다. 그래서 순서는
 언제나 **원자료 쪽이 먼저**다 — 자료를 함께 받은 요청이면 `data-analyst` → `report-writer`,
 기록 뭉치로 성과·회고를 쓰는 요청이면 `worklog-structurer` → `report-writer` 이고, 기록에
-숫자가 섞여 있으면 앞의 둘을 다 거친다. 확정된 값과 세워진 항목을 넘겨야 문장 쪽이 사실을
+숫자가 섞여 있으면 `worklog-structurer` → `data-analyst` → `report-writer` 로 셋을 다
+거친다 — **항목을 먼저 세우고 그 항목의 빈 숫자 칸을 넘긴다.** 무엇이 한 건인지 정해지기
+전에는 어느 값을 구해야 하는지도 정해지지 않는다. 확정된 값과 세워진 항목을 넘겨야 문장 쪽이 사실을
 지어내지 않는다. 자료 없이 대화만 있으면 `report-writer` 하나로 끝난다.
 
 **셋 다 HTML 을 조립하지 않고 폰트 임베드·`finalize.py` 도 돌리지 않는다.** 그건 위 절차가
