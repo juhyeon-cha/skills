@@ -100,8 +100,10 @@ def load():
     path = store()
     try:
         lines = [ln for ln in open(path, encoding='utf-8').read().splitlines() if ln.strip()]
-    except OSError:
-        lines = []
+    except FileNotFoundError:
+        lines = []          # 아직 한 건도 안 쌓았다 — render 가 rc=1 로 알린다
+    except OSError as e:
+        die(f'축적 자리를 읽지 못했다 ({path}): {e}')  # 권한 등은 0건이 아니다
     entries = []
     for n, ln in enumerate(lines, 1):
         try:
@@ -124,9 +126,11 @@ def metric(m):
         val = f'<span class="from">{esc(str(m["from"]))}</span> → {val}'
     out = [f'<span class="value">{val}</span>',
            f'<span class="label">{esc(str(m["label"]))}</span>']
-    if str(m.get('delta') or '').strip():
-        out.append(f'<span class="delta {"pos" if m.get("good", True) else "neg"}">'
-                   f'{esc(str(m["delta"]))}</span>')
+    d = str(m.get('delta') or '').strip()
+    if d:
+        # 방향 없는 값(—)에 방향 색을 붙이지 않는다. template.html 의 .delta.flat.
+        cls = 'flat' if d[0] == '—' else ('pos' if m.get('good', True) else 'neg')
+        out.append(f'<span class="delta {cls}">{esc(d)}</span>')
     return '<div class="stat">' + ''.join(out) + '</div>'
 
 

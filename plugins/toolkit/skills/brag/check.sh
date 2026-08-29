@@ -83,10 +83,42 @@ HOME=$T/ro/h python3 "$HERE/brag.py" add "$T/a.json" > /dev/null 2>&1
 [ ! -e "$T/ro/h" ] || fail "쓸 수 없는 홈에 무언가 생겼다"
 chmod 700 "$T/ro"
 
+# ── 실패 경로 3: 축적 자리가 있으나 읽을 수 없음 ────────────────────────────
+# 0건과 갈려야 한다 — 권한 오류를 0건으로 접으면 SKILL.md 3절 실패표가 거짓이 된다.
+mkdir -p "$T/noread/.brag" && : > "$T/noread/.brag/entries.jsonl"
+chmod 000 "$T/noread/.brag/entries.jsonl"
+HOME=$T/noread python3 "$HERE/brag.py" render > /dev/null 2> "$T/err2"
+[ $? -ne 0 ] || fail "읽을 수 없는 축적 자리인데 render 가 rc=0"
+grep -q '읽지 못했다' "$T/err2" || fail "읽기 실패 사유가 stderr 에 없다: $(cat "$T/err2")"
+grep -q '쌓인 기록이 없다' "$T/err2" && fail "권한 오류를 0건으로 접었다"
+chmod 600 "$T/noread/.brag/entries.jsonl"
+
+# ── 방향 없는 delta 에 방향 색이 붙지 않는다 ────────────────────────────────
+cat > "$T/flat.json" <<'JSON'
+{
+  "date": "2026-08-20",
+  "project": "정산 배치",
+  "title": "재처리 건수를 그대로 유지했다",
+  "problem": "증분 전환 뒤 누락이 생길지 알 수 없었다.",
+  "solution": "전량 재계산 결과와 매일 대조하는 배치를 붙였다.",
+  "result": "6주 동안 불일치 0건. 대조 배치 로그 기준.",
+  "metrics": [
+    { "label": "불일치", "from": "0건", "to": "0건", "delta": "— 0건" }
+  ]
+}
+JSON
+HOME=$T/flat python3 "$HERE/brag.py" add "$T/flat.json" > /dev/null || fail "flat add rc=$?"
+HOME=$T/flat python3 "$HERE/brag.py" render 2>/dev/null > "$T/flat.html" || fail "flat render rc=$?"
+grep -qF '<span class="delta flat">— 0건</span>' "$T/flat.html" \
+  || fail "변동 없음 delta 가 flat 이 아니다: $(grep -o 'class="delta [a-z]*"' "$T/flat.html")"
+# 초안에는 템플릿 창고의 delta pos/neg 견본이 아직 남아 있다(finalize 가 지운다).
+# 그래서 방향 색의 유무는 우리가 그린 값 자체로 본다.
+grep -qE 'class="delta (pos|neg)">— ' "$T/flat.html" && fail "방향 없는 값에 방향 색이 붙었다"
+
 if [ -n "$OUT" ]; then
   mkdir -p "$OUT" && cp "$T/draft.html" "$T/brag.html" "$T/a.json" "$T/b.json" "$OUT/" \
     || fail "산출물을 $OUT 에 남기지 못했다"
   echo "남김: $OUT/brag.html · $OUT/draft.html"
 fi
 
-echo "OK: brag — 축적 2건 · 산출 경로 rc=0 · 실패 경로 2건"
+echo "OK: brag — 축적 2건 · 산출 경로 rc=0 · 실패 경로 3건 · delta flat"
