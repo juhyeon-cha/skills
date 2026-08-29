@@ -10,7 +10,7 @@
     {
       "name": "toolkit",
       "source": "./plugins/toolkit",
-      "description": "여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기",
+      "description": "여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기",
       "category": "productivity"
     }
   ]
