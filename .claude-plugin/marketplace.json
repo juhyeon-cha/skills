@@ -8,8 +8,8 @@
   },
   "plugins": [
     {
-      "name": "html-report",
-      "source": "./plugins/html-report",
+      "name": "toolkit",
+      "source": "./plugins/toolkit",
       "description": "회사 보고·공유용 HTML 자료 한 장을 템플릿에서 만든다. 분석·회계·현황·제안 프리셋 내장",
       "category": "productivity"
     }
