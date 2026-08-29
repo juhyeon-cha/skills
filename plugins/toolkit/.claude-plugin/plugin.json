@@ -1,7 +1,7 @@
 {
   "name": "toolkit",
-  "description": "여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기, 성과 기록을 쌓아 대시보드로 뽑기",
-  "version": "1.3.0",
+  "description": "여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기, 성과 기록을 쌓아 대시보드로 뽑기, 사고 기록을 회고 문서로 만들기",
+  "version": "1.4.0",
   "author": {
     "name": "juhyeon-cha"
   },
@@ -14,12 +14,16 @@
     "openapi",
     "spec",
     "성과",
-    "brag"
+    "brag",
+    "회고",
+    "postmortem",
+    "장애"
   ],
   "skills": [
     "./skills/html-report",
     "./skills/api-spec-viewer",
     "./skills/api-contract-diff",
-    "./skills/brag"
+    "./skills/brag",
+    "./skills/postmortem"
   ]
 }
