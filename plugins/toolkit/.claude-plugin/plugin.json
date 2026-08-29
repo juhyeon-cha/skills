@@ -1,7 +1,7 @@
 {
-  "name": "html-report",
+  "name": "toolkit",
   "description": "회사 보고·공유용 HTML 자료 한 장을 템플릿에서 만든다. 분석·회계·현황·제안 프리셋 내장",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "author": { "name": "juhyeon-cha" },
   "keywords": ["html", "report", "발표자료", "공유"],
   "skills": ["./skills/html-report"]
