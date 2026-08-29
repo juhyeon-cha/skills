@@ -17,6 +17,7 @@
   "skills": [
     "./skills/html-report",
     "./skills/api-spec-viewer",
-    "./skills/api-contract-diff"
+    "./skills/api-contract-diff",
+    "./skills/pr-body"
   ]
 }
