@@ -1,15 +1,15 @@
 ---
 name: pr-body
-description: PR 본문을 쓴다 — 필수 네 절(What / Why / Verification / What the green run does not establish)과 해당 시 세 절, 그리고 절 이름은 영어·내용은 한국어라는 규칙. "PR 만들자", "PR 열어줘", "PR 본문 써줘", "pull request 올려줘" 같은 요청에서 쓴다.
+description: Write a PR body — the four required sections (What / Why / Verification / What the green run does not establish), the three conditional ones, and the rule that section names are English while their content is Korean. Use for requests like "PR 만들자", "PR 열어줘", "PR 본문 써줘", "pull request 올려줘".
 ---
 
-# PR 본문에 무엇이 들어가야 하는가
+# What belongs in a PR body
 
-diff 는 무엇이 바뀌었는지 보여준다. 아래는 전부 **리뷰어가 diff 로 재구성할 수 없는 것**이다.
+The diff shows what changed. Everything below is what **a reviewer cannot reconstruct from the diff**.
 
-푸시와 PR 생성 자체는 매번 지시를 받는다. 앞 턴의 승인은 그 한 번에만 유효하다.
+Pushing and opening the PR require an explicit instruction every time. An approval from an earlier turn covers only that one turn.
 
-## 형식
+## Shape
 
 ```markdown
 ## What
@@ -20,104 +20,110 @@ diff 는 무엇이 바뀌었는지 보여준다. 아래는 전부 **리뷰어가
 
 ## What the green run does not establish
 
-## Corrections <!-- 해당 시 -->
+## Corrections <!-- when applicable -->
 
-## Where deleted content went <!-- 해당 시 -->
+## Where deleted content went <!-- when applicable -->
 
-## Out of scope <!-- 해당 시 -->
+## Out of scope <!-- when applicable -->
 ```
 
-## 고친 이슈는 본문이 닫는다 — `Closes #N`
+## The body closes the issue it fixed — `Closes #N`
 
-**이 브랜치가 고친 이슈가 있으면 본문에 `Closes #N` 을 쓴다.** 절이 아니라 한 줄이고,
-그것을 근거로 리뷰어가 무언가를 할 절 — 대개 `What` — 안에 인라인으로 놓는다. GitHub 이
-그 줄을 읽어 **머지되는 순간** 이슈를 닫고, 이슈와 PR 이 서로를 영구히 가리킨다.
+**When this branch fixes an issue, write `Closes #N` in the body.** It is one line rather than a
+section, and it goes inline inside the section where a reviewer acts on it — usually `What`. GitHub
+reads that line, closes the issue **the moment the PR merges**, and leaves issue and PR pointing at
+each other permanently.
 
 ```markdown
 ## What
 
-- **재시도 큐가 영원히 비지 않는 것**을 고쳤다 (`3ff21ab`). Closes #133.
+- Fixed **the retry queue never draining** (`3ff21ab`). Closes #133.
 ```
 
-확인하는 법:
+How to check:
 
 ```bash
 gh pr view <n> --json closingIssuesReferences --jq '.closingIssuesReferences | length'
 ```
 
-**0 이 나오면 GitHub 은 그 줄을 못 읽은 것이다.** 다른 저장소의 이슈, 오타, `Closed #N`,
-코드블록 안 — 전부 조용히 0 이 된다. 사람 눈에는 똑같이 보인다.
+**A 0 means GitHub did not read the line.** An issue in another repository, a typo, `Closed #N`, a
+line inside a code block — each of them silently yields 0, and all of them look identical to a human.
 
-> ⚠️ **이 수는 본문 수정을 몇 초 뒤따라간다. 곧바로 읽으면 _직전_ 상태가 나온다.**
-> 넣고 곧바로 읽으면 **멀쩡한 본문을 고장 났다고** 판정하고, 빼고 곧바로 읽으면 **없는 링크를
-> 있다고** 판정한다. 그러므로 **한 번 읽고 판정하지 않는다.** 0 이 나오면 한 번 더 읽고,
-> 그래도 0 일 때만 본문을 의심한다.
+> ⚠️ **This count trails a body edit by a few seconds. Read it immediately and you get the _previous_ state.**
+> Read right after adding the line and you judge **a healthy body to be broken**; read right after
+> removing it and you judge **a link that is already gone to be there.** So **never judge on a single
+> read.** On a 0, read once more, and suspect the body only when it is still 0.
 
-⚠️ **두 가지는 이 키워드로 못 한다. 그때는 `issue-resolution` 스킬 §4 대로 손으로 닫는다.**
+⚠️ **Two things this keyword cannot do. Close those by hand, following `issue-resolution` §4.**
 
-- **결함이 아니었던 항목.** 키워드로 닫힌 이슈는 언제나 `completed` 다. `not planned` 는
-  손으로만 붙일 수 있고, 둘을 같은 칸에 두면 **없던 결함이 있었던 것으로 기록된다.**
-- **이 브랜치가 닫지 **않는** 이웃 이슈.** 번호만 적고 키워드를 붙이지 않는다.
-  `What the green run does not establish` 나 `Out of scope` 가 그 자리다.
+- **An item that turned out not to be a defect.** A keyword-closed issue is always `completed`.
+  `not planned` can only be set by hand, and putting both in the same slot **records a defect that
+  never existed.**
+- **A neighbouring issue this branch does _not_ close.** Write the number without the keyword.
+  `What the green run does not establish` or `Out of scope` is its place.
 
-**번호를 모아 적는 절을 만들지 않는다.** 번호는 그것이 쓰이는 자리에 인라인으로 적는다.
+**Do not create a section that collects issue numbers.** A number goes inline where it is used.
 
 > [!IMPORTANT]
-> **절 이름은 영어, 내용은 한국어로 쓴다.** 이름이 영어면 GitHub 에서 훑을 때 고정된 앵커가
-> 되고 번역마다 흔들리지 않는다. 내용은 읽는 사람이 쓰는 말로 쓴다.
+> **Section names are English, their content is Korean.** English names are fixed anchors when
+> scanning on GitHub and do not shift with every translation. The content is written in the language
+> its readers use — Korean.
 
-## 각 절이 요구하는 것
+## What each section demands
 
-**What** — 브랜치가 무엇을 하는지, 리뷰할 수 있는 모양으로. **커밋 메시지를 이어 붙이지
-않는다**: 그것들은 이미 PR 안에 있고, 사본이 하나 더 생기면 맞춰야 할 것이 하나 더 생긴다.
+**What** — what the branch does, in a shape that can be reviewed. **Do not concatenate commit
+messages**: they are already inside the PR, and a second copy is one more thing to keep in sync.
 
-**Why** — **문제**를, 반박할 수 있는 형태로 적는다. "트래커를 개선한다" 는 문제가 아니고,
-"항목을 닫으면 옛 번호 별칭이 조용히 지워지는데 101건 중 97건이 그것을 갖고 있다" 는 문제다.
-변경을 서술하지 않고는 why 를 쓸 수 없다면, 그 변경은 정당화를 찾고 있는 것이다.
+**Why** — state the **problem**, in a form that can be argued with. "Improves the tracker" is not a
+problem; "closing an item silently drops its old number alias, and 97 of 101 items carry one" is. If
+you cannot write the why without describing the change, the change is looking for a justification.
 
-**Verification** — **되돌리면 무엇이 깨지는가.** 작성자가 먼저 답해야 리뷰가 재구성이 아니라
-확인이 된다. 손으로만 할 수 있고 테스트로 만들 수 없는 검증은 그렇다고 적고 이유를 적는다.
+**Verification** — **what breaks when you revert it.** The author answers this first, so review
+becomes confirmation rather than reconstruction. Verification that can only be done by hand and
+cannot be turned into a test says so, with the reason.
 
-**What the green run does not establish** — **이 변경에 대해** 게이트가 못 본 것을 이름 댄다:
-아무도 추가하지 않은 목록이 강제하는 규칙, 어떤 테스트도 닿지 않는 경로, 라이브 시스템만
-답할 수 있는 주장. 매번 답이 달라서 형식화되지 않는다.
+**What the green run does not establish** — name what the gates did not see **about this change**: a
+rule enforced by a list nobody added to, a path no test reaches, a claim only a live system can
+answer. The answer differs every time, so it never becomes a template.
 
-**Corrections** — 문서화된 주장이 틀린 것으로 드러났다면 그것이 무엇이었는지 적는다. 옛 주장을
-보고 쓰인 코드가 이 diff 밖에 있을 수 있으므로 리뷰어에게 필요하다.
+**Corrections** — when a documented claim turned out to be wrong, write what it was. The reviewer
+needs it because code written against the old claim may live outside this diff.
 
-**Where deleted content went** — 이 브랜치가 지운 모든 것에 대해. 지우는 것은 절반이고, 남길
-값어치가 있던 것의 영구 거처를 이름 대는 것이 나머지 절반이며, 빠지는 쪽이 늘 그 절반이다.
-**"남길 것이 없었다" 는 그것이 참일 때 완전한 답이다.**
+**Where deleted content went** — for everything this branch deleted. Deleting is half the work, and
+naming the permanent home of whatever was worth keeping is the other half — the half that goes
+missing. **"There was nothing worth keeping" is a complete answer when it is true.**
 
-**Out of scope** — 발견했지만 일부러 하지 않은 것. 결말이 제품·범위 결정이기 때문이다. 적지
-않으면 작성자 머릿속에만 남고 나중에 같은 비용으로 다시 발견된다.
+**Out of scope** — what you found and deliberately did not do, because the outcome is a product or
+scope decision. Left unwritten it stays in the author's head and gets rediscovered later at the same
+cost.
 
-## 길이 — 읽는 사람이 지치면 본문은 제 일을 못 한다
+## Length — a body stops working once its reader tires
 
-**본문 전체 60줄 / 500단어 안.** 예산을 못 맞추면 대개 브랜치가 아니라 본문이 잘못 쓰인 것이다.
+**The whole body within 60 lines / 500 words.** Missing that budget usually means the fault is not the
+branch but the body.
 
-- **한 항목은 한 문장.** 더 필요하면 그 상세는 **커밋에 있고**, 항목은 커밋을 이름 댄다
-  (``(`ecef63f`)``). 정정은 본문에 남고, **정정에 이르는 길은 커밋으로 간다.**
-- **한 사실은 한 절에만.** 두 절이 같은 사실을 원하면 **리뷰어가 그것을 근거로 무언가를 할 절**에
-  둔다.
-- **What 과 Why 를 먼저 읽고 계속 읽을지 정할 수 있어야 한다.** 둘을 합쳐 15줄 안. 나머지 절은
-  훑는 것이지 읽는 것이 아니다 — 리뷰어가 **어디를 볼지** 정하게 하는 것이 본문의 일이고,
-  무언가를 증명하는 자리가 아니다.
+- **One item, one sentence.** When more is needed the detail **lives in the commit**, and the item
+  names that commit (``(`ecef63f`)``). The correction stays in the body, and **the road to the
+  correction goes to the commit.**
+- **One fact, one section.** When two sections want the same fact, put it in **the section where the
+  reviewer acts on it**.
+- **What and Why have to be enough to decide whether to keep reading.** The two together within 15
+  lines. The rest is scanned rather than read — the body's job is to let the reviewer decide **where
+  to look**, not to prove anything.
 
-> 스스로 재는 법: `gh pr view <n> --json body -q .body | wc -l -w`.
+> Measuring it yourself: `gh pr view <n> --json body -q .body | wc -l -w`.
 
-### 절이 제 값을 하는지 재는 법
+### Telling whether a section earns its place
 
-절에도 항목과 같은 시험을 건다 — **리뷰어가 그것 때문에 다른 행동을 하는가.**
+A section takes the same test an item does — **does the reviewer act differently because of it?**
 
-- **GitHub 이 이미 보여주는 것은 적지 않는다.** 변경 파일 수와 `+/−` 는 본문 위에 렌더된다.
-- **`Where deleted content went` 은 엄밀히 `What` 의 부분집합이고, 그래도 헤딩을 갖는다.**
-  헤딩이 있으면 빠뜨린 것이 보이고, 산문에 녹이면 조용히 사라진다. `Verification` 과
-  `What the green run does not establish` 를 합치지 않는 이유도 같다: 합치면 사람들이 건너뛰는
-  쪽이 읽다 마는 절의 꼬리가 된다.
+- **Do not write what GitHub already shows.** The changed-file count and `+/−` render above the body.
+- **`Where deleted content went` is strictly a subset of `What`, and it still gets a heading.** With a
+  heading an omission is visible; dissolved into prose it disappears quietly. Keeping `Verification`
+  and `What the green run does not establish` apart has the same reason: merged, the one people skip
+  becomes the tail of a section they stop reading.
 
-## 형태에 대한 규칙 둘
+## Rules of form
 
-- **할 말이 없는 절은 지운다. `N/A` 를 쓰지 않는다.** 채워진 빈칸은 검토한 것으로 읽히고,
-  없는 헤딩은 없는 것으로 읽힌다.
-- **커밋 메시지를 다시 적지 않는다.** 한 번 적고 가리킨다.
+- **Delete a section that has nothing to say. Do not write `N/A`.** A filled blank reads as reviewed,
+  and an absent heading reads as absent.

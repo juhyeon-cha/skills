@@ -1,89 +1,94 @@
 ---
 name: api-contract-diff
-description: API 스펙 스냅샷 JSON 두 개(이전·이후)를 받아 추가·삭제된 엔드포인트와 필드를 색으로 가르고 영향받는 엔드포인트를 나열하는 자체 포함 HTML 한 장을 만든다. "API 뭐가 바뀌었는지 정리해줘", "이번 배포에서 계약이 어떻게 달라졌나", "클라이언트팀에 변경분 알려야 해" 같은 요청에서 쓴다.
+description: Turn two API spec snapshot JSON files (before and after) into one self-contained HTML page that colour-codes added and removed endpoints and fields and lists the endpoints they affect. Use for requests like "API 뭐가 바뀌었는지 정리해줘", "이번 배포에서 계약이 어떻게 달라졌나", "클라이언트팀에 변경분 알려야 해".
 ---
 
-# API 계약 변경 화면 만들기
+# Building an API contract change page
 
-**받는 것은 스냅샷 파일 두 개다. 커밋이 아니다.** 커밋에서 스냅샷을 뽑는 것은
-`api-spec-viewer` 스킬의 일이고, 이 스킬은 그 산출물 둘만 본다. 그래서 비교 대상이
-꼭 같은 레포의 두 시점일 필요도 없다 — 형태만 같으면 된다.
+**What this skill takes is two snapshot files, not commits.** Extracting a snapshot from a commit is
+the `api-spec-viewer` skill's job, and this skill sees only those two outputs. So the two sides need
+not even be two points of the same repo — the same shape is enough.
 
-## 1. 절차
+## 1. Procedure
 
-1. **스냅샷 두 개를 확보한다.** 이미 있으면 그것을 쓴다. 없으면 `api-spec-viewer` 로
-   만든다 — 같은 레포의 두 시점이면 각 시점의 소스 트리에서 한 번씩 뽑는다.
+1. **Obtain two snapshots.** Use the ones that already exist. Otherwise build them with
+   `api-spec-viewer` — for two points of the same repo, extract once from each point's source tree.
 
    ```bash
-   # 예: 두 커밋에서 각각 뽑는다. 워킹 트리를 건드리지 않는 방법이다.
-   mkdir -p /tmp/before && git -C <레포> archive <이전 커밋> | tar -x -C /tmp/before
+   # Example: extract from two commits. This leaves the working tree untouched.
+   mkdir -p /tmp/before && git -C <repo> archive <before commit> | tar -x -C /tmp/before
    python3 ../api-spec-viewer/extract-fastapi.py /tmp/before > before.json
-   python3 ../api-spec-viewer/extract-fastapi.py <레포> > after.json
+   python3 ../api-spec-viewer/extract-fastapi.py <repo> > after.json
    ```
 
-   **두 스냅샷의 `framework` 가 같아야 한다.** 다르면 이 스킬이 `rc=1` 로 거절한다 —
-   형태가 다른 것을 억지로 비교하지 않는다.
+   **The two snapshots must carry the same `framework`.** Otherwise this skill refuses with `rc=1` —
+   things of different shape are not forced into a comparison.
 
-2. **화면을 만든다.** 인자 순서는 이전, 이후다. 뒤집으면 추가와 삭제가 반대로 나온다.
+2. **Build the page.** The argument order is before, then after. Reversed, additions and removals
+   come out swapped.
 
    ```bash
-   python3 render-diff.py <이전.json> <이후.json> > diff.html
+   python3 render-diff.py <before.json> <after.json> > diff.html
    ```
 
-3. **종료 코드를 읽는다.**
+3. **Read the exit code.**
 
-   | rc | 뜻 | 할 일 |
+   | rc | Meaning | What to do |
    | :--- | :--- | :--- |
-   | 0 | 산출됐다. **변경이 없어도 0 이다** — 빈 diff 는 오류가 아니고 "변경 없음"을 명시한 화면이 나온다 | 끝 |
-   | 1 | 입력이 잘못됐다. 없는 파일 · JSON 이 아님 · 스키마 키 누락 · 프레임워크 불일치 | stderr 에 찍힌 경로와 키 이름을 읽고 고친다 |
-   | 2 | 인자 개수가 둘이 아니다 | 이전·이후 두 개를 준다 |
+   | 0 | It was produced. **Zero changes is also 0** — an empty diff is not an error, and the page that comes out states "no changes" explicitly | Done |
+   | 1 | The input is wrong: missing file · not JSON · missing schema key · framework mismatch | Read the path and the key name printed on stderr, and fix it |
+   | 2 | The argument count is not two | Give both, before and after |
 
-4. **완료 보고에 두 입력 스냅샷의 출처를 함께 적는다** — 레포와 커밋 두 개. 이것이 없으면
-   다음 사람이 같은 화면을 다시 만들 수 없다.
+4. **Name where both input snapshots came from in the completion report** — the repo and the two
+   commits. Without this the next person cannot rebuild the same page.
 
-## 2. 무엇을 비교하나
+## 2. What gets compared
 
-| 대상 | 맞추는 키 | 무엇이 나오나 |
+| Subject | Matching key | What comes out |
 | :--- | :--- | :--- |
-| 엔드포인트 | `메서드 + 경로` | 추가 · 삭제 · 요청/응답 타입 변경 |
-| 모델 | `이름` | 모델 추가 · 삭제 · **필드 추가 · 필드 삭제 · 필드 타입 변경** |
+| Endpoint | `method + path` | added · removed · request/response type changed |
+| Model | `name` | model added · removed · **field added · field removed · field type changed** |
 
-**필드가 이 화면의 본체다.** 엔드포인트 목록은 그대로인데 응답 모델에 필드 하나가 빠지는
-것이 클라이언트를 깨뜨리는 흔한 방식이고, 그것이 커밋 diff 에서는 한 줄이라 눈에 띄지 않는다.
+**Fields are the body of this page.** A response model losing a single field while the endpoint list
+stays identical is the common way clients break, and in a commit diff that is one line nobody notices.
 
-**영향받는 엔드포인트**는 바뀐 모델에서 거꾸로 찾는다. 엔드포인트의 요청·응답 타입에서
-필드 타입을 타고 닿을 수 있는 모델을 전부 모은 뒤, 그 안에 바뀐 모델이 있으면 그
-엔드포인트를 나열한다. 직접 참조만이 아니라 **중첩된 모델을 거친 참조도 잡힌다.**
+**Affected endpoints** are found backwards from the changed models. Collect every model reachable
+from an endpoint's request and response types by following field types, and list the endpoint if a
+changed model is among them. Not only direct references — **references through nested models are
+caught too.**
 
-동명 모델(멀티 모듈 레포에서 흔하다)은 **한 항목으로 합쳐** 비교한다. 스냅샷 스키마가
-모듈 경로를 담지 않아 구분할 근거가 없기 때문이다 — 필드는 합집합이 된다.
+Models sharing a name (common in multi-module repos) are compared **merged into one item**, because
+the snapshot schema carries no module path to tell them apart — their fields become a union.
 
-## 3. 화면
+## 3. The page
 
-**playground 스킬의 `diff-review` 템플릿이 출발점이다.** 자체 포함 HTML 한 파일,
-다크 테마, 외부 의존 0 — 그 규약을 그대로 지킨다. 색도 그 템플릿의 것이다:
-**추가는 초록(`#7ee787`), 삭제는 빨강(`#f85149`), 타입 변경은 노랑(`#d29922`)**.
+**The starting point is the `diff-review` template of the `playground` skill.** One self-contained
+HTML file, dark theme, zero external dependencies — keep that contract as is. The colours are that
+template's too: **additions green (`#7ee787`), removals red (`#f85149`), type changes yellow
+(`#d29922`)**.
 
-| 자리 | 무엇이 들어가나 |
+| Slot | What goes in it |
 | :--- | :--- |
-| 머리말 | 추가·삭제·변경 건수 요약. 0 건인 항목은 흐리게 |
-| 본문 카드 | 삭제된 엔드포인트 → 추가된 엔드포인트 → 타입이 바뀐 엔드포인트 → 필드가 바뀐 모델 → 추가·삭제된 모델. 카드마다 `+`/`-`/`~` 줄과 영향받는 엔드포인트 칩 |
-| **프롬프트 출력 자리** | **요청/응답 JSON 샘플 복사 버튼**으로 바꿔 썼다 |
+| Header | A count summary of additions, removals and changes. Items at 0 are dimmed |
+| Body cards | removed endpoints → added endpoints → endpoints whose types changed → models whose fields changed → added and removed models. Each card carries `+`/`-`/`~` lines and chips for the affected endpoints |
+| **The prompt output slot** | Repurposed as **a copy button for request/response JSON samples** |
 
-원본 템플릿의 "라인별 코멘트 → 프롬프트 출력" 자리를 쓰지 않는다. 이 화면의 목적은
-리뷰 코멘트를 모아 Claude 에 돌려주는 것이 아니라 **바뀐 계약을 다른 팀에 알리는 것**이라,
-그 자리에는 바뀐 뒤 모양의 요청/응답 JSON 샘플을 집어갈 수 있는 복사 버튼을 둔다
-(사용자 결정). `api-spec-viewer` 의 화면도 같은 자리를 같은 것으로 쓴다.
+The original template's "per-line comments → prompt output" slot is not used. The purpose of this
+page is not to gather review comments and hand them back to Claude but **to tell another team what
+contract changed**, so that slot instead holds a copy button that lifts a request/response JSON
+sample in its after shape (a user decision). The `api-spec-viewer` page uses the same slot for the
+same thing.
 
-삭제된 엔드포인트의 샘플은 **이전** 스냅샷 기준, 나머지는 **이후** 기준이다.
-샘플 값은 타입 이름에서 고른 자리표시자이지 실제 데이터가 아니다.
+Samples for removed endpoints come from the **before** snapshot, everything else from the **after**
+one. Sample values are placeholders chosen from type names, not real data.
 
-## 4. 검사
+## 4. Check
 
 ```bash
 bash check.sh
 ```
 
-합성 스냅샷 두 개로 엔드포인트 추가·삭제, 필드 추가·삭제·타입 변경, 중첩 모델을 거친
-영향 전파를 각각 수로 단언하고, 실패해야 할 입력 5종(없는 파일 둘 · 키 구성 불일치 ·
-프레임워크 불일치 · 인자 부족)이 실제로 실패하는지 본다. 네트워크가 필요 없다.
+With two synthetic snapshots it asserts counts for endpoint addition and removal, field addition,
+removal and type change, and impact propagation through a nested model, then checks that 5 kinds of
+input that must fail actually do (two missing files · key composition mismatch · framework mismatch ·
+too few arguments). No network needed.

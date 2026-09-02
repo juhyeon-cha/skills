@@ -1,229 +1,250 @@
 ---
 name: html-report
-description: 회사 보고·공유용 HTML 자료 한 장을 `template.html` 에서 만든다. 목적별 프리셋(분석·회계·현황·제안)을 고르고 섹션을 지우거나 복제해 채우는 방식이며, 자체 포함 파일 하나가 나온다. "보고서 만들어줘", "발표자료 만들어줘", "주간보고 정리해줘", "이 논의 HTML로 뽑아줘" 같은 요청에서 쓴다. 주제를 가리지 않는다.
+description: Build a single HTML page for reporting or sharing inside a company, out of `template.html`. Pick a preset for the purpose (analysis, finance, status, proposal), then delete or duplicate sections and fill them in; what comes out is one self-contained file. Use for requests like "보고서 만들어줘", "발표자료 만들어줘", "주간보고 정리해줘", "이 논의 HTML로 뽑아줘". Subject-agnostic.
 ---
 
-# 보고·공유용 HTML 자료 만들기
+# Building an HTML page for reporting and sharing
 
-**템플릿은 `template.html` 하나다.** 치환 엔진도 빌드 단계도 없다 — 읽고, 지우고, 복제하고,
-채운다. 산출물은 자체 포함 `.html` 한 파일이고, 그대로 열리거나 그대로 공유된다.
-인쇄하면 A4 보고서가 된다.
+**There is one template, `template.html`.** No substitution engine, no build step — read it, delete,
+duplicate, fill. The output is one self-contained `.html` file that opens as it is and is shared as
+it is. Printed, it becomes an A4 report.
 
-## 1. 절차
+**The report comes out in Korean.** `template.html` holds Korean throughout — marker names, preset
+section headings, boilerplate — and Pretendard is the default font because the body text is Korean.
+This document is in English; what it produces is not.
 
-1. **내용을 정한다.** 인자로 파일 경로를 받았으면 그것을 읽고, 없으면 지금 대화에서 뽑는다.
-   무엇을 쓸지의 기준은 §2. **표지에 들어갈 부서·작성자 이름이 대화에 없으면 여기서 묻는다** —
-   §4 의 세 필드는 짐작으로 채울 수 없고, 다 만든 뒤에 물으면 표지가 이미 채워져 있다.
-2. `template.html` 을 읽는다. 통째로 읽는다 — 프리셋과 부품 창고가 아래쪽에 있다.
-3. **프리셋을 고른다.** §5. 고른 프리셋을 `SECTION: 본문` 자리에 붙인다.
-4. **섹션을 확정하고 채운다.** 마커 규칙은 §3. 부품이 더 필요하면 `PALETTE` 구역에서 복사한다.
-5. **폰트를 심는다.** 기본은 Pretendard 다. 저장본 woff2 세 벌이 base64 로 초안에
-   들어간다 — 자세한 것은 §6-2.
+## 1. The procedure
 
-   ```bash
-   python3 embed-font.py <초안>.html pretendard > <초안>-font.html
-   ```
-
-   **순서는 embed → finalize 다.** 뒤집으면 `finalize.py` 가 주입 지점 주석을 지워
-   `embed-font.py` 가 rc=1 로 끝난다.
-
-6. **`finalize.py` 를 돌린다.** 입력은 앞 단계에서 폰트를 심은 파일이다. 주석·부품 창고
-   삭제와 §8 검사를 이 도구가 한다 — 손으로 지우지 않는다(§7·§8). `rc=0` 이면 끝이고,
-   `rc=1` 이면 stderr 에 찍힌 줄을 읽고 고칠 것인지 본문이라 통과시킬 것인지 판단한다(§8).
+1. **Settle the content.** If a file path came in as an argument, read it; otherwise take it from the
+   conversation. What to write is §2. **If the department and author for the cover are not in the
+   conversation, ask here** — the three fields in §4 cannot be guessed, and asking after the fact
+   means the cover is already filled.
+2. Read `template.html`. Read it whole — the presets and the component store are down at the bottom.
+3. **Pick a preset.** §5. Paste the one you picked into the body section slot.
+4. **Settle the sections and fill them.** Marker rules are §3. For more components, copy them out of
+   the `PALETTE` region.
+5. **Embed the font.** Pretendard by default. Three stored woff2 faces go into the draft as base64 —
+   details in §6-2.
 
    ```bash
-   python3 finalize.py <초안>-font.html > <YYYY-MM-DD>-<슬러그>.html
+   python3 embed-font.py <draft>.html pretendard > <draft>-font.html
    ```
 
-   **경로를 지정받았으면 그곳에**, 아니면 프로젝트에 `reports/` 가 있으면 그 아래, 없으면
-   현재 작업 디렉토리에 쓴다. 슬러그는 제목에서 뽑은 영문·숫자·하이픈이다.
+   **The order is embed, then finalize.** Reversed, `finalize.py` strips the injection-point comment
+   and `embed-font.py` ends with rc=1.
 
-7. **완료 보고에 §6-3 의 폰트 안내를 그대로 붙인다.** 매번 넣는다.
+6. **Run `finalize.py`.** Its input is the font-embedded file from the previous step. Comment and
+   component-store removal and the §8 checks are this tool's work — they are not done by hand
+   (§7, §8). `rc=0` and you are finished; on `rc=1`, read the lines on stderr and decide whether to
+   fix them or pass them as body content (§8).
 
-### 세 에이전트에 넘기는 자리
+   ```bash
+   python3 finalize.py <draft>-font.html > <YYYY-MM-DD>-<slug>.html
+   ```
 
-| 에이전트 | 언제 넘기나 | 받아오는 것 |
+   **Write it where you were told to**, otherwise under `reports/` if the project has one, otherwise
+   in the current working directory. The slug is letters, digits and hyphens taken from the title.
+
+7. **Attach the §6-3 font notice to the completion report verbatim.** Every time.
+
+### Where the three agents come in
+
+| Agent | When you hand off | What comes back |
 | :------- | :---------- | :---------- |
-| `data-analyst` | 절차 1 에서 **숫자 뭉치**(표·CSV·로그·붙여넣은 수치)를 함께 받았을 때 | 확정된 값 목록·표. 값마다 단위·기준일·계산 근거가 붙는다 |
-| `worklog-structurer` | 절차 1 에서 **시간순 기록 뭉치**(커밋·이슈·주간 일지·회의 메모)로 성과·회고 자료를 만들 때 | 항목 목록. 성과는 [문제 - 해결 - 성과], 회고는 [원인 - 조치 - 재발 방지] 세 칸 |
-| `report-writer` | 절차 3 에서 프리셋을 고른 뒤, 절차 4 에서 **섹션을 채우기 전** | 부제·"한눈에"·본문·결론·다음 단계의 초안 텍스트 |
+| `data-analyst` | When step 1 also brought **a pile of numbers** (tables, CSV, logs, pasted figures) | Settled values and tables. Every value carries its unit, as-of date and how it was computed |
+| `worklog-structurer` | When step 1 brought **records in time order** (commits, issues, weekly logs, meeting notes) to build achievement or retrospective material | A list of entries. Achievements in [problem - solution - result], retrospectives in [cause - action - prevention] |
+| `report-writer` | After the preset is picked in step 3, and **before sections are filled** in step 4 | Draft text for the subtitle, "at a glance", body, conclusion and next steps |
 
-앞의 둘은 원자료를 다루고 `report-writer` 는 그 결과를 문장으로 만든다. 그래서 순서는
-언제나 **원자료 쪽이 먼저**다 — 자료를 함께 받은 요청이면 `data-analyst` → `report-writer`,
-기록 뭉치로 성과·회고를 쓰는 요청이면 `worklog-structurer` → `report-writer` 이고, 기록에
-숫자가 섞여 있으면 `worklog-structurer` → `data-analyst` → `report-writer` 로 셋을 다
-거친다 — **항목을 먼저 세우고 그 항목의 빈 숫자 칸을 넘긴다.** 무엇이 한 건인지 정해지기
-전에는 어느 값을 구해야 하는지도 정해지지 않는다. 확정된 값과 세워진 항목을 넘겨야 문장 쪽이 사실을
-지어내지 않는다. 자료 없이 대화만 있으면 `report-writer` 하나로 끝난다.
+The first two handle raw material and `report-writer` turns the result into sentences. So **raw
+material always goes first** — a request that arrived with data runs `data-analyst` → `report-writer`,
+a request to write achievements or a retrospective out of records runs `worklog-structurer` →
+`report-writer`, and records with numbers mixed in run all three, `worklog-structurer` →
+`data-analyst` → `report-writer`: **stand the entries up first, then hand over their empty number
+slots.** Until it is settled what counts as one entry, which values to compute is not settled either.
+Handing over settled values and stood-up entries is what keeps the sentence side from inventing facts.
+With no material and only a conversation, `report-writer` alone finishes it.
 
-**셋 다 HTML 을 조립하지 않고 폰트 임베드·`finalize.py` 도 돌리지 않는다.** 그건 위 절차가
-한다. **`data-analyst` 가 "계산할 도구가 없다"며 값을 못 내면 그 계산은 이 절차가 직접
-`python3` 로 하고, 쓴 식을 산출물의 근거 자리에 남긴다** — 위임이 조용히 암산으로
-바뀌는 것이 이 자리의 실패 방식이다.
+**None of the three assembles HTML, and none of them runs the font embed or `finalize.py`.** The
+procedure above does that. **When `data-analyst` comes back unable to produce a value for want of a
+tool, this procedure does that arithmetic itself in `python3` and leaves the expression it used in the
+output's evidence slot** — delegation quietly turning into mental arithmetic is how this spot fails.
 
-## 2. 무엇을 쓸 것인가
+## 2. What to write
 
-템플릿을 채우는 일이 아니라 보고서를 쓰는 일이다. 아래 다섯은 프리셋을 가리지 않는다.
+This is writing a report, not filling in a template. The five below hold across every preset.
 
-1. **결론부터 쓴다.** 제목·부제·"한눈에" 세 곳만 읽어도 판단이 서야 한다. 본문은 그 판단의
-   근거지, 결론을 뒤로 미루는 자리가 아니다.
-2. **숫자에는 단위·기준일을 붙인다.** 단위 없는 금액과 기준일 없는 증감은 회의에서 질문
-   하나를 반드시 만든다. 어디서 온 숫자인지도 밝힌다.
-3. **사실과 판단을 섞지 않는다.** "매출이 3.2% 늘었다"는 사실이고 "성장세가 견조하다"는
-   판단이다. 판단을 쓸 거면 어느 사실에서 나왔는지 같은 문단 안에 둔다.
-4. **읽는 사람이 할 일을 명시한다.** 승인인지 결정인지 공유인지. "검토 부탁드립니다"는
-   아무것도 요구하지 않는 문장이다. 기한과 대상을 함께 쓴다.
-5. **모르는 것은 모른다고 쓴다.** 빈칸을 `N/A` 로 채우지 않고, 답하지 못한 것은 답하지
-   못했다고 적는다. 채워진 빈칸은 검토한 것으로 읽힌다.
+1. **Lead with the conclusion.** Title, subtitle and "at a glance" alone have to be enough to decide
+   on. The body is the grounds for that decision, not a place to defer it to.
+2. **Put a unit and an as-of date on every number.** An amount without a unit and a change without an
+   as-of date each produce exactly one question in the meeting. Say where the number came from too.
+3. **Keep fact and judgement apart.** "Revenue rose 3.2%" is a fact; "growth is solid" is a
+   judgement. Write the judgement in the same paragraph as the fact it came from.
+4. **Say what the reader has to do.** Approve, decide, or note. "Please review" asks for nothing.
+   Write the deadline and the person along with it.
+5. **Write what you do not know as not known.** Do not fill a blank with `N/A`, and write down what
+   you could not answer as unanswered. A filled blank reads as reviewed.
 
-분량은 **"한눈에" 3~5줄, 본문 섹션 4~7개**를 넘기지 않는다. 그보다 길면 읽는 사람이
-요약만 읽고 나머지를 버린다 — 버려질 것을 쓰느라 시간을 쓰지 않는다.
+Length stays within **3–5 lines of "at a glance" and 4–7 body sections.** Longer and the reader takes
+the summary and drops the rest — do not spend time writing what will be dropped.
 
-**프리셋마다 더 좁은 기준이 `template.html` 주석에 붙어 있다.** 통째로 읽으라는 것은
-그래서다.
+**Each preset carries narrower criteria in the comments of `template.html`.** That is why you read it
+whole.
 
-## 3. 마커 — 이 셋이 전부다
-
-```
-<!-- SECTION: 이름 | 필수 -->  …  <!-- /SECTION: 이름 -->
-```
-
-| 표시     | 뜻                                                                |
-| :------- | :---------------------------------------------------------------- |
-| **필수** | 지우지 않는다. 표지·한눈에·결론 셋뿐이다.                         |
-| **선택** | 채울 내용이 없으면 **여는 주석부터 닫는 주석까지 통째로 지운다.** |
-| **반복** | 필요한 만큼 복제한다. 하나도 필요 없으면 지운다.                  |
-
-## 4. 문서 구조
-
-골격은 이 순서다. 굵은 것이 필수, 나머지는 채울 내용이 없으면 지운다.
+## 3. Markers — these three are all of them
 
 ```
-표지 → 한눈에 → 본문(프리셋) → 결론 → 다음 단계 → 참고 → 꼬리말
- ▲       ▲                        ▲
-필수    필수                     필수
+<!-- SECTION: <name> | <flag> -->  …  <!-- /SECTION: <name> -->
 ```
 
-**표지와 꼬리말은 색면이다.** 표지에 들어가는 것은 다섯 뿐이다:
+Names and flags are written in Korean inside `template.html`; there are three flags and this is what
+each does.
 
-| 자리 | 무엇을 쓰나 |
+| Flag         | What it means                                                                   |
+| :----------- | :------------------------------------------------------------------------------ |
+| **Required** | It stays. Only three are required: cover, "at a glance", conclusion.             |
+| **Optional** | With nothing to put in it, **delete it whole, opening comment through closing.** |
+| **Repeat**   | Duplicate as many as you need. Delete it when you need none.                     |
+
+## 4. Document structure
+
+The skeleton runs in this order. The bold ones are required; the rest are deleted when there is
+nothing to put in them.
+
+```
+cover → at a glance → body (preset) → conclusion → next steps → references → footer
+  ▲          ▲                            ▲
+required  required                     required
+```
+
+**The cover and the footer are colour bands.** Five things go on the cover:
+
+| Slot | What goes in it |
 | :--- | :---------- |
-| 문서 종류 | `분기 실적 보고` `주간 현황` 처럼 문서의 갈래. 제목을 반복하지 않는다 |
-| 제목 | 무엇에 대한 문서인지. 기간·대상이 들어간다 |
-| 보안등급 | 우상단 배지. **기본은 대외비다. 사용자가 공개 문서라고 명시할 때만 `<span class="classification">` 을 지운다** |
-| 부제 | **한 문장으로 된 결론.** 제목의 부연이 아니다 |
-| 부서·작성일·작성자 | **이 세 필드로 고정이다.** 이름을 바꾸지 않고, 하나를 빼고 다른 것을 끼워 넣지 않으며, 넷째를 더하지 않는다. 특히 "공유 대상"·수신처·참고 범위는 여기 쓰지 않는다 — 그 정보가 필요하면 본문이나 꼬리말에 쓴다. 작성자는 이 자료를 **지시한 사용자**다 — 문서를 만든 도구가 아니라 책임지는 사람을 적는 자리라, 모델 이름(`Claude` 등)은 쓰지 않는다. 세 값 중 못 채우는 것이 있으면 지어내거나 그 필드를 빼지 말고 **사용자에게 묻는다**(§1 절차 1) |
+| Document kind | The genre of the document — "quarterly results report", "weekly status". It does not repeat the title |
+| Title | What the document is about. Period and subject belong in it |
+| Classification | The badge at top right. **Confidential is the default. Delete `<span class="classification">` only when the user says the document is public** |
+| Subtitle | **The conclusion, in one sentence.** Not an elaboration of the title |
+| Department, date, author | **These three fields are fixed.** Do not rename them, do not drop one to slot another in, and do not add a fourth. In particular, "shared with", recipients and distribution scope do not go here — put that in the body or the footer if it is needed. The author is **the user who asked for the material** — this slot names the person accountable rather than the tool that built it, so a model name (`Claude` and the like) does not go in it. When one of the three cannot be filled, do not invent it and do not drop the field: **ask the user** (§1 step 1) |
 
-**`<head>` 의 `<title>` 도 같이 채운다.** 표지에 보이는 다섯이 아니라 브라우저 탭·북마크·
-공유 미리보기에 뜨는 자리라 위 표에 넣지 않았지만, 채우는 것은 표지를 채울 때다. 보통
-제목과 같은 문장을 넣는다. 빠뜨리면 탭에 `{{제목}}` 이 그대로 뜬다 — §8 검사가 잡아 주지만
-잡히기 전에 채우는 자리다.
+**Fill `<title>` in `<head>` at the same time.** It is not one of the five visible on the cover — it
+is what shows in the browser tab, in bookmarks and in share previews — so it is not in the table
+above, but it gets filled when the cover does. Usually the same sentence as the title. Miss it and
+the tab shows the raw title placeholder — the §8 check catches it, but this is the spot where it gets
+filled before that.
 
-꼬리말에는 대외비 문구(왼쪽)와 같은 배지(오른쪽), 저작권·문의처를 둔다. 배지는 인라인
-요소라 본문 문단 안에서도 쓸 수 있다.
+The footer holds the confidentiality line (left) and the same badge (right), plus copyright and a
+contact. The badge is an inline element, so it works inside body paragraphs too.
 
-**본문 섹션에는 `01` 부터 번호가 자동으로 붙는다** — "한눈에"·꼬리말·참고 셋은 번호를
-받지 않는다. 참고는 본문의 근거지 본문이 아니라서 목차 위치를 차지하지 않는다.
+**Body sections are numbered automatically from `01`** — "at a glance", the footer and the references
+get no number. References are the grounds for the body rather than body, so they take no slot in the
+table of contents.
 
-## 5. 프리셋 — 목적에 맞는 본문 구성
+## 5. Presets — a body that fits the purpose
 
-`PRESET` 구역에 완성된 섹션 세트 네 벌이 있다. 하나를 골라 `SECTION: 본문` 자리에 붙이고,
-프리셋 안에서도 채울 내용이 없는 절은 지운다.
+The `PRESET` region holds four finished section sets. Pick one, paste it into the body section slot,
+and inside the preset delete any part you have nothing to put in.
 
-| 프리셋              | 쓰는 때                    | 본문 구성                                              |
-| :------------------ | :------------------------- | :----------------------------------------------------- |
-| **A. 분석 보고서**  | 무엇을 왜 봤고 뭘 하자     | 배경·목적 → 데이터·방법 → 발견 → 시사점·권고 → 한계    |
-| **B. 회계·재무**    | 숫자가 주인공              | 재무 요약 → 손익 계산 → 증감 사유 → 특이사항           |
-| **C. 현황 보고**    | 주간·월간 진척             | 진척 → 이슈·리스크 → 다음 기간 계획                    |
-| **D. 제안서**       | 승인을 받으러 감           | 문제 → 제안·대안 → 비용·일정 → 요청 사항               |
+| Preset                  | When to use it                    | Body structure                                                     |
+| :---------------------- | :-------------------------------- | :----------------------------------------------------------------- |
+| **A. Analysis report**  | What you looked at, why, what now | Background → data and method → findings → implications → limitations |
+| **B. Finance**          | The numbers are the subject       | Financial summary → P&L → reasons for change → exceptions           |
+| **C. Status report**    | Weekly or monthly progress        | Progress → issues and risks → plan for the next period              |
+| **D. Proposal**         | Going in for approval             | Problem → proposal and alternatives → cost and schedule → the ask   |
 
-**맞는 프리셋이 없으면 억지로 끼우지 말고** 빈 `SECTION: 본문` 을 복제해 직접 구성한다.
-둘을 섞어도 된다 (예: 현황 보고 뒤에 제안서의 "요청 사항").
+**When no preset fits, do not force one in** — duplicate the empty body section and build it
+yourself. Mixing two is fine (a status report followed by the proposal's "the ask", say).
 
-절 이름을 바꾸지 않는다. **"한계"(A)와 "요청 사항"(D)은 특히 지우지 않는다** — 한계 없는
-분석과 요청 없는 제안은 검토받지 못한 문서로 읽힌다.
+Section names do not get renamed. **The limitations section in A and the ask in D especially do not
+get deleted** — an analysis with no limitations and a proposal with no ask read as documents nobody
+reviewed.
 
-## 6. 색과 폰트
+## 6. Colour and fonts
 
-### 6-1. 색 바꾸기 — 고치는 곳은 네 줄뿐이다
+### 6-1. Changing the colours — four lines and no more
 
-파일 맨 위 `BRAND` 블록:
+The `BRAND` block at the top of the file:
 
 ```css
 :root {
-  --brand: #3f3f46;      /* 라이트 배경용. 흰 바탕 대비 4.5:1 이상 */
-  --brand-dark: #a1a1aa; /* 다크 배경용. 같은 색조의 밝은 단계 */
-  --band: #26262b;       /* 표지·꼬리말 색면 */
-  --band-fg: #ffffff;    /* 그 색면 위 글자색. --band 대비 4.5:1 이상 */
+  --brand: #3f3f46;      /* for light backgrounds. 4.5:1 or better against white */
+  --brand-dark: #a1a1aa; /* for dark backgrounds. A lighter step of the same hue */
+  --band: #26262b;       /* the cover and footer colour band */
+  --band-fg: #ffffff;    /* text on that band. 4.5:1 or better against --band */
 }
 ```
 
-기본값은 무채색(zinc)이다. 회사 BI 색으로 바꾸려면 **이 네 값만** 교체한다. 강조선·연한
-배경·막대·링크·색면 보조색은 전부 `color-mix()` 로 여기서 파생되므로 따라 바뀐다.
+The default is achromatic (zinc). To switch to a company brand colour, replace **these four values**
+and nothing else. Accent rules, tinted backgrounds, bars, links and band secondaries are all derived
+from here through `color-mix()`, so they follow.
 
-**`--band` 를 밝은 색으로 바꾸면 `--band-fg` 도 같이 바꾼다.** 둘의 대비가 4.5:1 아래로
-떨어지면 표지 제목이 읽히지 않는다.
+**Change `--band-fg` whenever you make `--band` light.** Once their contrast drops below 4.5:1 the
+cover title stops being readable.
 
-**산출물은 다크 모드로도 열린다.** 보는 사람의 OS 설정이 다크면 자동으로 어두운 배색이
-적용된다(`prefers-color-scheme`). 색을 바꾸면 **양쪽을 다 확인한다** — 라이트에서만 맞춰
-놓으면 다크에서 대비가 무너진다. 한쪽으로 고정하려면 `<html>` 에 `data-theme="light"`
-또는 `data-theme="dark"` 를 준다. 인쇄는 설정과 무관하게 항상 흰 바탕이다.
+**The output opens in dark mode too.** A reader whose OS is set to dark gets the dark palette
+automatically (`prefers-color-scheme`). When you change colours, **check both** — matched in light
+only, the contrast collapses in dark. To pin one of them, put `data-theme="light"` or
+`data-theme="dark"` on `<html>`. Printing is always on white, whatever the setting.
 
-**의미색(`--info` `--warn` `--pos` `--neg`)은 브랜드와 무관하다.** 증감과 경고는 회사 색을
-따라가면 안 된다 — 손실이 브랜드 색으로 칠해지는 일은 없어야 한다. 손대지 않는다.
+**The semantic colours (`--info` `--warn` `--pos` `--neg`) have nothing to do with the brand.** Change
+and warning must not follow a company colour — a loss painted in brand colours is not a thing that
+should happen. Leave them alone.
 
-### 6-2. 폰트 — 기본은 Pretendard, 심는 것은 `embed-font.py`
+### 6-2. Fonts — Pretendard by default, embedded by `embed-font.py`
 
-산출물은 폰트까지 자체 포함이다. 저장본 woff2 를 base64 로 초안에 심으므로 외부 참조가
-생기지 않고, 받는 사람 기기에 그 폰트가 없어도 같은 모양으로 열린다.
+The output is self-contained down to the font. Stored woff2 faces go into the draft as base64, so no
+external reference is created and it opens identically on a machine that does not have the font.
 
 ```bash
-python3 embed-font.py <초안>.html pretendard > <초안>-font.html
+python3 embed-font.py <draft>.html pretendard > <draft>-font.html
 ```
 
-- **순서는 embed → finalize 다.** 주입 지점이 `<!-- FONT:EMBED -->` 주석 한 줄이라,
-  `finalize.py` 를 먼저 돌리면 그 주석이 지워져 `embed-font.py` 가 rc=1 로 끝난다.
-- **CSS 이름은 폰트키와 무관하게 `'ReportSans'` 고정이다.** `--font` 첫 자리가 그 이름이라
-  폰트를 바꿔도 초안의 CSS 는 손대지 않는다.
-- 스킬에 저장본이 든 폰트는 `pretendard` 와 `paperlogy` 둘뿐이다. 저작권·커버리지 고지는
-  `fonts/FONT-LICENSE.md`.
-- **`--font` 뒤쪽 시스템 폰트 스택을 지우지 마라.** Pretendard 저장본은 서브셋이라
-  `▲` `▼` `△` 세 기호가 들어 있지 않다. 증감 표기의 그 기호들은 폰트를 심은 뒤에도
-  글자 단위로 뒤쪽 폰트가 그린다. 한자도 0자다.
+- **The order is embed, then finalize.** The injection point is a single `<!-- FONT:EMBED -->`
+  comment, so running `finalize.py` first strips it and `embed-font.py` ends with rc=1.
+- **The CSS name is fixed at `'ReportSans'`, independent of the font key.** That name is the first
+  entry of `--font`, so changing font leaves the draft's CSS untouched.
+- Only two fonts are stored in the skill: `pretendard` and `paperlogy`. Licence and coverage notices
+  are in `fonts/FONT-LICENSE.md`.
+- **Leave the system font stack at the tail of `--font` in place.** The stored Pretendard is a subset
+  and does not contain `▲` `▼` `△`. Those change markers are drawn glyph by glyph from the fallback
+  fonts even after embedding. It carries no Han characters either.
 
-#### 다른 폰트는 권하고, 고른 뒤에 심는다
+#### Other fonts get offered, and are embedded after the user picks
 
-완료 보고에는 §6-3 문구를 그대로 넣어 다섯 폰트를 알린다. **사용자가 고르기 전에는 아무것도
-내려받지 않는다.**
+The completion report carries the §6-3 text verbatim, which names five fonts. **Nothing is downloaded
+before the user picks.**
 
-프리뷰는 이 폴더의 `preview.html` 이다 — 같은 회계 보고서 한 장을 다섯 폰트로 번갈아 그린다.
-**다섯 다 CDN 에서 받아 그린다.** 저장본이 있는 Pretendard 도 프리뷰에서는 CDN 통짜라,
-"Pretendard 만 로컬" 로 안내하지 마라 — 저장본은 서브셋이고 글자 수가 다르다(위 `▲▼△`).
+The preview is `preview.html` in this folder — it draws one and the same finance report in five fonts
+in turn. **All five are drawn from a CDN.** Pretendard is a full CDN copy in the preview even though a
+stored copy exists, so do not describe it as "Pretendard alone is local" — the stored copy is a subset
+and its glyph count differs (the `▲▼△` above).
 
-- `paperlogy` 를 고르면 위 명령의 폰트키만 바꾼다.
-- 3~5번째(본고딕·마루부리·리디바탕)는 저장본이 없다. 그때 내려받아 아래 방법으로 심는다.
+- Picking `paperlogy` changes only the font key in the command above.
+- The third to fifth (Noto Sans KR, MaruBuri, RIDIBatang) have no stored copy. Download them at that
+  point and embed them with the method below.
 
-| 폰트 | 받는 곳 |
+| Font | Where to get it |
 | :--- | :--- |
-| 마루부리 | `https://cdn.jsdelivr.net/gh/fonts-archive/MaruBuri@main/MaruBuri-{Regular,SemiBold,Bold}.woff2` |
-| 리디바탕 | `https://cdn.jsdelivr.net/gh/fonts-archive/RIDIBatang@main/RIDIBatang.woff2` — **굵기가 1벌뿐이라 파일을 한 번만 넘긴다**(아래 스니펫에 인자 1개 = 400 한 벌). 같은 파일을 600·700 자리에도 선언하면 브라우저가 딱 맞는 얼굴을 찾았다고 보고 **합성 볼드를 끈다** — 굵어야 할 글자가 본문과 같아진다. 600·700 이 합성 볼드라는 것은 보고에 적는다 |
-| 본고딕 | `https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-kr@5.2.5/files/noto-sans-kr-korean-{400,600,700}-normal.woff2` — 아래 한계를 먼저 말한다 |
+| MaruBuri | `https://cdn.jsdelivr.net/gh/fonts-archive/MaruBuri@main/MaruBuri-{Regular,SemiBold,Bold}.woff2` |
+| RIDIBatang | `https://cdn.jsdelivr.net/gh/fonts-archive/RIDIBatang@main/RIDIBatang.woff2` — **it has one weight only, so the file is passed once** (one argument in the snippet below = one face at 400). Declaring the same file at 600 and 700 as well makes the browser believe it found an exact face and **turn synthetic bold off** — text that should be bold comes out the same as body. Say in the report that 600 and 700 are synthetic bold |
+| Noto Sans KR | `https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-kr@5.2.5/files/noto-sans-kr-korean-{400,600,700}-normal.woff2` — state the limit below first |
 
-**본고딕은 통짜 배포본을 심지 않는다.** Google Fonts CSS API 는 유니코드 구간별로 쪼갠
-`@font-face` 를 세 굵기에 372개 내주고, 원본 OTF 는 4.6MB 라 임베드 대상이 아니다.
-위 조각은 **한글 2,350자(KS X 1001)만 든다 — 원본은 11,172자다**. 그 밖의 음절은
-시스템 폰트로 떨어져 한 문장 안에서 서체가 갈린다. **본고딕을 고르면 이 한계를 말하고
-그대로 갈지 확인한다.**
+**Do not embed the full distribution of Noto Sans KR.** The Google Fonts CSS API hands out 372
+`@font-face` rules split by Unicode range across the three weights, and the source OTF is 4.6MB,
+which is not an embedding candidate. The slice above **holds only the 2,350 Hangul syllables of
+KS X 1001 — the original has 11,172.** Every other syllable falls through to a system font and the
+typeface splits inside a single sentence. **When Noto Sans KR is picked, state this limit and confirm
+that it is still the choice.**
 
-받아온 파일은 `embed-font.py` 가 모른다(저장본 이름만 본다). 주입 지점을 같은 형태의
-`<style>` 로 바꾸는 일만 하면 되므로 아래로 심는다.
+`embed-font.py` does not know about downloaded files (it looks only at stored names). All that is
+needed is replacing the injection point with a `<style>` of the same shape, so embed with the snippet
+below.
 
 ```bash
-# 굵기별 woff2 를 임시 폴더에 받는다. 인자 순서는 400 · 600 · 700 이고,
-# 굵기가 1벌뿐인 폰트(리디바탕)는 인자를 하나만 준다 — 그래야 합성 볼드가 걸린다.
+# Fetch the woff2 per weight into a temp folder. Argument order is 400 · 600 · 700, and
+# a font with one weight only (RIDIBatang) takes a single argument — that is what keeps synthetic bold on.
 curl -sSLO <URL>
 
-python3 - <초안>.html <400>.woff2 [<600>.woff2 <700>.woff2] <<'PY' > <초안>-font.html
+python3 - <draft>.html <400>.woff2 [<600>.woff2 <700>.woff2] <<'PY' > <draft>-font.html
 import base64, re, sys
 draft = open(sys.argv[1], encoding='utf-8').read()
 faces = ''.join(
@@ -234,20 +255,21 @@ faces = ''.join(
 out, n = re.subn(r'(?m)^[ \t]*<!--\s*FONT:EMBED\s*-->[ \t]*\n?',
                  "    <style>\n%s    </style>\n" % faces, draft)
 if n != 1:
-    sys.exit('주입 지점이 %d개다 — 1개여야 한다' % n)
+    sys.exit('found %d injection points — there must be exactly 1' % n)
 sys.stdout.write(out)
 PY
 ```
 
-**base64 를 손으로 붙여넣지 마라.** 한 벌이 수십만 자다 — 반드시 스크립트가 심는다.
-심은 뒤 `finalize.py` 를 돌리면 §8 의 폰트 검사가 이 페이로드를 보고 통과시킨다.
-**라이선스 고지는 받아온 배포처에서 확인해 산출물 참고나 꼬리말에 한 줄로 적는다** —
-`fonts/FONT-LICENSE.md` 는 저장본 6개 파일만 다루므로 여기 해당하지 않는다.
+**Base64 is never pasted by hand.** One face runs to hundreds of thousands of characters — a script
+embeds it, always. Run `finalize.py` after embedding and the §8 font check sees this payload and
+passes it. **Check the licence notice at the source you downloaded from and put it in one line in the
+output's references or footer** — `fonts/FONT-LICENSE.md` covers only the six stored files and does
+not apply here.
 
-### 6-3. 완료 보고에 고정으로 넣는 안내
+### 6-3. The fixed notice that goes in the completion report
 
-산출물을 넘길 때마다 아래를 **그대로 붙인다.** 매번 새로 쓰면 고를 수 있는 폰트가 보고마다
-달라진다.
+Every time you hand over an output, attach the following **verbatim.** Rewritten each time, the set
+of fonts on offer changes from report to report.
 
 > 폰트는 **Pretendard** 로 심었습니다. 파일 안에 들어 있어 받는 분 기기에 그 폰트가 없어도
 > 같은 모양으로 열립니다.
@@ -256,151 +278,164 @@ PY
 > 다섯 폰트로 번갈아 볼 수 있습니다(프리뷰는 폰트를 인터넷에서 받아 그립니다).
 > 고르시면 그 폰트로 다시 심어 드리겠습니다.
 
-`<스킬 폴더>` 는 실제 경로로 바꿔 적는다 — 사용자가 그 파일을 직접 열어야 한다. 기본이 아닌
-폰트로 심었으면 첫 줄의 폰트 이름을 그것으로 바꾸고, 리디바탕·본고딕이면 §6-2 의 한계를
-한 줄 덧붙인다 — 리디바탕은 600·700 이 합성 볼드이고, 본고딕은 **프리뷰에서 본 것이 전체
-글자(11,172자)인데 심는 것은 2,350자**라 그 밖의 음절이 다른 서체로 그려진다.
+The skill-folder placeholder in that notice is replaced with the real path — the user has to open that
+file themselves. If you embedded a font other than the default, change the font name on the first line
+to that one, and for RIDIBatang or Noto Sans KR add one line with the limit from §6-2: RIDIBatang has
+synthetic bold at 600 and 700, and with Noto Sans KR **what was seen in the preview is the full glyph
+set (11,172) while what gets embedded is 2,350**, so every other syllable is drawn in a different
+typeface.
 
-## 7. 산출물에서 지우는 것과 남기는 것
+## 7. What gets deleted from the output, and what stays
 
-**지우는 일은 `finalize.py` 가 한다.** 손으로 지우지 않는다 — 사람이 지우면 접두사 없는
-지시 주석처럼 눈에 안 띄는 것이 남는다.
+**`finalize.py` does the deleting.** Not by hand — a person deleting leaves the inconspicuous things
+behind, like an instruction comment with no prefix.
 
-| 대상                            | 누가                | 처리                                                           |
-| :------------------------------ | :------------------ | :------------------------------------------------------------- |
-| **모든** HTML 주석              | `finalize.py`       | **지운다.** `SECTION:` 이 붙은 것만이 아니라 전부다. 주석은 화면에 안 보일 뿐 파일에는 남아, 소스를 열어 보는 사람에게 그대로 읽힌다. |
-| `PRESET`·`PALETTE` 창고         | `finalize.py`       | **마커 주석과 `<template>` 본체를 함께 지운다.** 창고는 주석이 아니라 `<template>` 요소라, 주석만 지우면 마크업이 살아남고 §8 잔존 검사가 잡을 근거까지 사라진다. |
-| `{{중괄호}}`                    | 사람                | **하나도 남기지 않는다.** 못 채우면 그 섹션을 지운다. 무엇을 채울지는 판단이라 도구가 대신하지 못한다 — 남아 있으면 검사가 잡는다. |
-| 안 쓴 부품의 CSS                | 사람                | **남긴다.** 셀렉터를 골라 지우다 쓴 부품 스타일을 같이 날린다. |
-| `.classification` · 대외비 문구 | 사람                | **남긴다.** 못 채운 저작권 `<p>` 만 지우고 꼬리말은 남긴다.    |
+| Target                             | Who                 | Treatment                                                       |
+| :--------------------------------- | :------------------ | :-------------------------------------------------------------- |
+| **Every** HTML comment              | `finalize.py`       | **Deleted.** All of them, not only the ones marked `SECTION:`. A comment is merely invisible on screen; it stays in the file and reads perfectly well to anyone who opens the source. |
+| `PRESET` and `PALETTE` stores       | `finalize.py`       | **The marker comments and the `<template>` bodies go together.** A store is a `<template>` element rather than a comment, so deleting only the comment leaves the markup alive and takes away the very grounds the §8 leftover check would have caught it on. |
+| `{{double braces}}`                 | a person            | **None are left.** What you cannot fill, you delete the section for. Which one to fill is a judgement no tool makes for you — anything left is caught by the check. |
+| CSS of unused components            | a person            | **Stays.** Picking selectors to delete takes the styles of components you did use down with them. |
+| `.classification` and the confidentiality line | a person | **Stays.** Delete only the unfilled copyright `<p>` and keep the footer. |
 
-**외부 참조는 하나도 두지 않는다.** CDN, 웹폰트, 원격 이미지, `fetch` 전부 안 된다.
-이미지는 `data:` URI 로 인라인한다. 폰트도 마찬가지라 `embed-font.py` 가 base64 로 심는다
-(§6-2). 나중에 아티팩트로 올려도 그대로 열린다.
+**Not one external reference is left.** No CDN, no web font, no remote image, no `fetch`. Images go
+inline as `data:` URIs. Fonts likewise, which is why `embed-font.py` embeds them as base64 (§6-2).
+Uploaded as an artifact later, it still opens.
 
-**예외는 `preview.html` 하나다.** 그 파일은 산출물이 아니라 폰트를 고르는 깡통이고, 다섯
-폰트를 CDN 에서 받아 그린다. 사용자가 고른 뒤에 내려받아 심으므로 그 CDN 참조가 산출물로
-새지 않는다. 산출물 쪽은 아래 §8 의 외부 참조 검사가 잡는다.
+**The one exception is `preview.html`.** That file is not an output but a shell for picking a font,
+and it draws five fonts from a CDN. The user picks, then it is downloaded and embedded, so that CDN
+reference never leaks into an output. The output side is caught by the external-reference check in §8.
 
-## 8. 검증 — 할 수 있는 것만 하고, 못 한 것은 못 했다고 쓴다
+## 8. Verification — do what you can, and write down what you could not
 
-### 반드시 돌린다
+### Always run
 
 ```bash
-python3 finalize.py <초안>-font.html > <산출물>.html; echo "rc=$?"
+python3 finalize.py <draft>-font.html > <output>.html; echo "rc=$?"
 ```
 
-정리본은 stdout, 무엇을 몇 개 지웠고 무엇이 걸렸는지는 stderr, 판정은 **종료 코드**다.
-입력 파일은 열기만 하므로 도구가 죽어도 초안은 그대로 남는다.
+The cleaned file goes to stdout, what was deleted and what was flagged goes to stderr, and the
+judgement is **the exit code**. The input file is only opened, so the draft survives even if the tool
+dies.
 
-| rc | 뜻 |
+| rc | What it means |
 | :- | :- |
-| 0  | 잔존 마커·외부 참조·폰트 임베드·태그 균형 넷 다 통과. 이대로 공유해도 된다 |
-| 1  | 검사에 걸렸다. stderr 가 줄 번호로 무엇이 걸렸는지 말한다. 대개는 지우지 않은 잔존이니 stdout 은 초안으로 다루고, **본문이라 걸린 것이면 사람이 판단해 통과시킨다**(아래) |
-| 2  | 입력을 읽지 못했다 |
+| 0  | All four passed: leftover markers, external references, font embedding, tag balance. Safe to share as is |
+| 1  | A check flagged something. stderr names it by line number. Usually it is a leftover you did not delete, so treat stdout as a draft; **when it is body content that got flagged, a person judges and passes it** (below) |
+| 2  | The input could not be read |
 
-네 검사는 이렇다.
+The four checks are these.
 
-- **잔존 마커·못 채운 자리** — `{{중괄호}}` · `SECTION:` · `PRESET:` · `PALETTE:` · `<template>`.
-  마지막 하나가 창고의 유일한 흔적이라 이름이 아니라 요소로 잡는다.
-  **`<pre>`/`<code>` 안에서 걸린 것은 본문일 수 있다** — 마커 문법이나 치환 자리를 설명하는
-  자료는 걸리는 게 정상이다. 도구는 코드 블록 안팎을 구분하지 않으니(그러려면 정규식이
-  파서가 된다) 그 판단은 사람이 한다. 통과시킬 때는 **어느 줄을 왜 본문으로 봤는지 근거와
-  함께 적는다** — 코드 블록 밖에서 걸린 것은 지우지 않은 잔존이고, 그 둘을 뭉뚱그리면
-  검사가 무뎌진다.
-- **외부 참조** — `src=` · `@import` · `url(http…)` · `<script>` · `<link>`. 본문 `<a href>` 는
-  정상이고, 가져다 쓰는 것이 위반이다.
-- **폰트 임베드** — `<style>` 안에 `url(data:font/woff2;base64,` 가 있는지 본다. 없으면
-  `rc=1` 이고, 원인은 둘 중 하나다: 폰트를 심지 않았거나(§6-2), `finalize.py` 를 먼저
-  돌려 주입 지점 주석이 이미 지워졌거나. 본문에 `@font-face` 를 설명하는 코드 블록이
-  있어도 걸리지 않는다 — 판정은 `<style>` 요소 안에서만 한다.
-- **태그 균형** — 표를 복제하다 `</tr>` 하나를 빠뜨리면 그 아래가 통째로 무너진다.
+- **Leftover markers and unfilled slots** — `{{double braces}}` · `SECTION:` · `PRESET:` ·
+  `PALETTE:` · `<template>`. The last is the store's only remaining trace, so it is caught as an
+  element rather than by name.
+  **Something flagged inside `<pre>`/`<code>` may be body content** — material explaining marker
+  syntax or a substitution slot is supposed to be flagged. The tool does not tell inside a code block
+  from outside (that would turn a regex into a parser), so a person makes that call. When you pass
+  one, **write down which line you took as body content and why** — anything flagged outside a code
+  block is a leftover you did not delete, and blurring the two blunts the check.
+- **External references** — `src=` · `@import` · `url(http…)` · `<script>` · `<link>`. A body
+  `<a href>` is fine; pulling something in is the violation.
+- **Font embedding** — it looks for `url(data:font/woff2;base64,` inside `<style>`. Absent, it is
+  `rc=1`, and the cause is one of two: the font was never embedded (§6-2), or `finalize.py` ran first
+  and the injection-point comment was already gone. A code block in the body explaining `@font-face`
+  does not trip it — the judgement is made only inside `<style>` elements.
+- **Tag balance** — drop one `</tr>` while duplicating a table and everything below it collapses.
 
-**판정의 근거는 rc 와 stderr 전문이다.** 걸린 줄을 `head` 나 개수로 줄여 읽고 넘기지
-않는다 — 도구는 전부 찍고, 잘린 목록의 침묵은 증거가 아니다. `rc=1` 을 사람이 본문으로
-판단해 통과시킬 때도 마찬가지다: 전문을 읽고, 어느 줄을 왜 통과시켰는지 적는다.
+**The grounds for the judgement are the rc and the full stderr.** Read the flagged lines in full
+rather than shortening them to a `head` or a count — the tool prints all of them, and the silence of a
+truncated list is not evidence. The same holds when a person passes an `rc=1` as body content: read it
+in full, and write down which line you passed and why.
 
-### 렌더는 확인할 수 있을 때만 확인한다
+### Confirm the render only when you can confirm it
 
-**"열어봤다"고 쓰려면 실제로 픽셀을 봤어야 한다.** 파일을 만든 것은 렌더를 본 것이 아니다.
+**To write "I opened it" you have to have seen pixels.** Producing the file is not seeing the render.
 
-- headless 브라우저가 있으면 스크린샷을 찍어 눈으로 본다. 예:
-  `<브라우저> --headless=new --screenshot=/tmp/shot.png --window-size=1000,1500 <만든 파일>`
-- 인쇄 결과를 봐야 하면 `--print-to-pdf` 로 뽑는다. 다만 **PDF 바이트를 뒤져 배경색이
-  들어갔는지 판정하려 들지 않는다** — 색면과 글자색이 같은 연산자로 기록돼 구분되지 않는다.
-  인쇄 스타일을 보려면 사본에서 `@media print` 를 `@media all` 로, **`@media screen` 을
-  `@media not all` 로** 바꿔 렌더한다. 뒤엣것을 빼먹으면 종이에는 적용되지 않을 다크 배색이
-  섞여 든다 — 다크 팔레트가 `@media screen` 안에 있기 때문이다.
-- **이 흉내는 Chromium 이 인쇄에서 하는 일 하나를 재현하지 못한다.** Chromium 은 인쇄할 때
-  `prefers-color-scheme` 을 light 로 강제한다(Edge 151 실측). 그래서 OS 설정으로 다크가
-  켜진 기기에서 흉내를 돌리면 실제 인쇄보다 어둡게 나온다. **다만 그 강제는 미디어 특성에만
-  닿는다** — `data-theme="dark"` 처럼 속성으로 켠 다크는 인쇄에서도 그대로 살아 있다.
-  배색이 걸린 판정이면 `--print-to-pdf` 로 뽑은 실제 인쇄를 함께 보되, **바탕색이 아니라
-  글자색으로 판단한다** — Chrome 은 기본적으로 배경을 인쇄하지 않아 바탕은 어느 쪽이든
-  희게 나온다. (WebKit·Gecko 가 강제하는지는 재지 못했다)
-- 아무것도 없으면 위 grep·태그 검사까지만 하고, **"렌더는 확인하지 못했다"고 보고에 적는다.**
-  사람에게 열어보라고 경로를 알려준다.
+- With a headless browser, take a screenshot and look at it. For example:
+  `<browser> --headless=new --screenshot=/tmp/shot.png --window-size=1000,1500 <the file>`
+- To see the printed result, produce it with `--print-to-pdf`. But **do not go digging through PDF
+  bytes to decide whether a background colour made it in** — bands and text colour are recorded by
+  the same operator and cannot be told apart. To look at print styling, render a copy with
+  `@media print` changed to `@media all` and **`@media screen` changed to `@media not all`.** Miss the
+  second and the dark palette bleeds in although it would never apply on paper — the dark palette
+  lives inside `@media screen`.
+- **This imitation fails to reproduce one thing Chromium does when printing.** Chromium forces
+  `prefers-color-scheme` to light for print (measured on Edge 151). Run the imitation on a machine
+  with OS dark mode on and it comes out darker than the real print. **That forcing reaches the media
+  feature only** — a dark theme switched on by attribute, like `data-theme="dark"`, survives into
+  print. When the palette is what is being judged, look at a real print from `--print-to-pdf`
+  alongside, and **judge on text colour rather than background** — Chrome does not print backgrounds
+  by default, so the ground comes out white either way. (Whether WebKit and Gecko force it was not
+  measured.)
+- With none of that available, stop at the grep and tag checks above and **write "the render was not
+  confirmed" in the report.** Give the person the path so they can open it.
 
-## 9. 부품
+## 9. Components
 
-콜아웃(정보·주의·강조) · 표 · **숫자 표(우측 정렬·소계·합계·하위 계정)** · **증감 표기** ·
-**상태 배지** · 통계 타일 · 성과 메트릭 카드(개선 전 → 후) · 코드 · 인용 · 이미지+캡션 ·
-세로 타임라인 · 아코디언 · 탭 · 막대 차트+스파크라인 · 페이지 나눔.
-전부 `PALETTE` 구역에 완성된 마크업으로 있다.
+Callouts (info, caution, emphasis) · tables · **number tables (right-aligned, subtotals, totals,
+sub-accounts)** · **change markers** · **status badges** · statistic tiles · achievement metric cards
+(before → after) · code · quotes · image with caption · vertical timeline · accordion · tabs · bar
+chart with sparkline · page break. All of them exist as finished markup in the `PALETTE` region.
 
-**증감과 상태는 색만으로 구분하지 않는다.** `▲`/`▼`/`—` 기호와 "완료"/"지연" 같은 글자를
-반드시 같이 쓴다. 흑백 인쇄본과 색각 이상에서 색은 사라진다.
+**Change and status are never distinguished by colour alone.** The `▲`/`▼`/`—` marks and a word
+("done", "delayed") always go with them. In black-and-white print and for colour-vision deficiency,
+colour is gone.
 
-**숫자 표에는 단위와 기준일을 `.table-note` 로 붙인다.** 단위 없는 금액은 보고서에서
-질문 하나를 반드시 만든다.
+**Number tables carry their unit and as-of date in a `.table-note`.** An amount without a unit
+produces exactly one question in the report.
 
-## 10. 남긴 천장
+## 10. Ceilings left in place
 
-### 쓰면서 걸리는 것
+### What you run into while writing
 
-- **탭은 라디오+CSS다.** `role="tab"` 도 화살표 키 이동도 없고, 감춰진 패널은 `Ctrl+F` 로
-  안 잡힌다. **검색돼야 하는 내용이면 탭 대신 `h3` 소제목을 쓴다.** 한 페이지에 탭 그룹이
-  둘 이상이면 `name` 과 `id` 의 `t1` 을 바꾼다. 한 그룹 최대 4개 — 늘리려면 CSS 셀렉터를
-  한 줄씩 추가해야 한다. (인쇄에서는 모든 패널이 펼쳐진다)
-- **차트는 막대와 스파크라인뿐이다.** 꺾은선·산점도·다중 계열이 필요하면 `dataviz` 스킬을
-  읽고 인라인 SVG 로 그린다. 여기에 두 번째 차트 규칙을 만들지 않는다.
-- **다이어그램은 없다.** 필요하면 인라인 SVG 로 그린다.
-  ⚠️ **mermaid 는 쓸 수 없다** — `mermaid` 블록을 그려주는 것은 아티팩트 뷰어의 기능이지
-  브라우저의 기능이 아니다. 로컬 `.html` 에서는 코드 덩어리로 보인다.
-- **페이지 나눔은 작은 단위만 묶는다.** 섹션 전체에 `break-inside: avoid` 를 걸지 않는다 —
-  긴 섹션 하나가 통째로 밀리면서 앞 장에 빈 공간이 크게 남는다. 대신 표의 행·통계 타일·
-  콜아웃·인용처럼 잘리면 못 읽는 것만 묶고, 문단은 `orphans`/`widows` 로 고아줄을 막는다.
-  **`orphans`/`widows` 는 Chrome·Edge·Safari 만 지킨다. Firefox 는 무시한다.**
-  특정 섹션을 반드시 새 장에서 시작해야 하면 그 앞에 `<div class="page-break"></div>` 를 둔다.
+- **Tabs are radios plus CSS.** There is no `role="tab"` and no arrow-key movement, and a hidden panel
+  is not found by `Ctrl+F`. **When the content has to be searchable, use `h3` subheadings instead of
+  tabs.** With more than one tab group on a page, change the `t1` in `name` and `id`. Four per group
+  at most — going beyond means adding a CSS selector line each. (In print every panel is expanded.)
+- **The only charts are bars and sparklines.** For lines, scatter or multi-series, read the `dataviz`
+  skill and draw inline SVG. Do not start a second chart rule here.
+- **There are no diagrams.** Draw inline SVG when you need one.
+  ⚠️ **mermaid is unusable** — rendering a `mermaid` block is a feature of the artifact viewer, not of
+  the browser. In a local `.html` it shows as a lump of code.
+- **Page breaks bind small units only.** Do not put `break-inside: avoid` on a whole section — one
+  long section shoved along whole leaves a large gap on the preceding page. Bind only what becomes
+  unreadable when cut — table rows, statistic tiles, callouts, quotes — and hold paragraphs together
+  with `orphans`/`widows`. **`orphans`/`widows` are honoured by Chrome, Edge and Safari. Firefox
+  ignores them.** When a section must start on a fresh page, put `<div class="page-break"></div>`
+  before it.
 
-### 배포 전에 아는 것
+### What to know before you ship
 
-- **`color-mix()` 를 쓴다.** Chrome 111 · Safari 16.2 · Firefox 113 이상이 필요하다. 더
-  낮은 브라우저로 배포해야 하면 파생 토큰 다섯 줄(`--accent-soft` `--info-soft` `--warn-soft`
-  `--band-muted` `--band-line`)을 직접 색값으로 바꾼다.
-- **색면은 화면에서만 쓴다.** 인쇄에서는 표지·꼬리말의 색면이 굵은 괘선으로 바뀐다.
-  A4 상단을 통째로 칠하면 토너를 크게 먹고 뒷면이 비치며 흑백 출력에서 글자가 뭉갠다.
-  종이에도 색면을 남기려면 `@media print` 의 해당 블록을 지우고 `print-color-adjust: exact`
-  를 넣어야 한다 — 그러면 페이지 여백(`@page margin`) 바깥은 흰 채로 남는다.
-- **페이지 번호와 머리말·꼬리말은 없다.** CSS `@page` 의 `@top-center`·`counter(page)` 는
-  브라우저가 구현하지 않았다. 브라우저 인쇄 대화상자의 머리글/바닥글 옵션을 쓴다.
-- **슬라이드 덱이 아니다.** 스크롤되는 문서 한 장이다.
+- **It uses `color-mix()`.** Chrome 111, Safari 16.2, Firefox 113 or later. To ship to anything lower,
+  replace the five derived tokens (`--accent-soft` `--info-soft` `--warn-soft` `--band-muted`
+  `--band-line`) with literal colours.
+- **Colour bands are for screen only.** In print the cover and footer bands become heavy rules.
+  Flooding the top of an A4 eats toner, shows through the back and mangles text in black-and-white
+  output. To keep bands on paper, delete that block from `@media print` and add
+  `print-color-adjust: exact` — and then everything outside the page margin (`@page margin`) stays
+  white.
+- **There are no page numbers, headers or footers.** Browsers never implemented `@top-center` and
+  `counter(page)` in CSS `@page`. Use the header/footer option in the browser's print dialog.
+- **This is not a slide deck.** It is one scrolling document.
 
-## 11. 템플릿을 고칠 때
+## 11. Changing the template
 
-호출할 때 말로 하는 1회성 지시("이번엔 배경 빼고", "타일 대신 표로")는 템플릿을 건드리지
-않는다. 그 산출물에서만 반영한다. **같은 지시가 세 번 나오면 그때 템플릿에 넣는다** — 한 번
-쓰인 취향이 영구히 박히는 것과, 매번 같은 말을 반복하는 것 사이의 선이다.
+A one-off instruction given in words at call time ("skip the background this time", "a table instead
+of tiles") does not touch the template. It applies to that output only. **When the same instruction
+comes three times, that is when it goes into the template** — the line between a taste getting fixed
+in place after one use, and repeating the same words every time.
 
-새 프리셋도 같은 기준이다. 같은 목적의 보고서를 세 번 만들었으면 그때 `PRESET` 에 넣는다.
+A new preset takes the same bar. Once you have built the same kind of report three times, it goes into
+`PRESET`.
 
-**어디를 고치는지는 이 스킬이 어떻게 설치됐는지에 달렸다.**
+**Where you change it depends on how this skill was installed.**
 
-| 설치 형태 | 고치는 곳 |
+| Installed as | Where you change it |
 | :-------- | :-------- |
-| 플러그인 (`/plugin install toolkit@skills`) | 캐시 안의 파일을 고치지 않는다 — **다음 업데이트에 덮인다.** 원본 레포(`juhyeon-cha/skills`)의 `plugins/toolkit/` 를 고치고 커밋한다 |
-| 프로젝트에 복사 (`.claude/skills/html-report/`) | 그 파일을 바로 고친다 |
+| A plugin (`/plugin install toolkit@skills`) | Do not edit files in the cache — **the next update overwrites them.** Edit `plugins/toolkit/` in the source repo (`juhyeon-cha/skills`) and commit |
+| Copied into a project (`.claude/skills/html-report/`) | Edit that file directly |
 
-**회사 BI 색처럼 프로젝트마다 다른 값은 템플릿에 박지 않는다.** 프로젝트 지침
-(`CLAUDE.md` 등)에 "이 프로젝트의 보고서는 `--brand: #003a70`" 처럼 적어 두고, 산출물을
-만들 때 그 값으로 바꾼다. 템플릿의 기본값은 무채색으로 남긴다.
+**A value that differs per project, like a company brand colour, does not get baked into the
+template.** Write it in the project instructions (`CLAUDE.md` and the like) — "reports in this project
+use `--brand: #003a70`" — and substitute that value when you build an output. The template's default
+stays achromatic.
