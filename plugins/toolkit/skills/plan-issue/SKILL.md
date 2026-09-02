@@ -1,94 +1,98 @@
 ---
 name: plan-issue
-description: 발견한 결함·결정거리를 GitHub 이슈로 등재한다. 무엇이 이슈가 되고 무엇이 안 되는지, 본문 다섯 절의 뼈대, 그리고 표준 라벨 배정. "이슈 등록해줘", "이슈로 남겨줘", "백로그에 넣어줘", "이거 이슈감이야" 같은 요청에서 쓴다. 이미 있는 이슈를 고쳐 닫는 절차는 `issue-resolution` 스킬.
+description: File a discovered defect or open decision as a GitHub issue — what does and does not become an issue, the five-section skeleton for the body, and the standard label assignment. Use for requests like "이슈 등록해줘", "이슈로 남겨줘", "백로그에 넣어줘", "이거 이슈감이야". For fixing and closing an issue that already exists, use the `issue-resolution` skill.
 ---
 
-# 발견한 것을 이슈로 등재하기
+# Filing what you found as an issue
 
-이슈는 **GitHub 에 있다.** 트리에 사본을 두지 않는다 — 트리에 있으면 읽게 되고, 맞춰야 할
-것이 하나 더 생긴다.
+Issues live **on GitHub.** Do not keep a copy in the tree — a copy in the tree gets read, and becomes
+one more thing to keep in sync.
 
-## 0. 대부분의 발견은 이슈가 아니다
+## 0. Most findings are not issues
 
-**조치가 필요 없으면 등재하지 않는다.** 세 가지를 먼저 통과해야 한다.
+**If no action is needed, do not file it.** Three questions come first.
 
-| 물음                                         | 통과 못 하면                                           |
-| :------------------------------------------- | :----------------------------------------------------- |
-| 한 문장으로 **문제**를 진술할 수 있는가?     | 그건 문제가 아니라 불편함이다. 되묻는다.               |
-| **무엇이 이것을 끝내는가**를 적을 수 있는가? | 닫을 조건 없는 이슈는 영원히 남는다.                   |
-| **지금 고칠 수 있는가?**                     | 고칠 수 있으면 고친다. 이슈는 미루기 위한 것이 아니다. |
+| Question                                       | If it does not pass                                        |
+| :--------------------------------------------- | :----------------------------------------------------------- |
+| Can you state the **problem** in one sentence?  | That is an annoyance, not a problem. Ask back.                |
+| Can you write **what finishes this**?           | An issue with no closing condition stays forever.             |
+| **Can you fix it right now?**                   | If you can fix it, fix it. An issue is not a way to defer.    |
 
-세 번째가 가장 자주 어겨진다. 5분이면 고칠 것을 등재하는 것은 5분을 30분으로 바꾸는 일이다.
+The third is broken most often. Filing something you could fix in 5 minutes turns 5 minutes into 30.
 
-**중복 먼저 확인한다.**
-
-```bash
-gh issue list --search '<키워드>'           # 제목과 본문을 뒤진다
-gh issue list --state all --search '<키워드>'  # 닫힌 것까지
-```
-
-## 1. 본문 — 다섯 절
-
-이 스킬 폴더의 `template.md` 가 뼈대다. 채우지 못하는 절은 **지운다**; `N/A` 로 채우면
-검토한 것으로 읽힌다.
+**Check for duplicates first.**
 
 ```bash
-cp <이 스킬 폴더>/template.md /tmp/issue.md   # 채운다
-gh issue create --title "<제목>" --body-file /tmp/issue.md --label bug
+gh issue list --search '<keyword>'              # searches titles and bodies
+gh issue list --state all --search '<keyword>'  # including closed ones
 ```
 
-| 절                | 그 절이 답하는 것                                        |
-| :---------------- | :------------------------------------------------------- |
-| **무엇이 참인가** | 반박 가능한 사실 하나. 경로와 **심볼 이름**으로 인용한다 |
-| **왜 그런가**     | 기전 — 어느 판정이 이 결과를 만드는가                    |
-| **관측된 결과**   | 추론이 아니라 본 것. 사용자가 겪는 것으로                |
-| **닫는 방법**     | 무엇이 끝내는가 + 되돌려 증명할 계획 + 음성 대조군       |
-| **무엇이 아닌가** | 이웃 이슈와의 차이. 해당할 때만                          |
+## 1. The body — five sections
 
-두 가지를 지킨다.
-
-- **관측한 것을 그대로 붙인다.** 페이로드, 명령 출력, 파일 내용을 요약하지 말고 코드블록에
-  넣는다. 요약은 다시 만들 수 없고 원본은 재현 비용이 크다.
-- **인용은 `path:line` 이 아니라 경로 + 심볼**이다. 줄 번호는 코드가 움직이면 엉뚱한 곳을
-  가리키고, 그 사실이 인용을 읽는 쪽에 보이지 않는다. 얼어 있는 트리(벤더 사본 등)만
-  예외로 줄 번호를 쓴다.
-
-## 2. 제목
-
-**증상이 아니라 무엇이 참인지를 적는다.** 읽는 사람이 제목만 보고 자기 일인지 판단할 수
-있어야 한다.
-
-- ❌ `push 가 이상함`
-- ❌ `재시도 큐 개선`
-- ✅ `서버에 닿은 적 없는 파일이 재시도 큐에 들어가, 큐가 영원히 비지 않는다`
-
-## 3. 라벨은 셋뿐이다
-
-**라벨을 새로 만들지 않는다.** GitHub 기본 라벨 아홉 개 중 셋만 쓴다.
-
-| 라벨            | 언제                                                   |
-| :-------------- | :----------------------------------------------------- |
-| `bug`           | 관측된 결함. **기본값** — 확신이 없으면 이것           |
-| `enhancement`   | 아직 고르지 않은 일. 만들 것도, 갈림길도 여기 들어간다 |
-| `documentation` | 문서만 바뀌면 닫히는 것                                |
-
-막힌 이유도, 갈림길이라는 것도 라벨이 아니라 **"닫는 방법" 절**에 적는다. 그래서
-막힌 항목을 `--label` 로 걸러 낼 수 없고, `issue-resolution` §1 이 고르기 전에
-본문을 열라고 하는 것도 그 때문이다.
-
-**철회는 닫기와 다르다.** 결함이 아니었던 것으로 밝혀지면 **닫기 사유**로 가른다 — 라벨이
-아니다. 그냥 닫으면 **없던 결함이 있었던 것으로 기록된다.**
+The `template.md` in this skill folder is the skeleton. A section you cannot fill is **deleted**;
+filled with `N/A` it reads as reviewed.
 
 ```bash
-gh issue close <번호> --reason completed                      # 고쳤다
-gh issue close <번호> --reason "not planned" --comment "<왜 결함이 아니었는가>"
+cp <this skill folder>/template.md /tmp/issue.md   # fill it in
+gh issue create --title "<title>" --body-file /tmp/issue.md --label bug
 ```
 
-GitHub 이 이 둘을 다르게 렌더하므로 라벨을 겹쳐 달 이유가 없다.
+| Section, in the order `template.md` holds them | What that section answers                                      |
+| :---------------------------------------------- | :------------------------------------------------------------------ |
+| **What is true**                                 | One refutable fact. Cite it by path and **symbol name**              |
+| **Why it is so**                                 | The mechanism — which judgement produces this result                 |
+| **Observed result**                              | What you saw, not what you inferred. As the user meets it            |
+| **How it closes**                                | What finishes it + a plan to prove it by reverting + a negative control |
+| **What it is not**                               | The difference from a neighbouring issue. Only when it applies       |
 
-## 4. 멈춰야 하는 자리
+Two things to hold to.
 
-- **이슈 등재는 외부 반영이다.** 매번 지시를 받는다. 앞 턴의 승인은 그 한 번에만 유효하다.
-- 이슈를 열면서 **동시에 고치지 않는다.** 고칠 것이면 이슈를 열지 말고 고친다(§0).
-- 실제 시스템에 닿아야 확인되는 주장은 **확인하지 못했다고 적는다.** 그럴듯한 추측을
-  "무엇이 참인가" 절에 쓰지 않는다.
+- **Paste what you observed verbatim.** Put payloads, command output and file contents in a code
+  block instead of summarising them. A summary cannot be rebuilt, and the original is expensive to
+  reproduce.
+- **Cite by path plus symbol, not `path:line`.** Line numbers point somewhere else once code moves,
+  and that fact is invisible to whoever reads the citation. Only a frozen tree (a vendored copy and
+  the like) is the exception that uses line numbers.
+
+## 2. The title
+
+**Write what is true, not the symptom.** A reader has to be able to tell from the title alone whether
+it is their business.
+
+- ❌ `push behaves oddly`
+- ❌ `improve the retry queue`
+- ✅ `files that never reached the server enter the retry queue, so the queue never empties`
+
+## 3. There are only three labels
+
+**Do not create a new label.** Of GitHub's nine default labels, only three are used.
+
+| Label           | When                                                                 |
+| :-------------- | :---------------------------------------------------------------------- |
+| `bug`           | An observed defect. **The default** — use it when unsure                 |
+| `enhancement`   | Work not yet chosen. Things to build and open decisions both go here     |
+| `documentation` | Something that closes with a documentation change alone                  |
+
+Why an item is blocked, and that it is an open decision, go in the **"How it closes" section**, not in
+a label. That is why blocked items cannot be filtered out with `--label`, and why `issue-resolution`
+§1 tells you to open the body before choosing.
+
+**Withdrawing differs from closing.** When something turns out not to have been a defect, the **close
+reason** tells them apart — not a label. Close it plainly and **a defect that never existed goes on
+the record.**
+
+```bash
+gh issue close <number> --reason completed                      # fixed
+gh issue close <number> --reason "not planned" --comment "<why it was not a defect>"
+```
+
+GitHub renders these two differently, so there is no reason to add a label on top.
+
+## 4. Where to stop
+
+- **Filing an issue is an external write. It requires an explicit instruction every time.** An
+  approval from an earlier turn covers only that one turn.
+- **Do not fix it while opening it.** If you are going to fix it, fix it instead of opening an issue
+  (§0).
+- A claim that can only be confirmed by touching the live system is written down **as unconfirmed.**
+  A plausible guess does not go in the "What is true" section.
