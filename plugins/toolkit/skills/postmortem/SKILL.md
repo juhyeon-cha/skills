@@ -1,148 +1,158 @@
 ---
 name: postmortem
-description: 사고 기록 하나를 경과·[원인 - 조치 - 재발 방지] 카드·액션 아이템으로 된 회고 HTML 한 장으로 만든다. 시각 정보가 없으면 경과 섹션을 지어내지 않고 빼며 뺐다는 사실을 산출물에 적는다. "장애 회고 써줘", "포스트모템 정리해줘", "사고 보고서 만들어줘", "이 장애 원인 정리해서 문서로" 같은 요청에서 쓴다.
+description: Turn one incident record into a single retrospective HTML page — a timeline, [cause - action - prevention] cards, and action items. With no timestamps the timeline section is left out rather than invented, and the output says it was left out. Use for requests like "장애 회고 써줘", "포스트모템 정리해줘", "사고 보고서 만들어줘", "이 장애 원인 정리해서 문서로".
 ---
 
-# 사고 회고 문서 만들기
+# Writing an incident retrospective
 
-**한 건의 문서다. 축적하지 않는다.** 입력을 그때그때 받고 홈 아래에도 프로젝트에도
-아무것도 쌓지 않는다 — 회고는 그 사고를 읽는 사람을 위한 문서지, 모아서 훑을 대상이
-아니다. (쌓는 쪽은 형제 스킬 `brag` 다. 같은 사건이 성과이면서 회고일 수 있지만, 그때도
-항목 둘로 나눠 각 스킬에 넣는다.)
+**One document per incident. It does not accumulate.** The input arrives each time and nothing is
+left behind, under your home directory or in the project — a retrospective is a document for whoever
+reads that one incident, not a pile to skim later. (The sibling skill `brag` is the one that
+accumulates. The same event can be both an achievement and a retrospective; even then it splits into
+two entries, one per skill.)
 
-## 1. 절차
+## 1. The procedure
 
 ```bash
-python3 postmortem.py <사고기록.json> > 초안.html
-python3 ../html-report/embed-font.py 초안.html pretendard > 초안-font.html
-python3 ../html-report/finalize.py 초안-font.html > <YYYY-MM-DD>-postmortem.html
+python3 postmortem.py <incident.json> > draft.html
+python3 ../html-report/embed-font.py draft.html pretendard > draft-font.html
+python3 ../html-report/finalize.py draft-font.html > <YYYY-MM-DD>-postmortem.html
 ```
 
-**세 명령이 한 세트이고 순서가 규율이다.** `embed-font.py` 를 `finalize.py` 보다 먼저
-돌린다 — 뒤집으면 주입 지점 주석이 지워져 `embed-font.py` 가 rc=1 로 끝난다. 판정은 세
-명령의 종료 코드다.
+**The three commands are one set and their order is the rule.** Run `embed-font.py` before
+`finalize.py` — reversed, the injection-point comment is already gone and `embed-font.py` ends with
+rc=1. The judgement is the exit code of all three.
 
-**템플릿·폰트·검사기는 `html-report` 것을 그대로 쓴다.** 이 스킬에 두 번째 템플릿을
-만들지 않는다. 색·부품·인쇄 규칙이 걸리면 `../html-report/SKILL.md` 가 원본이다.
-완료 보고에는 그 파일 §6-3 의 폰트 안내를 그대로 붙인다.
+**The template, the fonts and the checker are `html-report`'s, used as they are.** Do not build a
+second template in this skill. When a colour, component or print rule is at stake,
+`../html-report/SKILL.md` is the original. Attach that file's §6-3 font notice to the completion
+report verbatim.
 
-### 기록 뭉치에서 원인을 세울 때는 `worklog-structurer` 에 넘긴다
+**The report comes out in Korean.** `template.html` and the strings `postmortem.py` writes are
+Korean; the JSON below is English only so this document reads in one language.
 
-장애 채널 로그·모니터링 알림·회의 메모를 통째로 받았으면 직접 자르지 말고
-`worklog-structurer` 에이전트에 넘긴다. 그 에이전트의 회고 구조가 여기 입력과 같은
-[원인 - 조치 - 재발 방지] 세 칸이다. **"원인 칸에 증상밖에 못 쓰겠다"고 돌아오면 그
-항목을 원인으로 세우지 마라** — 원인 없는 회고는 재발 방지도 없다.
+### Standing causes up out of a pile of records goes to `worklog-structurer`
 
-## 2. 입력
+When you are handed an incident channel log, monitoring alerts or meeting notes whole, hand them to
+the `worklog-structurer` agent rather than cutting them up yourself. That agent's retrospective
+structure is the same three slots this input takes — [cause - action - prevention]. **When it comes
+back saying the cause slot can only hold a symptom, do not stand that item up as a cause** — a
+retrospective without a cause has no prevention either.
+
+## 2. The input
 
 ```json
 {
-  "title": "결제 승인 API 47분 장애",
+  "title": "Payment authorisation API down for 47 minutes",
   "date": "2026-08-20",
-  "team": "결제팀",
-  "author": "차주현",
-  "impact": "20일 14:02~14:49 결제 승인 요청의 62%가 실패했다. 이중 청구는 없다.",
+  "team": "Payments",
+  "author": "Juhyeon Cha",
+  "impact": "62% of authorisation requests failed between 14:02 and 14:49 on the 20th. Nothing was double-charged.",
   "timeline": [
-    { "when": "14:02", "what": "승인 실패율 알림", "detail": "5분 이동 평균이 임계값 5%를 넘었다." },
-    { "when": "14:31", "what": "풀 크기 상향 배포" }
+    { "when": "14:02", "what": "Authorisation failure rate alert", "detail": "The 5-minute moving average crossed the 5% threshold." },
+    { "when": "14:31", "what": "Deployed a larger pool size" }
   ],
   "causes": [
     {
-      "title": "커넥션을 반납하지 않는 경로가 있었다",
-      "cause": "타임아웃 예외가 finally 밖에서 처리돼 그 경로만 커넥션을 반납하지 않았다.",
-      "action": "풀 크기를 200에서 400으로 올려 급한 불을 껐고, 다음 배포에서 반납을 finally 로 옮겼다.",
-      "prevention": "누수를 잡는 통합 테스트를 추가했다. 풀 사용률 경보는 아직 만들지 않았다."
+      "title": "One path never returned its connection",
+      "cause": "The timeout exception was handled outside finally, so that path alone never returned its connection.",
+      "action": "Raised the pool from 200 to 400 to stop the bleeding, then moved the return into finally in the next deploy.",
+      "prevention": "Added an integration test that catches the leak. The pool-utilisation alert does not exist yet."
     }
   ],
   "actions": [
-    { "todo": "커넥션 풀 사용률 80% 경보 추가", "owner": "결제팀 박OO", "due": "2026-09-05" }
+    { "todo": "Add an alert at 80% connection pool utilisation", "owner": "Payments, Park", "due": "2026-09-05" }
   ],
   "summary": ["…"],
   "conclusion": "…",
-  "refs": ["장애 채널 로그 #incident-2026-08-20"]
+  "refs": ["Incident channel log #incident-2026-08-20"]
 }
 ```
 
-| 칸 | 필수 | 무엇을 쓰나 |
+| Field | Required | What goes in it |
 | :--- | :--- | :--- |
-| `title` | ✓ | 사고의 이름. 영향 범위와 길이가 들어가면 좋다 |
+| `title` | ✓ | The name of the incident. Blast radius and duration belong in it |
 | `date` | ✓ | `YYYY-MM-DD` |
-| `impact` | ✓ | **한 문장으로 된 결론.** 표지 부제가 된다. 무엇이 얼마나 망가졌고 무엇은 무사했는지 |
-| `causes` | ✓ | 1건 이상. 각 건에 `cause`·`action`·`prevention` 세 칸이 다 있어야 한다. `title` 은 선택(없으면 원인 문장이 소제목이 된다) |
-| `actions` | ✓ | 1건 이상. `todo`·`owner`·`due`. **남은 일이 없는 회고는 끝난 회고가 아니다** |
-| `timeline` | | `when`·`what` 필수, `detail` 선택. **없거나 일부만 있으면 아래 3절** |
-| `team`·`author` | | 표지의 부서·작성자. 없으면 `미기재` — 실명이 박히는 자리라 넘기기 전에 사용자에게 확인한다. **위임 실행(서브에이전트·자동 루프)이라 물을 자리가 없으면 받은 값을 그대로 쓰고, 확인 없이 받은 값을 썼다는 사실을 완료 보고에 적는다** — 값을 지어내지는 않는다 |
-| `summary` | | "한눈에" 줄 목록. 없으면 날짜·원인 수·액션 아이템 수로 자동으로 만든다 |
-| `conclusion` | | 결론 문단. 없으면 원인·액션 아이템 수로 자동으로 만든다 |
-| `refs` | | 참고 목록. 없으면 참고 섹션이 사라진다 |
+| `impact` | ✓ | **The conclusion, in one sentence.** It becomes the cover subtitle. What broke, how badly, and what came through intact |
+| `causes` | ✓ | One or more. Each needs all three of `cause`, `action`, `prevention`. `title` is optional (without it the cause sentence becomes the subheading) |
+| `actions` | ✓ | One or more. `todo`, `owner`, `due`. **A retrospective with nothing left to do is not a finished retrospective** |
+| `timeline` | | `when` and `what` required, `detail` optional. **Empty or partial, go to §3** |
+| `team`, `author` | | The department and author on the cover. Left empty they render as a placeholder meaning "not recorded" — a real name lands here, so confirm with the user before handing it over. **On a delegated run (subagent, automated loop) there is nobody to ask: use the values you were given and record in the completion report that they went in unconfirmed** — the values are never invented |
+| `summary` | | The lines of the "at a glance" list. Without it, one is built from the date and the counts of causes and action items |
+| `conclusion` | | The closing paragraph. Without it, one is built from those same counts |
+| `refs` | | The reference list. Without it the reference section disappears |
 
-**세 칸을 지어내지 않는다.** `cause`·`action`·`prevention` 중 하나라도 비면 종료 코드 2 다.
-아직 하지 않은 재발 방지는 "아직 하지 않았다"고 쓰고 `actions` 에 내린다 — 그 둘이 회고
-문서가 실제로 하는 일의 전부다.
+**The three slots are never invented.** Any one of `cause`, `action`, `prevention` left empty is exit
+code 2. A prevention not yet done is written as not yet done and dropped into `actions` — those two
+are the whole of what a retrospective document actually does.
 
-## 3. 시각 정보가 없거나 일부만 있을 때 — 경과를 지어내지 않는다
+## 3. With no timestamps, or only some — the timeline is not invented
 
-**`timeline` 이 비어 있으면 경과 섹션을 통째로 뺀다.** 대신 뺐다는 사실이 산출물에 한
-줄로 남는다 (`경과 기록 없음` 콜아웃: "입력에 시각 정보가 한 건도 없어 경과 기록 섹션을
-넣지 않았다"). 없는 시각을 그럴듯하게 채우는 것은 사고 기록에서 가장 비싼 거짓말이다 —
-회고를 읽는 사람은 그 순서를 근거로 다음 사고의 대응을 정한다.
+**An empty `timeline` takes the whole timeline section out.** What stays behind is one line in the
+output saying so: a warning callout stating that the input held no timestamps at all, so the section
+was not included. Filling in times you do not have is the most expensive lie an incident record can
+tell — whoever reads it decides how to respond to the next incident from that ordering.
 
-시각을 알 만한 자료(모니터링 알림·배포 로그·채널 타임스탬프)가 있으면 **지어내지 말고
-사용자에게 그것을 달라고 한다.** 그래도 없으면 뺀 채로 낸다.
+When material that would give you the times exists (monitoring alerts, deploy logs, channel
+timestamps), **ask the user for it instead of inventing.** Failing that, ship it without.
 
-### 일부만 있을 때 — 범위로 적고 출처를 밝힌다
+### With only some — write a range and name where it came from
 
-**시각을 단일 값으로든 범위로든 적을 수 있는 건이 하나라도 있으면 섹션을 빼지 않는다.**
-섹션을 통째로 빼는 것은 범위로도 적을 수 없어 `timeline` 이 빌 때뿐이다 — 이 절 머리의
-조건과 같은 조건이다. 정확한 시각을 아는 건은 그대로 적고, 모르는 건만 아래 형태로 적는다.
+**As long as one event can be written down at all, as a single time or as a range, the section
+stays.** Taking the whole section out happens only when not even a range is available and `timeline`
+is empty — the same condition as the head of this section. Events whose exact time you know go in as
+they are; only the ones you do not know take the shape below.
 
-모르는 건은 **`when` 에 단일 시각 대신 상·하한을 `<하한> ~ <상한>` 으로 적고, `detail`
-에 정확한 시각을 모른다는 명시와 그 상·하한의 출처를 함께 적는다.** 셋이 한 세트다 —
-출처 없이 범위만 적은 것은 지어낸 시각과 구분되지 않으므로 그렇게 내지 않는다.
+For those, **put a lower and upper bound in `when` as `<lower> ~ <upper>` instead of a single time,
+and put in `detail` both a statement that the exact time is unknown and the source of those bounds.**
+The three go together — a range with no source is indistinguishable from an invented time, so it does
+not ship that way.
 
-- **상·하한은 확인된 사건에서 가져온다.** 하한은 그 일이 아직 일어나지 않았음이 확인된
-  마지막 시각, 상한은 이미 일어났음이 확인된 첫 시각이다. 둘 다 자료에 실재하는 값이라야
-  한다.
-- **좁히지 못하면 넓은 채로 둔다.** 넓은 범위는 아는 것이 적다는 사실을 그대로 전하지만,
-  어림해서 좁힌 값은 없는 정밀도를 지어낸다.
+- **Bounds come from confirmed events.** The lower bound is the last time it was confirmed not to
+  have happened yet, the upper bound the first time it was confirmed to have happened. Both have to
+  be values that exist in the material.
+- **Leave it wide when you cannot narrow it.** A wide range carries the fact that little is known;
+  a value narrowed by estimation invents a precision nobody has.
 
-실제로 이 형태가 쓰인 자리 — 타임라인 9건 중 8건은 원장과 감사 기록으로 초까지 대조됐고
-사고의 순간 1건만 시각이 원장에 없었다:
+A place this shape was actually used — 8 of 9 timeline events were reconciled to the second against
+the ledger and the audit record, and only the moment of the incident itself had no time in the
+ledger:
 
 ```json
 {
   "when": "00:25:38Z ~ 01:13:41Z",
-  "what": "원장 파일이 사라졌다",
-  "detail": "정확한 시각은 원장에 없다. 하한은 마지막 정상 커밋의 타임스탬프, 상한은 부재를 처음 관측한 감사 사이드카 기록이다."
+  "what": "The ledger file disappeared",
+  "detail": "The exact time is not in the ledger. The lower bound is the timestamp of the last healthy commit, the upper bound the audit sidecar record that first observed its absence."
 }
 ```
 
-> **섹션의 유무를 세려면 `class="timeline"` 의 건수를 본다.** 낱말 `타임라인` 은
-> `template.html` 의 CSS 주석에 있어 어느 산출물에나 1건 나온다 — `finalize.py` 는
-> HTML 주석만 지우고 CSS 주석은 남긴다. 그래서 낱말로 세면 뺀 산출물도 1건이 된다.
+> **To count whether the section is present, count `class="timeline"`.** The word "timeline" itself
+> sits in a CSS comment in `template.html`, so it turns up once in every output — `finalize.py`
+> strips HTML comments and leaves CSS comments. Counting by the word makes an output that dropped the
+> section look like one that kept it.
 
-## 4. 실패 경로
+## 4. Failure paths
 
-| 상황 | 종료 코드 | 무엇을 하나 |
+| Situation | Exit code | What to do |
 | :--- | :--- | :--- |
-| 입력 파일이 없음·JSON 이 아님 | 2 | stderr 에 그 경로가 찍힌다 |
-| `causes` 또는 `actions` 가 빔 | 2 | 원인 없는 회고, 남은 일 없는 회고는 내지 않는다 |
-| 세 칸 중 하나가 빔 | 2 | 어느 건의 어느 칸인지 stderr 가 말한다. 지어내 채우지 말고 묻는다 |
+| Input file missing, or not JSON | 2 | stderr carries the path |
+| `causes` or `actions` empty | 2 | A retrospective with no cause, or nothing left to do, does not ship |
+| One of the three slots empty | 2 | stderr says which item and which slot. Ask rather than invent a filling |
 
-## 5. 자기검사
+## 5. Self-check
 
 ```bash
-bash check.sh            # 시각 있는 입력·없는 입력 둘을 전 경로에 태우고 단언
-bash check.sh <출력폴더>  # 산출물을 남긴다 (사람이 열어볼 때)
+bash check.sh            # runs both inputs, with and without times, through the whole path and asserts
+bash check.sh <outdir>   # keeps the outputs (for a person to open)
 ```
 
-시각 없는 산출물의 `class="timeline"` 0건은 시각 있는 산출물의 1건과 함께 센다 —
-0건이 "검사가 안 돌았다" 와 구분되게 하는 부정 대조군이다.
+The 0 occurrences of `class="timeline"` in the timeless output are counted alongside the 1 in the
+timed one — the negative control that keeps 0 distinct from "the check never ran".
 
-## 6. 남긴 천장
+## 6. Ceilings left in place
 
-- **여러 사고를 한 문서로 묶지 않는다.** 사고 하나에 문서 하나다. 분기 회고처럼 여러 건을
-  훑는 문서가 필요하면 `html-report` 의 현황 보고 프리셋을 직접 쓴다.
-- **5 Whys·이시카와 같은 분석 틀을 강요하지 않는다.** 입력은 이미 세워진 원인을 받는다.
-  그 틀로 원인을 세우는 것은 `worklog-structurer` 나 사람의 일이다.
-- **심각도·SLA 계산은 없다.** 필요하면 `impact` 문장에 적는다.
+- **Several incidents do not go into one document.** One incident, one document. For a document that
+  sweeps several — a quarterly retrospective — use `html-report`'s status-report preset directly.
+- **No analysis frame is imposed — not 5 Whys, not Ishikawa.** The input takes causes already stood
+  up. Standing them up with such a frame is `worklog-structurer`'s work, or a person's.
+- **There is no severity or SLA arithmetic.** Put it in the `impact` sentence when it is needed.
