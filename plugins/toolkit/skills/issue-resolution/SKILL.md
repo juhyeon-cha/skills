@@ -1,122 +1,124 @@
 ---
 name: issue-resolution
-description: 열린 GitHub 이슈를 스스로 골라 닫는다. 막히지 않은 항목을 고르고, 고치고, 되돌려서 증명하고, 닫는다. "이슈 해결해줘", "열린 결함 처리해줘" 같은 요청에서 쓴다. 새 이슈를 여는 절차는 `plan-issue` 스킬.
+description: Pick an open GitHub issue and close it — choose one that is not blocked, fix it, prove it by reverting, close it. Use for requests like "이슈 해결해줘", "열린 결함 처리해줘". For opening a new issue, use the `plan-issue` skill.
 ---
 
-# 열린 이슈를 스스로 골라 닫기
+# Picking an open issue and closing it
 
-## 0. 먼저 읽지 말고 좁혀라
+## 0. Narrow before you read
 
-이슈를 통째로 가져오는 것은 수만 단어를 컨텍스트에 붓는 일이다. **좁히고 나서 하나만 연다.**
-
-```bash
-gh issue list --label bug --state open    # 라벨로 좁힌다
-gh issue list --search '<키워드>'          # 제목과 본문을 뒤진다
-gh issue view <번호>                       # 고르고 나서 그 하나만
-```
-
-## 1. 무엇을 고를 것인가
-
-라벨은 셋뿐이다 — `bug`, `enhancement`, `documentation`. **막혔다는 것도, 갈림길이라는 것도
-라벨에 없다.** 본문의 "닫는 방법" 절을 읽어야 안다.
-
-| 본문이 말하는 것             | 뜻                             | 해도 되는 일                                    |
-| :--------------------------- | :----------------------------- | :---------------------------------------------- |
-| 운영 시스템 왕복이 필요하다  | 실제 시스템 없이는 안 닫힌다   | **없다.** 접속은 사용자 승인 대상이다           |
-| 결말이 제품·범위 결정이다    | `enhancement` 로 달려 있다     | 결정을 **제안**하되 실행하지 않는다             |
-| 그 외                        | 오프라인으로 닫을 수 있다      | 이것을 고른다                                   |
-
-> 🛑 **막힘은 기계로 답해지지 않는다. 고르기 전에 본문을 연다.** 목록만 보고 고르면 실제
-> 시스템이 필요한 항목이나 결정할 권한이 없는 항목을 집게 된다.
-
-같은 조건이면 **좁은 것**부터 고른다. 넓은 항목은 되돌리기 어렵다.
-
-## 2. 고치기 전에, 이슈가 아직 참인지 확인한다
-
-**이슈 본문은 쓰인 날의 코드에 대한 진술이다.** 그 사이에 이미 고쳐졌을 수 있다. 고치러 가기
-전에 그 자리의 코드를 읽는다.
-
-저장소에 회귀 검사 지문을 대조하는 게이트가 있으면 **손으로 대조하기 전에 그것부터 돌린다.**
-지문은 대개 이 형태다.
-
-```
-present <패턴> in <경로>    결함의 흔적이 아직 있다
-absent  <패턴> in <경로>    고쳤다면 있었을 것이 아직 없다
-```
-
-⚠️ **지문이 더 이상 맞지 않는 것은 "고쳐졌다" 가 아니라 "열어 보라" 다.** 포매터가 식을
-감기만 해도 어긋난다. 판정은 사람이 코드를 열어서 한다.
-
-⚠️ **지문이 아직 맞는 것은 더 약하다.** 흔적은 고침 뒤에도 남고, 닫는 갈래가 둘인 항목은
-지문이 한 갈래만 본다. **그러므로 지문으로 무엇을 고를지는 정하되, 무엇이 아직 살아 있는지는
-정하지 않는다.**
-
-⚠️ **작동하는 코드가 담아야 하는 것**을 키로 삼는다. 사라진 것의 *이름*을 키로 쓰면 안 된다 —
-삭제를 기록한 주석에 그 이름이 그대로 남아 오탐이 난다.
-
-이미 고쳐져 있으면 그것도 결과다. 어디에 살아 있는지 적고 닫는다(§4).
-
-## 3. 고치고, 되돌려서 증명한다
-
-완료 기준은 통과가 아니라 **되돌리면 실패하는 것**이다.
-
-1. 고친다.
-2. 그 고침을 **되돌린다**.
-3. 테스트가 **빨간불인지 본다.** 초록이면 테스트가 아무것도 지키지 않는 것이므로, 고침이 아니라
-   테스트를 먼저 고친다.
-4. 되돌린 것을 복구하고 초록을 확인한다.
-
-게이트 출력을 `head` 나 `grep -c` 로 걸러 읽고 판정하지 않는다 — **그 방향은 결함을 숨기는 게
-아니라 만들어낸다.**
-
-## 4. 닫기 — 고친 것은 **PR 이 닫는다**
-
-고쳐서 닫는 항목에는 `gh issue close` 를 쓰지 않는다. PR 본문에 `Closes #<번호>` 를 적고,
-**머지가 닫게 한다**. 형식과 확인하는 법은 `pr-body` 스킬에 한 번만 적혀 있다.
-
-손으로 먼저 닫으면 PR 이 거절되거나 되돌려져도 이슈는 닫힌 채 남고, 무엇이 그것을 고쳤는지
-가리키는 링크가 어디에도 생기지 않는다.
-
-**내용이 사는 곳을 적는 것은 생략할 수 없다.** 이슈를 닫는 것은 절반이고, 나머지 절반은 내용이
-옮겨간 영구 문서를 이름 대는 것이다. **닫힌 이슈는 영구 문서가 아니다.** 자동으로 닫히면 그
-자리는 커밋 메시지와 PR 본문이고, 거기 적는다.
-
-**손으로 닫는 경우는 둘뿐이다.**
-
-결함이 아니었던 것으로 밝혀졌을 때. 키워드로 닫힌 이슈는 언제나 `completed` 이므로
-`not planned` 는 여기서만 붙는다 — 같은 칸에 두면 **없던 결함이 있었던 것으로 기록된다.**
+Pulling issues in whole pours tens of thousands of words into context. **Narrow first, then open
+exactly one.**
 
 ```bash
-gh issue close <번호> --reason "not planned" --comment "<왜 결함이 아니었는가>"
+gh issue list --label bug --state open    # narrow by label
+gh issue list --search '<keyword>'        # searches titles and bodies
+gh issue view <number>                    # only after choosing, and only that one
 ```
 
-그리고 §2 에서 **이미 고쳐져 있던** 것으로 드러났을 때. 닫을 PR 이 없으므로 손으로 닫고,
-어느 커밋이 고쳤는지와 내용이 사는 곳을 코멘트에 적는다.
+## 1. What to pick
+
+There are three labels — `bug`, `enhancement`, `documentation`. **Neither being blocked nor being a
+fork in the road is in a label.** You learn it from the body's "how it closes" section.
+
+| What the body says                         | What it means                              | What you may do                              |
+| :----------------------------------------- | :----------------------------------------- | :------------------------------------------- |
+| It needs a round trip to a live system      | It does not close without the real system   | **Nothing.** Access is the user's to approve  |
+| The outcome is a product or scope decision  | It is filed as `enhancement`                | **Propose** the decision; do not act on it    |
+| Anything else                               | It closes offline                           | Pick this one                                 |
+
+> 🛑 **Blockedness is not answered by machine. Open the body before you choose.** Choosing from the
+> list alone lands you on an item that needs a live system, or one you have no authority to decide.
+
+Given equal conditions, pick **the narrower one.** A broad item is hard to walk back.
+
+## 2. Before fixing, check that the issue is still true
+
+**An issue body is a statement about the code on the day it was written.** It may already have been
+fixed. Read the code at that spot before you go to fix it.
+
+If the repository has a gate that matches regression fingerprints, **run it before matching by
+hand.** A fingerprint usually takes this shape.
+
+```
+present <pattern> in <path>    the defect's trace is still there
+absent  <pattern> in <path>    what a fix would have left is still missing
+```
+
+⚠️ **A fingerprint that no longer matches means "go look", not "it is fixed".** A formatter rewrapping
+an expression is enough to throw it off. A human judges it by opening the code.
+
+⚠️ **A fingerprint that still matches is weaker still.** A trace survives the fix, and on an item with
+two ways to close, the fingerprint watches only one of them. **So let a fingerprint decide what to
+pick, and never what is still alive.**
+
+⚠️ Key on **what working code has to contain.** Keying on the *name* of what disappeared misfires —
+the comment recording the deletion carries that name verbatim.
+
+Already fixed is a result too. Write down where it lives and close it (§4).
+
+## 3. Fix it, then prove it by reverting
+
+Done is not that it passes — **done is that reverting it fails.**
+
+1. Fix it.
+2. **Revert** that fix.
+3. **Watch the test go red.** Green means the test guards nothing, so fix the test before the code.
+4. Restore what you reverted and confirm green.
+
+Judge on the full gate output. Filtering it through `head` or `grep -c` first does not hide a defect
+so much as **manufacture one.**
+
+## 4. Closing — what you fixed is closed **by the PR**
+
+An item you fixed does not take `gh issue close`. Write `Closes #<number>` in the PR body and **let
+the merge close it.** The format and how to check it are written once, in the `pr-body` skill.
+
+Closing by hand first leaves the issue closed even when the PR is rejected or reverted, and no link
+to what fixed it is created anywhere.
+
+**Naming where the content lives is not optional.** Closing the issue is half the work; the other
+half is naming the permanent document the content moved into. **A closed issue is not a permanent
+document.** When it closes automatically that place is the commit message and the PR body, and that
+is where you write it.
+
+**Two cases close by hand.**
+
+It turned out not to be a defect. A keyword-closed issue is always `completed`, so `not planned` is
+set here and nowhere else — in the same slot the two **record a defect that never existed.**
 
 ```bash
-gh issue close <번호> --reason completed \
-  --comment "이미 <sha> 에서 고쳐져 있었다. 내용이 사는 곳: <영구 문서와 심볼>"
+gh issue close <number> --reason "not planned" --comment "<why it was not a defect>"
 ```
 
-회귀했거나 잘못 닫았으면 `gh issue reopen <번호>`, 새 결함을 발견하면 `plan-issue` 스킬.
-**같이 고치지 않는다** — 한 번에 한 이슈다.
+And it turned out in §2 to be **already fixed.** There is no PR to close it, so close it by hand and
+put in the comment which commit fixed it and where the content lives.
 
-## 5. 멈춰야 하는 자리
+```bash
+gh issue close <number> --reason completed \
+  --comment "Already fixed in <sha>. Where the content lives: <permanent document and symbol>"
+```
 
-다음은 **사용자와 게이트할 것**이고, 지나가는 길에 하지 않는다.
+For a regression or a wrong close, `gh issue reopen <number>`; for a newly found defect, the
+`plan-issue` skill. **Fix one issue at a time** — a neighbouring one waits for its own run.
 
-- 운영 시스템에 닿는 모든 것 — 읽기 전용 `GET` 하나라도.
-- **GitHub 에 쓰는 모든 것** — 닫기, 열기, 코멘트. 외부 반영이므로 매번 지시를 받는다.
-  앞 턴의 승인은 그 한 번에만 유효하다.
-  - `Closes #N` 은 예외가 아니라 **이 규칙과 더 잘 맞는다.** PR 본문에 적는 것은 쓰기가
-    아니고, 실제로 닫는 것은 **사용자가 머지할 때**다.
-- 게이트의 판정 모델을 바꾸는 것. 새 검사가 몇 건을 빨갛게 만드는지 **먼저 재고**, 한두 건이면
-  정정이고 수십 건이면 범위 변경이다.
-- 베이스라인·면제 목록을 넓혀 초록을 유지하는 것. 그것이 이 영역이 존재하는 이유인 실패다.
-- 제품·범위 결정을 실행하는 것.
+## 5. Where to stop
 
-## 6. 한 이슈가 끝나면
+The following are **gated on the user**, and are not done in passing.
 
-저장소의 게이트를 전부 돌린다. 그 다음 워크트리 브랜치에 커밋하고, **PR 은 물어보고 연다.**
+- Anything that touches a live system — a single read-only `GET` included.
+- **Every write to GitHub** — closing, opening, commenting. It leaves the machine, so it takes an
+  instruction every time. An approval from an earlier turn covers only that one turn.
+  - `Closes #N` is not an exception; it **fits this rule better.** Writing it in a PR body is not a
+    write, and what actually closes the issue is **the user merging.**
+- Changing a gate's judgement model. **Count first** how many items a new check turns red: one or two
+  is a correction, dozens is a scope change.
+- Widening a baseline or an exemption list to stay green. That failure is the reason the area exists.
+- Acting on a product or scope decision.
 
-**한 번에 한 항목.** 여러 개를 한 커밋에 묶으면 되돌려 증명하는 단계가 불가능해진다.
+## 6. When one issue is done
+
+Run every gate the repository has. Then commit on the worktree branch, and **ask before opening the
+PR.**
+
+**One item at a time.** Bundling several into one commit makes the revert-to-prove step impossible.
