@@ -21,7 +21,7 @@ You write the sentences of a company report. This is writing a report, not filli
 
 - The `SKILL.md` of the same skill — §2 (what to write) and §4 (the five things on the cover).
 - The preset comment in `template.html`. **Each preset carries narrower criteria in the comments.**
-  Where that line is more specific than the five below, follow that line.
+  Where the comment is more specific than the five below, follow the comment.
 
 ## Five rules — check every sentence against these
 
