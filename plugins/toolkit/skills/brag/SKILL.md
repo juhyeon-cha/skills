@@ -1,122 +1,130 @@
 ---
 name: brag
-description: 내가 한 일을 [문제 - 해결 - 성과] 항목으로 세워 홈 아래 한 곳에 쌓고, 쌓인 것을 분기별 성과 대시보드 HTML 한 장으로 뽑는다. 기록은 프로젝트가 아니라 `~/.brag/` 에 쌓이므로 여러 레포·여러 회사에 걸친 성과가 한 곳에 모인다. "이번 분기 한 일 정리해줘", "성과 기록해줘", "brag 문서 만들어줘", "평가 자료 뽑아줘", "연봉협상 자료 만들어줘" 같은 요청에서 쓴다.
+description: Build up what you did as [problem - solution - result] entries in one place under your home directory, and render what has accumulated into a quarterly achievement dashboard HTML page. Entries accumulate in `~/.brag/` rather than in a project, so achievements spanning several repos and several employers gather in one place. Use for requests like "이번 분기 한 일 정리해줘", "성과 기록해줘", "brag 문서 만들어줘", "평가 자료 뽑아줘", "연봉협상 자료 만들어줘".
 ---
 
-# 성과 기록 쌓고 대시보드로 뽑기
+# Accumulating achievement records and rendering a dashboard
 
-**두 동작뿐이다: 쌓는다(`add`) · 뽑는다(`render`).** 쌓는 일은 평소에 한 건씩, 뽑는 일은
-평가·회고 시즌에 한 번 한다. 둘을 한 번에 하려 들지 마라 — 성과 기록의 가치는 그때그때
-쌓아둔 것에서 나온다.
+**There are only two actions: accumulate (`add`) and render (`render`).** Accumulating is done one
+entry at a time as you go; rendering is done once, at review or retrospective season. Do not try to do
+both at once — the value of an achievement record comes from what was put away as it happened.
 
-## 1. 축적 자리 — `~/.brag/entries.jsonl`
+## 1. Where it accumulates — `~/.brag/entries.jsonl`
 
-**프로젝트 디렉토리에 쓰지 않는다.** 성과는 여러 레포에 걸치고, 사내 레포에 개인 평가
-기록이 커밋되면 안 된다. 그래서 자리는 홈 아래 한 곳으로 고정이고, 어느 디렉토리에서
-실행해도 같은 파일에 쌓인다. 한 줄에 한 건인 JSON Lines 라, 사람이 열어 고쳐도 되고
-`grep` 으로 찾아도 된다.
+**Do not write into a project directory.** Achievements span several repos, and a personal review
+record must not be committed to a company repo. So the location is fixed to one place under the home
+directory, and every run appends to the same file whichever directory you are in. It is JSON Lines,
+one entry per line, so a person can open and edit it and `grep` can find things in it.
 
-**쓸 수 없으면 다른 곳으로 흘리지 않는다.** 홈 아래에 만들지 못하면 `brag.py` 는 종료
-코드 2 로 끝난다 — 조용히 현재 디렉토리에 떨어뜨리는 폴백은 없다.
+**When it cannot be written, nothing is spilled elsewhere.** If it cannot be created under the home
+directory, `brag.py` exits with code 2 — there is no fallback that quietly drops it in the current
+directory.
 
-## 2. 쌓기
+## 2. Accumulating
 
 ```bash
-python3 brag.py add <항목.json>
+python3 brag.py add <entry.json>
 ```
 
-항목 파일은 객체 하나거나 객체 배열이다. **다섯 칸이 필수다** — 하나라도 비면 종료 코드
-2 다. 빈 칸을 그럴듯한 문장으로 메우지 말고, 무엇이 있어야 채워지는지 사용자에게 물어라.
+The entry file is one object or an array of objects. **Five fields are required** — if any one is
+empty, the exit code is 2. Do not fill a blank with a plausible sentence; ask the user what is needed
+to fill it.
 
 ```json
 {
   "date": "2026-08-02",
-  "project": "정산 배치",
-  "title": "야간 정산 배치를 증분 처리로 바꿨다",
-  "problem": "전량 재계산이라 거래가 늘수록 배치 시간이 선형으로 늘었다. 아침 9시 마감을 두 번 놓쳤다.",
-  "solution": "마지막 성공 시각 이후 거래만 읽도록 커서를 두고, 실패 시 그 커서에서 재개하게 했다.",
-  "result": "배치 시간이 4시간 12분에서 22분으로 줄었다. 8월 1주 실측.",
+  "project": "Settlement batch",
+  "title": "Moved the nightly settlement batch to incremental processing",
+  "problem": "It recomputed everything, so batch time grew linearly with transaction count. The 9am cutoff was missed twice.",
+  "solution": "Placed a cursor so only transactions after the last success time are read, and made a failure resume from that cursor.",
+  "result": "Batch time went from 4h 12m to 22m. Measured in the first week of August.",
   "metrics": [
-    { "label": "야간 배치 소요", "from": "4h 12m", "to": "22m", "delta": "▼ 3h 50m", "good": true }
+    { "label": "Nightly batch duration", "from": "4h 12m", "to": "22m", "delta": "▼ 3h 50m", "good": true }
   ]
 }
 ```
 
-| 칸 | 필수 | 무엇을 쓰나 |
+| Field | Required | What goes in it |
 | :--- | :--- | :--- |
-| `date` | ✓ | `YYYY-MM-DD`. 분기를 이 값에서 뽑는다 |
-| `project` | ✓ | 레포·서비스·팀 과제 이름. 항목마다 이 이름이 붙는다 |
-| `title` | ✓ | 한 건의 이름. 한 줄로 무엇을 했는지 |
-| `problem` | ✓ | 무엇이 막혀 있었고 손해가 어디에 났는가 |
-| `solution` | ✓ | 무엇을 했는가. 누가가 아니라 무엇이 바뀌었는지 |
-| `result` | ✓ | 얼마에서 얼마로 바뀌었는가. **근거(기간·측정 방법)를 같은 문장에 둔다** |
-| `metrics` | | 전·후 값이 있는 지표. 성과 메트릭 카드로 그려진다 |
+| `date` | ✓ | `YYYY-MM-DD`. The quarter is taken from this value |
+| `project` | ✓ | The repo, service or team initiative name. Every entry carries it |
+| `title` | ✓ | The name of one entry. What you did, in one line |
+| `problem` | ✓ | What was stuck, and where the damage landed |
+| `solution` | ✓ | What you did. What changed, not who did it |
+| `result` | ✓ | What went from what to what. **Keep the evidence (period, measurement method) in the same sentence** |
+| `metrics` | | Indicators with before and after values. Drawn as achievement metric cards |
 
-`metrics` 의 한 칸은 `label`·`to` 가 필수, `from`·`delta`·`good` 이 선택이다.
+In a `metrics` entry, `label` and `to` are required; `from`, `delta` and `good` are optional.
 
-- `from` 이 없으면 카드가 그냥 통계 타일이 된다 (전·후 중 하나만 있는 경우).
-- **`delta` 는 `▲`·`▼`·`—` 중 하나로 시작해야 한다.** 아니면 종료 코드 2 다 — 증감을
-  색만으로 구분하면 흑백 인쇄와 색각 이상에서 사라진다.
-- `good` 은 **좋아졌는가**지 늘었는가가 아니다. 응답시간·오류율이 줄어든 것은
-  `"delta": "▼ …", "good": true` 다. 기본값은 `true`. `—`(변동 없음)는 방향이 없어
-  `good` 을 보지 않고 회색으로 그려진다.
+- Without `from`, the card becomes a plain statistic tile (when only one of before and after exists).
+- **`delta` must start with one of `▲`, `▼` or `—`.** Otherwise the exit code is 2 — a direction
+  distinguished by colour alone disappears in black-and-white printing and for colour-blind readers.
+- `good` means **did it get better**, not did it go up. Response time or error rate going down is
+  `"delta": "▼ …", "good": true`. The default is `true`. `—` (no change) has no direction, so `good`
+  is ignored and it is drawn in grey.
 
-### 기록 뭉치에서 항목을 세울 때는 `worklog-structurer` 에 넘긴다
+### Hand a pile of records to `worklog-structurer` to build entries
 
-사용자가 커밋 목록·이슈·주간 일지·회의 메모를 통째로 주면 **직접 항목으로 자르지 말고**
-`worklog-structurer` 에이전트에 넘긴다. 무엇을 한 건으로 묶고 무엇을 뺄지, 세 칸 중 무엇이
-기록에 없는지를 가리는 것이 그 에이전트의 일이다. 받아온 [문제 - 해결 - 성과] 항목을 위
-JSON 으로 옮겨 적고 `add` 한다.
+When the user hands over a commit list, issues, a weekly log or meeting notes wholesale, **do not cut
+them into entries yourself** — hand them to the `worklog-structurer` agent. Deciding what counts as
+one entry, what to leave out, and which of the three fields is missing from the records is that
+agent's job. Transcribe the [problem - solution - result] entries it returns into the JSON above and
+`add` them.
 
-받아온 항목에 **"기록에 없다"로 남은 칸이 있으면 그대로 쌓지 말고 사용자에게 묻는다.**
-특히 `result` 의 전·후 값이 자주 빈다. 숫자를 계산해야 하면 `data-analyst` 에 넘긴다.
+When an entry comes back with a field left as "not in the records", **do not accumulate it as is — ask
+the user.** The before and after values of `result` are what go missing most often. When a number has
+to be computed, hand it to `data-analyst`.
 
-## 3. 뽑기
+## 3. Rendering
 
 ```bash
-python3 brag.py render --team "플랫폼팀" --author "차주현" > 초안.html
-python3 ../html-report/embed-font.py 초안.html pretendard > 초안-font.html
-python3 ../html-report/finalize.py 초안-font.html > <YYYY-MM-DD>-brag.html
+python3 brag.py render --team "<team>" --author "<name>" > draft.html
+python3 ../html-report/embed-font.py draft.html pretendard > draft-font.html
+python3 ../html-report/finalize.py draft-font.html > <YYYY-MM-DD>-brag.html
 ```
 
-**세 명령이 한 세트이고 순서가 규율이다.** `embed-font.py` 를 `finalize.py` 보다 먼저
-돌린다 — 뒤집으면 주입 지점 주석이 지워져 `embed-font.py` 가 rc=1 로 끝난다. 판정은 세
-명령의 종료 코드이고, 마지막 산출물은 폰트까지 자체 포함한 `.html` 한 장이다.
+**The three commands are one set and the order is the discipline.** Run `embed-font.py` before
+`finalize.py` — reversed, the injection-point comment is gone and `embed-font.py` ends at rc=1. The
+judgement is the exit codes of the three commands, and the final output is one `.html` page with the
+font embedded too.
 
-- **템플릿·폰트·검사기는 `html-report` 것을 그대로 쓴다.** 이 스킬에 두 번째 템플릿을
-  만들지 않는다. 색·부품·인쇄 규칙이 걸리면 `../html-report/SKILL.md` 를 읽어라 —
-  그쪽이 원본이다.
-- `--team`·`--author` 를 넘기지 않으면 부서는 `미기재`, 작성자는 로그인 계정명이 된다.
-  **표지에 실명이 박히는 자리라 넘기기 전에 사용자에게 확인한다.**
-  **위임 실행(서브에이전트·자동 루프)이라 물을 자리가 없으면 받은 값을 그대로 쓰고,
-  확인 없이 받은 값을 썼다는 사실을 완료 보고에 적는다** — 물을 수 없는 자리에서 묻는
-  척하지 않는다. 값을 지어내도 된다는 뜻은 아니다: 받지 못한 값은 그대로 기본값이다.
-- 분기 구분은 `date` 에서 자동으로 나온다. 최신 분기가 위다.
-- 완료 보고에는 `../html-report/SKILL.md` §6-3 의 폰트 안내를 그대로 붙인다.
+- **Use the `html-report` template, fonts and checker as they are.** Do not build a second template in
+  this skill. When colours, components or print rules come up, read `../html-report/SKILL.md` — that
+  is the original.
+- Without `--team` and `--author`, the team falls back to a "not stated" placeholder and the author to
+  the login account name. **This is the slot where a real name is printed on the cover, so confirm
+  with the user before passing it.**
+  **When it runs delegated (a subagent or an automated loop) and there is no one to ask, use the
+  values you were given and write in the completion report that you used them unconfirmed** — do not
+  pretend to ask where asking is impossible. This does not mean values may be invented: a value you
+  were not given stays at its default.
+- The quarter split comes out of `date` automatically. The most recent quarter is on top.
+- Paste the font guidance from `../html-report/SKILL.md` §6-3 into the completion report as is.
 
-### 실패 경로
+### Failure paths
 
-| 상황 | 종료 코드 | 무엇을 하나 |
+| Situation | Exit code | What to do |
 | :--- | :--- | :--- |
-| 쌓인 기록이 0건 | `render` rc=1 | 빈 HTML 을 내지 않는다. 먼저 `add` 로 쌓으라고 알린다 |
-| 홈 아래에 쓸 수 없음 | `add` rc=2 | 다른 곳에 쓰지 않는다. 사유를 그대로 사용자에게 전한다 |
-| 필수 칸이 빔 · `delta` 기호 없음 | `add` rc=2 | 어느 칸인지 stderr 가 말한다. 지어내 채우지 말고 묻는다 |
+| Zero records accumulated | `render` rc=1 | No empty HTML is emitted. Tell the user to `add` some first |
+| Cannot write under the home directory | `add` rc=2 | Nothing is written elsewhere. Pass the reason to the user as is |
+| A required field is empty · `delta` has no symbol | `add` rc=2 | stderr says which field. Ask instead of inventing a value |
 
-## 4. 자기검사
+## 4. Self-check
 
 ```bash
-bash check.sh            # 임시 HOME 으로 격리해 전 경로 + 실패 경로 둘을 단언
-bash check.sh <출력폴더>  # 산출물을 남긴다 (사람이 열어볼 때)
+bash check.sh             # isolates with a temporary HOME and asserts the full path plus two failure paths
+bash check.sh <outdir>    # leaves the outputs behind (for a person to open)
 ```
 
-`root` 로 돌리면 "쓸 수 없는 홈" 단언이 권한 검사를 우회해 무의미해진다.
+Run as `root`, the "unwritable home" assertion bypasses the permission check and becomes meaningless.
 
-## 5. 남긴 천장
+## 5. Ceilings left in place
 
-- **쌓인 기록을 고치거나 지우는 명령은 없다.** `~/.brag/entries.jsonl` 을 직접 편집한다 —
-  한 줄에 한 건인 JSON Lines 라 에디터로 충분하다. 지우는 명령을 만들지 않은 것은
-  되돌릴 수 없는 동작을 도구에 두지 않으려는 것이다.
-- **기간 필터가 없다.** `render` 는 쌓인 것을 전부 낸다. 특정 기간만 뽑아야 하면
-  `entries.jsonl` 을 다른 파일로 복사해 걸러 두고 `HOME` 을 바꿔 돌린다.
-- **`postmortem` 과 섞지 않는다.** 회고는 [원인 - 조치 - 재발 방지] 세 칸이고 축적하지
-  않는다. 같은 사건이 성과이면서 회고일 수 있지만, 그때도 항목 둘로 나눠 각 스킬에 넣는다.
+- **There is no command to edit or delete an accumulated record.** Edit `~/.brag/entries.jsonl`
+  directly — JSON Lines, one entry per line, so an editor is enough. A delete command was left unbuilt
+  to keep an irreversible action out of the tool.
+- **There is no period filter.** `render` emits everything accumulated. To render only a certain
+  period, copy `entries.jsonl` to another file, filter it there, and run with `HOME` changed.
+- **Do not mix this with `postmortem`.** A retrospective has the three fields [cause - action -
+  prevention] and does not accumulate. The same event can be both an achievement and a retrospective,
+  but even then it is split into two entries, one for each skill.
