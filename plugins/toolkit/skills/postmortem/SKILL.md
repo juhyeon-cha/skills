@@ -126,10 +126,10 @@ ledger:
 }
 ```
 
-> **To count whether the section is present, count `class="timeline"`.** The word "timeline" itself
-> sits in a CSS comment in `template.html`, so it turns up once in every output — `finalize.py`
-> strips HTML comments and leaves CSS comments. Counting by the word makes an output that dropped the
-> section look like one that kept it.
+> **To count whether the section is present, count `class="timeline"`.** The bare word "timeline"
+> also sits in the `.timeline` style rules of `template.html`, which every output carries whether or
+> not the section is there. Counting by the word makes an output that dropped the section look like
+> one that kept it.
 
 ## 4. Failure paths
 
