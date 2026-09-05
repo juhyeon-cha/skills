@@ -29,9 +29,9 @@ harness 플러그인이 SessionStart 에 주입하는 상시 블록이다. 여�
 - 원장이 SSOT 다. `docs/sprints/`·`docs/backlog/`·`docs/adr/` 는 `scripts/board.sh all` 의 투영이라 손으로 고치지 않는다.
 - 본문(note·description·acceptance·close reason)은 셸 명령 문자열에 두지 않고 파일 옵션으로 넘긴다 — 형태는 `harness:develop` "원장에 본문을 넘기는 형태".
 
-## 절차 스킬 7종
+## 절차 스킬 10종
 
-`harness:plan-sprint`(스프린트 편성) → `harness:plan-story`(분해·acceptance) → `harness:develop`(구현 사이클 — 운영 규율의 소유자) → `harness:verify-code`(리뷰) → `harness:verify-implement`(판정·마감) → `harness:retrospective`(회고) + `harness:setup`(최초 세팅).
+`harness:plan-sprint`(스프린트 편성) → `harness:plan-story`(분해·acceptance) → `harness:develop`(구현 사이클 — 운영 규율의 소유자) → `harness:verify-code`(리뷰) → `harness:verify-implement`(판정·마감) → `harness:retrospective`(회고) + `harness:setup`(최초 세팅) · `harness:triage`(백로그 정리) · `harness:status`(현황, 읽기 전용) · `harness:release`(플러그인 릴리스).
 
 역할 정의 3종(서브에이전트, Agent 도구의 `subagent_type`): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
 
