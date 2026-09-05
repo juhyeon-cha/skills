@@ -599,15 +599,19 @@ check_rrem() {
   s1='(PR|풀 리퀘스트)[^|]{0,60}(명시 지시|명시적 지시|사용자 승인|사람의 몫)|(명시 지시|명시적 지시|사용자 승인)[^|]{0,60}PR'
   s2='(원격 반영|GitHub 반영)[^|]{0,40}(명시 지시|명시적 지시|사용자 승인)|(명시 지시|명시적 지시)[^|]{0,40}(원격 반영|GitHub 반영)'
 
-  # 스캔 대상은 플러그인 트리에서 파생한다 — git 이 보는 .md·.sh 전부(-co 는 추적 + 미추적, 무시 제외).
-  # 플러그인 루트에서 부르므로 경로는 플러그인 상대다.
-  files=$(git ls-files -co --exclude-standard -- . 2>/dev/null \
-          | grep -E '\.(md|sh)$' | sort)
+  # 스캔 대상은 플러그인 트리에서 파생한다 — 트리 아래 .md·.sh 전부. git 으로 파생하지 않는다:
+  # 설치 캐시(~/.claude/plugins/cache/…)는 git 트리가 아니라 ls-files 가 0건을 내고, 그러면 아래
+  # 대상 단언이 실패한다(harness-m8gg.8.1). 플러그인 루트에서 부르므로 경로는 플러그인 상대다.
+  files=$(find . -type f \( -name '*.md' -o -name '*.sh' \) 2>/dev/null | sed 's|^\./||' | sort)
   while IFS= read -r p; do [[ -n "$p" ]] && flist+=("$p"); done <<< "$files"
   [[ -n "${R_REM_SCAN_EXTRA:-}" ]] && flist+=("$R_REM_SCAN_EXTRA")
 
   # 대상 단언 — 검사가 **무엇을 보는지** 못박는다. 파생이 조용히 좁아지면(경로 오타,
   # find 실패) 잔존 0 이 "위반 없음" 이 아니라 "안 봤음" 이 된다.
+  if [[ "${#flist[@]}" -eq 0 ]]; then   # 개수 가드: bash 3.2 + set -u 에서 빈 배열의 "${flist[@]}" 는 unbound 로 죽는다
+    echo "✗ R-REM — 스캔 대상 파생이 0건이다 (플러그인 루트 $PLUGIN_ROOT). find 가 죽었으면 잔존 0 은 '위반 없음' 이 아니라 '안 봤음' 이다" >&2
+    return 1
+  fi
   for k in "hooks/session-context.md" "skills/develop/SKILL.md" "skills/plan-story/SKILL.md"; do
     if ! printf '%s\n' "${flist[@]}" | grep -qxF -- "$k"; then
       echo "✗ R-REM — 스캔 대상에 '$k' 가 없다 (${#flist[@]}건 파생). 파생이 좁아졌으면 잔존 0 은 '위반 없음' 이 아니라 '안 봤음' 이다"
