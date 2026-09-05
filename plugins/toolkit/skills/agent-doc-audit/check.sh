@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# agent-doc-audit 의 기계 탐지. 인자로 받은 디렉토리 아래 *.md 전수를 훑어 SKILL.md 의 기준 중
+# agent-doc-audit 의 기계 탐지. 인자로 받은 디렉토리 아래 *.md 전수(CHANGELOG.md 는 뺀다)를 훑어 SKILL.md 의
 # 기계로 잡히는 후보를 stdout 에 낸다 — 판정은 사람과 에이전트의 읽기 단계 몫이고 이 스크립트는
 # 후보만 낸다(rc 0 은 "탐지를 돌렸다" 이지 "후보 0건" 이 아니다).
 #
@@ -38,8 +38,9 @@ for d in $SCAN $ROOTS; do
   [ -d "$d" ] || fail "디렉토리가 없다: $d"
 done
 
+# CHANGELOG.md 는 뺀다 — 이력은 호출 자리가 아니므로 옛 경로·날짜가 그대로 맞다.
 # shellcheck disable=SC2086
-FILES=$(find $SCAN -type f -name '*.md' | sort)
+FILES=$(find $SCAN -type f -name '*.md' -not -name CHANGELOG.md | sort)
 [ -n "$FILES" ] || fail "대상 *.md 가 0개다:$SCAN"
 
 # 한 파일을 훑는 탐지기. 정규식과 UTF-8 처리를 한 곳에 두려고 perl 하나로 한다(macOS 기본 탑재).
