@@ -46,8 +46,7 @@ item whose *wording* is stale but whose *ask* still holds is a rewrite proposal,
 ### Sprint candidates
 
 The remaining items, ranked. Order: priority first (`priority` ascending); at equal priority a bug
-before a task; at equal type, the item that unblocks others (`dependent_count`) before the one that
-blocks nothing. Per row: the ID, the rank, and one line on why it is worth a sprint now — a tool it
+before a task. Per row: the ID, the rank, and one line on why it is worth a sprint now — a tool it
 needs that now exists, a repeat observation, a gate it keeps failing.
 
 ## 3. Confirm, then apply
