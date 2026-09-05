@@ -36,14 +36,17 @@ run a Bash 'Run this exact Bash command and report the tool result verbatim: ech
 # Judge on tool_result blocks only: the model may mention the expected output in
 # prose (observed 2026-09-05), but it can appear in a tool_result only if the command ran.
 jq -r 'select(.type=="user") | .message.content[]? | select(.type=="tool_result") | .content|tostring' "$work/a.jsonl" >"$work/a.results"
-if grep -q 'SPIKE-DENY' "$work/a.results" && ! grep -q 'YNED_EKIPS_SSENRAH' "$work/a.results"; then
-  echo "(a) PASS: tool_result carries SPIKE-DENY and no echo output"
+if grep -q 'command carries HARNESS_SPIKE_DENY' "$work/a.results" && ! grep -q 'YNED_EKIPS_SSENRAH' "$work/a.results"; then
+  echo "(a) PASS: tool_result carries the hook deny reason and no echo output"
 else
   echo "(a) FAIL"; fail=1
 fi
 
 run b '' 'Your context contains a token that begins with HARNESS_SPIKE_CONTEXT. Reply with that token verbatim, nothing else.'
-if grep -q 'HARNESS_SPIKE_CONTEXT:7c1e' "$work/b.jsonl"; then
+# Judge on assistant text blocks only: the hook_response system line carries the
+# raw hook output, so grepping the whole stream would pass without the model quoting it.
+jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' "$work/b.jsonl" >"$work/b.text"
+if grep -q 'HARNESS_SPIKE_CONTEXT:7c1e' "$work/b.text"; then
   echo "(b) PASS: session quoted HARNESS_SPIKE_CONTEXT:7c1e"
 else
   echo "(b) FAIL"; fail=1
