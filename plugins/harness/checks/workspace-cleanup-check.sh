@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# workspace-cleanup.sh 의 핵심 경로를 고정하는 게이트 — 생성(workspace-check.sh)의 대칭.
+# workspace-cleanup.sh 의 핵심 경로를 고정하는 게이트 — 생성 왕복(workspace-check.sh)의 대칭.
 #   ① 정상 정리 — 워크트리·로컬 스토리 브랜치·부트스트랩 마커가 사라지고 **클론은 남는다**.
 #      무시된 부트스트랩 산출물(node_modules/)이 정리를 막지 않는다
 #   ② 미커밋 변경 → 지우지 않고 rc=1, 무엇이 남았는지 출력. **--force 로도 뚫리지 않는다**
@@ -21,7 +21,7 @@
 #
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려
 # 실제 ~/.harness-workspace 는 건드리지 않는다 (workspace-check.sh 와 같은 격리 방식).
-# 워크트리에서도 그대로 돈다 — 워크트리의 원장은 scripts/workspace.sh 가 배선한다.
+# 워크트리에서도 그대로 돈다 — 워크트리의 원장은 hooks/enter-worktree.sh 가 배선한다.
 set -uo pipefail
 # 하네스 루트(원장의 자리 — 검사용 bead 를 만든다)는 lib/harness-root.sh 가 낸다. 못 찾으면 rc=1.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -45,8 +45,8 @@ step() {
   if "$@"; then echo "  ✓ ${label}"; else echo "  ✗ FAILED: ${label}"; fail=1; fi
 }
 has_text() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
-no_branch() { ! git -C "$CLONE" show-ref --verify --quiet "refs/heads/story/$BEAD"; }
-has_branch() { git -C "$CLONE" show-ref --verify --quiet "refs/heads/story/$BEAD"; }
+no_branch() { ! git -C "$CLONE" show-ref --verify --quiet "refs/heads/worktree-$BEAD"; }
+has_branch() { git -C "$CLONE" show-ref --verify --quiet "refs/heads/worktree-$BEAD"; }
 is_repo() { git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
 
 # ── 준비: bare origin, 등록 대상 클론 ──
@@ -73,7 +73,14 @@ BEAD=$(bd create "wcclean: workspace-cleanup.sh 게이트용" -t task --ephemera
 WT="$CLONE/.claude/worktrees/$BEAD"
 MARKER="$CLONE/.claude/worktrees/.bootstrapped-$BEAD"
 
-run_ws() { REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace.sh" "$BEAD" >/dev/null 2>&1; }
+# EnterWorktree 의 재현 — 트리는 git worktree add(name=<id> → 브랜치 worktree-<id>, 실측 2026-09-05)로,
+# 원장 배선·부트스트랩은 PostToolUse 훅(hooks/enter-worktree.sh)으로. 트리가 이미 있으면(재진입)
+# 훅만 다시 돈다 — path 로 들어간 호출과 같다. 훅의 하네스 루트는 HARNESS_ROOT 로 물린다.
+run_ws() {
+  [[ -d "$WT" ]] || git -C "$CLONE" "${GITC[@]}" worktree add -q -b "worktree-$BEAD" "$WT" "origin/$DEFAULT_BRANCH" >/dev/null 2>&1
+  printf '{"session_id":"wcclean","hook_event_name":"PostToolUse","tool_name":"EnterWorktree","cwd":"%s"}' "$WT" \
+    | HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" bash "$PLUGIN_ROOT/hooks/enter-worktree.sh" >/dev/null 2>&1
+}
 run_cl() { REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD" "$@"; }
 
 echo "── ① 정상 정리 ──"
@@ -183,9 +190,9 @@ echo "── ⑨ 브랜치 삭제만 실패해도 제거한 워크트리는 stdo
 # **반쯤 정리된 레포와 손도 안 댄 레포가 구분되지 않았다.** 실패는 refs 디렉토리를
 # 읽기 전용으로 만들어 주입한다 (브랜치 삭제만 막고 워크트리 제거는 막지 않는다).
 run_ws
-REFDIR="$CLONE/.git/refs/heads/story"
+REFDIR="$CLONE/.git/refs/heads"   # worktree-<id> 는 refs/heads 직속 loose ref 다 (story/<id> 시절의 하위 디렉토리가 아니다)
 step "준비: 워크트리 생성됨"     [ -d "$WT" ]
-step "준비: 브랜치 ref 가 파일로 있다" [ -f "$REFDIR/$BEAD" ]
+step "준비: 브랜치 ref 가 파일로 있다" [ -f "$REFDIR/worktree-$BEAD" ]
 chmod 500 "$REFDIR"
 OUT=$(run_cl 2>"$ERRF"); rc=$?
 chmod 700 "$REFDIR"
@@ -193,7 +200,7 @@ step "브랜치 삭제 실패 → rc=1"   [ "$rc" -eq 1 ]
 step "워크트리는 실제로 사라졌다" [ ! -e "$WT" ]
 step "그래도 stdout 에 경로가 실린다" [ "$OUT" = "$(printf 'wcclean\t%s' "$WT")" ]
 step "브랜치가 남았음을 밝힌다"  has_text "브랜치는 남는다" "$(cat "$ERRF")"
-git -C "$CLONE" branch -D "story/$BEAD" >/dev/null 2>&1
+git -C "$CLONE" branch -D "worktree-$BEAD" >/dev/null 2>&1
 step "뒷정리: 브랜치 제거됨"     no_branch
 
 echo "── ⑩ 다른 스토리의 워크트리 등록은 보존된다 ──"
@@ -203,7 +210,7 @@ echo "── ⑩ 다른 스토리의 워크트리 등록은 보존된다 ──"
 run_ws
 OTHER_BEAD="other-$BEAD"
 OTHER_WT="$CLONE/.claude/worktrees/$OTHER_BEAD"
-git -C "$CLONE" "${GITC[@]}" worktree add -q -b "story/$OTHER_BEAD" "$OTHER_WT" >/dev/null 2>&1
+git -C "$CLONE" "${GITC[@]}" worktree add -q -b "worktree-$OTHER_BEAD" "$OTHER_WT" >/dev/null 2>&1
 step "준비: 다른 스토리의 워크트리 등록됨" [ -d "$OTHER_WT" ]
 mv "$OTHER_WT" "$TMP/parked"     # 볼륨 언마운트 흉내 — 등록은 남고 실체만 사라진다
 OUT=$(run_cl 2>"$ERRF"); rc=$?
@@ -213,7 +220,7 @@ step "다른 스토리의 등록이 남아 있다" has_text "$OTHER_BEAD" "$(git
 step "손대지 않았음을 알린다"    has_text "이 스토리 밖의 등록도" "$(cat "$ERRF")"
 mv "$TMP/parked" "$OTHER_WT"
 git -C "$CLONE" worktree remove --force "$OTHER_WT" >/dev/null 2>&1
-git -C "$CLONE" branch -D "story/$OTHER_BEAD" >/dev/null 2>&1
+git -C "$CLONE" branch -D "worktree-$OTHER_BEAD" >/dev/null 2>&1
 
 echo "── ⑪ 등록부에 없는 repo: 라벨 ──"
 bd tag "$BEAD" repo:missing >/dev/null

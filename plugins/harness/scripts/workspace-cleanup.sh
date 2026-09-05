@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# 스토리 워크트리 정리기 — scripts/workspace.sh 의 대칭.
+# 스토리 워크트리 정리기 — EnterWorktree + hooks/enter-worktree.sh 가 만든 것의 대칭.
 # 사용법: scripts/workspace-cleanup.sh <story-id> [--force]
 #
-# 생성이 불변식(브랜치 story/<ID>·기준 origin 최신·exclude 등재·부트스트랩 마커)을
+# 생성이 불변식(브랜치 worktree-<ID>·기준 origin 최신·exclude 등재·원장 배선·부트스트랩 마커)을
 # 소유하듯, 정리도 불변식을 소유한다. develop 스킬 4-4 가 손절차로 적어 두었던 것을
 # 이 스크립트가 가져온다:
 #   ① 원격 참조 갱신 (fetch --prune)  ② 미커밋·미푸시 검사(있으면 중단)
@@ -12,7 +12,7 @@
 #
 # **클론 자체는 지우지 않는다.** 등록 해제는 scripts/repo.sh remove 의 몫이다.
 #
-# stdout: "<레포이름>\t<제거한 워크트리 절대경로>" 줄 목록 (workspace.sh 와 같은 계약
+# stdout: "<레포이름>\t<제거한 워크트리 절대경로>" 줄 목록 (계약
 #   채널). 진단은 전부 stderr. 제거를 거부한 레포는 stdout 에 나오지 않으며, **아무것도
 #   제거하지 않은 레포도 나오지 않는다** — 이미 정리된 상태로 다시 불린 경우가 그것이다.
 #   반대로 브랜치 삭제만 실패한 레포는 워크트리를 이미 지웠으므로 rc 가 비-0 이어도
@@ -37,7 +37,7 @@
 # 기계로 판정하고, 머지 여부는 호출하는 사람이 판정한다 — develop 4-4 의 "사용자
 # 지시로만"이 곧 그 판정의 표현이다.
 set -uo pipefail
-# 하네스 루트는 lib/harness-root.sh 가 낸다 (workspace.sh·board.sh 와 동일) — 호출자의 CWD 도
+# 하네스 루트는 lib/harness-root.sh 가 낸다 (board.sh 와 동일) — 호출자의 CWD 도
 # 스크립트 위치도 쓰지 않는다. CWD 를 쓰면 워크트리에서 절대 경로로 불렸을 때 대상 레포의
 # repos.json 을 읽고 bare bd 가 대상 원장에 붙는다.
 # `$PWD` 가 아니라 `pwd -P` 다. 논리 경로로 잡으면 아래 inside() 가 심볼릭 경로로 들어온
@@ -65,7 +65,7 @@ command -v jq >/dev/null 2>&1 || { echo "오류: jq 가 없다 — 라벨·등�
 [[ -f "$MANIFEST" ]] || { echo "오류: $MANIFEST 없음" >&2; exit 1; }
 
 # bd 실패와 "라벨 없음"을 구분한다. stderr 는 stdout 에 섞지 않는다 — bd 가 경고만 내도
-# JSON 이 오염돼 jq 가 죽고 "라벨 없음" 오진이 난다 (workspace.sh 와 같은 실측).
+# JSON 이 오염돼 jq 가 죽고 "라벨 없음" 오진이 난다 (실측 2026-08-20).
 BD_ERR=$(mktemp)
 SHOW_JSON=$(bd show "$STORY" --json 2>"$BD_ERR")
 if [[ $? -ne 0 ]]; then
@@ -75,7 +75,8 @@ rm -f "$BD_ERR"
 REPOS=$(printf '%s' "$SHOW_JSON" | jq -r '.[0].labels[]? | select(startswith("repo:")) | sub("^repo:"; "")')
 [[ -n "$REPOS" ]] || { echo "오류: ${STORY} 에 repo:* 라벨이 없다" >&2; exit 1; }
 
-BRANCH="story/$STORY"
+# EnterWorktree 는 name=<ID> 를 브랜치 worktree-<ID> 로 만든다 (실측 2026-09-05, claude -p — 도구는 브랜치 이름을 받지 않는다).
+BRANCH="worktree-$STORY"
 fail=0
 
 # 호출자가 서 있는 디렉토리를 지우지 않는다 — 지운 뒤 그 셸의 CWD 는 존재하지 않는
@@ -96,7 +97,7 @@ while IFS= read -r name; do
     echo "오류: $MANIFEST 에 '$name' 항목이 없다 (scripts/repo.sh add <url> --name $name)" >&2; fail=1; continue
   fi
 
-  # 클론 위치는 등록부가 아니라 이름에서 파생한다 (workspace.sh 와 동일한 규약).
+  # 클론 위치는 등록부가 아니라 이름에서 파생한다 (hooks/enter-worktree.sh 와 동일한 규약).
   repo="$CLONE_ROOT/$name"
   if ! git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
     echo "오류: '$name' 의 클론이 없다: $repo — 정리할 대상이 없다" >&2; fail=1; continue
@@ -122,7 +123,7 @@ while IFS= read -r name; do
   if [[ -e "$dest" ]]; then
     # 무검증 제거는 세 실패를 통과시킨다: 깨진 잔존 디렉토리면 git -C 가 부모(=본
     # 체크아웃)로 폴스루하고, 브랜치가 다르면 남의 작업을 지우고, 클론과 무관한
-    # 독립 레포면 이 클론이 모르는 트리를 지운다. workspace.sh 의 재사용 검증과 같은 셋.
+    # 독립 레포면 이 클론이 모르는 트리를 지운다. 셋 다 지우기 전에 본다.
     actual_top=$(git -C "$dest" rev-parse --show-toplevel 2>/dev/null || echo "")
     dest_phys=$(cd "$dest" 2>/dev/null && pwd -P || echo "")
     if [[ -z "$actual_top" || "$actual_top" != "$dest_phys" ]]; then

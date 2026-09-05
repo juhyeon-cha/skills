@@ -645,7 +645,7 @@ declare -a MC_SH_ALLOW=(
   # 루트만 예외로 두면 그 일관성이 깨진다. 목록 조회 대안은 scripts/repo.sh list 다.
   "echo hi > /tmp/guard-check-elsewhere.txt"
   "git status"
-  "bash scripts/workspace.sh $FX_STORY"
+  "bash scripts/workspace-cleanup.sh $FX_STORY"
 )
 for c in "${MC_SH_ALLOW[@]}"; do
   runm "$(j_bash "$c")"
@@ -803,7 +803,7 @@ runm "$(j_write "$MCROOT/repo/main.txt")"
 echo "  write  → $GUARD_OUT"
 step "도구 메시지가 워크트리 경로를 대안으로 지시" \
   has_text "$MCROOT/repo/.claude/worktrees/<스토리ID>/" "$GUARD_OUT"
-step "도구 메시지가 워크트리 생성 명령을 지시" has_text 'scripts/workspace.sh' "$GUARD_OUT"
+step "도구 메시지가 워크트리 생성 수단(EnterWorktree)을 지시" has_text 'EnterWorktree' "$GUARD_OUT"
 step "도구 메시지에 문제의 경로가 실린다"     has_text "$MCROOT/repo/main.txt" "$GUARD_OUT"
 
 runm "$(j_bash "echo hi > $MCROOT/repo/main.txt")"
@@ -818,7 +818,7 @@ runm "$(j_write "$MCROOT/stray.txt")"
 echo "  root   → $GUARD_OUT"
 step "클론 루트 직속 메시지는 '레포 <파일명>' 헛소리를 하지 않는다" \
   lacks_text "대상 레포 'stray.txt'" "$GUARD_OUT"
-step "클론 루트 직속 메시지도 워크트리를 대안으로 지시" has_text 'scripts/workspace.sh' "$GUARD_OUT"
+step "클론 루트 직속 메시지도 워크트리를 대안으로 지시" has_text 'EnterWorktree' "$GUARD_OUT"
 
 # ── 기본 클론 루트가 $HOME/.harness-workspace 인가. 위 시험이 전부 MCROOT 재정의라
 # 이것이 없으면 "재정의했을 때만 도는 규칙" 이어도 게이트가 통과한다.

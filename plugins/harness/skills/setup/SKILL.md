@@ -266,7 +266,7 @@ Ask the user (all at once):
 
 These four are not core but **owned by the target**, so they do not ship with the install. The shapes below are the specification — build them from here rather than from another file. (B inherits all four. Beyond the one entry for its own rail in 2.5, B touches none of them.)
 
-The first three are read directly by tools, so their absence kills those tools with a non-zero exit immediately: without `rails.json`, `board.sh`·`board-check.sh` stop; without `sprints.json`, `board-check.sh`·`board.sh all` stop; without `repos.json`, `workspace.sh` stops. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
+The first three are read directly by tools, so their absence kills those tools with a non-zero exit immediately: without `rails.json`, `board.sh`·`board-check.sh` stop; without `sprints.json`, `board-check.sh`·`board.sh all` stop; without `repos.json`, the EnterWorktree hook (`hooks/enter-worktree.sh`) has no bootstrap to fall back on and `workspace-cleanup.sh` stops. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
 
 ### `repos.json` — the target repo registry
 
@@ -299,9 +299,9 @@ The clone location is fixed at `~/.harness-workspace/<name>` and no path is writ
 |---|---|
 | `name` | Corresponds to a story's `repo:<name>` label. The clone location (`~/.harness-workspace/<name>`) is derived from it too |
 | `url` | The clone source. `repo.sh add` records it |
-| `default_branch` | The branching base for worktrees. They are cut from the latest commit of `origin/<this value>` — **without it workspace.sh fails** (required, so that nothing branches off a stale local HEAD). `repo.sh` detects it from `origin/HEAD` or takes it via `--branch` |
+| `default_branch` | The branching base for worktrees. EnterWorktree cuts them from `origin/<the default branch>` (`worktree.baseRef` default `fresh`); this field is what `repo.sh` records and `rules-check` R18 requires. `repo.sh` detects it from `origin/HEAD` or takes it via `--branch` |
 | `check` | A single line run at the repo root that reports success or failure through its exit code. implementer runs it last, evaluator re-runs it. Knowledge of the language and build tools lives here and nowhere else. **Register without `--check` and it stays empty and `repo.sh` warns** — until it is filled, that repo cannot run a gate |
-| `bootstrap` | A preparation command run once inside a worktree right after it is created (installing dependencies and the like; optional). Without it, a bare worktree can fail the gate for reasons unrelated to the code — `workspace.sh` runs it and returns non-zero on failure |
+| `bootstrap` | A preparation command run once inside a worktree right after it is created (installing dependencies and the like; optional). Without it, a bare worktree can fail the gate for reasons unrelated to the code — the EnterWorktree hook (`hooks/enter-worktree.sh`) runs it once as the fallback when the target repo has no EnterWorktree hook of its own, and reports failure on stderr |
 
 Confirm the registration result with `scripts/repo.sh list` — it shows registration and clone existence together.
 
@@ -353,7 +353,7 @@ If the target already has one, append only the harness sections; if not, write a
 
 - **Status** — the work ledger (beads), the task loop, the orchestration means. The fact that this repo is development-language-neutral and that `repos.json` owns the build and test commands
 - **How To Work** — the session context block the harness plugin injects at SessionStart, the order of the seven procedure skills, where the role definitions are, the documents under `docs/`
-- **Quick Reference** — `bd ready` · `bd list` · `bd show <id>`, `scripts/repo.sh add|list`, `scripts/board.sh all`, `scripts/workspace.sh <story ID>`
+- **Quick Reference** — `bd ready` · `bd list` · `bd show <id>`, `scripts/repo.sh add|list`, `scripts/board.sh all`, `EnterWorktree` (name = story ID) · `scripts/workspace-cleanup.sh <story ID>`
 - **절대 금지** — remote reflection only on explicit instruction (**two exceptions**: the ledger reflection tied to `git push`, and the working-branch push and PR creation of a cycle closing with no unresolved decision — from merge onward it is explicit instruction) · no direct edits to a target repo's main checkout · **fixing the core (the harness itself) also only on explicit instruction** · no judging completion by impression. For each item, write **whether a gate enforces it** — where there is none, write "게이트 없음(설득뿐)". The full list of gates, their limits, and how to verify them is held by `docs/guardrails.md`
 
 **Do not drop the core-editing item.** The harness stood up here is a derived install that received a release, and this skeleton is **the only path by which that discipline enters a derived install's `CLAUDE.md`**. Write all three of the following together.

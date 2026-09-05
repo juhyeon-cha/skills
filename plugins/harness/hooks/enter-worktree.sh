@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 # 워크트리 원장 배선 — PostToolUse(EnterWorktree) 훅.
 #
-# EnterWorktree 가 만든(또는 path 로 들어간) 스토리 워크트리에 하네스 원장을 배선한다. 종전에는
-# scripts/workspace.sh 가 워크트리를 만들면서 함께 했던 일이고, 생성이 네이티브 도구로 넘어가면서
-# 배선만 여기 남았다(스토리 harness-lzs3 "결정됨": 대상 레포의 EnterWorktree 훅이 부트스트랩을
-# 소유하고, 플러그인 훅은 .beads/redirect 만 쓴다. repos.json 의 bootstrap 은 그 훅이 없는 레포의
-# 폴백이다).
+# EnterWorktree 가 만든(또는 path 로 들어간) 스토리 워크트리에 하네스 원장을 배선한다. 생성은
+# 네이티브 도구의 몫이고 하네스 쪽에는 배선만 남는다(스토리 harness-lzs3 "결정됨": 대상 레포의
+# EnterWorktree 훅이 부트스트랩을 소유하고, 플러그인 훅은 .beads/redirect 만 쓴다. repos.json 의
+# bootstrap 은 그 훅이 없는 레포의 폴백이다). 정리는 scripts/workspace-cleanup.sh 가 대칭으로 한다.
 #
 # 하는 일 셋 — 전부 멱등이다:
 #   ① <워크트리>/.beads/redirect 에 <하네스루트>/.beads 절대 경로를 쓴다. 이것이 없으면 워크트리의

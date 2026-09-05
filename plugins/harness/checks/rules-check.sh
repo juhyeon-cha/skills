@@ -95,7 +95,7 @@ need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 �
 }
 bdl() { bd -C "$HROOT" "$@"; }   # 원장은 언제나 하네스 루트의 것이다
 
-MANIFEST="${REPOS_MANIFEST:-$HROOT/repos.json}"   # 재정의는 검사 스크립트용 (workspace.sh 와 같은 규약)
+MANIFEST="${REPOS_MANIFEST:-$HROOT/repos.json}"   # 재정의는 검사 스크립트용 (hooks/enter-worktree.sh 와 같은 규약)
 SETUP_SKILL="skills/setup/SKILL.md"
 GITIGNORE="$HROOT/.gitignore"
 BLOCK="hooks/session-context.md"                   # SessionStart 주입 블록 — 플러그인의 유일한 상시 로드 문서
@@ -708,7 +708,7 @@ check_c6() {
 #   `jq -r '.repos[].name'` 로 **등재부에서만** 파생해 클론 부재를 출력하고 rc 는 항상 0
 #   이므로(repo.sh:170-189), 그것을 비-0 으로 바꾸는 것만으로는 절반이다. "클론은 있는데
 #   등재가 없다" 쪽은 클론 루트에서 새로 파생해야 보인다.
-#     방향 A  등재에 있는데 클론이 없다  → 워크트리를 만들 수 없다(workspace.sh 가 실패)
+#     방향 A  등재에 있는데 클론이 없다  → 세션을 열 클론이 없다(EnterWorktree 를 부를 자리가 없다)
 #     방향 B  클론은 있는데 등재가 없다  → 게이트 명령(check)의 출처가 없는 트리가 남는다
 #
 # 0건 파생은 실패다. 양쪽 다 문자 그대로 적용한다. 명시적으로 실패시키는 이유는 **루트
@@ -772,7 +772,7 @@ check_r40() {
 
   while IFS= read -r k; do
     [[ -z "$k" ]] && continue
-    echo "✗ R40 방향A — '$k' 는 $MANIFEST 에 등재됐는데 $R40_CLONE_ROOT/$k 클론이 없다. 워크트리를 만들 수 없다 (scripts/workspace.sh 가 실패한다)"
+    echo "✗ R40 방향A — '$k' 는 $MANIFEST 에 등재됐는데 $R40_CLONE_ROOT/$k 클론이 없다. 세션을 열 클론이 없어 워크트리를 만들 수 없다 (EnterWorktree 를 부를 자리가 없다)"
     echo "    조치: scripts/repo.sh restore — 등재부에 있는데 클론이 없는 레포를 다시 클론한다"
     f=1
   done <<< "$missing"
