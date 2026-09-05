@@ -181,7 +181,7 @@ case "$1 $2" in
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
       *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
-      *) printf '{"data":{"repository":{"issue":%s}}}' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" ;;
+      *) printf '{"data":{"repository":{"issue":%s}}}' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1\n')" ;;
     esac; exit 0 ;;
   "api -X"|"api repos"*)
     path=""; for a in "$@"; do case "$a" in repos/*) path="$a" ;; esac; done
@@ -234,6 +234,8 @@ step "show --json 의 키가 bd 와 같다 (id·title·status·issue_type·label
 step "show --json 의 값 대응: status:blocked 라벨→blocked · type:epic→epic · labels 에서 type:·status: 제거 · 코멘트→notes · 본문 절 분리" \
   bash -c 'printf "%s" "$1" | jq -e ".[0] | .id == \"harness#57\" and .status == \"blocked\" and .issue_type == \"epic\" and .labels == [\"repo:harness\"] and .notes == \"메모\" and .acceptance_criteria == \"조건 1\" and .description == \"본문\" and .assignee == \"juhyeon-cha\" and .parent == null and (.dependencies | length == 1) and .dependencies[0].id == \"harness#58\"" >/dev/null' _ "$OUT"
 step "jq -r .[0].status 가 그대로 돈다" bash -c '[ "$(printf "%s" "$1" | jq -r ".[0].status")" = "blocked" ]' _ "$OUT"
+# compose_body 는 본문을 "\n" 으로 끝낸다(위 픽스처 57 의 body 가 그 형태) — bd 처럼 acceptance_criteria 에 끝 개행이 없어야 한다.
+step "본문 끝 개행이 acceptance_criteria 에 남지 않는다" bash -c 'printf "%s" "$1" | jq -e ".[0].acceptance_criteria | endswith(\"\\n\") | not" >/dev/null' _ "$OUT"
 grun show 'harness#999' --json
 step "없는 id → rc≠0" [ "$RC" -ne 0 ]
 grun show 57

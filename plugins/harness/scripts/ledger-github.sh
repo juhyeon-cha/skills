@@ -65,7 +65,7 @@ NORM='def norm:
   | { id: (.repository.name + "#" + (.number|tostring)),
       title: .title,
       description: (($parts[0] // "") | rtrimstr("\n")),
-      acceptance_criteria: (if ($parts|length) > 1 then ($parts[1:] | join("\n## Acceptance\n") | ltrimstr("\n")) else "" end),
+      acceptance_criteria: (if ($parts|length) > 1 then ($parts[1:] | join("\n## Acceptance\n") | ltrimstr("\n") | rtrimstr("\n")) else "" end),
       status: (if .state == "CLOSED" then "closed" else (($ls | map(select(startswith("status:"))) | first // "status:open") | ltrimstr("status:")) end),
       issue_type: (($ls | map(select(startswith("type:"))) | first // "type:task") | ltrimstr("type:")),
       labels: ($ls | map(select((startswith("type:") or startswith("status:")) | not)) | sort),
