@@ -22,7 +22,7 @@
 #
 # 플러그인은 클론마다 등록하지 않는다 — harness@skills 는 user scope 로 한 번 설치되고(skills/setup/SKILL.md),
 # 이 스크립트는 클론의 .claude/ 아래에 아무것도 쓰지 않는다. 클론별 등록(local scope 설치·직접 병합)은
-# 같은 플러그인이 scope 마다 따로 잡히는 결과를 냈다(실측 2026-09-05: installed_plugins.json 에 항목 6건).
+# 같은 플러그인이 scope 마다 따로 잡힌다 — 실측 근거는 harness-m8gg.2.1 의 note.
 set -uo pipefail
 # 하네스 루트는 lib/harness-root.sh 가 낸다 — 호출자의 CWD 도 스크립트 위치도 쓰지 않는다
 # (플러그인은 하네스 루트 밖에 산다. CWD 를 쓰면 워크트리에서 대상 레포에 repos.json 을 만들어 버린다).

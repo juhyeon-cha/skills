@@ -264,11 +264,6 @@ A sprint in progress is `active`, one already finished is `closed`. If you do no
 
 
 
-Then:
-
-1. Locally commit the updated core files and `.harness-state`. Push only on explicit user instruction.
-2. **Ask the user to restart the session** — updated hooks and permissions load at session start.
-
 ### 3.5 Move the plugin to user scope — one time only
 
 Installs made before the plugin moved to user scope registered `harness@skills` per tree — at project scope in the harness tree and at local scope in each target clone (an earlier `repo.sh` did the latter). Those registrations stay behind after `update` and load the same plugin several times over. Look at the scopes first.
@@ -285,6 +280,11 @@ jq -r '.plugins["harness@skills"][] | select(.scope != "user") | "\(.scope)\t\(.
 ```
 
 Run the first command again and confirm the single `user` line. Then look at the file each removed registration lived in — `.claude/settings.json` of the tree for project scope, `.claude/settings.local.json` for local — and make sure `enabledPlugins["harness@skills"]` is gone; if the key is still there, delete it by hand. A change to the harness tree's tracked `settings.json` is a diff to commit.
+
+Then:
+
+1. Locally commit the updated core files and `.harness-state`. Push only on explicit user instruction.
+2. **Ask the user to restart the session** — updated hooks and permissions load at session start.
 
 ## 4. Interview (A only)
 
