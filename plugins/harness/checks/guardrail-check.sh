@@ -620,7 +620,7 @@ STUB
     local be="$1" root="$2"; shift 2
     LOUT=$(env PATH="$LTMP/bin:/usr/bin:/bin" AHEAD_FILE="$AHEAD_FILE" LEDGER_ROOT="$root" bash "$be" sync-check "$@" 2>&1); LRC=$?
   }
-  sed 's#^  elif dolt_root="\$db"; #  elif dolt_root="$LEDGER_ROOT/.beads/embeddeddolt"; #' \
+  sed 's#^  dolt_root="\$(bd -C "\$LEDGER_ROOT" where .*#  dolt_root="$LEDGER_ROOT/.beads/embeddeddolt"#' \
     "$BEADS_BE" > "$LTMP/ledger-old.sh"
   if ! not_same "$BEADS_BE" "$LTMP/ledger-old.sh"; then
     say_fail "원장 탐색 줄을 옛 형태로 되돌린 사본이 원본과 같거나 만들어지지 않았다 — 파생 형태가 바뀌어 sed 가 아무것도 못 지웠다. 이 절의 귀속 단언이 공허해진다"

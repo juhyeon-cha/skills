@@ -30,7 +30,7 @@ set -u
 # 통과 문구는 **실제로 판정한 것만** 말한다. 건너뛴 검사를 "확인됨"으로 적으면 게이트가 꺼진
 # 상태와 통과한 상태가 같은 문장으로 보인다.
 sync_check() {
-  local push="" fail=0 verdict="" db dolt_root dbdir n count
+  local push="" fail=0 verdict="" dolt_root dbdir n count
   while [ $# -gt 0 ]; do
     case "$1" in
       --push) push=1; shift ;;
@@ -40,11 +40,11 @@ sync_check() {
   warn() { echo "⚠ 원장 게이트: $*" >&2; }
   bad()  { echo "✗ $*"; fail=1; }
 
-  db="$(bd -C "$LEDGER_ROOT" where 2>/dev/null | sed -n 's/^[[:space:]]*database:[[:space:]]*//p' | head -1)"
+  dolt_root="$(bd -C "$LEDGER_ROOT" where 2>/dev/null | sed -n 's/^[[:space:]]*database:[[:space:]]*//p' | head -1)"
   if ! command -v dolt >/dev/null 2>&1; then
     warn "dolt 미설치 — 원장 반영 여부를 판정할 수 없다. 미반영 원장이 그대로 남을 수 있다"
     verdict="skip"
-  elif dolt_root="$db"; [ -z "$dolt_root" ] || [ ! -d "$dolt_root" ]; then
+  elif [ -z "$dolt_root" ] || [ ! -d "$dolt_root" ]; then
     warn "임베디드 원장 없음(bd where 가 로컬 DB 경로를 내지 않았다; ROOT=$LEDGER_ROOT) — 서버 모드이거나 원장을 갖지 않는 레포로 본다"
     verdict="skip"
   else
