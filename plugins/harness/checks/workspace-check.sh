@@ -14,7 +14,7 @@
 #      도구 호출을 막지 않고 exit 2 의 stderr 만 Claude 에게 실리므로, 그 출구와 문구가 유일한 신호다
 #   ⑥ cleanup — git worktree list 에서 경로가 사라지고 브랜치 worktree-<id> 와 마커도 없다
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려 실제
-# ~/.harness-workspace 는 건드리지 않는다. 훅의 하네스 루트는 HARNESS_ROOT 로 물린다 — 갓 만든
+# ~/.harness-workspace 는 건드리지 않는다. 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 갓 만든
 # 워크트리에는 redirect 가 없어 헬퍼가 .harness-root 파일에 기대는데, 그 파일은 이 머신의 상태다.
 set -uo pipefail
 # 하네스 루트(원장의 자리 — 검사용 bead 를 만든다)는 lib/harness-root.sh 가 낸다. 못 찾으면 rc=1.
@@ -74,7 +74,10 @@ run_hook() {
   printf '{"session_id":"wscheck","hook_event_name":"PostToolUse","tool_name":"EnterWorktree","cwd":"%s"}' "$cwd" \
     | env HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$@" bash "$HOOK"
 }
-run_cl() { REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD"; }
+# cleanup 도 HARNESS_ROOT 로 물린다 — 이 검사가 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌렸으므로
+# lib/harness-root.sh 의 .harness-root 폴백이 사라진다. 하네스 루트를 CWD 로 부르면(check-all 경유)
+# redirect 도 없어 루트를 못 찾았다 (실측 2026-09-06, harness-m8gg.8.2).
+run_cl() { HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD"; }
 
 echo "── ① 훅: 원장 배선 ──"
 mk_tree

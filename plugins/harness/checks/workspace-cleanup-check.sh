@@ -21,7 +21,8 @@
 #
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려
 # 실제 ~/.harness-workspace 는 건드리지 않는다 (workspace-check.sh 와 같은 격리 방식).
-# 워크트리에서도 그대로 돈다 — 워크트리의 원장은 hooks/enter-worktree.sh 가 배선한다.
+# 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 임시 HARNESS_CLONE_ROOT 에는 .harness-root 가
+# 없어 CWD 가 하네스 루트일 때(redirect 도 없다) 헬퍼가 루트를 못 찾는다.
 set -uo pipefail
 # 하네스 루트(원장의 자리 — 검사용 bead 를 만든다)는 lib/harness-root.sh 가 낸다. 못 찾으면 rc=1.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -83,7 +84,10 @@ run_ws() {
   printf '{"session_id":"wcclean","hook_event_name":"PostToolUse","tool_name":"EnterWorktree","cwd":"%s"}' "$WT" \
     | HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" bash "$PLUGIN_ROOT/hooks/enter-worktree.sh" >/dev/null 2>&1
 }
-run_cl() { REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD" "$@"; }
+# cleanup 도 HARNESS_ROOT 로 물린다 — 이 검사가 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌렸으므로
+# lib/harness-root.sh 의 .harness-root 폴백이 사라진다. 하네스 루트를 CWD 로 부르면(check-all 경유)
+# redirect 도 없어 루트를 못 찾았다 (실측 2026-09-06, harness-m8gg.8.2).
+run_cl() { HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD" "$@"; }
 
 echo "── ① 정상 정리 ──"
 run_ws
@@ -179,7 +183,7 @@ echo "── ⑧ 심볼릭 경로로 선 호출자 → 자기 CWD 를 지우지 
 run_ws
 LINK="$TMP/wt-link"
 ln -s "$WT" "$LINK"
-OUT=$( cd "$LINK" && REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD" 2>&1 ); rc=$?
+OUT=$( cd "$LINK" && HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD" 2>&1 ); rc=$?
 rm -f "$LINK"
 step "심볼릭 경로 호출자 rc=1"   [ "$rc" -eq 1 ]
 step "가드가 이유를 밝힌다"      has_text "정리 대상 워크트리 안에 서 있다" "$OUT"
