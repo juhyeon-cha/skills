@@ -825,7 +825,11 @@ ledger_json() {
 #
 # **repo 단위로 가른다.** 태스크의 repo: 라벨은 정확히 1개이고(위 R5 가 강제한다) 워크트리도
 #   레포마다 따로 생기므로 대조 단위는 (스토리, 레포)다. 스토리로만 묶으면 멀티 레포
-#   스토리에서 서로 다른 워크트리의 태스크가 한 칸에 섞인다.
+#   스토리에서 서로 다른 워크트리의 태스크가 한 칸에 섞인다. 세션 단위도 (스토리, 레포)다
+#   (harness:develop 1절) — 스토리 bead 의 `ACTOR: <레포> <값>` note 가 레포마다 하나씩
+#   붙는데, **이 검사는 그 note 를 읽지 않는다.** 레인은 태스크의 assignee 에서 파생하므로
+#   fe 의 태스크가 sess-a, be 의 태스크가 sess-b 로 잡혀 있어도 칸이 다르다 — 아래 check_s22 의
+#   멀티 레포 픽스처가 그것을 판정 도달로 든다.
 #
 # 한계 — **위임했는데 claim 하지 않으면 안 보인다.** 판정의 재료가 status=in_progress 이고
 #   그 전이를 만드는 것은 `bd update --claim` 이다. develop 3-0 의 claim 규율이 함께 서야
@@ -854,8 +858,8 @@ ledger_json() {
 #   단언하고, **넣은 줄이 실제로 파생 집합에 들어오는지**도 함께 봐라(실재·차이는 대조군
 #   성립의 필요조건이지 충분조건이 아니다 — 위 R-REM 의 같은 항목이 든 실측 참조).
 S22_CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
-# 스토리 ID 로 만들어진 워크트리 수. workspace.sh 는 `<스토리ID>` 로 만들고, 병렬 진행은
-# `<스토리ID>-<접미>` 를 함께 쓴다 — 둘 다 같은 스토리의 워크트리다.
+# 스토리 ID 로 만들어진 워크트리 수. harness:develop 2절은 EnterWorktree 의 name 을 `<스토리ID>`
+# 로 두게 하고, 병렬 진행은 `<스토리ID>-<접미>` 를 함께 쓴다 — 둘 다 같은 스토리의 워크트리다.
 # 한계 — **`git worktree list` 가 아니라 디렉토리 실재를 센다.** 정리되지 않은 잔여
 #   디렉토리(git 은 모르는데 파일시스템에는 남은 것)가 분모를 부풀려 **검출을 약화**시킨다.
 #   미탐 쪽이라 안전한 방향이라 그대로 두지만, 이 레포에 정리 스크립트가 둘 있다는 것
@@ -949,6 +953,19 @@ check_s22() {
     echo "✗ S22 부정 대조군 — actor 가 다른 in_progress 둘이 한 스토리(워크트리 0)에 있는데 통과했다. 레인 계수가 죽었다"
     return 1
   fi
+  # 멀티 레포 — 두 레포를 문 스토리에 레포별 ACTOR note 둘(fe sess-a · be sess-b)이 있고 각 레포의
+  # 태스크가 그 actor 로 잡혀 있으면 칸이 (스토리, fe)·(스토리, be) 로 갈려 위반이 아니다(판정 도달).
+  # 위 fx_two_actors 와 다른 점은 repo 라벨뿐이다 — 같은 레포였으면 부정 대조군 그대로 실패한다.
+  local fx_multi
+  fx_multi=$(printf '%s' "$fx_two_actors" | jq -c '(.[] | select(.id == "fx-s")).notes = "ACTOR: fe fx-actor-1\nACTOR: be fx-actor-2" | (.[] | select(.id == "fx-a")).labels = ["repo:fe"] | (.[] | select(.id == "fx-b")).labels = ["repo:be"]')
+  if [[ -z "$fx_multi" || "$fx_multi" == "$fx_two_actors" ]]; then
+    echo "✗ S22 자기 시험 — 멀티 레포 픽스처가 만들어지지 않았거나 원본과 같다 (jq 변형 실패). (스토리, 레포) 판정 시험이 공허하다"
+    return 1
+  fi
+  if ! s22_judge "$fx_multi" >/dev/null; then
+    echo "✗ S22 판정 도달 — 레포가 갈린 actor 둘(fe sess-a · be sess-b)이 한 스토리에 있는데 실패한다. (스토리, 레포) 로 가르는 줄이 죽었다"
+    return 1
+  fi
 
   need_hroot S22 || return 1
   json=$(ledger_json); rc=$?
@@ -966,7 +983,7 @@ check_s22() {
 
   s22_judge "$json" || f=1
 
-  [[ "$f" -eq 0 ]] && echo "✓ S22 동시 in_progress 의 actor 수가 워크트리 수를 넘는 (스토리,레포) 없음 (스토리 ${n_epic}건 · in_progress 태스크 ${n_task}건, 그중 검증 대기 ${n_vp}건은 세지 않음 · 같은 actor 는 한 레인)"
+  [[ "$f" -eq 0 ]] && echo "✓ S22 동시 in_progress 의 actor 수가 워크트리 수를 넘는 (스토리, 레포) 없음 (스토리 ${n_epic}건 · in_progress 태스크 ${n_task}건, 그중 검증 대기 ${n_vp}건은 세지 않음 · 같은 actor 는 한 레인)"
   return "$f"
 }
 

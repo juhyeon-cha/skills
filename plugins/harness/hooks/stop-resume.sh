@@ -128,6 +128,10 @@ fi
 #     매핑은 파생이 아니라 관측이다: actor 는 무작위 6자라 session_id 에서 계산될 수 없고
 #     세션을 넘어 재사용되는 것이 이어받기 규약이라(harness:develop 3절 0번),
 #     guard.sh 가 claim 이 지나가는 순간에 (session_id, actor) 를 적어 둔 것을 여기서 읽는다.
+#     actor 의 원천은 스토리 bead 의 note `ACTOR: <레포> <값>` 이다(harness:develop 1절 "ACTOR
+#     note" — 세션 단위가 (스토리, 레포)라 레포가 앞에 붙는다). **여기 오는 것은 `<값>` 뿐이다** —
+#     claim 의 `--actor <값>` 을 guard.sh 가 관측하고, 원장의 assignee 도 그 값이다. 이 훅은
+#     note 를 읽지 않으므로 레포 접두는 판정에 들어오지 않는다.
 #
 #     **폴백의 방향이 둘로 갈린다 — 하나로 합치면 가드가 조용히 꺼지거나 아무것도 안 고쳐진다.**
 #       · 매핑을 **읽지 못했다**(없다·읽기 실패) → 종전대로 **원장 전체**로 판정한다(SCOPE_FAIL).
@@ -175,7 +179,7 @@ vp="$(printf '%s' "$oracle" | jq '[.[] | select(((.notes // "") | split("\n") | 
 dg="$(printf '%s' "$oracle" | jq '[.[] | select(((.notes // "") | split("\n") | map(select(test("\\S"))) | last // "") | startswith("DELEGATED"))] | length' 2>/dev/null || echo 0)"
 pending=$(( ${vp:-0} + ${dg:-0} ))
 if [[ "$pending" -eq "$n" ]]; then
-  log VERIFY_PENDING "in_progress ${n}건 전부 표시가 있다(검증 대기 ${vp}건 · 위임 직후 ${dg}건) — 막을 이유가 없다"
+  log VERIFY_PENDING "in_progress ${n}건 전부 표시가 있다(검증 대기 ${vp}건 · 위임 직후 ${dg}건 · 범위: $SCOPE) — 막을 이유가 없다"
   exit 0
 fi
 

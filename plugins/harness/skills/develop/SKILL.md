@@ -7,15 +7,26 @@ description: Story (epic bead) development execution procedure. Use on a "스토
 
 ## 1. Pickup verification
 
-- `bd show <story ID>` — check that its type is epic and that it carries a `repo:*` label. Otherwise stop and report what is missing.
-- Read the last `ACTOR:` line of the story's notes — that is this cycle's claim actor (3-0 creates one when it is absent). When the story is already `in_progress` under another actor and that ACTOR note is not yours, that is a **concurrent-work collision** — do not pick it up; report to the human.
+**The session unit is (story, repo).** A development session opens in the clone root of the target repo (`~/.harness-workspace/<repo>`), and the clone directory name is this session's repo — it must be registered in the harness root's `repos.json`. A multi-repo story is worked by **one session per repo**; the sessions coordinate through the ledger (the story bead's notes and the tasks' claims), not through each other. The harness root is what `${CLAUDE_PLUGIN_ROOT}/lib/harness-root.sh` prints from that clone root (it reads `~/.harness-workspace/.harness-root`, which `scripts/repo.sh` writes) — hold it for the whole cycle, every `bd` call is `bd -C <harness root>` until the worktree's `.beads/redirect` exists.
+
+- `bd show <story ID>` — check that its type is epic, that it carries a `repo:*` label, and that **one of those labels is this session's repo**. Otherwise stop and report what is missing.
+- Read the story's `ACTOR:` notes in the form below. The last `ACTOR: <this session's repo> <값>` line is this cycle's claim actor (3-0 creates one when it is absent). When the story is already `in_progress` under another actor **for this repo** and that ACTOR note is not yours, that is a **concurrent-work collision** — do not pick it up; report to the human.
 - `bd children <story ID>` shows the milestone→task tree. If even one task has no acceptance, do not pick it up; go back to the plan-story procedure.
+
+### ACTOR note — `ACTOR: <레포> <값>`
+
+- **Format**: `ACTOR: <레포> <값>` — the repo is this session's repo (the clone directory name), the value is `sess-` + 6 random characters. One live line per (story, repo); a multi-repo story carries one line per repo, left by the session of that repo.
+- **Reading**: take the last `ACTOR:` line whose repo is this session's repo. Lines for other repos belong to the other sessions of the same story — they are not collisions and are not reused.
+- **Old format — `ACTOR: <값>` with no repo → `DECISION_NEEDED`.** A value without a repo cannot be attributed to a session, so it is neither reused nor overwritten by guess; ask the human whether to re-claim this (story, repo) under the new format. The human-wait handling is "사람 대기" (this skill).
+- **Only `<값>` goes into `--actor`** at claim time. The guard's session→actor mapping and the stop guard (`${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.sh`) read that value alone; the repo lives in the note only.
 
 ## 2. Create the workspace
 
-Run `scripts/workspace.sh <story ID>`. stdout is a list of `<repo name>\t<worktree absolute path>` lines — a multi-repo story scatters its worktrees across repos, so the path is not a single one. On failure report the full stderr and stop. Do not bootstrap (install dependencies) by hand — the `bootstrap` field of repos.json owns that, and workspace.sh runs and retries it.
+Enter the story worktree with the native **`EnterWorktree`** tool, `name` = `<story ID>`. Measured 2026-09-05 (`claude -p`, scratch clone): the worktree is `<clone>/.claude/worktrees/<story ID>` on branch **`worktree-<story ID>`**, cut from `origin/<default branch>` (the `worktree.baseRef` default, `fresh`); the tool does not take a branch name. When `git worktree list` already shows that path (picking up an interrupted cycle), enter it with `path` instead of `name`. Do not run `git worktree add` by hand — the tool and its hook own creation.
 
-**Hold that list and the harness root absolute path for the whole cycle.** The worktrees sit outside the harness (`~/.harness-workspace/<repo>/.claude/worktrees/<story ID>/`), so a subagent cannot derive the harness root from its path — state it in every delegation, or `bd -C <harness root>` does not work. When it reports a missing clone, register and clone first with `scripts/repo.sh add <url>`.
+The plugin's PostToolUse hook (`${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh`) wires the ledger (`.beads/redirect` → the harness ledger, plus the clone's `.git/info/exclude`) and, when the target repo has no EnterWorktree hook of its own, runs the `bootstrap` of repos.json once (a sibling marker under `.claude/worktrees/` skips the rerun). **A hook failure does not block the tool** — read its stderr: `원장 배선 실패` means the harness root was not found. Before delegating, `bd where` inside the worktree must print the harness ledger. Do not bootstrap (install dependencies) by hand.
+
+**Hold the worktree path and the harness root absolute path for the whole cycle.** The worktree sits outside the harness (`~/.harness-workspace/<repo>/.claude/worktrees/<story ID>/`), so a subagent cannot derive the harness root from its path — state it in every delegation, or `bd -C <harness root>` does not work. When the clone is missing, register and clone first with `scripts/repo.sh add <url>` and open the session there.
 
 ## 3. Task cycle
 
@@ -31,7 +42,7 @@ The steps below apply, **in batch mode, 0 once to the whole list and 1 once to t
    - **Repo decision**: check that the task carries exactly one `repo:` label — that label fixes the worktree to delegate into. With two or more, do not pick it up; go back to plan-story's narrowing (section 2).
    - **Atomic claim**: take it with `bd update <task ID> --claim --actor <actor value>`. **In batch mode, claim every task of the list under the same actor before delegating** — drop a rejected task from the list. That leaves as many unmarked `in_progress` tasks as the list holds until the implementer leaves its marks, and `checks/rules-check.sh` S22 counts **the tasks of one actor within one story as a single lane**, so that state is not a violation — do not defer the claim to one per task.
      - **Right before delegating, leave `bd note <task ID> "DELEGATED: <마일스톤ID>"` on every claimed task.** 4b of the stop guard (`${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.sh`) exempts that stretch on this mark — without it there are as many unmarked `in_progress` tasks as the list holds, from the claim until the implementer's first commit, and a stop inside that window is blocked while matching none of the guard's three exits (observed in `harness-0uw`). The mark sits in **the same place under the same rule** as the `VERIFY_PENDING` of step 2 (the last non-empty line of notes), so the mark the implementer leaves after committing replaces it naturally. It is a one-line fixed string with no backtick and no `$`, so it falls under the inline allowance of "원장에 본문을 넘기는 형태" (this skill).
-     - **The actor's origin is a note on the story bead.** Pickup verification (section 1) reads the last `ACTOR:` line of the story's notes — use that value as is when it exists (picking up an interrupted cycle — the same actor passes claim idempotently, so resumption happens by itself), and when it does not, make `sess-` + 6 random characters and leave it with `bd note <story ID> "ACTOR: <값>"`.
+     - **The actor's origin is a note on the story bead.** Pickup verification (section 1, "ACTOR note") reads the last `ACTOR: <this session's repo> <값>` line of the story's notes — use that value as is when it exists (picking up an interrupted cycle — the same actor passes claim idempotently, so resumption happens by itself), and when it does not, make `sess-` + 6 random characters and leave it with `bd note <story ID> "ACTOR: <레포> <값>"`. An old-format line (no repo) is `DECISION_NEEDED` — section 1 holds the rule.
      - **Inline the value as a literal in every bd call.** Holding it in a shell variable (`$HARNESS_ACTOR`) and referencing that is forbidden — the Bash tool gets a new shell per call, so the variable evaporates, and an empty value falls back to the default actor (git user.name), which makes **two sessions on one machine the same actor and lets claim pass idempotently**.
      - **Judge claim state from the claim attempt's rc, or from `status` and `assignee` read together.** A rejection is rc=1 with its message on stderr — in full, `Error claiming <task ID>: issue already claimed by <value>`, and the `already claimed` called below is a substring of it. **Read that rc without a pipe**: `$?` after a pipe belongs to the last command, so a rejection reads as 0.
        - To look at the state again later, read **both together** with `bd show <task ID> --json | jq -r '.[0] | .status, .assignee'` (this query's pipe does not read an rc, so the prohibition above does not touch it). Held means `in_progress` + an `assignee` equal to that actor.
@@ -39,7 +50,7 @@ The steps below apply, **in batch mode, 0 once to the whole list and 1 once to t
        - **Do not look at `owner`** — it is a git identity unrelated to claim (the measured value is an email), so it is the same value whoever holds it, and judging from it produced the misjudgment "isolation does not work" that this passage came from (`harness-dfd.1.1` proof).
        - `assignee` is omitempty, so **when the value is empty** the key itself is absent and it comes back `null` — do not generalize that into "this bd has no such field".
      - When rejected with `already claimed`, another actor's session is working on it — skip it and go to the next ready task. **When every ready task is claimed by another actor, break the loop and go to human wait** — an orphan claim from a dead session is the suspicion, and reclaiming (`bd update <ID> --status open`, then claim again) is what a human confirms and directs.
-     - Never set `--status in_progress` directly. **Two sessions do not hold the same story at once** — split parallelism by story (the ACTOR-note reuse convention is for "picking up", not for concurrent work).
+     - Never set `--status in_progress` directly. **Two sessions do not hold the same (story, repo) at once** — split parallelism by story, or by repo within a multi-repo story (the ACTOR-note reuse convention is for "picking up", not for concurrent work).
      - **Do not delegate two tasks into one worktree at the same time.** The git staging area is a per-worktree shared resource, so even an `add` with explicit paths mixes with the other's `add` and `commit`. Split by story when parallelism is needed. The target is **two agents in one worktree** — one actor walking a list in sequence is not that target, and S22 counts it that way too.
 1. **Implementation**: delegate to implementer. **Delegate thin** — the per-role discipline is held by the `${CLAUDE_PLUGIN_ROOT}/agents/` definitions, so the delegation message carries only ① first line: harness root absolute path + the absolute worktree path of the repo that task touches + the task ID (**in batch mode, the milestone's task ID list in dependency order** — the single-repo condition makes the worktree one) ② what "위임 메시지의 환경 스냅샷" below requires (the values to carry + the verbatim-quotation discipline) ③ task-specific context (background issue link, design hints).
 2. `IMPLEMENTATION_COMPLETE` → secure the `VERIFY_PENDING` mark first. The mark is `bd note <task ID> "VERIFY_PENDING: <커밋 해시>"`, and the stop guard (`${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.sh`) and `checks/rules-check.sh` S22 use it to separate "finished, awaiting verification" from "left half-done" (the mark is the last line of notes, so a note appended after it undoes it). It is a one-line fixed string with no backtick and no `$`, so it falls under the inline allowance of "원장에 본문을 넘기는 형태" (this skill). What follows splits by the unit of verification:
@@ -120,7 +131,7 @@ The sections below came down from the always-on ruleset (the harness repo's agil
 **bd 에 넘기는 본문(note·description·acceptance·close reason)을 셸 명령 문자열 안에 두지 않는다.** 셸이 bd 보다 먼저 본문을 해석해 역따옴표·`$` 로 감싼 식별자를 빈 문자열로 지우는데 bd 의 종료 코드는 0 이다.
 
 - **파일 옵션이 있으면 그것을 쓴다** — `note --file`·`--stdin`, `create`/`update --body-file`·`--design-file`·`--stdin`, `close --reason-file`. 없는 값(`--acceptance`·`--title`)은 `"$(cat <경로>)"` 로 넘긴다 — 치환의 출력은 재스캔되지 않는다.
-- **역따옴표·`$` 가 없는 한 줄 고정 문자열은 인라인으로 넘겨도 된다** — `RETRY: <단계> <n>/<상한>`·`ACTOR: <값>`.
+- **역따옴표·`$` 가 없는 한 줄 고정 문자열은 인라인으로 넘겨도 된다** — `RETRY: <단계> <n>/<상한>`·`ACTOR: <레포> <값>`.
 - **본문 파일은 bd 호출과 다른 호출에서 만든다.** 파일 쓰기 도구(Write·Edit)가 가장 단순하다 — 본문이 명령 문자열을 떠나므로 명령 문자열을 보는 규칙 전부가 재료를 잃는다. 같은 호출의 heredoc 으로 만들면 본문이 다시 명령 문자열 안이다.
 - **bd 의 인자로는 heredoc 을 쓰지 않는다.** 손상은 없지만 본문 전체가 명령 문자열로 스캔되어 다른 규칙이 본문의 낱말에 발화하고, 통과시키려면 기록할 내용을 왜곡해야 한다.
 - **막힌 것을 본문 수정으로 푸는 것은 어느 단계에서도 금지다.** 손댈 것은 형태(호출 분리)와 도구(파일 쓰기)뿐이다. 두 수를 다 쓰고도 막히면 본문을 고치지 말고 **막혔다는 사실을 보고에 적는다.**
@@ -136,7 +147,7 @@ The sections below came down from the always-on ruleset (the harness repo's agil
 |---|---|---|
 | 게이트 통과 | 부분 실행(단일 테스트·일부 모듈)의 rc | 그 범위 전체를 돌린 rc |
 | 문서 최신 | `board.sh` 의 rc | stdout 의 경로가 실재하고 그 `index.md` 의 상태 기호가 `bd show` 의 status 와 같다 |
-| 워크트리 생성됨 | `workspace.sh` 의 rc | stdout 의 경로가 실재하고 브랜치가 `story/<id>` |
+| 워크트리 생성됨 | `EnterWorktree` 의 성공 메시지 · 훅의 rc | 경로가 실재하고 브랜치가 `worktree-<id>` 이며 그 안의 `bd where` 가 하네스 원장을 낸다 |
 | push 됐다 | push 명령의 rc | `git ls-remote` 의 tip 이 내 커밋 SHA |
 | 머지됐다 | PR 상태가 `MERGED` 인 것 · push 시점에 대조한 원격 tip (스쿼시 머지는 **새 커밋 객체**를 만들어 그 둘이 원본 커밋과 갈릴 수 있다) | 머지 커밋의 `--stat` 이 브랜치 전체 diff(`git diff --stat <기본브랜치>...<브랜치>`)의 것과 같다. 삭제·rename 이 든 커밋은 `git ls-tree --name-only origin/<기본브랜치> <경로>` 로 원격 트리에서 그 경로의 부재를 확인한다 |
 | 태스크 닫혔다 | `bd close` 를 호출한 것 | `bd show` 의 status·close_reason |
@@ -273,7 +284,7 @@ The sections below came down from the always-on ruleset (the harness repo's agil
 
 - 레포 목록과 각 레포의 게이트 명령은 루트 `repos.json` 이 원본이다. 언어·빌드 도구 정보는 이 파일 밖에 두지 않는다.
 - **레포 등록과 클론은 `scripts/repo.sh add <url>` 이 함께 한다.** 클론 위치는 `~/.harness-workspace/<이름>` 으로 고정이며 `repos.json` 에 경로를 적지 않는다.
-- 스토리 착수 시 `scripts/workspace.sh <story-id>` 가 `repo:*` 라벨을 읽어 각 레포의 클론 안에 워크트리를 만든다: `~/.harness-workspace/<레포이름>/.claude/worktrees/<story-id>/`. 브랜치는 `story/<story-id>`.
+- 스토리 착수 시 그 레포의 클론에서 연 세션이 `EnterWorktree`(name=`<story-id>`)로 워크트리를 만든다: `~/.harness-workspace/<레포이름>/.claude/worktrees/<story-id>/`. 브랜치는 `worktree-<story-id>`(도구가 정한다 — 2절). 세션 단위는 (스토리, 레포)이므로 멀티 레포 스토리는 레포마다 세션 하나가 자기 클론에서 같은 절차를 돈다.
 - **워크트리는 하네스 밖에 있다.** 위임 메시지에 하네스 루트 절대 경로를 명시한다 — `bd -C <하네스루트>` 의 유일한 출처다.
 - 워크트리 안의 에이전트는 매 턴 첫 행동으로 현재 경로를 확인한다. 본 체크아웃 경로인데 쓰기를 요구받으면 정지하고 사람에게 확인한다.
 
