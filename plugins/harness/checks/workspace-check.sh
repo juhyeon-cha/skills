@@ -5,7 +5,7 @@
 # 그 위에 PostToolUse 훅(hooks/enter-worktree.sh)을 표본 payload 로 돌린 뒤 scripts/workspace-cleanup.sh
 # 로 되돌린다.
 #   ① 훅 — .beads/redirect 가 하네스 원장을 가리키고, 클론 exclude 에 .beads 가 등재되며,
-#      워크트리의 bd where 가 하네스 원장을 낸다
+#      워크트리에서 부른 lib/harness-root.sh 가 그 배선을 따라 하네스 루트를 낸다
 #   ② 부트스트랩 폴백 — 자기 EnterWorktree 훅이 없는 레포에서 1회 실행 + 형제 마커, 재진입은 마커로
 #      건너뛰고, 마커가 없으면 재시도한다
 #   ③ 자기 EnterWorktree 훅을 가진 레포에서는 bootstrap 을 돌리지 않는다
@@ -27,8 +27,10 @@ GITC=(-c user.email=check@harness -c user.name=harness-check)
 export HARNESS_CLONE_ROOT="$TMP/clones"
 HOOK="$PLUGIN_ROOT/hooks/enter-worktree.sh"
 
+# 원장은 어댑터로 — 검사용 bead 의 생성·삭제(--ephemeral·delete 는 beads 전용 인자다).
+ledger() { HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" "$@"; }
 cleanup() {
-  [[ -n "$BEAD" ]] && bd delete "$BEAD" --force >/dev/null 2>&1
+  [[ -n "$BEAD" ]] && ledger delete "$BEAD" --force >/dev/null 2>&1
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -57,7 +59,7 @@ jq -n --arg b "$DEFAULT_BRANCH" \
              bootstrap: "mkdir -p node_modules && echo ran >> node_modules/BOOT_MARK"}]}' \
   > "$TMP/manifest.json"
 
-BEAD=$(bd create "wscheck: EnterWorktree 왕복 게이트용" -t task --ephemeral -l "repo:wscheck" --silent)
+BEAD=$(ledger create "wscheck: EnterWorktree 왕복 게이트용" -t task --ephemeral -l "repo:wscheck" --silent)
 [[ -n "$BEAD" ]] || { echo "  ✗ FAILED: 검사용 bead 생성" ; exit 1; }
 
 WT="$CLONE/.claude/worktrees/$BEAD"
@@ -84,7 +86,10 @@ step "redirect 가 하네스 원장을 가리킨다" [ "$(cat "$WT/.beads/redire
 step "가리키는 곳이 실재한다"           [ -d "$(cat "$WT/.beads/redirect" 2>/dev/null)" ]
 step "클론 exclude 에 .beads 등재"      grep -qxF ".beads" "$CLONE/.git/info/exclude"
 step "클론 exclude 에 .claude/worktrees/ 등재" grep -qxF ".claude/worktrees/" "$CLONE/.git/info/exclude"
-step "워크트리의 bd where 가 하네스 원장을 낸다" has_text "$ROOT/.beads" "$(bd -C "$WT" where 2>/dev/null)"
+# 재진입 경로 — HARNESS_ROOT 없이 워크트리에서 부른 루트 탐색기가 배선을 따라 하네스 루트를 낸다
+# (HARNESS_CLONE_ROOT 가 임시 디렉토리라 .harness-root 폴백은 없다 — 배선이 유일한 출처다).
+step "워크트리에서 lib/harness-root.sh 가 배선을 따라 하네스 루트를 낸다" \
+  [ "$(cd "$WT" && env -u HARNESS_ROOT bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" = "$ROOT" ]
 step "워크트리 git status 가 비어 있다 (배선이 untracked 로 뜨지 않는다)" [ -z "$(git -C "$WT" status --short)" ]
 
 echo "── ② 부트스트랩 폴백 ──"

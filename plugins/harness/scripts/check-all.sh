@@ -58,12 +58,17 @@ EOF
 
 echo "── 플러그인 트리 검사 ($PLUGIN_ROOT) ──"
 
-# ⓪ 하네스 루트 — 원장 검사의 자리. 값 자체는 판정이 아니라 진단이다.
-if hroot=$(bash lib/harness-root.sh 2>/dev/null); then
+# ⓪ 하네스 루트 — 원장 검사의 자리. 못 찾으면 **여기서 첫 실패**를 낸다 — 원장을 보는 검사가 아래에서
+# 저마다의 문구로 죽기 전에, 원인(판별자 ledger.json 이 없는 자리)이 첫 줄에 오게 한다. 나머지 검사는
+# 그래도 돌린다(set -e 를 쓰지 않는 이유와 같다 — 실패를 모아 전부 보고한다).
+hroot_err=$(mktemp)
+if hroot=$(bash lib/harness-root.sh 2>"$hroot_err"); then
   echo "  · 하네스 루트: $hroot"
 else
-  echo "  · 하네스 루트: 찾지 못했다 — 원장을 보는 검사는 아래에서 실패한다 (스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라)"
+  echo "✗ 하네스 루트를 찾지 못했다 — $(head -1 "$hroot_err") (스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라; 원장을 보는 검사는 아래에서도 실패한다)"
+  fail=1
 fi
+rm -f "$hroot_err"
 
 # ① 문법 — shellcheck 가 없는 환경에서도 이것만은 돈다(shell-lint 는 그때 건너뛴다).
 for f in scripts/*.sh checks/*.sh hooks/*.sh lib/*.sh; do

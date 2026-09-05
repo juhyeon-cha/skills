@@ -1,6 +1,6 @@
 ---
 name: verify-implement
-description: Acceptance judgment and closing procedure for a task — evaluator delegation and bd close. Use on a "acceptance 판정해" or "이 태스크 닫아도 되나" request, and right after review passes in a develop cycle. Code-quality review is verify-code.
+description: Acceptance judgment and closing procedure for a task — evaluator delegation and ledger close. Use on a "acceptance 판정해" or "이 태스크 닫아도 되나" request, and right after review passes in a develop cycle. Code-quality review is verify-code.
 ---
 
 # Acceptance judgment
@@ -23,9 +23,9 @@ Then delegate to evaluator. The message carries ① first line: harness root abs
 
 - `MATCH` → go to 3 below. **When the acceptance wording has gone stale, judge by its intent and leave that substitution in `close_reason`.** A sibling task closing first can change the premise, at which point holding to the wording means writing a false sentence. Recording what you judged against in place of the wording is what keeps "why did this close when what it asked for is missing" from recurring.
 - `VIOLATION` → **read and raise the counter before re-delegating** → delegate the fix to implementer → re-enter verify-code. Given a list, close the `MATCH` tasks through 3 below as the per-task judgments in the body say, and send only the unmet tasks back for a fix. When the implementer signal returned from the fix delegation is something other than `IMPLEMENTATION_COMPLETE` (`IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED` · outside the list), handle it through the branches in `develop` 3-4 instead of re-entering.
-  - Read the number on the last `RETRY: verify-implement` line from the notes of `bd show <task ID>` (0 when absent).
+  - Read the number on the last `RETRY: verify-implement` line from the notes of `ledger.sh show <task ID>` (0 when absent).
   - Once `n+1` puts the counter at **limit exceeded** (single-owned by the "재시도 카운터" section of the `verify-code` skill), switch to human wait in place of re-delegating.
-  - On re-delegation leave `bd note <task ID> "RETRY: verify-implement <n+1>/<상한>"`.
+  - On re-delegation leave `ledger.sh note <task ID> "RETRY: verify-implement <n+1>/<상한>"`.
   - **In batch mode put the milestone ID in the `<task ID>` slot of the two lines above** — re-judgment happens once per batch, so the counter is one per batch too. The unit is defined in the "재시도 카운터" section of the `verify-code` skill.
 - `SCOPE_EXCESS` → report to the user and wait. **It spends no re-judgment count** — the "재시도 카운터" section of the `verify-code` skill holds the reason.
   - The report carries evaluator's **hunk list and classification** (excess / intrusion), and for an intrusion the `deferred` item or Out of Scope sentence it rests on, copied verbatim. Leave it unsummarised — that original text is what the human judges.
@@ -35,8 +35,8 @@ Then delegate to evaluator. The message carries ① first line: harness root abs
 
 ## 3. Close
 
-**`bd close` runs on evaluator's MATCH record alone.** Given a list, do 1–2 per MATCH task and 3 once.
+**`ledger.sh close` runs on evaluator's MATCH record alone.** Given a list, do 1–2 per MATCH task and 3 once.
 
-1. Leave the grounds for the MATCH judgment with `bd note <task ID>`.
-2. `bd close <task ID> --reason "<commit hash, gate exit code>"`.
-3. Redraw the local projection with `scripts/board.sh all` — **after** `bd close`. The projection lives outside git, so it stays out of the commit.
+1. Leave the grounds for the MATCH judgment with `ledger.sh note <task ID>`.
+2. `ledger.sh close <task ID> --reason "<commit hash, gate exit code>"`.
+3. Redraw the local projection with `scripts/board.sh all` — **after** `ledger.sh close`. The projection lives outside git, so it stays out of the commit.

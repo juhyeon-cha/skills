@@ -33,8 +33,10 @@ BEAD=""
 GITC=(-c user.email=check@harness -c user.name=harness-check)
 export HARNESS_CLONE_ROOT="$TMP/clones"
 
+# 원장은 어댑터로 — 검사용 bead 의 생성·삭제·라벨(--ephemeral·delete·tag 는 beads 전용 인자다).
+ledger() { HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" "$@"; }
 cleanup() {
-  [[ -n "$BEAD" ]] && bd delete "$BEAD" --force >/dev/null 2>&1
+  [[ -n "$BEAD" ]] && ledger delete "$BEAD" --force >/dev/null 2>&1
   rm -rf "$TMP"
 }
 trap cleanup EXIT
@@ -67,7 +69,7 @@ jq -n --arg b "$DEFAULT_BRANCH" \
              bootstrap: "mkdir -p node_modules && echo ran > node_modules/mark"}]}' \
   > "$TMP/manifest.json"
 
-BEAD=$(bd create "wcclean: workspace-cleanup.sh 게이트용" -t task --ephemeral -l "repo:wcclean" --silent)
+BEAD=$(ledger create "wcclean: workspace-cleanup.sh 게이트용" -t task --ephemeral -l "repo:wcclean" --silent)
 [[ -n "$BEAD" ]] || { echo "  ✗ FAILED: 검사용 bead 생성"; exit 1; }
 
 WT="$CLONE/.claude/worktrees/$BEAD"
@@ -223,7 +225,7 @@ git -C "$CLONE" worktree remove --force "$OTHER_WT" >/dev/null 2>&1
 git -C "$CLONE" branch -D "worktree-$OTHER_BEAD" >/dev/null 2>&1
 
 echo "── ⑪ 등록부에 없는 repo: 라벨 ──"
-bd tag "$BEAD" repo:missing >/dev/null
+ledger tag "$BEAD" repo:missing >/dev/null
 OUT=$(run_cl 2>&1); rc=$?
 step "누락 시 rc=1"              [ "$rc" -eq 1 ]
 

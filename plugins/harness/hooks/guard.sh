@@ -272,9 +272,35 @@ exec_segments() {  # exec_segments <명령이름> → 그 명령을 실행하는
   done < <(cmd_segments)
   return 0
 }
-bd_exec_present() { [ -n "$(exec_segments bd)" ]; }
 # 도구 이름을 변수에 담는 형태(`B=bd; $B …`)는 실행 위치에서 읽히지 않는다 — 대입문을 보고 막는다.
-tool_aliased() { printf '%s' "$COMMAND" | grep -Eq "(^|[^A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*=$1([^A-Za-z0-9_]|\$)"; }
+# 도구 이름의 `.`(ledger.sh)은 리터럴이다 — 정규식 메타로 두면 `ledger-sh` 같은 이름도 잡는다.
+# 대입값은 경로 접두를 가질 수 있다(`L=$CLAUDE_PLUGIN_ROOT/scripts/ledger.sh` · `B=/opt/homebrew/bin/bd`) —
+# 역할 정의가 지시하는 형태가 경로라 변수에 담기는 것도 경로다. 접두는 공백·`;`·`&`·`|` 를 넘지 않고
+# `/` 로 끝나며, 도구 이름 뒤에 `/`·`.` 이 오면(`X=/a/bd/log` · `LOG=ledger.sh.log`) 그 이름은 디렉토리·다른 파일이라 잡지 않는다.
+tool_aliased() {
+  local p; p="$(printf '%s' "$1" | sed 's/\./\\./g')"
+  printf '%s' "$COMMAND" | grep -Eq "(^|[^A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*=([^[:space:];&|]*/)?$p([^A-Za-z0-9_/.]|\$)"
+}
+
+# ── 원장 도구 ────────────────────────────────────────────────────────
+# 원장에 닿는 실행 낱말은 둘이다 — 어댑터 `ledger.sh`(스킬·역할이 지시하는 형태)와, 그 beads
+# 백엔드가 부르는 실물 `bd`. 직접 부르는 bd 는 어댑터를 우회하는 길이라 **규칙은 둘 다 본다**
+# (harness-m8gg.5.2). 하위 명령 집합은 같으므로(ledger.sh 가 bd 의 규약을 그대로 받는다) 읽기
+# 면제·허용 목록은 하나(BD_READ_EXEMPT·IMPL_BD_WRITE_ALLOW)를 공유하고, 갈리는 것은 **원장 지정
+# 표기**뿐이다: bd 는 하위 명령 앞의 `-C|--directory|--db <루트>`, ledger.sh 는 명령 앞에 붙는
+# `HARNESS_ROOT=<루트>` 다(lib/harness-root.sh 의 첫 출처 — 서브에이전트에게는 그것이 유일한
+# 지정 수단이다). 실행 낱말은 basename 비교라 `bash <플러그인>/scripts/ledger.sh …` 도 ledger.sh 다.
+LEDGER_TOOLS="ledger.sh bd"
+ledger_vopts() { case "$1" in bd) printf '%s' "$BD_VALUE_OPTS" ;; *) printf '' ;; esac; }   # 값-받는 전역 옵션 — ledger.sh 에는 없다
+ledger_root_form() { case "$1" in bd) printf '%s -C <하네스루트>' "$1" ;; *) printf 'HARNESS_ROOT=<하네스루트> %s' "$1" ;; esac; }
+ledger_root_alts() { case "$1" in bd) printf -- '--directory·--db 도 같은 자리에서 인정된다' ;; *) printf '변수는 그 명령 앞에 붙인다 — export 로 앞 조각에 둔 것은 인정하지 않는다' ;; esac; }
+ledger_root_given() {  # ledger_root_given <도구> <하위 명령 앞 조각> — 원장 지정 표기가 있는가
+  case "$1" in
+    bd) has_token '-C|--directory|--db' "$2" ;;
+    *)  printf '%s' "$2" | grep -Eq '(^|[^A-Za-z0-9_])HARNESS_ROOT=' ;;
+  esac
+}
+ledger_exec_present() { local t; for t in $LEDGER_TOOLS; do [ -n "$(exec_segments "$t")" ] && return 0; done; return 1; }
 
 # ── 세션→actor 매핑 관측 ─────────────────────────────────────────────
 # **관측이지 판정이 아니다.** 여기서는 아무것도 막지 않는다 — 하는 일은 claim 명령이
@@ -301,9 +327,10 @@ sa_observe() {
   # 귀속할 수 없는 기록은 남기지 않는다 — session_id 없는 줄은 사거리를 좁히지 못하고,
   # 빈 열은 정지 가드 쪽에서 "이 세션의 actor" 로 잘못 읽힐 재료가 된다.
   [ -n "$SESSION_ID" ] || return 0
-  local seg actor d
-  # **bd 를 실행하는 조각만 본다.** 다른 명령이 인자로 --claim --actor 를 담은 경우
+  local seg actor d t
+  # **원장 도구(ledger.sh·bd)를 실행하는 조각만 본다.** 다른 명령이 인자로 --claim --actor 를 담은 경우
   # (grep · 설명 · 커밋 메시지)는 claim 이 아니다 — 실행 위치 판정을 그대로 쓴다.
+  for t in $LEDGER_TOOLS; do
   while IFS= read -r seg; do
     actor="$(printf '%s' "$seg" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk '
         $0 != "" { t[++n] = $0 }
@@ -323,7 +350,8 @@ sa_observe() {
     printf '%s\t%s\t%s\n' "$(date -u +%FT%TZ 2>/dev/null)" "$SESSION_ID" "$actor" \
       >> "$SESSION_ACTOR_LOG" 2>/dev/null || return 0
     return 0
-  done < <(exec_segments bd)
+  done < <(exec_segments "$t")
+  done
   return 0
 }
 sa_observe || :   # SA_OBSERVE_CALL — 관측 호출. 실패해도 판정은 그대로 돈다
@@ -596,17 +624,22 @@ r_remote() {
   while IFS= read -r seg; do
     sub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
     if [ "$sub" = "push" ] || { [ "$sub" = "subtree" ] && has_token 'push' "$seg"; }; then
-      deny "원격 반영 금지 — git 이 push 를 실행한다. git push·bd dolt push 등 **원격 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만'). **그 항목에는 예외가 둘 붙어 있지만 둘 다 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다. 네가 막힌 이유는 지시가 없어서가 아니라 **액터가 다르기 때문**이고, 그래서 '사용자가 지시했다'는 전언으로는 풀리지 않는다. 서브에이전트는 로컬 커밋까지만 하고 멈춘다 — 구현이 끝났으면 첫 줄에 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 커밋 해시를 보고하라. 원격 반영이 필요하면 그 사실을 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라. 판정은 git·dolt·bd 가 실행하는 하위 명령이라 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 진짜로 원격에 반영하므로 차단이 옳다 — 로컬까지만 하고('git subtree split --prefix <경로> -b <브랜치>') 멈춰 보고하라. 그래도 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+      deny "원격 반영 금지 — git 이 push 를 실행한다. git push·ledger.sh dolt push 등 **원격 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만'). **그 항목에는 예외가 둘 붙어 있지만 둘 다 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다. 네가 막힌 이유는 지시가 없어서가 아니라 **액터가 다르기 때문**이고, 그래서 '사용자가 지시했다'는 전언으로는 풀리지 않는다. 서브에이전트는 로컬 커밋까지만 하고 멈춘다 — 구현이 끝났으면 첫 줄에 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 커밋 해시를 보고하라. 원격 반영이 필요하면 그 사실을 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라. 판정은 git·dolt·원장 도구(ledger.sh·bd)가 실행하는 하위 명령이라 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 진짜로 원격에 반영하므로 차단이 옳다 — 로컬까지만 하고('git subtree split --prefix <경로> -b <브랜치>') 멈춰 보고하라. 그래도 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
     fi
   done < <(exec_segments git)
   while IFS= read -r seg; do
     [ "$(subcmds_after dolt "" "$seg")" = "push" ] || continue
-    deny "원격 반영 금지 — dolt 가 push 를 실행한다. 원장 반영(bd dolt push·dolt push)은 **오케스트레이터·사람의 몫**이다(세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+    deny "원격 반영 금지 — dolt 가 push 를 실행한다. 원장 반영(ledger.sh dolt push·dolt push)은 **오케스트레이터·사람의 몫**이다(세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
   done < <(exec_segments dolt)
+  local t
+  for t in $LEDGER_TOOLS; do
   while IFS= read -r seg; do
-    [ "$(subcmds_after bd "$BD_VALUE_OPTS" "$seg")" = "dolt" ] && has_token 'push' "$seg" || continue
-    deny "원격 반영 금지 — bd dolt push 는 원장을 원격에 반영한다. 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
-  done < <(exec_segments bd)
+    # 원장을 원격에 반영하는 하위 명령은 둘이다 — `dolt push` 와, ledger-check 가 부르는 `sync-check --push`.
+    sub="$(subcmds_after "$t" "$(ledger_vopts "$t")" "$seg")"
+    { [ "$sub" = "dolt" ] && has_token 'push' "$seg"; } || { [ "$sub" = "sync-check" ] && has_token '[-][-]push' "$seg"; } || continue
+    deny "원격 반영 금지 — $t $sub 가 원장을 원격에 반영한다($t dolt push · $t sync-check --push). 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+  done < <(exec_segments "$t")
+  done
 
   tool_aliased gh && deny "gh 를 변수에 담아 부르는 형태('G=gh; \$G …')는 하위 명령을 읽을 수 없어 차단한다 — gh 를 'gh <그룹> <하위명령>' 형태로 직접 불러라. **PR 생성·머지와 이슈 조작은 오케스트레이터·사람의 몫**이고(세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다), 서브에이전트는 구현 완료 신호를 내고 멈춘다."
   local t1 t2 shown
@@ -673,12 +706,12 @@ gr_is_grader() {
 # "검증용 명령 실행은 허용된다"를 명시하므로, 무엇이 막혔는지만 말하고 무엇이 열려
 # 있는지를 말하지 않으면 받은 에이전트가 리뷰·판정 자체를 포기한다.
 gr_can() {
-  local common="검증용 명령 실행은 허용된다 — 게이트·테스트 재실행, git status·git diff·git show, bd -C <하네스루트> show·list 가 그것이다."
+  local common="검증용 명령 실행은 허용된다 — 게이트·테스트 재실행, git status·git diff·git show, HARNESS_ROOT=<하네스루트> ledger.sh show·list 가 그것이다."
   case "$AGENT_TYPE" in
     harness:reviewer)
       printf '%s' "reviewer 가 할 수 있는 것: $common 지적은 파일이 아니라 응답에 쓴다 — 첫 줄 'SIGNAL: CHANGES_REQUESTED'(또는 LGTM) 뒤에 MUST FIX·NIT 를 파일:라인과 함께 적어라. 지적의 기록은 오케스트레이터가 남긴다 (agents/reviewer.md)." ;;
     harness:evaluator)
-      printf '%s' "evaluator 가 할 수 있는 것: $common 판정은 파일이 아니라 응답에 쓴다 — 첫 줄 'SIGNAL: MATCH'·'VIOLATION'·'DEVIATION' 뒤에 acceptance 항목별로 인용→근거→MET/NOT_MET 을 적어라. bd close 와 판정의 기록은 오케스트레이터가 남긴다 (agents/evaluator.md)." ;;
+      printf '%s' "evaluator 가 할 수 있는 것: $common 판정은 파일이 아니라 응답에 쓴다 — 첫 줄 'SIGNAL: MATCH'·'VIOLATION'·'DEVIATION' 뒤에 acceptance 항목별로 인용→근거→MET/NOT_MET 을 적어라. ledger.sh close 와 판정의 기록은 오케스트레이터가 남긴다 (agents/evaluator.md)." ;;
   esac
 }
 
@@ -718,13 +751,17 @@ RULES+=("*:r_grader_write")
 # 한계: branch 는 면제어라 `git branch -D` 가 통과한다 — 채점자가 브랜치를 지울 유인이 없어 감수한다.
 GR_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-remote branch grep"
 
-# bd 가 실행 위치인 **조각마다 따로** 읽는다. 조각을 한 문자열로 이어 넘기면 옵션만 있는 조각
-# (`bd --version`)의 하위 명령 자리에 다음 조각의 `bd` 가 들어와 'bd bd' 로 막힌다 [실측
-# 2026-08-28 배치 reviewer: `bd --version; bd list --status in_progress …` 가 rc=2]. r_bd_root 는
-# 자기 루프에서 같은 형태로 돈다. 게이트 ⑬-2 의 A/B(d) 가 이어 붙인 형태로 되돌려 귀속한다.
-gr_bd_subcmds() {
-  local seg
-  while IFS= read -r seg; do subcmds_after bd "$BD_VALUE_OPTS" "$seg"; done < <(exec_segments bd)
+# 원장 도구가 실행 위치인 **조각마다 따로** 읽어 "<도구> <하위 명령>" 한 줄씩 낸다(하위 명령이 없으면
+# 도구만). 조각을 한 문자열로 이어 넘기면 옵션만 있는 조각(`bd --version`)의 하위 명령 자리에 다음
+# 조각의 `bd` 가 들어와 'bd bd' 로 막힌다 [실측 2026-08-28 배치 reviewer: `bd --version; bd list
+# --status in_progress …` 가 rc=2]. r_bd_root 는 자기 루프에서 같은 형태로 돈다. 게이트 ⑬-2 의
+# A/B(d) 가 이어 붙인 형태로 되돌려 귀속한다.
+gr_tool_sub() { subcmds_after "$1" "$(ledger_vopts "$1")" "$2" | sed "s/^/$1 /"; }   # gr_tool_sub <도구> <조각들>
+gr_ledger_subcmds() {
+  local t seg
+  for t in $LEDGER_TOOLS; do
+    while IFS= read -r seg; do gr_tool_sub "$t" "$seg"; done < <(exec_segments "$t")   # GR_PER_SEGMENT
+  done
 }
 
 # ②③ 셸 판정.
@@ -752,16 +789,18 @@ r_grader_shell() {
     deny "채점자의 git 쓰기 금지 — 'git ${gsub:-<하위 명령 없음>}' 은 읽기 면제 목록 밖이다. agent_type=$AGENT_TYPE 은 파일 수정·커밋이 금지다(리뷰·평가만) — 채점자가 만든 커밋이 곧 다음 판정의 대상이 된다. 판정은 git 이 실행하는 하위 명령이라 commit 뿐 아니라 revert·cherry-pick·merge·am·rebase·reset·clean·stash·checkout 도 막힌다. 읽기 면제: $GR_GIT_READ. 실행이 아닌 문자열(git log --grep commit)은 걸리지 않는다 — 그래도 막혔으면 오탐이니 사람에게 확인받아라. $(gr_can)"
   done < <(exec_segments git)
 
-  tool_aliased bd && deny "bd 를 변수에 담아 부르는 형태('B=bd; \$B …')는 하위 명령을 읽을 수 없어 차단한다 — bd 를 'bd -C <하네스루트> <하위명령>' 형태로 직접 불러라. 채점자는 읽기만 가능하다. $(gr_can)"
-  bd_exec_present || return 0
-  local sub
-  while IFS= read -r sub; do
-    [ -n "$sub" ] || continue     # 옵션만 있는 호출(bd --help · bd --version) — 읽기다
+  local t sub
+  for t in $LEDGER_TOOLS; do
+    tool_aliased "$t" && deny "$t 를 변수에 담아 부르는 형태('B=$t; \$B …')는 하위 명령을 읽을 수 없어 차단한다 — $t 를 '$(ledger_root_form "$t") <하위명령>' 형태로 직접 불러라. 채점자는 읽기만 가능하다. $(gr_can)"
+  done
+  ledger_exec_present || return 0
+  while read -r t sub; do
+    [ -n "$sub" ] || continue     # 옵션만 있는 호출(`--help`·`--version`) — 읽기다
     bd_is_read "$sub" && continue
-    deny "채점자의 bd 쓰기 금지 — 'bd $sub' 는 읽기 면제 목록에 없다. agent_type=$AGENT_TYPE 의 bd 는 **읽기만**이고, **-C <하네스루트> 를 붙여도 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 기록(note·update·close·label)은 오케스트레이터의 몫이다. $(gr_can)"
-  done < <(gr_bd_subcmds)
-  # bd 가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "bd 는 있는데 하위 명령을 하나도 못
-  # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 bd 는 exec_segments 가 가른다.
+    deny "채점자의 $t 쓰기 금지 — '$t $sub' 는 읽기 면제 목록에 없다. agent_type=$AGENT_TYPE 의 $t 는 **읽기만**이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 기록(note·update·close·label)은 오케스트레이터의 몫이다. $(gr_can)"
+  done < <(gr_ledger_subcmds)
+  # 원장 도구가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "도구는 있는데 하위 명령을 하나도 못
+  # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 낱말은 exec_segments 가 가른다.
   return 0
 }
 # **등재 위치가 r_remote 뒤, r_bd_root 앞이다.** 위 "겹침" 주석 참조 —
@@ -782,7 +821,7 @@ RULES+=("Bash:r_grader_shell")
 # 근거 문서(설득만 있고 강제는 없었다): agents/implementer.md(=후보 A5).
 #
 # **A1/A2(채점자)와 같은 판정 지점, 다른 허용 목록이다.** 채점자는 bd 쓰기가 **전부**
-# 금지고 implementer 는 **note 만** 허용이다. 하위 명령을 뽑는 부분(gr_bd_subcmds)은
+# 금지고 implementer 는 **note 만** 허용이다. 하위 명령을 뽑는 부분(gr_ledger_subcmds)은
 # 그대로 재사용하고 그 뒤의 판정만 갈린다 — 그것이 이 규칙과 A1/A2 의 유일한 차이다.
 #
 # **r_grader_shell 에 분기를 더하지 않고 규칙 함수를 따로 둔 이유.** 두 판정 술어
@@ -828,20 +867,22 @@ impl_bd_write_allowed() {
 
 r_impl_bd() {
   impl_is_implementer || return 0
-  tool_aliased bd && deny "bd 를 변수에 담아 부르는 형태('B=bd; \$B …')는 하위 명령을 읽을 수 없어 차단한다 — bd 를 'bd -C <하네스루트> <하위명령>' 형태로 직접 불러라."
-  bd_exec_present || return 0
-  local sub
-  while IFS= read -r sub; do
+  local t sub
+  for t in $LEDGER_TOOLS; do
+    tool_aliased "$t" && deny "$t 를 변수에 담아 부르는 형태('B=$t; \$B …')는 하위 명령을 읽을 수 없어 차단한다 — $t 를 '$(ledger_root_form "$t") <하위명령>' 형태로 직접 불러라."
+  done
+  ledger_exec_present || return 0
+  while read -r t sub; do
     # 옵션만 있는 호출(`bd --help`·`bd --version`·`bd -C <하네스루트>`)과 맨 `bd` 는 도움말·버전
     # 출력이라 읽기다 — harness-dj4 의 1·2·5번 형태가 여기서 막히던 것이다.
     [ -n "$sub" ] || continue
     bd_is_read "$sub" && continue
     impl_bd_write_allowed "$sub" && continue
-    deny "implementer 의 bd 쓰기 금지 — 'bd $sub' 는 허용 목록 밖이다. agent_type=$AGENT_TYPE 에게 허용된 bd **쓰기**는 '$IMPL_BD_WRITE_ALLOW' 뿐이고, **-C <하네스루트> 를 붙여도 그 밖의 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다 — 필요하면 무엇을 왜 바꿔야 하는지 **응답에** 적어 올려라(태스크 범위 밖이면 첫 줄 'SIGNAL: DECISION_NEEDED'). 알게 된 사실은 'bd -C <하네스루트> note <태스크ID> \"…\"' 로 남길 수 있다. note 와 같은 일을 하는 'bd update <id> --append-notes' 도 여기서 막히니 note 를 써라 (bd note --help: \"Shorthand for 'bd update <id> --append-notes'\"). (agents/implementer.md)"
-  done < <(gr_bd_subcmds)
-  # bd 가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "bd 는 있는데 하위 명령을 하나도 못
-  # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 bd 는 exec_segments 가 가른다.
-  # 이 규칙이 통과시킨 것(읽기·note·옵션만 있는 호출) 중 -C 가 빠진 note 는 다음 등재인 r_bd_root 가 막는다.
+    deny "implementer 의 $t 쓰기 금지 — '$t $sub' 는 허용 목록 밖이다. agent_type=$AGENT_TYPE 에게 허용된 $t **쓰기**는 '$IMPL_BD_WRITE_ALLOW' 뿐이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 그 밖의 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다 — 필요하면 무엇을 왜 바꿔야 하는지 **응답에** 적어 올려라(태스크 범위 밖이면 첫 줄 'SIGNAL: DECISION_NEEDED'). 알게 된 사실은 '$(ledger_root_form "$t") note <태스크ID> \"…\"' 로 남길 수 있다. note 와 같은 일을 하는 '$t update <id> --append-notes' 도 여기서 막히니 note 를 써라 (note 는 'update <id> --append-notes' 의 축약이다). (agents/implementer.md)"
+  done < <(gr_ledger_subcmds)
+  # 원장 도구가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "도구는 있는데 하위 명령을 하나도 못
+  # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 낱말은 exec_segments 가 가른다.
+  # 이 규칙이 통과시킨 것(읽기·note·옵션만 있는 호출) 중 원장 지정이 빠진 note 는 다음 등재인 r_bd_root 가 막는다.
   return 0
 }
 # **등재 위치가 r_grader_shell 뒤, r_bd_root 앞이다.** 위 "겹침" 주석 참조.
@@ -910,18 +951,23 @@ bd_root_hint() {
 r_bd_root() {
   # 오케스트레이터(부모 세션)는 판정 대상이 아니다.
   [ -n "$AGENT_ID" ] || [ -n "$AGENT_TYPE" ] || return 0
-  tool_aliased bd && deny "bd 를 변수에 담아 부르는 형태('B=bd; \$B …')는 하위 명령을 읽을 수 없어 차단한다 — bd 를 'bd -C <하네스루트> <하위명령>' 형태로 직접 불러라."
-  bd_exec_present || return 0
+  local t seg sub
+  for t in $LEDGER_TOOLS; do
+    tool_aliased "$t" && deny "$t 를 변수에 담아 부르는 형태('B=$t; \$B …')는 하위 명령을 읽을 수 없어 차단한다 — $t 를 '$(ledger_root_form "$t") <하위명령>' 형태로 직접 불러라."
+  done
+  ledger_exec_present || return 0
   # 조각마다 하위 명령을 읽고(옵션은 건너뛴다 — `bd --json create x` 는 create 다), 원장 지정
   # 표기는 **하위 명령 앞**에서만 인정한다(`bd note x -C /h` 는 누락이다 — 게이트 BD_FALSEPOS).
-  local seg sub
+  # ledger.sh 의 지정 표기는 그 조각 안의 `HARNESS_ROOT=<루트>` 다 — 위 "원장 도구" 절.
+  for t in $LEDGER_TOOLS; do
   while IFS= read -r seg; do
-    sub="$(subcmds_after bd "$BD_VALUE_OPTS" "$seg")"
-    [ -n "$sub" ] || continue     # 옵션만 있는 호출(bd --help · bd --version · bd -C <루트>) — 읽기다
+    sub="$(subcmds_after "$t" "$(ledger_vopts "$t")" "$seg")"
+    [ -n "$sub" ] || continue     # 옵션만 있는 호출(`--help`·`--version`·원장 지정만) — 읽기다
     bd_is_read "$sub" && continue
-    has_token '-C|--directory|--db' "${seg%%$sub*}" && continue
-    deny "bd 원장 지정 누락 — 서브에이전트의 bd 쓰기는 'bd -C <하네스루트> $sub …' 로 부른다(--directory·--db 도 같은 자리에서 인정된다). -C 없이 부르면 워크트리의 부모 레포가 가진 .beads 에 붙어 **조용히 성공**한다(실측: create·remember·label 이 rc=0). 읽기($BD_READ_EXEMPT)는 면제다. $(bd_root_hint)"
-  done < <(exec_segments bd)
+    ledger_root_given "$t" "${seg%%$sub*}" && continue
+    deny "$t 원장 지정 누락 — 서브에이전트의 $t 쓰기는 '$(ledger_root_form "$t") $sub …' 로 부른다($(ledger_root_alts "$t")). 원장 지정 없이 부르면 루트 탐색이 다른 하네스에 닿거나(ledger.sh) 워크트리의 부모 레포가 가진 .beads 에 붙어(bd) **조용히 성공**한다(실측: create·remember·label 이 rc=0). 읽기($BD_READ_EXEMPT)는 면제다. $(bd_root_hint)"
+  done < <(exec_segments "$t")
+  done
   return 0
 }
 RULES+=("Bash:r_bd_root")

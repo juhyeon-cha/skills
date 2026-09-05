@@ -113,6 +113,9 @@ FX_STORY="fx-story"                # 스토리 bead id
 FX_TASK="fx-story.1.2"             # 태스크 bead id
 FX_TASK_OTHER="fx-story.9.9"       # 남의 태스크 (구현자 범위 시험용)
 FX_LABEL="repo:fx"                 # repo: 라벨
+# 어댑터 형태. 규칙은 bd 와 ledger.sh 둘 다 본다(guard.sh "원장 도구") — 아래 절마다 bd 픽스처 옆에
+# ledger.sh 픽스처가 차단 1·통과 1 로 붙는다. 실행 낱말은 basename 이라 `bash <경로>/ledger.sh` 로 쓴다.
+FX_LS="bash $TMP/fx-plugin/scripts/ledger.sh"
 
 outside_clone() {  # outside_clone <경로> — 클론 루트 밖이면 0
   case "$1/" in "${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"/*) return 1;; *) return 0;; esac
@@ -126,12 +129,12 @@ step "FX_CLONE 이 클론 루트 밖이다 (같은 사유)" outside_clone "$FX_C
 # 경로 실재만으로는 부족하다 — 그 파일이 토큰을 실제로 담지 않으면 명령 문자열에 판정 재료가
 # 없어 픽스처가 공허하게 통과하므로, **낱말이 그 파일에 실제로 있다**까지 여기서 단언한다.
 QUOTE_FX=(
-  "bd note|agents/implementer.md"
-  "bd -C|skills/develop/SKILL.md"
+  "ledger.sh note|agents/implementer.md"
+  "HARNESS_ROOT=|skills/develop/SKILL.md"
   "gh pr create|skills/develop/SKILL.md"
-  "bd close|skills/develop/SKILL.md"
-  "bd create|hooks/session-context.md"
-  "bd update|skills/develop/SKILL.md"
+  "ledger.sh close|skills/develop/SKILL.md"
+  "ledger.sh create|hooks/session-context.md"
+  "ledger.sh update|skills/develop/SKILL.md"
 )
 qfx_cmd=()
 for e in "${QUOTE_FX[@]}"; do
@@ -863,6 +866,14 @@ declare -a BD_DENY=(
   "cd /tmp && bd note $FX_TASK \"hi\""
   'B=bd; $B create x'
   "bd -C /h show $FX_TASK && bd note $FX_TASK \"hi\""
+  # ledger.sh 형태 — 원장 지정은 같은 조각 앞의 HARNESS_ROOT=<루트> 뿐이다.
+  "$FX_LS note $FX_TASK \"메모\""                                # 지정 없음
+  "export HARNESS_ROOT=$FX_ROOT; $FX_LS note $FX_TASK \"메모\""  # 앞 조각의 export 는 인정하지 않는다
+  "$FX_LS note $FX_TASK \"메모\" HARNESS_ROOT=$FX_ROOT"          # 하위 명령 뒤는 누락이다
+  'L=ledger.sh; $L create x'                                     # 별칭
+  # 경로 접두 별칭 — 역할 정의가 지시하는 형태가 경로라 변수에 담기는 것도 경로다 (harness-m8gg.5 리뷰 MUST FIX 1)
+  'L=$CLAUDE_PLUGIN_ROOT/scripts/ledger.sh; HARNESS_ROOT=/h bash $L close x'
+  'B=/opt/homebrew/bin/bd; $B create x'
 )
 for c in "${BD_DENY[@]}"; do
   runsub "$c"
@@ -884,6 +895,11 @@ done
 #    인정한다"가 A5 의 차단에 덮인다. 두 규칙이 겹치는 자리는 ⑬ 에서 따로 본다.
 declare -a BD_ALLOW=(
   "bd -C $FX_ROOT note $FX_TASK \"메모\""
+  "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh 형태의 원장 지정
+  "$FX_LS show $FX_TASK --json"                           # ledger.sh 읽기는 지정 없이도 면제
+  "HARNESS_ROOT=$FX_ROOT bash \"\$CLAUDE_PLUGIN_ROOT\"/scripts/ledger.sh note $FX_TASK \"메모\""   # 역할 정의가 지시하는 정상 형태 — 별칭이 아니다
+  'LOG=/tmp/ledger.sh.log; cat $LOG'                      # 도구 이름이 경로 끝이 아니다 — 별칭이 아니다
+  "$FX_LS --help"
   "bd show $FX_TASK"
   'bd list -l harness'
   'bd ready'
@@ -1023,8 +1039,8 @@ step "규칙을 서술한 문서를 읽는 명령은 통과한다 (bd 가 실행
 
 # 하네스 루트 값의 출처. 훅은 lib/harness-root.sh 를 **이 호출의 cwd** 에서 불러 값을 얻는다 —
 # 찾으면 제시하고 못 찾으면 위임 메시지를 출처로 지시한다. 두 분기를 모두 돌린다.
-# 찾는 쪽은 HARNESS_ROOT 로 물린다(헬퍼의 첫 출처) — 판별자(.beads/embeddeddolt)만 갖춘 합성 루트다.
-mkdir -p "$FX_ROOT/.beads/embeddeddolt"
+# 찾는 쪽은 HARNESS_ROOT 로 물린다(헬퍼의 첫 출처) — 판별자(ledger.json)만 갖춘 합성 루트다.
+mkdir -p "$FX_ROOT" && printf '{"backend":"beads"}\n' > "$FX_ROOT/ledger.json"
 runh "$HOOK" "$(j_agentfields 'bd create x' 'aa306a4edf39e7dfe' '')" "HARNESS_ROOT=$FX_ROOT"
 echo "  찾음 → ${GUARD_OUT: -140}"
 step "헬퍼가 하네스 루트를 찾으면 그 절대 경로를 제시한다" has_text "하네스 루트는 $FX_ROOT 다" "$GUARD_OUT"
@@ -1087,6 +1103,7 @@ declare -a RM_DENY=(
   # URL 속 gh 는 실행 위치가 아니라 판정에 들지 않지만(RM_ALLOW 의 URL 통과 4건), 같은 줄의
   # 다음 조각에서 gh 가 실행되면 그 조각은 그대로 걸린다.
   'curl https://x.test/gh/a && gh pr create'
+  "HARNESS_ROOT=$FX_ROOT $FX_LS dolt push"  # 어댑터 경유의 원장 반영도 같은 자리에서 걸린다
 )
 for c in "${RM_DENY[@]}"; do
   runsub "$c"
@@ -1143,6 +1160,16 @@ for c in "${RM_ALLOW[@]}"; do
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "통과: $c" [ "$GUARD_RC" -eq 0 ]
 done
+
+# ── sync-check: `--push` 만 원격 반영이다 (harness-m8gg.5 리뷰 MUST FIX 2). **agent_type 없는
+#    서브에이전트**로 돌린다 — implementer 로 두면 ⑬(A5)이 note 외의 쓰기로 막아 통과 대조군이 사라진다.
+runsub_anon "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check --push"
+printf '  rc=%d  [agent_type 없는 서브에이전트] ledger.sh sync-check --push\n' "$GUARD_RC"
+step "차단(agent_type 없는 서브에이전트): ledger.sh sync-check --push" [ "$GUARD_RC" -eq 2 ]
+step "그 메시지는 원격 반영 쪽이다" has_text '원격 반영 금지' "$GUARD_OUT"
+runsub_anon "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check"
+printf '  rc=%d  [agent_type 없는 서브에이전트] ledger.sh sync-check\n' "$GUARD_RC"
+step "통과(agent_type 없는 서브에이전트): ledger.sh sync-check (스위치 없음은 판정만이다)" [ "$GUARD_RC" -eq 0 ]
 
 # ── 오케스트레이터는 막히지 않는다 (acceptance ②). 사용자 지시를 받으면 실제로 해야 한다.
 declare -a RM_ORCH=(
@@ -1517,6 +1544,8 @@ declare -a GR_DENY=(
   'bd --json create x'                         # 옵션을 앞세워도 하위 명령을 읽어낸다
   "bd -C /h show $FX_TASK && bd -C /h note $FX_TASK hi"  # occurrence 마다 본다
   'B=bd; $B note x'                            # 치환이라 하위 명령을 못 읽는다 → 차단
+  "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh — 원장을 지정해도 채점자의 쓰기는 금지
+  'L="$CLAUDE_PLUGIN_ROOT"/scripts/ledger.sh; HARNESS_ROOT=/h bash "$L" note x hi'   # 경로 접두 별칭 (MUST FIX 1)
 )
 for role in $GR_R $GR_E; do
   for c in "${GR_DENY[@]}"; do
@@ -1539,6 +1568,8 @@ declare -a GR_ALLOW=(
   'git branch --show-current'
   "bd -C $FX_ROOT show $FX_TASK"
   "bd -C $FX_ROOT list -l harness"
+  "HARNESS_ROOT=$FX_ROOT $FX_LS show $FX_TASK --json"   # ledger.sh 읽기 — 역할 정의가 지시하는 형태
+  "HARNESS_ROOT=$FX_ROOT bash \"\$CLAUDE_PLUGIN_ROOT\"/scripts/ledger.sh show $FX_TASK --json"   # 인용된 경로 변수 — 별칭이 아니다
   "bd show $FX_TASK"
   'bd ready'
   'npm test'
@@ -1794,6 +1825,9 @@ declare -a IMPL_DENY=(
   "bd --json -C $IMPL_H create x"                              # 옵션을 앞세워도 하위 명령을 읽어낸다
   "bd -C $IMPL_H show $FX_TASK && bd -C $IMPL_H create x"  # occurrence 마다 본다
   'bd create x'                                                # 무-C — 아래 겹침에서 메시지를 본다
+  "HARNESS_ROOT=$IMPL_H $FX_LS create x"                       # ledger.sh — 원장을 지정해도 note 외의 쓰기는 금지
+  "HARNESS_ROOT=$IMPL_H $FX_LS close $FX_TASK"
+  'L=$CLAUDE_PLUGIN_ROOT/scripts/ledger.sh; HARNESS_ROOT=/h bash $L close x'   # 경로 접두 별칭 — 리뷰 실측 rc=0 이던 형태 (MUST FIX 1)
 )
 for c in "${IMPL_DENY[@]}"; do
   runimpl "$c"
@@ -1814,6 +1848,10 @@ declare -a IMPL_ALLOW=(
   "bd -C $IMPL_H show $FX_TASK && bd -C $IMPL_H note $FX_TASK \"끝\""
   "bd -C $IMPL_H show $FX_TASK"
   "bd -C $IMPL_H list -l harness"
+  "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK --file /tmp/n.txt"   # ledger.sh — implementer.md 절차 8 의 형태
+  "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK \"VERIFY_PENDING: abc1234\""
+  "HARNESS_ROOT=$IMPL_H $FX_LS show $FX_TASK --json"
+  "HARNESS_ROOT=$IMPL_H bash \"\$CLAUDE_PLUGIN_ROOT\"/scripts/ledger.sh note $FX_TASK \"메모\""   # 역할 정의가 지시하는 정상 형태 — 별칭이 아니다
   "bd show $FX_TASK"
   'bd ready'
   'git status'
@@ -1943,10 +1981,10 @@ step "정상 대조군: implementer 의 note(append 통로)는 통과한다" [ "
 IMPL_ROLES_SRC=$(grep -E '^IMPL_ROLES=' "$HOOK" | sed 's/^IMPL_ROLES="//; s/"$//')
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$IMPL_ROLES_SRC" ]
 echo "  IMPL_ROLES: $IMPL_ROLES_SRC"
-# 표지는 역할 정의 자신의 문장이다 — implementer.md "**`bd note` 외의 bd 쓰기**".
+# 표지는 역할 정의 자신의 문장이다 — implementer.md "**`ledger.sh note` 외의 원장 쓰기**".
 # 손으로 고르지 않고 이 문장에서 파생한다. 접두 `harness:` 는 ⑫ 와 같은 이유로 붙인다.
-IMPL_DECLARED=$(grep -lF 'bd note` 외의 bd 쓰기' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-echo "  'bd note 외의 bd 쓰기' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
+IMPL_DECLARED=$(grep -lF 'ledger.sh note` 외의 원장 쓰기' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+echo "  'ledger.sh note 외의 원장 쓰기' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 대상 집합을 파생했다 (비어 있지 않다)" [ -n "$IMPL_DECLARED" ]
 step "훅의 IMPL_ROLES 가 역할 정의에서 파생한 집합과 일치한다 (역방향 단언)" \
   [ "$(printf '%s\n' $IMPL_ROLES_SRC | sort | tr '\n' ' ')" = "$(printf '%s\n' "$IMPL_DECLARED" | tr '\n' ' ')" ]
@@ -2106,7 +2144,7 @@ for c in 'bd --version; bd show x' 'bd --version; bd list --status in_progress -
   done
 done
 # (d) gr_bd_subcmds 를 이어 붙이는 형태로 되돌린다 → 위 형태가 'bd bd' 로 다시 막힌다.
-a31_copy 'bd-joined' '/^gr_bd_subcmds\(\)/,/^}/{s/^  while IFS= read -r seg; do subcmds_after bd "\$BD_VALUE_OPTS" "\$seg"; done < <\(exec_segments bd\)$/  subcmds_after bd "$BD_VALUE_OPTS" "$(exec_segments bd)"/;}'
+a31_copy 'bd-joined' '/^gr_ledger_subcmds\(\)/,/^}/{s/^    while IFS= read -r seg; do gr_tool_sub "\$t" "\$seg"; done < <\(exec_segments "\$t"\)   # GR_PER_SEGMENT$/    gr_tool_sub "$t" "$(exec_segments "$t")"/;}'
 runh "$A31_AB" "$(j_sub 'bd --version; bd show x' "$IMPL_T")"
 step "A/B(d) 되돌리면 다시 막힌다: bd --version; bd show x" [ "$GUARD_RC" -eq 2 ]
 step "A/B(d) 의 메시지가 다음 조각의 bd 를 하위 명령으로 실었다 (종전 오탐의 재현)" has_text "'bd bd'" "$GUARD_OUT"

@@ -19,7 +19,7 @@ description: Story → milestone → task breakdown and acceptance writing. Use 
   | **Out of Scope** | The dropped item + why it was dropped (convention below) | An implementation widens quietly and nothing supports calling it excess |
 
   - **"Open" is the list the owner takes to the user.** When the owner picks the story up and runs this procedure again, they close those questions first and then break it down — leaving a question open costs less than the planner filling it with a guess.
-  - **The body goes into the ledger** (`bd create --body-file`). The reason it stays out of the shell command string, and the form it takes, are held by `harness:develop` "원장에 본문을 넘기는 형태".
+  - **The body goes into the ledger** (`ledger.sh create --body-file`). The reason it stays out of the shell command string, and the form it takes, are held by `harness:develop` "원장에 본문을 넘기는 형태".
 - Fix the repos involved and name them with `repo:<name>` labels (more than one allowed). Every one of them lives in `repos.json`.
 - **Read each of those repos' own conventions before breaking the story down.** Nothing in a target repo loads on its own — the session stands at the harness root — so a milestone or an acceptance written without them nails the harness's taste into the task tree instead of that repo's. **The places to read are owned by `harness:develop` "대상 레포의 관례".** What they yield goes into the story body's **Current state**, and where it constrains a task, into that task's acceptance.
 - **Give the story an English slug as a `slug:<rail ID>-<name>` label** for its documentation directory name (lowercase, digits, hyphens; a short summary of the story). **Prefix it with the rail ID** — the format and the reason are owned by the "스토리" row of the mapping table in the session context block. board.sh refuses to render a story without a slug.
@@ -65,7 +65,7 @@ Build epic (story) → feature (milestone) → task per the session context bloc
 
 **Task size rule: one task = one acceptance = one or more commits.** When an acceptance is one passage in one file, merge the task into its neighbor.
 
-**In a multi-repo story, narrow every task to a single repo.** bd hands a task every parent label at creation, so a task ends up with several `repo:` labels — left that way, develop cannot judge which worktree to delegate to and refuses to start. Right after creating the tasks, drop the labels for repos the task does not actually touch: `bd label remove <task ID> repo:<untouched repo>`. A task that genuinely has to change two repos is two tasks — split it on the repo boundary and join with `blocks`.
+**In a multi-repo story, narrow every task to a single repo.** The `beads` backend hands a task every parent label at creation, so a task ends up with several `repo:` labels — left that way, develop cannot judge which worktree to delegate to and refuses to start. Right after creating the tasks, drop the labels for repos the task does not actually touch: `ledger.sh label remove <task ID> repo:<untouched repo>`. A task that genuinely has to change two repos is two tasks — split it on the repo boundary and join with `blocks`.
 
 **Registering several at once means the ids stay unpredicted.** The procedure is held by "여러 개를 한 번에 등재할 때" below.
 
@@ -93,7 +93,7 @@ Counts quoted in a plan or a body are **counted before they are written**. Carry
 
 ## 6. Ready-to-start verification
 
-Check the finished tree with `bd children <story ID>`: 0 tasks without acceptance, no dependency cycles, **0 tasks with 2 or more `repo:` labels** (the narrowing from section 2 was skipped). Passing all three means the tree can go to the develop procedure.
+Check the finished tree with `ledger.sh children <story ID>`: 0 tasks without acceptance, no dependency cycles, **0 tasks with 2 or more `repo:` labels** (the narrowing from section 2 was skipped). Passing all three means the tree can go to the develop procedure.
 
 ## 7. Document rendering
 
@@ -103,9 +103,9 @@ When the breakdown changed a registry (`sprints.json` · `rails.json`), ship it 
 
 ## 여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다
 
-- **Derive no id from creation order.** There is no way to confirm whether the rule is `max+1` or `count+1`, and one failure that shifts the numbering makes a dependency edge **join the wrong pair with no error**. Take the **actual id** from `bd create --silent` output and use that.
-- **Hang the dependencies in one shot with `bd dep add --file -`** — it takes `{"from":…,"to":…}` JSONL on stdin and runs one whole-graph cycle check before committing. `from` is the dependent side, `to` the prerequisite.
+- **Derive no id from creation order.** There is no way to confirm whether the rule is `max+1` or `count+1`, and one failure that shifts the numbering makes a dependency edge **join the wrong pair with no error**. Take the **actual id** from `ledger.sh create --silent` output and use that.
+- **Hang the dependencies in one shot with `ledger.sh dep add --file -`** — it takes `{"from":…,"to":…}` JSONL on stdin and runs one whole-graph cycle check before committing. `from` is the dependent side, `to` the prerequisite.
 - **Assert positively at the end** — child count · that every acceptance is filled · one `repo:` label · dependency edge count. Leave out negative forms like "0 empty ones": one wrong field name yields 0 and reads as a pass (measured — writing `acceptance_criteria` as `acceptance` gives 0 on this ledger).
-- **A failure leaves a partial registration — scripts like this are not idempotent.** Rerunning as-is piles up duplicates, and the child-count assertion fails **only after the cleanup target has grown**. Print the actual id to stdout at every creation, and make the failure path emit its own recovery instructions (`bd -C <harness root> delete <id> … --force`).
+- **A failure leaves a partial registration — scripts like this are not idempotent.** Rerunning as-is piles up duplicates, and the child-count assertion fails **only after the cleanup target has grown**. Print the actual id to stdout at every creation, and make the failure path emit its own recovery instructions (`HARNESS_ROOT=<harness root> ledger.sh delete <id> … --force` — `delete` is `beads`-only; on `github`·`notion` close the partial issues with `ledger.sh close <id> --reason` instead).
 
-> Evidence: `harness-dg0.6.1`. `bd create --graph` went unused because its help does not state the format — that trades an unverified id prediction for an unverified format guess, which is the same class of failure.
+> Evidence: `harness-dg0.6.1`. `ledger.sh create --graph` went unused because its help does not state the format — that trades an unverified id prediction for an unverified format guess, which is the same class of failure.

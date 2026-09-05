@@ -93,7 +93,7 @@ need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 �
   echo "✗ $1 — 하네스 루트를 찾지 못했다 (${HROOT_ERR:-lib/harness-root.sh rc≠0}). 원장·등록부를 보는 검사라 건너뛰지 않고 실패한다 — 스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
   return 1
 }
-bdl() { bd -C "$HROOT" "$@"; }   # 원장은 언제나 하네스 루트의 것이다
+bdl() { HARNESS_ROOT="$HROOT" bash scripts/ledger.sh "$@"; }   # 원장은 언제나 하네스 루트의 것이다 — 어댑터로 읽는다(CWD 는 플러그인 루트)
 
 MANIFEST="${REPOS_MANIFEST:-$HROOT/repos.json}"   # 재정의는 검사 스크립트용 (hooks/enter-worktree.sh 와 같은 규약)
 SETUP_SKILL="skills/setup/SKILL.md"
@@ -156,7 +156,7 @@ check_r5() {
   need_hroot R5 || return 1
   json=$(bdl list --all --json -n 0 2>/dev/null); rc=$?
   if [[ "$rc" -ne 0 || -z "$json" ]]; then
-    echo "✗ R5 — bd list 실패 (rc=$rc): 원장 미가용 (하네스 루트 $HROOT)" >&2
+    echo "✗ R5 — ledger.sh list 실패 (rc=$rc): 원장 미가용 (하네스 루트 $HROOT)" >&2
     return 1
   fi
 
@@ -187,9 +187,9 @@ check_r5() {
       [[ -z "$tid" ]] && continue
       echo "✗ R5 $tid — repo: 라벨이 ${n}개다 (정확히 1개여야 한다) [$labels] ($title)"
       if [[ "$n" == "0" ]]; then
-        echo "    조치: 이 태스크가 실제로 건드리는 레포 하나를 붙여라 (bd label add $tid repo:<붙이는이름>) — 출처는 스토리의 repo: 라벨이다"
+        echo "    조치: 이 태스크가 실제로 건드리는 레포 하나를 붙여라 (ledger.sh label add $tid repo:<붙이는이름>) — 출처는 스토리의 repo: 라벨이다"
       else
-        echo "    조치: 이 태스크가 실제로 건드리는 레포 하나만 남겨라 (bd label remove $tid repo:<빼는이름>)"
+        echo "    조치: 이 태스크가 실제로 건드리는 레포 하나만 남겨라 (ledger.sh label remove $tid repo:<빼는이름>)"
       fi
     done <<< "$out"
     return 1
@@ -317,7 +317,7 @@ S12_KEEP=(
 )
 S12_KEEP_WHY=(
   "외부 도구(serena)의 로컬 캐시 — 하네스가 만들지 않으므로 설치 절차의 소유가 아니다"
-  "원장 초기화가 넣는다 (.gitignore 의 'Beads / Dolt files' 절 주석이 출처를 적는다) — 설치 절차 1.6 의 1항(bd init)의 소유"
+  "원장 초기화가 넣는다 (.gitignore 의 'Beads / Dolt files' 절 주석이 출처를 적는다) — 설치 절차 1.6 의 1항(ledger.sh init — beads 의 bd init)의 소유"
   "원장 초기화가 넣는다 — 같은 항"
   "원장 초기화가 넣는다 — 같은 항"
   "원장 초기화가 넣는다 — 같은 항"
@@ -436,7 +436,7 @@ check_racc() {
   need_hroot R-ACC || return 1
   json=$(bdl list --all --json -n 0 2>/dev/null); rc=$?
   if [[ "$rc" -ne 0 || -z "$json" ]]; then
-    echo "✗ R-ACC — bd list 실패 (rc=$rc): 원장 미가용 (하네스 루트 $HROOT)" >&2
+    echo "✗ R-ACC — ledger.sh list 실패 (rc=$rc): 원장 미가용 (하네스 루트 $HROOT)" >&2
     return 1
   fi
 
@@ -446,7 +446,7 @@ check_racc() {
   # 전부 "빈 것"으로 읽혀 과검출로 드러난다(안전한 방향).
   schema_bad=$(printf '%s' "$json" | jq -r '[.[] | select((has("id") and has("issue_type") and has("status")) | not)] | length')
   if [[ "$schema_bad" != "0" ]]; then
-    echo "✗ R-ACC — bd JSON 에 id/issue_type/status 가 없는 이슈가 ${schema_bad}건이다. 스키마가 바뀌었다면 이 검사의 파생을 고쳐라 (안 고치면 조용히 0건 통과한다)"
+    echo "✗ R-ACC — 원장 JSON 에 id/issue_type/status 가 없는 이슈가 ${schema_bad}건이다. 스키마가 바뀌었다면 이 검사의 파생을 고쳐라 (안 고치면 조용히 0건 통과한다)"
     return 1
   fi
 
@@ -461,7 +461,7 @@ check_racc() {
   if [[ -n "$bad" ]]; then
     while IFS=$'\t' read -r id title; do
       [[ -z "$id" ]] && continue
-      echo "✗ R-ACC $id — acceptance 없이 착수됐다 ($title). 채운 뒤 진행하라: bd update $id --acceptance \"<기계 판정 가능한 완료 조건>\""
+      echo "✗ R-ACC $id — acceptance 없이 착수됐다 ($title). 채운 뒤 진행하라: ledger.sh update $id --acceptance \"<기계 판정 가능한 완료 조건>\""
     done <<< "$bad"
     return 1
   fi
@@ -909,7 +909,7 @@ s22_judge() {  # s22_judge <원장JSON> → 판정 줄 출력, rc = 위반 여�
     if [[ "$lanes" -ge 2 && "$lanes" -gt "$wt" ]]; then
       echo "✗ S22 $story (repo:$repo) — 동시 in_progress ${cnt}건이 actor ${lanes}명인데 이 스토리의 워크트리는 ${wt}개다: $ids"
       echo "    비둘기집: 적어도 두 actor 가 한 워크트리를 공유한다. git 스테이징 영역이 워크트리 단위 공유 자원이라 경로를 지정해 add 해도 상대의 add·commit 과 섞인다 (harness:develop 3-0, 실측 2026-08-21 2회)"
-      echo "    조치: 하나만 남기고 나머지를 되돌리거나(bd update <ID> --status open), 스토리 워크트리를 나눠라. 같은 actor 의 순차 배치는 세지 않으니 claim 의 actor 가 갈렸는지 봐라. 배치 모드로 구현만 끝난 것이면 bd note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를 남겨라 — 그 표시도 세지 않는다"
+      echo "    조치: 하나만 남기고 나머지를 되돌리거나(ledger.sh update <ID> --status open), 스토리 워크트리를 나눠라. 같은 actor 의 순차 배치는 세지 않으니 claim 의 actor 가 갈렸는지 봐라. 배치 모드로 구현만 끝난 것이면 ledger.sh note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를 남겨라 — 그 표시도 세지 않는다"
       f=1
     else
       echo "  · S22 $story (repo:$repo) — 동시 in_progress ${cnt}건 · actor ${lanes}명 / 워크트리 ${wt}개 (공유 확정 아님): $ids"
@@ -1045,7 +1045,7 @@ check_s24() {
     [[ "$est" == "open" || "$est" == "in_progress" ]] || continue
     [[ "$open" -eq 0 ]] || continue
     echo "✗ S24 $eid — 하위 ${n}건이 전부 closed·blocked·deferred 인데 스토리가 $est 다"
-    echo "    조치: harness:develop 4 의 스토리 마무리로 넘어가라 — 결과 요약을 bd note 로 남기고 마일스톤·스토리를 닫는다. bd 는 deferred 를 열린 하위로 세므로 마감에 'bd close $eid --force' 가 필요할 수 있고, 그 우회 사유를 close reason 에 적는다 (harness:develop '결정 상태')"
+    echo "    조치: harness:develop 4 의 스토리 마무리로 넘어가라 — 결과 요약을 ledger.sh note 로 남기고 마일스톤·스토리를 닫는다. beads 는 deferred 를 열린 하위로 세므로 마감에 'ledger.sh close $eid --force' 가 필요할 수 있고, 그 우회 사유를 close reason 에 적는다 (harness:develop '결정 상태')"
     f=1
   done <<< "$rows"
 
@@ -1138,12 +1138,12 @@ check_rbead() {
   need_hroot R-BEAD || return 1
   json=$(bdl list --all --json -n 0 2>/dev/null); rc=$?
   if [[ "$rc" -ne 0 || -z "$json" ]]; then
-    echo "✗ R-BEAD — bd list 실패 (rc=$rc): 원장 미가용 (하네스 루트 $HROOT)" >&2
+    echo "✗ R-BEAD — ledger.sh list 실패 (rc=$rc): 원장 미가용 (하네스 루트 $HROOT)" >&2
     return 1
   fi
   ids=$(printf '%s' "$json" | jq -r '.[] | select(has("id")) | .id')
   if [[ -z "$ids" ]]; then
-    echo "✗ R-BEAD — 원장에서 id 를 한 건도 못 뽑았다. bd 의 JSON 스키마가 바뀌었으면 이 파생을 고쳐라 (안 고치면 참조 전부가 '없는 bead' 로 뒤집힌다)"
+    echo "✗ R-BEAD — 원장에서 id 를 한 건도 못 뽑았다. 원장의 JSON 스키마가 바뀌었으면 이 파생을 고쳐라 (안 고치면 참조 전부가 '없는 bead' 로 뒤집힌다)"
     return 1
   fi
 

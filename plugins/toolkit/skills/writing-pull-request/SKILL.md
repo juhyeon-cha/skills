@@ -1,5 +1,5 @@
 ---
-name: pr-body
+name: writing-pull-request
 description: Write a PR body — the four required sections (What / Why / Verification / What the green run does not establish), the three conditional ones, and the rule that section names are English while their content is Korean. Use for requests like "PR 만들자", "PR 열어줘", "PR 본문 써줘", "pull request 올려줘".
 ---
 
