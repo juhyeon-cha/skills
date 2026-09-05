@@ -128,7 +128,8 @@ check_ledger_sync() {
            | sed 's/\x1b\[[0-9;]*m//g' | grep -c '[^[:space:]]' )
   if [ "$count" -gt 0 ]; then
     # **여기가 이 스크립트의 유일한 원격 쓰기 지점이고, 스위치가 그 앞에 선다.**
-    # 켜는 자리는 pre-push 훅 블록 하나다(scripts/install.sh 의 merge_git_hook_prepush).
+    # 켜는 자리는 하네스 루트의 pre-push 훅 블록 하나다(.beads/hooks/pre-push — 하네스 레포 자신이
+    # 배선한다. 플러그인은 어느 레포에도 git 훅을 심지 않는다).
     # 그 밖의 호출 — 판정·대조·문서 확인 — 은 켜지 않으므로 여기서 돌아간다.
     if [ -z "${LEDGER_CHECK_PUSH:-}" ]; then
       warn "원장이 원격보다 ${count}개 커밋 앞서 있다 — 쓰기 모드가 아니라 반영하지 않는다. 반영하려면 git push (pre-push 훅이 켠다) 또는 bd dolt push 를 직접 실행하라"

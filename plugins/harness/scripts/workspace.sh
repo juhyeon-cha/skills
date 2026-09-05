@@ -179,7 +179,8 @@ while IFS= read -r name; do
   rm -f "$marker"
   ensure_exclude "$repo"
   # 체크아웃을 `--no-checkout` 으로 미룬다. worktree add 는 체크아웃을 그 자리에서 하면서
-  # post-checkout 훅을 부르는데, 그 훅의 투영 렌더(scripts/install.sh 가 심는다)는 bd 로
+  # post-checkout 훅을 부르는데, 그 훅의 투영 렌더(플러그인은 훅을 심지 않는다 — 하네스 레포
+  # 자신처럼 .beads/hooks 에 board.sh 를 배선한 레포에서만 돈다)는 bd 로
   # 원장을 읽는다 — 아래 ensure_ledger_link 보다 먼저 도니 .beads/redirect 가 없고, bd 가
   # 원장을 못 찾아 렌더가 실패해 거짓 경고가 난다. 순서만이 원인이다 (실측 2026-08-31:
   # 갓 만든 워크트리에서 redirect 유무만 바꿔 board.sh all 을 돌리면 있을 때 rc=0,

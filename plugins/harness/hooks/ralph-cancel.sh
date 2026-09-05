@@ -16,10 +16,15 @@ DATA="${HARNESS_DATA_DIR:-$HOME/.claude/plugins/data/harness}"
 MARKER="$DATA/ralph-cancel"
 [[ -f "$MARKER" ]] || exit 0
 
-# 페이로드의 cwd 가 프로젝트 디렉토리다. jq 가 없거나 키가 없으면 CWD 로 떨어진다.
+# 페이로드의 cwd 가 프로젝트 디렉토리다. jq 가 없거나 키가 없으면 CWD 로 짐작하지 않는다 —
+# 마커를 남겨 두고 통과한다(다음 Stop 에서 다시 시도). 엉뚱한 트리의 파일을 지우는 것보다 낫다.
 payload="$(cat)"
 proj="$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null || true)"
-STATE="${proj:-.}/.claude/ralph-loop.local.md"
+if [[ -z "$proj" ]]; then
+  echo "ralph 루프 취소: 페이로드에 cwd 가 없다 — 마커를 남기고 통과한다" >&2
+  exit 0
+fi
+STATE="$proj/.claude/ralph-loop.local.md"
 
 rm -f "$MARKER" "$STATE"
 echo "🛑 ralph 루프: 취소 마커 감지 — 루프 상태 제거($STATE), 종료 허용"
