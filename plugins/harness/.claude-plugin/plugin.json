@@ -1,0 +1,8 @@
+{
+  "name": "harness",
+  "description": "애자일 계층(스프린트→레일→스토리→마일스톤→태스크)으로 멀티 레포 개발을 자율 진행하는 에이전트 하네스",
+  "version": "0.2.0",
+  "author": {
+    "name": "juhyeon-cha"
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "description": "M0 spike probes: PreToolUse deny (rc=2) and SessionStart additionalContext injection. Both append the raw payload to $HOME/.claude/plugins/data/harness/spike.log.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/spike-guard.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/spike-context.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
