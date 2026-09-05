@@ -104,8 +104,8 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
 
 #### backend: beads
 
-1. Write `ledger.json` as `{"backend":"beads"}` and run `ledger.sh init --prefix <the prefix decided in section 4>` (it is `bd init` in that tree).
-2. **Connect the new ledger to a remote.** What `bd init` creates is **the local DB alone**. Skip this step and the ledger becomes the **sole copy** on this machine — when the machine dies, the issues and the judgment evidence die with it. And **`checks/ledger-check.sh` does not block that state**: a missing remote is a fail-open boundary, so it prints one warning line and returns rc=0 (that file, line 32 and lines 98-102). That is why the loss path is silent.
+1. Write `ledger.json` as `{"backend":"beads"}` and run `ledger.sh init --prefix <the prefix decided in section 4>` (the `beads` adapter runs bd's own init in that tree).
+2. **Connect the new ledger to a remote.** What `ledger.sh init` creates is **the local DB alone**. Skip this step and the ledger becomes the **sole copy** on this machine — when the machine dies, the issues and the judgment evidence die with it. And **`checks/ledger-check.sh` does not block that state**: a missing remote is a fail-open boundary, so it prints one warning line and returns rc=0 (that file, line 32 and lines 98-102). That is why the loss path is silent.
 
    Do the three below at once, after the remote repo **actually exists** and push has been approved. If approval has not come, defer all three — wiring without reflecting makes the next `git push` fail at the pre-push gate with rc=1 (row ⓑ below).
 
@@ -118,7 +118,7 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
    ```
 
    - The `git+<git url>` form carries the ledger in that git remote's `refs/dolt/data` — no separate Dolt hosting needed.
-   - `sync.remote` is **the source another machine restores this ledger from**. Section 2 (B)'s `bd bootstrap` reads that value **first**. Leaving it out does not block joining — `bd help bootstrap`'s auto-detection has a fallback, "if git origin has `refs/dolt/data`, clone from there and wire origin", and finishing the three lines above makes that ref real (that fallback is what 2.1 leans on). The reason to write it anyway is to leave the restore source **explicit in the ledger config rather than inferred from the git remote's state**.
+   - `sync.remote` is **the source another machine restores this ledger from**. Section 2 (B)'s `ledger.sh bootstrap` reads that value **first**. Leaving it out does not block joining — the bootstrap help (`ledger.sh bootstrap --help`) describes an auto-detection fallback, "if git origin has `refs/dolt/data`, clone from there and wire origin", and finishing the three lines above makes that ref real (that fallback is what 2.1 leans on). The reason to write it anyway is to leave the restore source **explicit in the ledger config rather than inferred from the git remote's state**.
    - The `grep -q` guard above is for re-runs. Appending (`>>`) is not idempotent — run it twice and the `sync.remote` key is duplicated, unlike the `install.sh init` re-run in item 3 below, which is idempotent.
    - Judge success by the **tracking reference**, not by `bd dolt push`'s rc: origin must be in `bd dolt remote list`, and 1.7's `ledger-check` must print "원격 반영 확인됨". **That check does not reflect anything itself** — if it prints "원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)", run this command once more.
 
@@ -126,16 +126,16 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
 
    | Ledger state | ledger-check |
    |---|---|
-   | ⓐ no remote (right after `bd init`) | **rc 0** · `⚠ 원장에 Dolt 원격이 없다` — the sole local copy passes as is |
+   | ⓐ no remote (right after `ledger.sh init`) | **rc 0** · `⚠ 원장에 Dolt 원격이 없다` — the sole local copy passes as is |
    | ⓑ wired but not yet reflected | **rc 1** · `✗ 원장이 원격에 한 번도 반영된 적이 없다` |
    | ⓒ wired + first reflection | **rc 0** · `✓ … 원격 반영 확인됨` — no warning |
-3. Noise and permission cleanup: `git config beads.role maintainer` (leave it unset and every bd call spits a warning, dirtying the output an agent has to parse) · `chmod 700 .beads` (bd's recommended permissions).
+3. Noise and permission cleanup: `git config beads.role maintainer` (leave it unset and every ledger call spits a beads warning, dirtying the output an agent has to parse) · `chmod 700 .beads` (bd's recommended permissions).
 
 #### all backends — from here on
 
 4. **Re-run** `bash scripts/install.sh init` — the hook files exist now, so the gate blocks get attached. It is idempotent. Read the `hooksPath:` line of the output with your own eyes. It must say "하네스 블록이 있다"; if it says "없다", the commit gate **does not run**.
 5. Confirm the backend answers: `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` rc 0 (an empty list is the correct output for a new ledger).
-6. Add these to `.gitignore`: `.claude/worktrees/` · `.claude/ralph-loop.local.md` · `.claude/ralph-cancel` · `.claude/stop-resume.log` · `.claude/stop-resume-cancel*` · `*.harness-bak` · `docs/sprints/` · `docs/backlog/` · `docs/adr/`(the three projections — the ledger is SSOT and the hooks render them locally) · `.beads/interactions.jsonl`(the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every bd call and keeps the tree permanently dirty). **Never gitignore `.harness-state`** — it is the install record, so it has to be committed for later updates to judge drift.
+6. Add these to `.gitignore`: `.claude/worktrees/` · `.claude/ralph-loop.local.md` · `.claude/ralph-cancel` · `.claude/stop-resume.log` · `.claude/stop-resume-cancel*` · `*.harness-bak` · `docs/sprints/` · `docs/backlog/` · `docs/adr/`(the three projections — the ledger is SSOT and the hooks render them locally) · `.beads/interactions.jsonl`(the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every ledger call and keeps the tree permanently dirty). **Never gitignore `.harness-state`** — it is the install record, so it has to be committed for later updates to judge drift.
 
 ### 1.7 Verification (A) — all measured
 
@@ -185,12 +185,12 @@ Nothing to restore either. Export `NOTION_TOKEN` on this machine (the token neve
 #### backend: beads
 
 ```bash
-bd bootstrap --dry-run   # look at the plan first
-bd bootstrap             # restore from the remote, or from git refs/dolt/data
-bd list                  # confirm rc 0
+HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh bootstrap --dry-run   # look at the plan first
+HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh bootstrap             # restore from the remote, or from git refs/dolt/data
+HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list                  # confirm rc 0
 ```
 
-If `bd list` is not rc 0, stop here — every step after it is meaningless.
+If that `list` is not rc 0, stop here — every step after it is meaningless.
 
 ### 2.2 Install the plugin and restore the target repo clones
 
@@ -220,9 +220,9 @@ If it does not run, wire it by hand and nothing more: `git config core.hooksPath
 
 **Do not use `scripts/install.sh init` as a fallback.** `init` first compares the record in `.harness-state` against the sha of the real files, and in a clone of a derived harness whose owner fixed the core under explicit instruction and committed it, it dies right there with "릴리스 tarball 을 다시 받아 풀어라". That is the wrong instruction for a joiner — that tree's core is what the owner decided, and drift is the owner's business to hear about, not the joiner's.
 
-### 2.4 Set the bd role (backend: beads only)
+### 2.4 Set the beads role (backend: beads only)
 
-`git config beads.role maintainer` · `chmod 700 .beads`. Without the former, every bd call spits a warning and dirties the output an agent has to parse. With `github`·`notion` there is no `.beads` and nothing to set.
+`git config beads.role maintainer` · `chmod 700 .beads`. Without the former, every ledger call spits a warning and dirties the output an agent has to parse. With `github`·`notion` there is no `.beads` and nothing to set.
 
 ### 2.5 Add your own rail to `rails.json`
 
@@ -285,7 +285,7 @@ It takes no arguments. It fetches the tarball and **a temporary copy of** instal
 If it is missing, create it in the `sprints.json` shape from section 5. **If the ledger already has `sprint:` labels, register every one of those IDs** — `board-check` blocks both a label the registry does not have and a registration the ledger does not have (two-way). This command produces the IDs to register.
 
 ```bash
-bd list --all --json -n 0 | jq -r '[.[] | (.labels // [])[] | select(startswith("sprint:")) | sub("sprint:";"")] | unique | .[]'
+HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list --all --json -n 0 | jq -r '[.[] | (.labels // [])[] | select(startswith("sprint:")) | sub("sprint:";"")] | unique | .[]'
 ```
 
 A sprint in progress is `active`, one already finished is `closed`. If you do not know which, **do not infer it from the count of closed issues** — ask the user (the mapping table in the session context block, sprint row).
@@ -302,7 +302,7 @@ A sprint in progress is `active`, one already finished is `closed`. If you do no
 | `bash checks/workspace-check.sh` | rc 0 |
 | `bash scripts/board.sh all` | rc 0. Even with no story in the ledger, an empty table `docs/backlog/index.md` comes out — the projections are outside git, so do not commit them |
 | `bash checks/board-check.sh` | rc 0 |
-| `bd list` | rc 0 |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0 |
 | `find . -name '*.harness-bak'` | Anything found is a core file of mine that got pushed aside. **Do not delete it** — report the list and a `diff` to the user |
 
 
@@ -461,7 +461,7 @@ If the target already has one, append only the harness sections; if not, write a
 
 - **Status** — the work ledger (beads), the task loop, the orchestration means. The fact that this repo is development-language-neutral and that `repos.json` owns the build and test commands
 - **How To Work** — the session context block the harness plugin injects at SessionStart, the order of the seven procedure skills, where the role definitions are, the documents under `docs/`
-- **Quick Reference** — `bd ready` · `bd list` · `bd show <id>`, `scripts/repo.sh add|list`, `scripts/board.sh all`, `EnterWorktree` (name = story ID) · `scripts/workspace-cleanup.sh <story ID>`
+- **Quick Reference** — `ledger.sh ready` · `ledger.sh list` · `ledger.sh show <id>`, `scripts/repo.sh add|list`, `scripts/board.sh all`, `EnterWorktree` (name = story ID) · `scripts/workspace-cleanup.sh <story ID>`
 - **절대 금지** — remote reflection only on explicit instruction (**two exceptions**: the ledger reflection tied to `git push`, and the working-branch push and PR creation of a cycle closing with no unresolved decision — from merge onward it is explicit instruction) · no direct edits to a target repo's main checkout · **fixing the core (the harness itself) also only on explicit instruction** · no judging completion by impression. For each item, write **whether a gate enforces it** — where there is none, write "게이트 없음(설득뿐)". The full list of gates, their limits, and how to verify them is held by `docs/guardrails.md`
 
 **Do not drop the core-editing item.** The harness stood up here is a derived install that received a release, and this skeleton is **the only path by which that discipline enters a derived install's `CLAUDE.md`**. Write all three of the following together.
@@ -470,6 +470,6 @@ If the target already has one, append only the harness sections; if not, write a
 - **Why explicit instruction is needed** — a core file fixed in a derived install is seen as drift by the next `scripts/install.sh update`, pushed aside into `.harness-bak`, and overwritten with the release copy. It vanishes silently. So **do not do it without explicit user instruction**. Do not write it as an unconditional ban — with instruction it can be done, and even then the same fix has to go up to the original so that the next update does not undo it
 - **The gate** — none (persuasion alone). The plugin core is a marketplace install: an edit to the installed copy is overwritten by the next plugin update, so there is nothing for a hook to guard — the loss itself is the consequence
 
-**Improvement ideas go into the ledger, not into code.** On finding a defect in or an improvement for the core, (1) leave it in your own ledger as a backlog issue (make a `-t task -l harness` issue with `bd` — with the raw observation and the reproduction conditions), and (2) report it to the original that the second line of `.harness-state`, `# upstream <owner>/<repo>`, points at — reporting is a remote reflection, so do it **only on explicit user instruction**. The original is what gets fixed, and derived installs receive it with `scripts/install.sh update`. Section 2 of the `retrospective` procedure holds the same path.
+**Improvement ideas go into the ledger, not into code.** On finding a defect in or an improvement for the core, (1) leave it in your own ledger as a backlog issue (make a `-t task -l harness` issue with `ledger.sh create` — with the raw observation and the reproduction conditions), and (2) report it to the original that the second line of `.harness-state`, `# upstream <owner>/<repo>`, points at — reporting is a remote reflection, so do it **only on explicit user instruction**. The original is what gets fixed, and derived installs receive it with `scripts/install.sh update`. Section 2 of the `retrospective` procedure holds the same path.
 
 Describe what the project is for **only after user confirmation**. Do not fill it in by guessing.

@@ -23,8 +23,9 @@ harness 플러그인이 SessionStart 에 주입하는 상시 블록이다. 여�
 
 ## 원장
 
-- 원장 위치는 `bd where` 가 낸다. 스토리 워크트리의 `.beads/redirect` 가 하네스 원장을 가리키므로 워크트리 안에서는 bare `bd` 가 그 원장에 붙는다. **하네스 루트 = `bd where` 출력의 부모 디렉토리.**
-- 서브에이전트에게 위임할 때는 하네스 루트 절대 경로를 첫 줄에 주고, 서브에이전트는 `bd -C <하네스루트>` 로만 부른다 — 워크트리의 부모(본 체크아웃)가 자체 beads 를 쓰면 bare `bd` 가 조용히 그쪽에 붙는다.
+- 원장은 어댑터 `${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh` 로만 부른다 — 이 블록과 스킬 본문의 `ledger.sh …` 는 전부 그 경로다. 하위 명령·인자·JSON 키는 `bd` 의 것과 같다(`ledger.sh --help`). 백엔드는 하네스 루트 `ledger.json` 의 `backend`(`github`·`beads`·`notion`) 하나가 정하고, 파일이 없거나 값이 셋 밖이면 rc≠0 이다 — 폴백 없음.
+- 하네스 루트 탐색은 `HARNESS_ROOT` → 워크트리의 `.beads/redirect`(beads 배선) → `~/.harness-workspace/` 의 루트 포인터(`scripts/repo.sh` 가 쓴다) 순서이고, 판별자는 그 자리의 `ledger.json` 이다. 탐색기는 플러그인 `lib/` 에 있다 — `harness:develop` 1절.
+- 서브에이전트에게 위임할 때는 하네스 루트 절대 경로를 첫 줄에 주고, 서브에이전트는 `HARNESS_ROOT=<하네스루트> ledger.sh …` 로만 부른다 — 변수 없는 호출은 루트 탐색이 다른 하네스의 원장에 닿을 수 있다.
 - 원장이 SSOT 다. `docs/sprints/`·`docs/backlog/`·`docs/adr/` 는 `scripts/board.sh all` 의 투영이라 손으로 고치지 않는다.
 - 본문(note·description·acceptance·close reason)은 셸 명령 문자열에 두지 않고 파일 옵션으로 넘긴다 — 형태는 `harness:develop` "원장에 본문을 넘기는 형태".
 
@@ -34,22 +35,22 @@ harness 플러그인이 SessionStart 에 주입하는 상시 블록이다. 여�
 
 역할 정의 3종(서브에이전트, Agent 도구의 `subagent_type`): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
 
-## 애자일 계층 ↔ beads 매핑 규약
+## 애자일 계층 ↔ 원장 매핑 규약
 
-| 계층 | beads 표현 | 규약 |
+| 계층 | 원장 표현 | 규약 |
 |---|---|---|
 | 스프린트 | 라벨 `sprint:<ID>` | ID 형식은 `YYYY-SNN`. 기간은 각 스토리 bead 의 `--due` 로. **상태(`active`/`closed`)의 원본은 루트 `sprints.json`** — 종료 여부를 닫힌 이슈 개수로 판정하지 않는다. 등록부와 라벨의 양방향 일치는 `board-check` 이 본다 |
 | 레일 | 라벨 `rail:<ID>` | **사람이다.** 담당자 1명당 레일 1개, 한 레일이 여러 레포를 넘나든다. 레포 경계는 `repo:` 라벨. **루트 `rails.json` 에 등재된 ID 만** 쓰며 형식은 `r1`·`r2` 번호다. 하위 이슈가 상속 |
 | 스토리 | `--type epic` | 관련 레포를 라벨 `repo:<이름>` 으로 명시(복수 가능). 문서 디렉토리명이 될 슬러그를 라벨 `slug:<레일ID>-<이름>` 으로 필수 부여 — 레일 ID 접두사로 사람이 달라도 충돌하지 않는다. 유일성은 스프린트 안에서 요구되며 렌더가 단언한다 |
 | 마일스톤 | `--type feature --parent <스토리ID>` | 스토리 안의 단계. 순서는 `blocks` 의존성으로 |
-| 태스크 | `--type task --parent <마일스톤ID>` | 실행 단위. `--acceptance` 필수. **`repo:` 라벨은 정확히 1개** — 상속으로 여러 개를 받으면 plan-story 가 실제로 건드리는 하나만 남긴다(`bd label remove`). 여러 개면 develop 이 착수를 거부한다 |
+| 태스크 | `--type task --parent <마일스톤ID>` | 실행 단위. `--acceptance` 필수. **`repo:` 라벨은 정확히 1개** — 상속으로 여러 개를 받으면 plan-story 가 실제로 건드리는 하나만 남긴다(`ledger.sh label remove`). 여러 개면 develop 이 착수를 거부한다 |
 
 생성 형태:
 
 ```bash
-bd create "<스토리 제목>" -t epic -l sprint:<스프린트ID>,rail:<레일ID>,slug:<레일ID>-<슬러그>,repo:<레포>[,repo:<레포>]
-bd create "<마일스톤 제목>" -t feature --parent <스토리ID>
-bd create "<태스크 제목>" -t task --parent <마일스톤ID> --acceptance "<기계 판정 가능한 완료 조건>"
+ledger.sh create "<스토리 제목>" -t epic -l sprint:<스프린트ID>,rail:<레일ID>,slug:<레일ID>-<슬러그>,repo:<레포>[,repo:<레포>]
+ledger.sh create "<마일스톤 제목>" -t feature --parent <스토리ID>
+ledger.sh create "<태스크 제목>" -t task --parent <마일스톤ID> --acceptance "<기계 판정 가능한 완료 조건>"
 ```
 
 ## 다른 곳이 소유하는 규율
