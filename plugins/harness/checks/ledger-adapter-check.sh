@@ -322,6 +322,7 @@ PF="$(page "$F" 피처 feature open '[{"name":"repo:harness"},{"name":"rail:r1"}
 PT="$(page "$T" 태스크 task closed '[{"name":"repo:harness"}]' "$F" "" "" "")"
 PU="$(page "$U" 넷째 task open '[{"name":"repo:harness"}]' "$F" "$F" "" "")"
 [ -n "${FAKE_NOTION_401:-}" ] && respond 401 '{"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}'
+[ -n "${FAKE_NOTION_GET_FAIL:-}" ] && [ "$m $path" = "GET pages/$FAKE_NOTION_GET_FAIL" ] && respond 500 '{"object":"error","status":500,"code":"internal_server_error","message":"fake"}'
 case "$m $path" in
   "GET pages/missing"*) respond 404 '{"object":"error","status":404,"code":"object_not_found","message":"Could not find page with ID: missing. Make sure the relevant pages and databases are shared with your integration."}' ;;
   "GET pages/$E") respond 200 "$PE" ;;
@@ -384,6 +385,10 @@ step "list -t task (T·U)" bash -c 'printf "%s" "$1" | jq -e "length == 2 and al
 nrun ready --json
 step "ready 는 open 이고 Blocked by 가 전부 closed 인 것만 (F 만 — U 는 F 에 막히고 E 는 blocked)" \
   bash -c 'printf "%s" "$1" | jq -e --arg f "$2" "map(.id) == [\$f]" >/dev/null' _ "$OUT" "$F"
+# 후보 페이지 자신의 GET 이 실패하면 "블로커 없음" 으로 읽혀 ready 에 들면 안 된다 — rc≠0 이고 stderr 가 상태를 든다.
+OUT=$(PATH="$NPATH" FAKE_CURL_LOG="$NLOG" FAKE_NOTION_GET_FAIL="$U" NOTION_TOKEN=fake HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" ready --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "ready 중 후보 페이지 GET 실패 → rc≠0 · stderr 에 HTTP 500 (U 가 ready 에 들지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q 500' _ "$RC" "$ERR"
 : > "$NLOG"
 nrun dep add "$U" "$T"
 step "dep add A B → A 의 Blocked by 에 기존(F) + B(T) 를 PATCH" \

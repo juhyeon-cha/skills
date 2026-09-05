@@ -250,7 +250,8 @@ case "$cmd" in
     ready="[]"
     for id in $(printf '%s' "$arr" | jq -r '.[].id'); do
       ok=1
-      for b in $(get_page "$id" | jq -r '.properties["Blocked by"].relation[]?.id'); do
+      blockers="$(get_page "$id" | jq -r '.properties["Blocked by"].relation[]?.id')" || exit 1
+      for b in $blockers; do
         st="$(get_page "$b" | jq -r '.properties.Status.select.name // "open"')" || exit 1
         [ "$st" = "closed" ] || { ok=0; break; }
       done
