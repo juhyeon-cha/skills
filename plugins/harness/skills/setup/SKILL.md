@@ -18,10 +18,10 @@ Both the procedure and the verification differ per branch. **Decide the branch f
 ```bash
 ls -d .harness-state VERSION repos.json rails.json ledger.json .beads 2>/dev/null
 git rev-parse --git-dir >/dev/null 2>&1 && echo "git: yes" || echo "git: no"
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
+HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
 ```
 
-"ledger: yes" means the backend named in `ledger.json` answers — for `beads` that is the local Dolt DB, for `github`·`notion` a reachable remote (a `notion` tree needs `NOTION_TOKEN` exported first, or the probe says "no" for a ledger that exists).
+`HARNESS_ROOT=$PWD` is not optional here — 1.6 says why. "ledger: yes" means the backend named in `ledger.json` answers — for `beads` that is the local Dolt DB, for `github`·`notion` a reachable remote (a `notion` tree needs `NOTION_TOKEN` exported first, or the probe says "no" for a ledger that exists).
 
 | Observed | Branch |
 |---|---|
@@ -87,18 +87,20 @@ Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `ledger.json
 The ledger backend is one value — `backend` in `ledger.json` at the harness root (shape in section 5) — and the plugin's `scripts/ledger.sh` reads nothing else to choose it: no file, or a value outside `github`·`beads`·`notion`, and every ledger command dies with rc≠0. **The default for a new harness is `github`.** Backend-specific initialization is the adapter's `init`; setup writes `ledger.json` and calls it, nothing more:
 
 ```bash
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init   # arguments differ per backend — below
+HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init   # arguments differ per backend — below
 ```
+
+**Until harness-m8gg.5.2 replaces the root discriminator, every `ledger.sh` call in a `github`·`notion` tree is prefixed with `HARNESS_ROOT=$PWD` (run from the harness root).** Without the variable, `ledger.sh` asks `lib/harness-root.sh` for the root, and that still recognizes a root only by `.beads/embeddeddolt` — a `github`·`notion` tree has none, so the lookup falls through to the clone root's `.harness-root` pointer and lands on *another* harness's `ledger.json` (rc≠0 if that harness has none; a silent write into someone else's ledger if it has one). With `HARNESS_ROOT` set, `ledger.sh` uses it as-is and never consults the discriminator. The prefix is harmless in a `beads` tree, so the commands below carry it everywhere they are shared across backends.
 
 Follow the one branch that matches `backend`, then continue at item 3.
 
 #### backend: github (default)
 
-Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `ledger.json` as `{"backend":"github","owner":"<github login>"}` and run `ledger.sh init` (optionally `--title <project name>`): it creates the Projects v2 that groups the issues of every target repo and writes its `project` number back into `ledger.json` — or, if `project` is already there, verifies the number is readable. Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
+Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `ledger.json` as `{"backend":"github","owner":"<github login>"}` and run `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init` (optionally `--title <project name>`): it creates the Projects v2 that groups the issues of every target repo and writes its `project` number back into `ledger.json` — or, if `project` is already there, verifies the number is readable. Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
 
 #### backend: notion
 
-Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never written into a tracked file — the adapter reads the environment variable only), and a page shared with that integration. Write `ledger.json` as `{"backend":"notion"}` and run `NOTION_TOKEN=… ledger.sh init --parent-page <that page's id>`: it creates the database with the schema (two requests — the self-relations `Parent`·`Blocked by` cannot go into the create request) and writes `database_id` back into `ledger.json`; with `database_id` already present it only re-applies the schema (idempotent). Item 2 below does not apply.
+Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never written into a tracked file — the adapter reads the environment variable only), and a page shared with that integration. Write `ledger.json` as `{"backend":"notion"}` and run `HARNESS_ROOT=$PWD NOTION_TOKEN=… bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init --parent-page <that page's id>`: it creates the database with the schema (two requests — the self-relations `Parent`·`Blocked by` cannot go into the create request) and writes `database_id` back into `ledger.json`; with `database_id` already present it only re-applies the schema (idempotent). Item 2 below does not apply.
 
 #### backend: beads
 
@@ -132,14 +134,14 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
 #### all backends — from here on
 
 4. **Re-run** `bash scripts/install.sh init` — the hook files exist now, so the gate blocks get attached. It is idempotent. Read the `hooksPath:` line of the output with your own eyes. It must say "하네스 블록이 있다"; if it says "없다", the commit gate **does not run**.
-5. Confirm the backend answers: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` rc 0 (an empty list is the correct output for a new ledger).
+5. Confirm the backend answers: `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` rc 0 (an empty list is the correct output for a new ledger).
 6. Add these to `.gitignore`: `.claude/worktrees/` · `.claude/ralph-loop.local.md` · `.claude/ralph-cancel` · `.claude/stop-resume.log` · `.claude/stop-resume-cancel*` · `*.harness-bak` · `docs/sprints/` · `docs/backlog/` · `docs/adr/`(the three projections — the ledger is SSOT and the hooks render them locally) · `.beads/interactions.jsonl`(the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every bd call and keeps the tree permanently dirty). **Never gitignore `.harness-state`** — it is the install record, so it has to be committed for later updates to judge drift.
 
 ### 1.7 Verification (A) — all measured
 
 | Run | Expected |
 |---|---|
-| `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0. If this is blocked, everything after it is meaningless |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0. If this is blocked, everything after it is meaningless |
 | `bash checks/guardrail-check.sh` | rc 0. If a "no `jq`" warning appeared, **the wiring was not checked** — install `jq` and run it again |
 | `bash checks/workspace-check.sh` | rc 0 (it self-verifies with a temporary clone, so it passes even with no registered repo) |
 | `bash scripts/board.sh all` | rc 0. Even with no story in the ledger, an empty table `docs/backlog/index.md` comes out — the projections are outside git, so do not commit them |
@@ -174,11 +176,11 @@ Then:
 
 #### backend: github
 
-Nothing to restore — the issues live on GitHub. Confirm access: `gh auth status` rc 0 with the `project` scope (1.6's `gh auth refresh -s project,read:project` if it is missing), then `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0.
+Nothing to restore — the issues live on GitHub. Confirm access: `gh auth status` rc 0 with the `project` scope (1.6's `gh auth refresh -s project,read:project` if it is missing), then `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0 (the `HARNESS_ROOT` prefix is 1.6's rule — the same discriminator gap applies to a clone).
 
 #### backend: notion
 
-Nothing to restore either. Export `NOTION_TOKEN` on this machine (the token never travels in the clone), then `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0.
+Nothing to restore either. Export `NOTION_TOKEN` on this machine (the token never travels in the clone), then `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0 (the `HARNESS_ROOT` prefix is 1.6's rule — the same discriminator gap applies to a clone).
 
 #### backend: beads
 
@@ -235,7 +237,7 @@ If it does not run, wire it by hand and nothing more: `git config core.hooksPath
 
 | Run | Expected |
 |---|---|
-| `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0 (the backend in `ledger.json` answers) |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0 (the backend in `ledger.json` answers) |
 | `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — user scope and nowhere else |
 | `scripts/repo.sh list` | 0 occurrences of "클론 없음" |
 | `grep -c '^# --- BEGIN HARNESS GATE ---$' "$(git rev-parse --git-path hooks)/pre-commit"` | `1` |
