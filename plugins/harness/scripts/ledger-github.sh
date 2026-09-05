@@ -26,7 +26,7 @@
 #   created_at·updated_at·closed_at
 #
 # ponytail: 라벨·코멘트·자식은 first:100 까지만 읽는다 — 그 이상은 페이지네이션이 필요하다.
-set -u
+set -uo pipefail
 : "${LEDGER_ROOT:?ledger.sh 를 통해 불러라}"; : "${LEDGER_CONFIG:?ledger.sh 를 통해 불러라}"
 
 die() { echo "ledger-github: $*" >&2; exit 1; }

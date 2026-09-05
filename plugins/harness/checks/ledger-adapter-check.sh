@@ -10,6 +10,8 @@
 #      실제 원장에는 쓰지 않는다.
 #   ④ github 오프라인 — gh 를 PATH 에서 빼거나 가짜 gh 로 바꿔 인자 파싱·JSON 형태·실패 경로를 본다.
 #      실제 GitHub 에 닿는 쓰기 실증은 오케스트레이터가 실증 레포에서 돈다(harness-m8gg.4.2 acceptance 4).
+#   ⑤ notion 오프라인 — 가짜 curl 로 인자 파싱·요청 본문·JSON 형태·실패 경로(토큰 없음·401·404)를 본다.
+#      실제 Notion 에 닿는 쓰기 실증은 오케스트레이터가 실증 DB 에서 돈다(harness-m8gg.4.3 acceptance 3).
 #
 # 극성: 하위 명령 집합은 손으로 적지 않고 플러그인 트리에서 파생한다 — 새 bd 호출이 생기면
 # --help 가 그것을 덮을 때까지 이 검사가 떨어진다.
@@ -287,8 +289,137 @@ step "label add|remove → --add-label · --remove-label" \
 grun dolt push
 step "beads 전용 명령(dolt) → rc≠0" [ "$RC" -ne 0 ]
 
+echo "── ⑤ notion 오프라인 — 가짜 curl ──"
+# 가짜 curl 은 요청(메서드·경로·본문)을 번호 붙여 기록하고 정해진 답을 낸다. 페이지 4개:
+#   E(epic, blocked, Blocked by T) · F(feature, open, parent E, Blocked by T) · T(task, closed, parent F) · U(task, open, parent F, Blocked by F)
+NT="$TMP/ntbin"; mkdir -p "$NT" "$TMP/ntroot"
+printf '{"backend":"notion","database_id":"d0000000-0000-0000-0000-00000000000d"}\n' > "$TMP/ntroot/ledger.json"
+NLOG="$TMP/curl.log"
+cat > "$NT/curl" <<'FAKE'
+#!/usr/bin/env bash
+# 가짜 curl — -o·-X·--data-binary @파일·URL 만 해석하고 상태 코드를 stdout 에 낸다(-w '%{http_code}' 의 자리).
+out=""; m="GET"; url=""; data=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) out="$2"; shift 2 ;; -X) m="$2"; shift 2 ;; -w|-H) shift 2 ;; --data-binary) data="${2#@}"; shift 2 ;;
+    http*) url="$1"; shift ;; *) shift ;;
+  esac
+done
+path="${url#https://api.notion.com/v1/}"
+n=$(( $(grep -c . "$FAKE_CURL_LOG" 2>/dev/null) + 1 ))
+printf '%s %s %s\n' "$n" "$m" "$path" >> "$FAKE_CURL_LOG"
+[ -n "$data" ] && cp "$data" "$FAKE_CURL_LOG.$n"
+respond() { printf '%s' "$2" > "$out"; printf '%s' "$1"; exit 0; }
+E=e0000000-0000-0000-0000-000000000001; F=f0000000-0000-0000-0000-000000000002; T=t0000000-0000-0000-0000-000000000003; U=u0000000-0000-0000-0000-000000000004
+page() { # <id> <제목> <type> <status> <labels JSON> <parent id 또는 ""> <blocked by id 또는 ""> <acceptance> <description>
+  printf '{"object":"page","id":"%s","created_time":"2026-09-05T00:00:00.000Z","last_edited_time":"2026-09-05T00:00:00.000Z","properties":{"Name":{"title":[{"plain_text":"%s"}]},"Type":{"select":{"name":"%s"}},"Status":{"select":{"name":"%s"}},"Labels":{"multi_select":%s},"Parent":{"relation":%s},"Blocked by":{"relation":%s},"Acceptance":{"rich_text":[{"plain_text":"%s"}]},"Description":{"rich_text":[{"plain_text":"%s"}]},"Assignee":{"rich_text":[{"plain_text":"juhyeon-cha"}]}}}' \
+    "$1" "$2" "$3" "$4" "$5" "$( [ -n "$6" ] && printf '[{"id":"%s"}]' "$6" || printf '[]' )" "$( [ -n "$7" ] && printf '[{"id":"%s"}]' "$7" || printf '[]' )" "$8" "$9"
+}
+PE="$(page "$E" 에픽 epic blocked '[{"name":"repo:harness"}]' "" "$T" "조건 1" 본문)"
+PF="$(page "$F" 피처 feature open '[{"name":"repo:harness"},{"name":"rail:r1"}]' "$E" "$T" "" "")"
+PT="$(page "$T" 태스크 task closed '[{"name":"repo:harness"}]' "$F" "" "" "")"
+PU="$(page "$U" 넷째 task open '[{"name":"repo:harness"}]' "$F" "$F" "" "")"
+[ -n "${FAKE_NOTION_401:-}" ] && respond 401 '{"object":"error","status":401,"code":"unauthorized","message":"API token is invalid."}'
+case "$m $path" in
+  "GET pages/missing"*) respond 404 '{"object":"error","status":404,"code":"object_not_found","message":"Could not find page with ID: missing. Make sure the relevant pages and databases are shared with your integration."}' ;;
+  "GET pages/$E") respond 200 "$PE" ;;
+  "GET pages/$F") respond 200 "$PF" ;;
+  "GET pages/$T") respond 200 "$PT" ;;
+  "GET pages/$U") respond 200 "$PU" ;;
+  "POST pages") respond 200 '{"object":"page","id":"n0000000-0000-0000-0000-00000000000e"}' ;;
+  "PATCH pages/"*|"PATCH blocks/"*|"PATCH databases/"*) respond 200 '{"object":"page"}' ;;
+  "POST databases") respond 200 '{"object":"database","id":"d0000000-0000-0000-0000-00000000000d"}' ;;
+  "POST databases/"*"/query") respond 200 "$(printf '{"results":[%s,%s,%s,%s],"has_more":false,"next_cursor":null}' "$PE" "$PF" "$PT" "$PU")" ;;
+  "GET blocks/"*"/children"*) respond 200 '{"results":[{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"메모"}]}},{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"둘째"}]}}]}' ;;
+esac
+echo "fake curl: 모르는 요청 $m $path" >&2; exit 22
+FAKE
+chmod +x "$NT/curl"
+E=e0000000-0000-0000-0000-000000000001; F=f0000000-0000-0000-0000-000000000002; T=t0000000-0000-0000-0000-000000000003; U=u0000000-0000-0000-0000-000000000004
+NPATH="$NT:$TMP/jqbin:/usr/bin:/bin"
+nrun() {
+  OUT=$(PATH="$NPATH" FAKE_CURL_LOG="$NLOG" NOTION_TOKEN="fake-token" HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" "$@" 2>"$TMP/err"); RC=$?
+  ERR=$(cat "$TMP/err")
+}
+# body_of <메서드> <경로 접두> — 기록에서 마지막으로 맞는 요청의 본문 파일 경로
+body_of() { local n; n="$(grep " $1 $2" "$NLOG" | tail -1 | cut -d' ' -f1)"; [ -n "$n" ] && printf '%s' "$NLOG.$n"; }
+
+OUT=$(env -u NOTION_TOKEN PATH="$NPATH" FAKE_CURL_LOG="$NLOG" HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" show "$E" 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "NOTION_TOKEN 없음 → rc≠0 · stderr 한 줄이 NOTION_TOKEN 을 든다" bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ] && printf "%s" "$2" | grep -q NOTION_TOKEN' _ "$RC" "$ERR"
+# curl 만 없는 /usr/bin 사본 — 나머지 도구(dirname·sed·grep)는 그대로 보여야 어댑터 자신이 돈다.
+mkdir -p "$TMP/usrbin-nocurl"
+for f in /usr/bin/*; do b="${f##*/}"; [ "$b" = curl ] || ln -s "$f" "$TMP/usrbin-nocurl/$b"; done
+OUT=$(PATH="$TMP/jqbin:$TMP/usrbin-nocurl:/bin" NOTION_TOKEN=x HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" show "$E" 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "curl 없음 → rc≠0 · stderr 한 줄" bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ] && printf "%s" "$2" | grep -q curl' _ "$RC" "$ERR"
+OUT=$(PATH="$NPATH" FAKE_CURL_LOG="$NLOG" FAKE_NOTION_401=1 NOTION_TOKEN=bad HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" show "$E" 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "401 → rc≠0 · stderr 에 상태와 응답의 code(unauthorized)" bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q 401 && printf "%s" "$2" | grep -q unauthorized' _ "$RC" "$ERR"
+nrun show missing-0000 --json
+step "404 → rc≠0 · stderr 에 응답의 code(object_not_found)" bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q 404 && printf "%s" "$2" | grep -q object_not_found' _ "$RC" "$ERR"
+: > "$NLOG"
+printf '본문\n' > "$TMP/nt-body.txt"
+nrun create "제목" -t task -l repo:harness,rail:r1 --parent "$F" --acceptance "조건" --body-file "$TMP/nt-body.txt" --silent
+step "create --silent 가 새 페이지 id 만 낸다" [ "$OUT" = "n0000000-0000-0000-0000-00000000000e" ]
+step "create 의 POST /pages 본문: parent.database_id · Name · Type · Status=open · Labels · Acceptance · Description · Parent 관계" \
+  bash -c 'jq -e --arg f "$2" ".parent.database_id == \"d0000000-0000-0000-0000-00000000000d\" and .properties.Name.title[0].text.content == \"제목\" and .properties.Type.select.name == \"task\" and .properties.Status.select.name == \"open\" and (.properties.Labels.multi_select | map(.name)) == [\"repo:harness\",\"rail:r1\"] and .properties.Acceptance.rich_text[0].text.content == \"조건\" and .properties.Description.rich_text[0].text.content == \"본문\" and .properties.Parent.relation[0].id == \$f" "$1" >/dev/null' _ "$(body_of POST pages)" "$F"
+nrun show "$E" --json
+step "show --json 의 키가 bd 와 같다" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | keys | contains([\"id\",\"title\",\"status\",\"issue_type\",\"labels\",\"acceptance_criteria\",\"notes\",\"assignee\",\"parent\",\"description\",\"dependencies\"])" >/dev/null' _ "$OUT"
+step "show --json 의 값 대응: Status→status · Type→issue_type · Labels→labels · Acceptance · Description · 문단 블록→notes · Blocked by→dependencies" \
+  bash -c 'printf "%s" "$1" | jq -e --arg t "$2" ".[0] | .status == \"blocked\" and .issue_type == \"epic\" and .labels == [\"repo:harness\"] and .acceptance_criteria == \"조건 1\" and .description == \"본문\" and .notes == \"메모\n둘째\" and .assignee == \"juhyeon-cha\" and .parent == null and .dependencies == [{id:\$t, status:\"closed\", dependency_type:\"blocks\"}]" >/dev/null' _ "$OUT" "$T"
+nrun children "$F" --json
+step "children --json 이 Parent contains 질의로 자식 2건(T·U)을 낸다" \
+  bash -c 'printf "%s" "$1" | jq -e --arg f "$2" "length == 2 and all(.[]; .parent == \$f)" >/dev/null && jq -e --arg f "$2" ".filter.and | any(.[]; .property == \"Parent\" and .relation.contains == \$f)" "$3" >/dev/null' _ "$OUT" "$F" "$(body_of POST "databases/d0000000-0000-0000-0000-00000000000d/query")"
+nrun list --json
+step "list --json 은 closed 를 뺀다 (4건 중 3건) · 질의 필터에 Status does_not_equal closed" \
+  bash -c 'printf "%s" "$1" | jq -e "length == 3" >/dev/null && jq -e ".filter.and | any(.[]; .property == \"Status\" and .select.does_not_equal == \"closed\")" "$2" >/dev/null' _ "$OUT" "$(body_of POST "databases/d0000000-0000-0000-0000-00000000000d/query")"
+nrun list --all --json -n 0
+step "list --all --json -n 0 은 전부 낸다 (4건)" bash -c 'printf "%s" "$1" | jq -e "length == 4" >/dev/null' _ "$OUT"
+nrun list -l repo:harness,rail:r1 --status open --json
+step "list -l a,b --status open 은 AND 로 거른다 (F 만) · 질의에 Labels contains 둘과 Status equals" \
+  bash -c 'printf "%s" "$1" | jq -e --arg f "$2" "length == 1 and .[0].id == \$f" >/dev/null && jq -e "[.filter.and[] | select(.property == \"Labels\")] | length == 2" "$3" >/dev/null' _ "$OUT" "$F" "$(body_of POST "databases/d0000000-0000-0000-0000-00000000000d/query")"
+nrun list -t task --all --json
+step "list -t task (T·U)" bash -c 'printf "%s" "$1" | jq -e "length == 2 and all(.[]; .issue_type == \"task\")" >/dev/null' _ "$OUT"
+nrun ready --json
+step "ready 는 open 이고 Blocked by 가 전부 closed 인 것만 (F 만 — U 는 F 에 막히고 E 는 blocked)" \
+  bash -c 'printf "%s" "$1" | jq -e --arg f "$2" "map(.id) == [\$f]" >/dev/null' _ "$OUT" "$F"
+: > "$NLOG"
+nrun dep add "$U" "$T"
+step "dep add A B → A 의 Blocked by 에 기존(F) + B(T) 를 PATCH" \
+  bash -c '[ "$1" -eq 0 ] && jq -e --arg f "$3" --arg t "$4" ".properties[\"Blocked by\"].relation | map(.id) | sort == ([\$f, \$t] | sort)" "$2" >/dev/null' _ "$RC" "$(body_of PATCH "pages/$U")" "$F" "$T"
+: > "$NLOG"
+printf '{"from":"%s","to":"%s"}\n' "$U" "$E" | PATH="$NPATH" FAKE_CURL_LOG="$NLOG" NOTION_TOKEN=fake HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" dep add --file - >/dev/null 2>&1; rc=$?
+step "dep add --file - (JSONL) 도 같은 PATCH 를 낸다" \
+  bash -c '[ "$1" -eq 0 ] && jq -e --arg e "$3" ".properties[\"Blocked by\"].relation | map(.id) | index(\$e) != null" "$2" >/dev/null' _ "$rc" "$(body_of PATCH "pages/$U")" "$E"
+: > "$NLOG"
+nrun note "$E" "메모 하나"
+step "note → PATCH blocks/<id>/children 문단" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".children[0].paragraph.rich_text[0].text.content == \"메모 하나\"" "$2" >/dev/null' _ "$RC" "$(body_of PATCH "blocks/$E/children")"
+: > "$NLOG"
+nrun close "$E" --reason-file "$TMP/nt-body.txt"
+step "close --reason-file → Status=closed PATCH + 사유 블록" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".properties.Status.select.name == \"closed\"" "$2" >/dev/null && jq -e ".children[0].paragraph.rich_text[0].text.content == \"본문\"" "$3" >/dev/null' _ "$RC" "$(body_of PATCH "pages/$E")" "$(body_of PATCH "blocks/$E/children")"
+: > "$NLOG"
+nrun update "$E" --claim --actor "skills sess-abc"
+step "update --claim --actor → Status=in_progress · Assignee · ACTOR: 블록" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".properties.Status.select.name == \"in_progress\" and .properties.Assignee.rich_text[0].text.content == \"skills sess-abc\"" "$2" >/dev/null && jq -e ".children[0].paragraph.rich_text[0].text.content == \"ACTOR: skills sess-abc\"" "$3" >/dev/null' _ "$RC" "$(body_of PATCH "pages/$E")" "$(body_of PATCH "blocks/$E/children")"
+: > "$NLOG"
+nrun update "$E" --status deferred
+step "update --status deferred → Status=deferred" bash -c 'jq -e ".properties.Status.select.name == \"deferred\"" "$1" >/dev/null' _ "$(body_of PATCH "pages/$E")"
+: > "$NLOG"
+nrun label add "$E" slug:r1-x
+step "label add → 기존 Labels + 새 라벨 PATCH" bash -c 'jq -e ".properties.Labels.multi_select | map(.name) == [\"repo:harness\",\"slug:r1-x\"]" "$1" >/dev/null' _ "$(body_of PATCH "pages/$E")"
+: > "$NLOG"
+nrun label remove "$E" repo:harness
+step "label remove → 뺀 Labels PATCH" bash -c 'jq -e ".properties.Labels.multi_select == []" "$1" >/dev/null' _ "$(body_of PATCH "pages/$E")"
+: > "$NLOG"
+nrun init
+step "init (database_id 있음) → PATCH databases/<id> 에 Parent·Blocked by 자기 관계와 Description·Assignee" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".properties | has(\"Parent\") and has(\"Blocked by\") and has(\"Description\") and has(\"Assignee\") and .Parent.relation.database_id == \"d0000000-0000-0000-0000-00000000000d\"" "$2" >/dev/null' _ "$RC" "$(body_of PATCH "databases/d0000000-0000-0000-0000-00000000000d")"
+nrun dolt push
+step "beads 전용 명령(dolt) → rc≠0" [ "$RC" -ne 0 ]
+
 if [ "$fail" -ne 0 ]; then
   echo "✗ 원장 어댑터 검사 실패 — 위 항목을 고쳐라"
   exit 1
 fi
-echo "✓ 원장 어댑터 검사 통과 — 경계 · beads 동등성 · beads 왕복 · github 오프라인"
+echo "✓ 원장 어댑터 검사 통과 — 경계 · beads 동등성 · beads 왕복 · github 오프라인 · notion 오프라인"
