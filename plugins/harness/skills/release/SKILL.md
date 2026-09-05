@@ -20,7 +20,8 @@ git log --oneline "${PREV:+$PREV..}HEAD" -- plugins/<name>
 When no `<name>-v*` tag exists, the sweep starts at the first commit — say so in the output ("no
 previous tag; swept from the first commit") and in the entry. Read every commit in the range,
 not just the subjects: the width decision below needs the diff of anything that changes what an
-install has to do by hand — for `harness`, the update section of `skills/setup/SKILL.md`.
+install has to do by hand — for `harness`, the update section of
+`plugins/harness/skills/setup/SKILL.md`.
 
 ## 2. Settle the width
 
