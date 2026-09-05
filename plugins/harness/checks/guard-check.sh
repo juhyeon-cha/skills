@@ -126,12 +126,12 @@ step "FX_CLONE 이 클론 루트 밖이다 (같은 사유)" outside_clone "$FX_C
 # 경로 실재만으로는 부족하다 — 그 파일이 토큰을 실제로 담지 않으면 명령 문자열에 판정 재료가
 # 없어 픽스처가 공허하게 통과하므로, **낱말이 그 파일에 실제로 있다**까지 여기서 단언한다.
 QUOTE_FX=(
-  "bd note|agents/implementer.md"
-  "bd -C|skills/develop/SKILL.md"
+  "ledger.sh note|agents/implementer.md"
+  "HARNESS_ROOT=|skills/develop/SKILL.md"
   "gh pr create|skills/develop/SKILL.md"
-  "bd close|skills/develop/SKILL.md"
-  "bd create|hooks/session-context.md"
-  "bd update|skills/develop/SKILL.md"
+  "ledger.sh close|skills/develop/SKILL.md"
+  "ledger.sh create|hooks/session-context.md"
+  "ledger.sh update|skills/develop/SKILL.md"
 )
 qfx_cmd=()
 for e in "${QUOTE_FX[@]}"; do
@@ -1023,8 +1023,8 @@ step "규칙을 서술한 문서를 읽는 명령은 통과한다 (bd 가 실행
 
 # 하네스 루트 값의 출처. 훅은 lib/harness-root.sh 를 **이 호출의 cwd** 에서 불러 값을 얻는다 —
 # 찾으면 제시하고 못 찾으면 위임 메시지를 출처로 지시한다. 두 분기를 모두 돌린다.
-# 찾는 쪽은 HARNESS_ROOT 로 물린다(헬퍼의 첫 출처) — 판별자(.beads/embeddeddolt)만 갖춘 합성 루트다.
-mkdir -p "$FX_ROOT/.beads/embeddeddolt"
+# 찾는 쪽은 HARNESS_ROOT 로 물린다(헬퍼의 첫 출처) — 판별자(ledger.json)만 갖춘 합성 루트다.
+mkdir -p "$FX_ROOT" && printf '{"backend":"beads"}\n' > "$FX_ROOT/ledger.json"
 runh "$HOOK" "$(j_agentfields 'bd create x' 'aa306a4edf39e7dfe' '')" "HARNESS_ROOT=$FX_ROOT"
 echo "  찾음 → ${GUARD_OUT: -140}"
 step "헬퍼가 하네스 루트를 찾으면 그 절대 경로를 제시한다" has_text "하네스 루트는 $FX_ROOT 다" "$GUARD_OUT"
@@ -1943,10 +1943,10 @@ step "정상 대조군: implementer 의 note(append 통로)는 통과한다" [ "
 IMPL_ROLES_SRC=$(grep -E '^IMPL_ROLES=' "$HOOK" | sed 's/^IMPL_ROLES="//; s/"$//')
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$IMPL_ROLES_SRC" ]
 echo "  IMPL_ROLES: $IMPL_ROLES_SRC"
-# 표지는 역할 정의 자신의 문장이다 — implementer.md "**`bd note` 외의 bd 쓰기**".
+# 표지는 역할 정의 자신의 문장이다 — implementer.md "**`ledger.sh note` 외의 원장 쓰기**".
 # 손으로 고르지 않고 이 문장에서 파생한다. 접두 `harness:` 는 ⑫ 와 같은 이유로 붙인다.
-IMPL_DECLARED=$(grep -lF 'bd note` 외의 bd 쓰기' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-echo "  'bd note 외의 bd 쓰기' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
+IMPL_DECLARED=$(grep -lF 'ledger.sh note` 외의 원장 쓰기' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+echo "  'ledger.sh note 외의 원장 쓰기' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 대상 집합을 파생했다 (비어 있지 않다)" [ -n "$IMPL_DECLARED" ]
 step "훅의 IMPL_ROLES 가 역할 정의에서 파생한 집합과 일치한다 (역방향 단언)" \
   [ "$(printf '%s\n' $IMPL_ROLES_SRC | sort | tr '\n' ' ')" = "$(printf '%s\n' "$IMPL_DECLARED" | tr '\n' ' ')" ]
@@ -2106,7 +2106,7 @@ for c in 'bd --version; bd show x' 'bd --version; bd list --status in_progress -
   done
 done
 # (d) gr_bd_subcmds 를 이어 붙이는 형태로 되돌린다 → 위 형태가 'bd bd' 로 다시 막힌다.
-a31_copy 'bd-joined' '/^gr_bd_subcmds\(\)/,/^}/{s/^  while IFS= read -r seg; do subcmds_after bd "\$BD_VALUE_OPTS" "\$seg"; done < <\(exec_segments bd\)$/  subcmds_after bd "$BD_VALUE_OPTS" "$(exec_segments bd)"/;}'
+a31_copy 'bd-joined' '/^gr_ledger_subcmds\(\)/,/^}/{s/^    while IFS= read -r seg; do gr_tool_sub "\$t" "\$seg"; done < <\(exec_segments "\$t"\)   # GR_PER_SEGMENT$/    gr_tool_sub "$t" "$(exec_segments "$t")"/;}'
 runh "$A31_AB" "$(j_sub 'bd --version; bd show x' "$IMPL_T")"
 step "A/B(d) 되돌리면 다시 막힌다: bd --version; bd show x" [ "$GUARD_RC" -eq 2 ]
 step "A/B(d) 의 메시지가 다음 조각의 bd 를 하위 명령으로 실었다 (종전 오탐의 재현)" has_text "'bd bd'" "$GUARD_OUT"

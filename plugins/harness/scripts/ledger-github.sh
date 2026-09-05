@@ -31,6 +31,10 @@ set -uo pipefail
 
 die() { echo "ledger-github: $*" >&2; exit 1; }
 
+# 워크트리 배선 — 이 백엔드는 워크트리에 아무것도 두지 않는다. 이슈는 원격에 있고 루트는
+# HARNESS_ROOT 또는 ~/.harness-workspace/.harness-root(lib/harness-root.sh)로 찾는다. gh 없이도 답한다.
+[ "${1:-}" = "wire-worktree" ] && { echo "ledger-github: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
+
 OWNER="$(jq -r '.owner // empty' "$LEDGER_CONFIG")"
 PROJECT="$(jq -r '.project // empty' "$LEDGER_CONFIG")"
 [ -n "$OWNER" ] || die "$LEDGER_CONFIG 에 owner 가 없다"

@@ -103,9 +103,9 @@ if [[ -f "$CANCEL" ]]; then
 fi
 
 # 3) 오라클 — 원장의 in_progress 이슈 수.
-#    원장은 lib/harness-root.sh 가 낸 하네스 루트에 `bd -C` 로 붙는다 — 세션이 대상 레포 클론
-#    루트(redirect 없음)에서 열려도 bare bd 처럼 "원장 없음" 으로 꺼지지 않는다. 헬퍼의 CWD 는
-#    페이로드의 cwd 다(워크트리면 redirect 를 따라간다). 못 찾으면 ORACLE_FAIL — 0 으로 폴백하지 않는다.
+#    원장은 lib/harness-root.sh 가 낸 하네스 루트를 HARNESS_ROOT 로 물린 어댑터(scripts/ledger.sh)로
+#    읽는다 — 백엔드가 무엇이든 같은 JSON 키다. 헬퍼의 CWD 는 페이로드의 cwd 다(워크트리면 배선을
+#    따라간다). 못 찾으면 ORACLE_FAIL — 0 으로 폴백하지 않는다.
 #    --limit 0 이 없으면 bd 의 기본 상한 50 에서 잘려 51건째부터 조용히 안 세어진다.
 #    타입으로 좁히지 않는다: in_progress 인 마일스톤·스토리도 진행 중인 일이다
 #    (실측 2026-08-27 이 원장의 in_progress 는 전부 type=task 라 현재는 같은 값이다).
@@ -114,13 +114,13 @@ if ! HROOT="$(cd "${PCWD:-.}" 2>/dev/null; bash "$PLUGIN_ROOT/lib/harness-root.s
   log ORACLE_FAIL "하네스 루트를 찾지 못했다(lib/harness-root.sh, cwd=${PCWD:-?}) — 0 으로 폴백하지 않고 통과한다"
   exit 0
 fi
-if ! oracle="$(bd -C "$HROOT" list --status in_progress --limit 0 --json 2>/dev/null)"; then
-  log ORACLE_FAIL "bd list 실패 — 0 으로 폴백하지 않고 통과한다"
+if ! oracle="$(HARNESS_ROOT="$HROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" list --status in_progress --limit 0 --json 2>/dev/null)"; then
+  log ORACLE_FAIL "ledger.sh list 실패 — 0 으로 폴백하지 않고 통과한다"
   exit 0
 fi
 n="$(printf '%s' "$oracle" | jq 'if type == "array" then length else "NaN" end' 2>/dev/null || echo NaN)"
 if ! [[ "$n" =~ ^[0-9]+$ ]]; then
-  log ORACLE_FAIL "bd 출력이 JSON 배열이 아니다 — 0 으로 폴백하지 않고 통과한다"
+  log ORACLE_FAIL "ledger.sh 출력이 JSON 배열이 아니다 — 0 으로 폴백하지 않고 통과한다"
   exit 0
 fi
 
@@ -132,6 +132,10 @@ fi
 #     note" — 세션 단위가 (스토리, 레포)라 레포가 앞에 붙는다). **여기 오는 것은 `<값>` 뿐이다** —
 #     claim 의 `--actor <값>` 을 guard.sh 가 관측하고, 원장의 assignee 도 그 값이다. 이 훅은
 #     note 를 읽지 않으므로 레포 접두는 판정에 들어오지 않는다.
+#     ponytail: github 백엔드의 assignee 는 actor 값이 아니라 claim 을 돌린 사람의 GitHub 로그인이다
+#     (ledger-github.sh 머리주석 · harness-m8gg.4 note NIT 3). 그 백엔드에서는 아래 좁히기가 이 세션의
+#     것을 하나도 못 짚어 in_progress 가 있어도 0건으로 통과한다 — 가드가 조용히 꺼지는 자리다.
+#     고치려면 백엔드가 actor 를 따로(라벨 등) 실어야 하고 그것은 어댑터 설계라 여기 밖이다.
 #
 #     **폴백의 방향이 둘로 갈린다 — 하나로 합치면 가드가 조용히 꺼지거나 아무것도 안 고쳐진다.**
 #       · 매핑을 **읽지 못했다**(없다·읽기 실패) → 종전대로 **원장 전체**로 판정한다(SCOPE_FAIL).
@@ -165,8 +169,9 @@ fi
 #     verify 를 기다리는 완료분이라, in_progress **전부**가 그 표시를 달고 있으면 막을 이유가
 #     없다. 하나라도 없으면 종전대로 막는다. 표시는 notes 의 **마지막 비어 있지 않은 줄**이다 —
 #     뒤에 note 가 하나라도 더 붙으면(재검토 지적 등) 표시가 풀려 다시 막힌다.
-#     bd list --json 은 notes 를 이슈당 문자열 하나로 싣는다 (실측 2026-08-28, bd 1.2.2:
-#     `bd show --json` 의 notes 와 md5 가 같다). 그래서 이슈별 재조회가 없다.
+#     list --json 은 notes 를 이슈당 문자열 하나로 싣는다 (실측 2026-08-28, bd 1.2.2:
+#     `bd show --json` 의 notes 와 md5 가 같다 — github·notion 어댑터도 같은 키로 맞췄다). 그래서
+#     이슈별 재조회가 없다.
 #     **표시는 둘이고 자리·규칙이 같다** (harness-o59 / harness-0uw). `DELEGATED: <마일스톤ID>` 는
 #     오케스트레이터가 배치 위임 **직전**에 태스크마다 남기는 것이다 — 그 구간은 claim 은 됐지만
 #     implementer 의 첫 커밋이 아직 없어 표시가 하나도 없고, 그래서 배치 위임 직후의 정지가
@@ -198,5 +203,5 @@ fi
 # 6) 막음.
 log BLOCK "in_progress ${n}건(표시 없음 $((n - ${pending:-0}))건 · 검증 대기 ${vp}건 · 위임 직후 ${dg}건 · 범위: $SCOPE) — 재주입 $((blocks + 1))/$MAX_BLOCKS"
 jq -n --argjson n "$n" --argjson m "$((n - ${pending:-0}))" --arg cancel "$CANCEL" --arg scope "$SCOPE" --arg log "$LOG" \
-  '{decision: "block", reason: ("범위 \($scope) 안에 in_progress 인 일이 \($n)건 남아 있고 그중 \($m)건은 표시가 없다. 마감했다면 bd close 로 닫고, 배치 모드로 구현만 끝난 것이면 bd note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를, 배치 위임 직후라 아직 구현이 시작되지 않은 것이면 bd note <ID> \"DELEGATED: <마일스톤ID>\" 를 남기고, 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 `touch \($cancel)` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — " + $log + " 참고.")}'
+  '{decision: "block", reason: ("범위 \($scope) 안에 in_progress 인 일이 \($n)건 남아 있고 그중 \($m)건은 표시가 없다. 마감했다면 ledger.sh close 로 닫고, 배치 모드로 구현만 끝난 것이면 ledger.sh note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를, 배치 위임 직후라 아직 구현이 시작되지 않은 것이면 ledger.sh note <ID> \"DELEGATED: <마일스톤ID>\" 를 남기고, 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 `touch \($cancel)` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — " + $log + " 참고.")}'
 exit 0

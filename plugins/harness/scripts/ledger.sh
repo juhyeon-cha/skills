@@ -37,6 +37,8 @@ usage() {
   update <id> [--status <s>] [--claim --actor <값>] [--parent <id>] [-t <type>] [--acceptance <문>]
   dep add <id> <의존 대상 id> | --file - (JSONL {"from","to"})
   label add|remove <id> <라벨>
+  wire-worktree <워크트리 절대 경로>   워크트리에 원장을 배선한다 — hooks/enter-worktree.sh 가 부른다
+                             (beads: <워크트리>/.beads/redirect · github·notion: 배선할 것이 없다, rc 0)
   help | --help
 
 beads 전용 (github · notion 은 rc≠0):

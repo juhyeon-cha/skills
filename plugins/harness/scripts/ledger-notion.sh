@@ -34,6 +34,10 @@ set -uo pipefail
 
 die() { echo "ledger-notion: $*" >&2; exit 1; }
 
+# 워크트리 배선 — 이 백엔드는 워크트리에 아무것도 두지 않는다. 페이지는 원격에 있고 루트는
+# HARNESS_ROOT 또는 ~/.harness-workspace/.harness-root(lib/harness-root.sh)로 찾는다. 토큰 없이도 답한다.
+[ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
+
 DB="$(jq -r '.database_id // empty' "$LEDGER_CONFIG")"
 [ -n "${NOTION_TOKEN:-}" ] || die "NOTION_TOKEN 환경 변수가 없다 — 통합 토큰을 환경 변수로만 준다(파일에 두지 않는다)"
 command -v curl >/dev/null 2>&1 || die "curl 이 PATH 에 없다 — Notion 백엔드는 REST 로 원장에 닿는다"

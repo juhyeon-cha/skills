@@ -90,7 +90,7 @@ The ledger backend is one value — `backend` in `ledger.json` at the harness ro
 HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init   # arguments differ per backend — below
 ```
 
-**Until harness-m8gg.5.2 replaces the root discriminator, every `ledger.sh` call in a `github`·`notion` tree is prefixed with `HARNESS_ROOT=$PWD` (run from the harness root).** Without the variable, `ledger.sh` asks `lib/harness-root.sh` for the root, and that still recognizes a root only by `.beads/embeddeddolt` — a `github`·`notion` tree has none, so the lookup falls through to the clone root's `.harness-root` pointer and lands on *another* harness's `ledger.json` (rc≠0 if that harness has none; a silent write into someone else's ledger if it has one). With `HARNESS_ROOT` set, `ledger.sh` uses it as-is and never consults the discriminator. The prefix is harmless in a `beads` tree, so the commands below carry it everywhere they are shared across backends.
+**Every `ledger.sh` call in this procedure is prefixed with `HARNESS_ROOT=$PWD` (run from the harness root).** Without the variable, `ledger.sh` asks `lib/harness-root.sh` for the root, and during setup the two other sources are not there yet — no story worktree wiring, and the clone root's `.harness-root` pointer is written later by `scripts/repo.sh` (or points at *another* harness on a machine that already has one — a silent write into someone else's ledger if that one has a `ledger.json`). With `HARNESS_ROOT` set, `ledger.sh` uses it as-is. The prefix is harmless in any backend, so the commands below carry it everywhere.
 
 Follow the one branch that matches `backend`, then continue at item 3.
 
