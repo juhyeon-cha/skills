@@ -1,5 +1,5 @@
 {
-  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks). Stop: ralph-cancel.sh (loop cancel marker) then stop-resume.sh (stop guard — pushes back while the ledger has in_progress work claimed by this session); both keep their state under ${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}.",
+  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks). PostToolUse (EnterWorktree): enter-worktree.sh wires the harness ledger into the new story worktree (.beads/redirect + clone exclude) and runs the repos.json bootstrap fallback once when the target repo has no EnterWorktree hook of its own. Stop: ralph-cancel.sh (loop cancel marker) then stop-resume.sh (stop guard — pushes back while the ledger has in_progress work claimed by this session); both keep their state under ${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}.",
   "hooks": {
     "SessionStart": [
       {
@@ -19,6 +19,18 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "EnterWorktree",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh\"",
+            "timeout": 600
           }
         ]
       }
