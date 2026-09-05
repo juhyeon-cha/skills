@@ -1,5 +1,5 @@
 {
-  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext.",
+  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks).",
   "hooks": {
     "SessionStart": [
       {
@@ -7,6 +7,17 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-context.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh\"",
             "timeout": 10
           }
         ]
