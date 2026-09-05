@@ -159,7 +159,7 @@ grep -q '^# --- BEGIN HARNESS GATE ---$' "$(git rev-parse --git-path hooks)/pre-
 
 Do not compare paths by eye — every combination of notation (absolute/relative) and tree kind (main checkout / linked worktree) leaves a falsehood pointing the other way. The only question is **whether the pre-commit git will actually call has the harness block**.
 
-If it does not run: `bash .claude/hooks/ensure-hookspath.sh` (it wires the setting when unset, and when someone else's real hook sits in `.git/hooks` it does not set anything and tells you instead). If it still does not run after you handle what it says, wire it by hand and nothing more: `git config core.hooksPath .beads/hooks`.
+If it does not run, wire it by hand and nothing more: `git config core.hooksPath .beads/hooks` — when someone else's real hook already sits in `.git/hooks`, do not overwrite it; move those hooks under `.beads/hooks` first. The plugin ships no hook that wires this for you: the harness plants no git hooks in a target repo, and the harness root's own wiring is the root's concern.
 
 **Do not use `scripts/install.sh init` as a fallback.** `init` first compares the record in `.harness-state` against the sha of the real files, and in a clone of a derived harness whose owner fixed the core under explicit instruction and committed it, it dies right there with "릴리스 tarball 을 다시 받아 풀어라". That is the wrong instruction for a joiner — that tree's core is what the owner decided, and drift is the owner's business to hear about, not the joiner's.
 

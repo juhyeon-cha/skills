@@ -1,5 +1,5 @@
 {
-  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks).",
+  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks). Stop: ralph-cancel.sh (loop cancel marker) then stop-resume.sh (stop guard — pushes back while the ledger has in_progress work claimed by this session); both keep their state under ${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}.",
   "hooks": {
     "SessionStart": [
       {
@@ -19,6 +19,22 @@
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh\"",
             "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/ralph-cancel.sh\"",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.sh\"",
+            "timeout": 30
           }
         ]
       }
