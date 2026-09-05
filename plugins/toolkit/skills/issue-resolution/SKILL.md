@@ -72,7 +72,7 @@ so much as **manufacture one.**
 ## 4. Closing — what you fixed is closed **by the PR**
 
 An item you fixed does not take `gh issue close`. Write `Closes #<number>` in the PR body and **let
-the merge close it.** The format and how to check it are written once, in the `pr-body` skill.
+the merge close it.** The format and how to check it are written once, in the `writing-pull-request` skill.
 
 Closing by hand first leaves the issue closed even when the PR is rejected or reverted, and no link
 to what fixed it is created anywhere.
