@@ -19,9 +19,11 @@
 # 클론 루트 층의 플러그인 적용 (add·restore·apply 가 공통으로 돈다 — 이 스크립트가 그 층을 소유한다):
 #   ① <클론루트>/.harness-root 에 하네스 루트 절대 경로 한 줄 — lib/harness-root.sh 가 읽는 형식 그대로.
 #      이미 다른 경로가 적혀 있으면 덮어쓰지 않고 rc≠0 — 하네스가 둘이면 어느 원장인지 사람이 정한다.
-#   ② <클론>/.claude/settings.local.json 에 enabledPlugins["harness@skills"]=true 병합 (다른 키 보존)
-#   ③ 클론 .git/info/exclude 에 .claude/settings.local.json 재보장
-#   ④ claude plugin install harness@skills 시도 — 실패해도 적용 실패가 아니다(rc 0). --plugin-dir 대안을 stderr 로 안내한다.
+#   ② 클론 .git/info/exclude 에 .claude/settings.local.json 재보장
+#   ③ claude plugin install harness@skills --scope local 시도 — Claude 의 local 이 곧 <클론>/.claude/settings.local.json 이다.
+#      scope 를 빼면 추적 파일 <클론>/.claude/settings.json 을 만들거나 더럽힌다(실측 2026-09-05, harness-lzs3.5.6).
+#      실패(claude 없음·마켓플레이스 미등록·오프라인)는 적용 실패가 아니다(rc 0) — 그때만 settings.local.json 에
+#      enabledPlugins["harness@skills"]=true 를 직접 병합하고(다른 키 보존) --plugin-dir 대안을 stderr 로 안내한다.
 set -uo pipefail
 # 하네스 루트는 lib/harness-root.sh 가 낸다 — 호출자의 CWD 도 스크립트 위치도 쓰지 않는다
 # (플러그인은 하네스 루트 밖에 산다. CWD 를 쓰면 워크트리에서 대상 레포에 repos.json 을 만들어 버린다).
@@ -76,7 +78,7 @@ add_local_exclude() {
   fi
 }
 
-# 클론 루트 층의 플러그인 적용 ①~④ (파일 머리 주석). $1=name. 실패는 die — restore 처럼
+# 클론 루트 층의 플러그인 적용 ①~③ (파일 머리 주석). $1=name. 실패는 die — restore 처럼
 # 여러 건을 돌리는 자리는 서브셸로 격리한다.
 apply_plugin() {
   local name="$1"
@@ -95,27 +97,26 @@ apply_plugin() {
     echo "  하네스 루트: $ROOT → $ROOT_FILE"
   fi
 
-  # ② settings.local.json 병합 — 다른 키는 그대로 둔다.
-  local settings="$dest/$SETTINGS_REL" tmp
-  mkdir -p "$(dirname "$settings")"
-  [[ -s "$settings" ]] || echo '{}' > "$settings"
-  tmp="$settings.tmp.$$"
-  if jq --arg p "$PLUGIN_ID" '.enabledPlugins[$p] = true' "$settings" > "$tmp"; then
-    mv "$tmp" "$settings"
-  else
-    rm -f "$tmp"; die "$settings 갱신 실패 (jq 오류) — 유효한 JSON 인지 확인하라"
-  fi
-  echo "  플러그인: $PLUGIN_ID 켜짐 → $SETTINGS_REL"
-
-  # ③ 그 파일을 대상 레포의 로컬 제외 목록에.
+  # ② settings.local.json 을 대상 레포의 로컬 제외 목록에 — install 이 그 파일을 쓰기 전에.
   add_local_exclude "$dest" "$SETTINGS_REL"
 
-  # ④ 설치 시도 — 실패는 적용 실패가 아니다. 설치가 안 된 상태로 켜져 있으면 세션이
-  # --plugin-dir 로 로드할 수 있으므로 그 자리를 알린다.
-  if ( cd "$dest" && claude plugin install "$PLUGIN_ID" </dev/null >/dev/null 2>&1 ); then
-    echo "  설치: claude plugin install $PLUGIN_ID 성공"
+  # ③ 설치 — --scope local 이 settings.local.json 에 enabledPlugins 를 쓴다. scope 를 빼면 추적 파일
+  # .claude/settings.json 이 더러워진다(파일 머리 ③). 실패는 적용 실패가 아니다 — 그때만 그 파일을
+  # 직접 병합해 켜 두고(다른 키 보존), 세션이 --plugin-dir 로 로드할 수 있는 자리를 알린다.
+  if ( cd "$dest" && claude plugin install "$PLUGIN_ID" --scope local </dev/null >/dev/null 2>&1 ); then
+    echo "  설치: claude plugin install $PLUGIN_ID --scope local 성공 → $SETTINGS_REL"
   else
-    echo "경고: 'claude plugin install $PLUGIN_ID' 가 실패했다(claude 없음·마켓플레이스 미등록·오프라인). 적용은 됐다 —" >&2
+    local settings="$dest/$SETTINGS_REL" tmp
+    mkdir -p "$(dirname "$settings")"
+    [[ -s "$settings" ]] || echo '{}' > "$settings"
+    tmp="$settings.tmp.$$"
+    if jq --arg p "$PLUGIN_ID" '.enabledPlugins[$p] = true' "$settings" > "$tmp"; then
+      mv "$tmp" "$settings"
+    else
+      rm -f "$tmp"; die "$settings 갱신 실패 (jq 오류) — 유효한 JSON 인지 확인하라"
+    fi
+    echo "  플러그인: $PLUGIN_ID 켜짐 → $SETTINGS_REL (설치 없이 직접 병합)"
+    echo "경고: 'claude plugin install $PLUGIN_ID --scope local' 이 실패했다(claude 없음·마켓플레이스 미등록·오프라인). 적용은 됐다 —" >&2
     echo "      세션을 열 때 'claude --plugin-dir $PLUGIN_ROOT' 로 플러그인을 직접 실으면 된다." >&2
   fi
 }
