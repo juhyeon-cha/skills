@@ -12,6 +12,12 @@
       "source": "./plugins/toolkit",
       "description": "여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기, 성과 기록을 쌓아 대시보드로 뽑기, 사고 기록을 회고 문서로 만들기, PR 본문 쓰기, 발견한 것을 GitHub 이슈로 등재하기, 열린 이슈를 골라 닫기",
       "category": "productivity"
+    },
+    {
+      "name": "harness",
+      "source": "./plugins/harness",
+      "description": "애자일 계층(스프린트→레일→스토리→마일스톤→태스크)으로 멀티 레포 개발을 자율 진행하는 에이전트 하네스",
+      "category": "productivity"
     }
   ]
 }

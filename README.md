@@ -47,3 +47,4 @@ Conventional Commits 를 쓰고 본문은 한국어로 쓴다. 범위는 플러�
 ## 플러그인
 
 - `toolkit` — 여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기, 성과 기록을 쌓아 대시보드로 뽑기, 사고 기록을 회고 문서로 만들기, PR 본문 쓰기, 발견한 것을 GitHub 이슈로 등재하기, 열린 이슈를 골라 닫기
+- `harness` — 애자일 계층(스프린트→레일→스토리→마일스톤→태스크)으로 멀티 레포 개발을 자율 진행하는 에이전트 하네스. 절차 스킬 7종(`plan-sprint`·`plan-story`·`develop`·`verify-code`·`verify-implement`·`retrospective`·`setup`)과 역할 3종(`implementer`·`reviewer`·`evaluator`), SessionStart 주입 블록 하나. 업무 원장은 beads(`bd`)이고 프로젝트 맥락(`repos.json`·`rails.json`·`sprints.json`·`.beads`)은 하네스 루트가 소유한다

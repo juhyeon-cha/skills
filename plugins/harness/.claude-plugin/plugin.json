@@ -4,5 +4,15 @@
   "version": "0.2.0",
   "author": {
     "name": "juhyeon-cha"
-  }
+  },
+  "keywords": [
+    "harness",
+    "agile",
+    "beads",
+    "sprint",
+    "story",
+    "worktree",
+    "multi-repo",
+    "orchestration"
+  ]
 }
