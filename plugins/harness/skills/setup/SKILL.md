@@ -53,7 +53,16 @@ git remote add origin <url of the owner's own private repo>
 - The harness is always a **standalone repo**. Do not plant it inside an existing project.
 - Why this order: `init`'s hook wiring only holds inside a git repository. If it is not a repository, `init` prints "여기는 아직 git 저장소가 아니다" to stderr and ends **with no gate**.
 
-### 1.3 Put the core in place
+### 1.3 Install the plugin and put the core in place
+
+The harness plugin is installed **once, at user scope** — it is not registered per harness tree or per target clone. Pass no scope: user is the default, and a project or local install writes `enabledPlugins` into the tree it is run in (the harness tree or a target clone) and shows up as a second registration in `~/.claude/plugins/installed_plugins.json`.
+
+```bash
+claude plugin marketplace add juhyeon-cha/skills   # once per machine; a no-op if it is already added
+claude plugin install harness@skills
+```
+
+Then the core:
 
 ```bash
 bash scripts/install.sh init
@@ -113,6 +122,7 @@ Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `CLAUDE.md`)
 | `bash scripts/board.sh all` | rc 0. Even with no story in the ledger, an empty table `docs/backlog/index.md` comes out — the projections are outside git, so do not commit them |
 | `bash checks/board-check.sh` | rc 0. With no sprint yet, the ledger has **0 `sprint:` labels and the registry `{"sprints": {}}` has 0 keys**, so the two-way comparison passes with 0 on both sides. **Even an empty registry needs the `sprints.json` file itself to exist** — without it, rc=1 (section 5 creates it) |
 | `bash checks/rules-check.sh` | rc 0 (S12 compares this file's `.gitignore` convention against the real file) |
+| `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — the plugin is registered at user scope and nowhere else |
 | `grep -c '^# --- BEGIN HARNESS GATE ---$' "$(git rev-parse --git-path hooks)/pre-commit"` | `1`. If it is 0, the gate does not run |
 | `bash scripts/install.sh manifest` · `bash checks/release-check.sh` | **non-zero is normal** — both are original-only and this is a derived install. A 0 here means the discrimination is broken. To actually compare the artifact you received, use the **argument mode** that the rc=1 output points to: `bash checks/release-check.sh <artifact directory>` — it does not call pack, so it runs in a derived install too, and it compares against this tree's CORE list |
 
@@ -125,7 +135,7 @@ Then:
 
 ## 2. B — Join an existing harness (from a clone)
 
-**Do not use a release artifact.** The core is already inside the clone (`git clone` brought it) and the version is what this harness's owner decided. What you stand up here is the four things **missing on this machine alone**: the ledger · the target repo clones · `core.hooksPath` · `beads.role`.
+**Do not use a release artifact.** The core is already inside the clone (`git clone` brought it) and the version is what this harness's owner decided. What you stand up here is the five things **missing on this machine alone**: the ledger · the plugin · the target repo clones · `core.hooksPath` · `beads.role`.
 
 `repos.json`·`rails.json`·`sprints.json`·`CLAUDE.md` are inherited. Do not run section 5's creation procedure.
 
@@ -139,9 +149,13 @@ bd list                  # confirm rc 0
 
 If `bd list` is not rc 0, stop here — every step after it is meaningless.
 
-### 2.2 Restore the target repo clones
+### 2.2 Install the plugin and restore the target repo clones
+
+The plugin is installed once at user scope (no scope argument — user is the default; see 1.3 for why). `repo.sh` registers nothing per clone.
 
 ```bash
+claude plugin marketplace add juhyeon-cha/skills   # once per machine; a no-op if it is already added
+claude plugin install harness@skills
 scripts/repo.sh restore   # re-clone repos that are registered but have no clone
 scripts/repo.sh list      # confirm registration and clone existence together
 ```
@@ -181,6 +195,7 @@ If it does not run, wire it by hand and nothing more: `git config core.hooksPath
 | Run | Expected |
 |---|---|
 | `bd list` | rc 0 (the ledger was restored) |
+| `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — user scope and nowhere else |
 | `scripts/repo.sh list` | 0 occurrences of "클론 없음" |
 | `grep -c '^# --- BEGIN HARNESS GATE ---$' "$(git rev-parse --git-path hooks)/pre-commit"` | `1` |
 | `git config beads.role` | `maintainer` |
@@ -253,6 +268,23 @@ Then:
 
 1. Locally commit the updated core files and `.harness-state`. Push only on explicit user instruction.
 2. **Ask the user to restart the session** — updated hooks and permissions load at session start.
+
+### 3.5 Move the plugin to user scope — one time only
+
+Installs made before the plugin moved to user scope registered `harness@skills` per tree — at project scope in the harness tree and at local scope in each target clone (an earlier `repo.sh` did the latter). Those registrations stay behind after `update` and load the same plugin several times over. Look at the scopes first.
+
+```bash
+jq -r '.plugins["harness@skills"][] | "\(.scope)\t\(.projectPath // "-")"' ~/.claude/plugins/installed_plugins.json
+```
+
+The target state is exactly one line, `user`. If a `user` line is missing, install it: `claude plugin install harness@skills` (no scope argument). Then remove every other line — each one has to be uninstalled from inside the tree it was registered in, at its own scope:
+
+```bash
+jq -r '.plugins["harness@skills"][] | select(.scope != "user") | "\(.scope)\t\(.projectPath)"' ~/.claude/plugins/installed_plugins.json \
+| while IFS=$'\t' read -r scope dir; do (cd "$dir" && claude plugin uninstall harness@skills --scope "$scope"); done
+```
+
+Run the first command again and confirm the single `user` line. Then look at the file each removed registration lived in — `.claude/settings.json` of the tree for project scope, `.claude/settings.local.json` for local — and make sure `enabledPlugins["harness@skills"]` is gone; if the key is still there, delete it by hand. A change to the harness tree's tracked `settings.json` is a diff to commit.
 
 ## 4. Interview (A only)
 
