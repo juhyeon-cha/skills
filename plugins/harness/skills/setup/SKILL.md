@@ -16,7 +16,7 @@ Both the procedure and the verification differ per branch. **Decide the branch f
 ## 0. Branch decision — first action
 
 ```bash
-ls -d .harness-state VERSION repos.json rails.json ledger.json .beads 2>/dev/null
+ls -d .harness-state repos.json rails.json ledger.json .beads 2>/dev/null
 git rev-parse --git-dir >/dev/null 2>&1 && echo "git: yes" || echo "git: no"
 HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
 ```
@@ -28,9 +28,12 @@ HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/n
 | `.harness-state` yes · git no · `repos.json` no | **A** — a release tarball was just unpacked here → section 1 |
 | `.harness-state` yes · git yes · `repos.json` yes · ledger no | **B** — a standing harness was cloned → section 2 |
 | all of the above (ledger included) | **C** — a harness already in use. Update only → section 3 |
-| `VERSION` yes · `.harness-state` no · ledger no | This is a **clone of the harness original** → **B**, follow section 2 as written. Today that is the only path for joining this project (no derived harness has been distributed yet). All five steps of B hold here — the hook files and `.claude/settings.json` are git-tracked so they come with the clone, and `repos.json`·`rails.json` come along too |
-| `VERSION` yes · `.harness-state` no · ledger yes | This is the harness **original**, and a tree already in use. Ask the user what they intend to do |
-| (common to both `.harness-state`-less rows) | The only thing ruled out is **section 3 (C)** — `check`·`update` must die in the original (the update source becomes itself). Do not call section 1 (A) either: this is not where a tarball was unpacked |
+| `.harness-state` no · `ledger.json` yes · ledger no | This is a **clone of the harness original** → **B**, follow section 2 as written. Today that is the only path for joining this project (no derived harness has been distributed yet). All five steps of B hold here — the hook files and `.claude/settings.json` are git-tracked so they come with the clone, and `repos.json`·`rails.json` come along too |
+| `.harness-state` no · `ledger.json` yes · ledger yes | This is the harness **original**, and a tree already in use. Ask the user what they intend to do |
+| (common to the two `ledger.json` rows above) | The only thing ruled out is **section 3 (C)** — `check`·`update` must die in the original (the update source becomes itself). Do not call section 1 (A) either: this is not where a tarball was unpacked |
+| `.harness-state` no · `ledger.json` no · git no | Nothing stands here yet — an empty directory where a **new harness** is being set up → **A**, section 1 |
+
+The discriminator for the original is `ledger.json` — the same file `lib/harness-root.sh` uses to recognize a harness root. The original ships no `.harness-state` (that file is the install record of a derived tree) and no version file (the version has one source, the plugin's `plugin.json`), so nothing else at the root tells the original apart.
 
 If no row of the table matches, do not guess your way forward — ask in one line. Picking the wrong branch falls toward the side that is expensive to undo (overwriting the core, initializing the ledger).
 
