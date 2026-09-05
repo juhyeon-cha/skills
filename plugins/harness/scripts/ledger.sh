@@ -39,6 +39,8 @@ usage() {
   label add|remove <id> <라벨>
   wire-worktree <워크트리 절대 경로>   워크트리에 원장을 배선한다 — hooks/enter-worktree.sh 가 부른다
                              (beads: <워크트리>/.beads/redirect · github·notion: 배선할 것이 없다, rc 0)
+  sync-check [--push]        원장이 원격과 어긋났는가 — checks/ledger-check.sh 가 부른다
+                             (beads: Dolt 원격 대조, --push 면 앞선 커밋 반영 · github·notion: "원격 반영 대상 없음" rc 0)
   help | --help
 
 beads 전용 (github · notion 은 rc≠0):

@@ -113,6 +113,9 @@ FX_STORY="fx-story"                # 스토리 bead id
 FX_TASK="fx-story.1.2"             # 태스크 bead id
 FX_TASK_OTHER="fx-story.9.9"       # 남의 태스크 (구현자 범위 시험용)
 FX_LABEL="repo:fx"                 # repo: 라벨
+# 어댑터 형태. 규칙은 bd 와 ledger.sh 둘 다 본다(guard.sh "원장 도구") — 아래 절마다 bd 픽스처 옆에
+# ledger.sh 픽스처가 차단 1·통과 1 로 붙는다. 실행 낱말은 basename 이라 `bash <경로>/ledger.sh` 로 쓴다.
+FX_LS="bash $TMP/fx-plugin/scripts/ledger.sh"
 
 outside_clone() {  # outside_clone <경로> — 클론 루트 밖이면 0
   case "$1/" in "${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"/*) return 1;; *) return 0;; esac
@@ -863,6 +866,11 @@ declare -a BD_DENY=(
   "cd /tmp && bd note $FX_TASK \"hi\""
   'B=bd; $B create x'
   "bd -C /h show $FX_TASK && bd note $FX_TASK \"hi\""
+  # ledger.sh 형태 — 원장 지정은 같은 조각 앞의 HARNESS_ROOT=<루트> 뿐이다.
+  "$FX_LS note $FX_TASK \"메모\""                                # 지정 없음
+  "export HARNESS_ROOT=$FX_ROOT; $FX_LS note $FX_TASK \"메모\""  # 앞 조각의 export 는 인정하지 않는다
+  "$FX_LS note $FX_TASK \"메모\" HARNESS_ROOT=$FX_ROOT"          # 하위 명령 뒤는 누락이다
+  'L=ledger.sh; $L create x'                                     # 별칭
 )
 for c in "${BD_DENY[@]}"; do
   runsub "$c"
@@ -884,6 +892,9 @@ done
 #    인정한다"가 A5 의 차단에 덮인다. 두 규칙이 겹치는 자리는 ⑬ 에서 따로 본다.
 declare -a BD_ALLOW=(
   "bd -C $FX_ROOT note $FX_TASK \"메모\""
+  "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh 형태의 원장 지정
+  "$FX_LS show $FX_TASK --json"                           # ledger.sh 읽기는 지정 없이도 면제
+  "$FX_LS --help"
   "bd show $FX_TASK"
   'bd list -l harness'
   'bd ready'
@@ -1087,6 +1098,7 @@ declare -a RM_DENY=(
   # URL 속 gh 는 실행 위치가 아니라 판정에 들지 않지만(RM_ALLOW 의 URL 통과 4건), 같은 줄의
   # 다음 조각에서 gh 가 실행되면 그 조각은 그대로 걸린다.
   'curl https://x.test/gh/a && gh pr create'
+  "HARNESS_ROOT=$FX_ROOT $FX_LS dolt push"  # 어댑터 경유의 원장 반영도 같은 자리에서 걸린다
 )
 for c in "${RM_DENY[@]}"; do
   runsub "$c"
@@ -1517,6 +1529,7 @@ declare -a GR_DENY=(
   'bd --json create x'                         # 옵션을 앞세워도 하위 명령을 읽어낸다
   "bd -C /h show $FX_TASK && bd -C /h note $FX_TASK hi"  # occurrence 마다 본다
   'B=bd; $B note x'                            # 치환이라 하위 명령을 못 읽는다 → 차단
+  "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh — 원장을 지정해도 채점자의 쓰기는 금지
 )
 for role in $GR_R $GR_E; do
   for c in "${GR_DENY[@]}"; do
@@ -1539,6 +1552,7 @@ declare -a GR_ALLOW=(
   'git branch --show-current'
   "bd -C $FX_ROOT show $FX_TASK"
   "bd -C $FX_ROOT list -l harness"
+  "HARNESS_ROOT=$FX_ROOT $FX_LS show $FX_TASK --json"   # ledger.sh 읽기 — 역할 정의가 지시하는 형태
   "bd show $FX_TASK"
   'bd ready'
   'npm test'
@@ -1794,6 +1808,8 @@ declare -a IMPL_DENY=(
   "bd --json -C $IMPL_H create x"                              # 옵션을 앞세워도 하위 명령을 읽어낸다
   "bd -C $IMPL_H show $FX_TASK && bd -C $IMPL_H create x"  # occurrence 마다 본다
   'bd create x'                                                # 무-C — 아래 겹침에서 메시지를 본다
+  "HARNESS_ROOT=$IMPL_H $FX_LS create x"                       # ledger.sh — 원장을 지정해도 note 외의 쓰기는 금지
+  "HARNESS_ROOT=$IMPL_H $FX_LS close $FX_TASK"
 )
 for c in "${IMPL_DENY[@]}"; do
   runimpl "$c"
@@ -1814,6 +1830,9 @@ declare -a IMPL_ALLOW=(
   "bd -C $IMPL_H show $FX_TASK && bd -C $IMPL_H note $FX_TASK \"끝\""
   "bd -C $IMPL_H show $FX_TASK"
   "bd -C $IMPL_H list -l harness"
+  "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK --file /tmp/n.txt"   # ledger.sh — implementer.md 절차 8 의 형태
+  "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK \"VERIFY_PENDING: abc1234\""
+  "HARNESS_ROOT=$IMPL_H $FX_LS show $FX_TASK --json"
   "bd show $FX_TASK"
   'bd ready'
   'git status'

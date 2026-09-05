@@ -26,7 +26,7 @@ cd "$ROOT" || { echo "✗ 하네스 루트로 이동하지 못했다: $ROOT" >&2
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 게이트는 jq 없이는 판정할 수 없다 (없으면 빈 질의 결과가 '라벨 없음' 오진이 된다)" >&2; exit 1; }
 
 # 원장 스냅샷은 **한 번만** 뜬다 — 질의를 나누면 스냅샷 사이에 시차가 생긴다.
-FULL_JSON=$(bd list --all --json -n 0) || { echo "✗ bd list 실패 — 원장 미가용" >&2; exit 1; }
+FULL_JSON=$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" list --all --json -n 0) || { echo "✗ ledger.sh list 실패 — 원장 미가용" >&2; exit 1; }
 [[ "$(printf '%s' "$FULL_JSON" | jq 'length')" -gt 0 ]] || { echo "✗ 원장이 0건이다 — 빈 집합에 대한 검사는 통과가 아니라 검사 안 함이다" >&2; exit 1; }
 
 # JSON 은 printf 로 파이프한다 — echo 는 backslash 확장 셸에서 jq 를 깨뜨린다 (board.sh 주석 참조).
@@ -142,7 +142,7 @@ if [[ -n "$VIOLATIONS" ]]; then
     [[ -z "$iid" ]] && continue
     if [[ "$kind" == "MISMATCH" ]]; then
       echo "✗ $iid — 상위 스토리는 $lbl 인데 이 이슈에 라벨이 없다 ($title)"
-      echo "    조치: bd tag $iid $lbl  (하위 전체에 붙인 뒤 scripts/board.sh all 재실행)"
+      echo "    조치: ledger.sh tag $iid $lbl  (beads — 하위 전체에 붙인 뒤 scripts/board.sh all 재실행. 다른 백엔드는 label add 를 하위마다)"
     else
       echo "✗ $iid — $lbl 라벨이 있는데 조상에 스프린트 epic 이 없다 ($title) — 어디에도 렌더되지 않는다"
       echo "    조치: 스토리(epic) 밑으로 옮기거나 라벨을 떼라"
@@ -165,7 +165,7 @@ NO_ACC=$(printf '%s' "$FULL_JSON" | jq -r --argjson terminal "$TERMINAL_STATUS" 
 if [[ -n "$NO_ACC" ]]; then
   while IFS=$'\t' read -r tid title; do
     [[ -z "$tid" ]] && continue
-    echo "✗ $tid — acceptance 가 비어 있다 ($title). 착수 전에 채워라 (bd update $tid --acceptance ...)"
+    echo "✗ $tid — acceptance 가 비어 있다 ($title). 착수 전에 채워라 (ledger.sh update $tid --acceptance ...)"
     fail=1
   done <<< "$NO_ACC"
 fi

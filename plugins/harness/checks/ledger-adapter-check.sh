@@ -70,7 +70,11 @@ step "--help 가 측정된 bd 하위 명령 전수를 덮는다 (측정 $(printf
 
 echo "── ② beads 동등성 — 실제 원장 읽기 ──"
 COPY="$TMP/copy"; mkdir -p "$COPY/.beads"
-printf '%s\n' "$ROOT/.beads" > "$COPY/.beads/redirect"
+# 대조 루트 자신이 redirect 로 배선된 사본 루트일 수 있다(HARNESS_ROOT 로 물린 검사 픽스처). bd 는 redirect
+# 사슬을 거부하므로("redirect chains not allowed", bd 1.2.2 실측) 한 홉을 여기서 풀어 실제 원장 디렉토리를 쓴다.
+LEDGER_DIR="$ROOT/.beads"
+[ -r "$LEDGER_DIR/redirect" ] && LEDGER_DIR="$(head -1 "$LEDGER_DIR/redirect")"
+printf '%s\n' "$LEDGER_DIR" > "$COPY/.beads/redirect"
 printf '{"backend":"beads"}\n' > "$COPY/ledger.json"
 run "$COPY" list --status open --json
 bd -C "$ROOT" list --status open --json > "$TMP/bd-list.json" 2>/dev/null
@@ -242,6 +246,12 @@ grun show 57
 step "형식 밖 id(번호만) → rc≠0" [ "$RC" -ne 0 ]
 grun show 'nowhere#1'
 step "repos.json 에 없는 레포 → rc≠0" [ "$RC" -ne 0 ]
+# repos.json 이 아예 없는 루트 — 종전에는 레포 루프가 빈 채로 돌아 "이슈 0건" 으로 rc 0 이 났다
+# (harness-m8gg.4 verify-code 2차 관찰). 실패를 삼키지 않는다.
+mkdir -p "$TMP/ghnorepos"; cp "$GH/ledger.json" "$TMP/ghnorepos/"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghnorepos" bash "$LEDGER" list --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "repos.json 없는 루트에서 list → rc≠0 이고 stderr 가 repos.json 을 든다 (빈 목록 rc 0 으로 삼키지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "repos.json"' _ "$RC" "$ERR"
 
 grun children 'harness#57' --json
 step "children --json 이 subIssues 2건을 parent 와 함께 낸다" \

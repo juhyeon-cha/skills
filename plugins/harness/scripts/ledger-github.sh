@@ -34,6 +34,8 @@ die() { echo "ledger-github: $*" >&2; exit 1; }
 # 워크트리 배선 — 이 백엔드는 워크트리에 아무것도 두지 않는다. 이슈는 원격에 있고 루트는
 # HARNESS_ROOT 또는 ~/.harness-workspace/.harness-root(lib/harness-root.sh)로 찾는다. gh 없이도 답한다.
 [ "${1:-}" = "wire-worktree" ] && { echo "ledger-github: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
+# 원격 반영 검사 — 이슈가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
+[ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (github 백엔드: 이슈가 원격 자체다)"; exit 0; }
 
 OWNER="$(jq -r '.owner // empty' "$LEDGER_CONFIG")"
 PROJECT="$(jq -r '.project // empty' "$LEDGER_CONFIG")"
@@ -128,7 +130,12 @@ list_json() { # 옵션을 파싱해 정규화된 JSON 배열을 낸다. 상태 �
   states="[OPEN]"
   case ",$status," in *,closed,*) states="[OPEN,CLOSED]" ;; esac
   [ -n "$all" ] && states="[OPEN,CLOSED]"
-  for name in $(repos_all); do
+  # 레포 목록의 출처가 없으면 여기서 죽는다 — `for name in $(repos_all)` 안의 실패는 명령 치환에 갇혀 빈 루프가
+  # 되고 "이슈 0건" 으로 rc 0 이 났다(harness-m8gg.4 verify-code 2차의 관찰). 실패를 삼키지 않는다.
+  local names
+  [ -r "$LEDGER_ROOT/repos.json" ] || die "list: $LEDGER_ROOT/repos.json 이 없다 — 이슈가 사는 레포 목록의 출처다"
+  names="$(repos_all)" || die "list: $LEDGER_ROOT/repos.json 을 읽지 못했다 (유효한 JSON 인가)"
+  for name in $names; do
     o="$(slug_of "$name")"; r="${o##*/}"; o="${o%%/*}"
     page="$(gh api graphql --paginate --slurp -f query="query(\$o:String!,\$r:String!,\$endCursor:String){ repository(owner:\$o,name:\$r){ issues(first:100, after:\$endCursor, states:$states){ nodes{ $FIELDS } pageInfo{hasNextPage endCursor} } } }" -f o="$o" -f r="$r" 2>/dev/null)" \
       || die "list: $o/$r 의 이슈를 읽지 못했다"

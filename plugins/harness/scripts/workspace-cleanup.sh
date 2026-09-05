@@ -39,7 +39,7 @@
 set -uo pipefail
 # 하네스 루트는 lib/harness-root.sh 가 낸다 (board.sh 와 동일) — 호출자의 CWD 도
 # 스크립트 위치도 쓰지 않는다. CWD 를 쓰면 워크트리에서 절대 경로로 불렸을 때 대상 레포의
-# repos.json 을 읽고 bare bd 가 대상 원장에 붙는다.
+# repos.json 을 읽는다.
 # `$PWD` 가 아니라 `pwd -P` 다. 논리 경로로 잡으면 아래 inside() 가 심볼릭 경로로 들어온
 # 호출자를 못 알아보고 **자기 CWD 를 지운다** (macOS 는 /var→/private/var 심링크가 기본이라
 # 재현 소재가 늘 있다). 이 파일의 다른 경로 비교도 전부 pwd -P 로 통일돼 있다.
@@ -64,12 +64,12 @@ CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
 command -v jq >/dev/null 2>&1 || { echo "오류: jq 가 없다 — 라벨·등록부 해석에 필수 (없으면 '라벨 없음' 오진이 난다)" >&2; exit 1; }
 [[ -f "$MANIFEST" ]] || { echo "오류: $MANIFEST 없음" >&2; exit 1; }
 
-# bd 실패와 "라벨 없음"을 구분한다. stderr 는 stdout 에 섞지 않는다 — bd 가 경고만 내도
-# JSON 이 오염돼 jq 가 죽고 "라벨 없음" 오진이 난다 (실측 2026-08-20).
+# 원장 실패와 "라벨 없음"을 구분한다. stderr 는 stdout 에 섞지 않는다 — 백엔드가 경고만 내도
+# JSON 이 오염돼 jq 가 죽고 "라벨 없음" 오진이 난다 (실측 2026-08-20). 원장은 어댑터로 읽는다.
 BD_ERR=$(mktemp)
-SHOW_JSON=$(bd show "$STORY" --json 2>"$BD_ERR")
+SHOW_JSON=$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" show "$STORY" --json 2>"$BD_ERR")
 if [[ $? -ne 0 ]]; then
-  echo "오류: bd show 실패 — $(cat "$BD_ERR")" >&2; rm -f "$BD_ERR"; exit 1
+  echo "오류: ledger.sh show 실패 — $(cat "$BD_ERR")" >&2; rm -f "$BD_ERR"; exit 1
 fi
 rm -f "$BD_ERR"
 REPOS=$(printf '%s' "$SHOW_JSON" | jq -r '.[0].labels[]? | select(startswith("repo:")) | sub("^repo:"; "")')

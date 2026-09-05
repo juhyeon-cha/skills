@@ -5,7 +5,7 @@
 #      이미 있던 .claude/settings.local.json 의 내용이 apply 전후로 같고 .claude/settings.json 도 생기지 않는다
 #   ③ .harness-root 가 다른 경로를 담고 있으면 rc≠0 이고 stderr 에 두 경로가 모두 있다 (덮어쓰지 않는다)
 #   ④ list 에 하네스 루트 행이 있고 플러그인 행은 없다
-# 가짜 하네스 루트(HARNESS_ROOT — .beads/embeddeddolt 뼈대와 repos.json)와 가짜 클론 루트
+# 가짜 하네스 루트(HARNESS_ROOT — 판별자 ledger.json 과 repos.json)와 가짜 클론 루트
 # (HARNESS_CLONE_ROOT)로만 돈다 — 실제 ~/.harness-workspace 도 실제 원장도 건드리지 않는다.
 # PATH 를 /usr/bin:/bin 으로 좁혀 claude 를 뺀다 — repo.sh 가 claude 를 부르지 않는다는 것도 이 PATH 에서 드러난다.
 set -uo pipefail
@@ -15,7 +15,7 @@ trap 'rm -rf "$TMP"' EXIT
 
 HROOT="$TMP/hroot"
 export HARNESS_ROOT="$HROOT" HARNESS_CLONE_ROOT="$TMP/clones"
-mkdir -p "$HROOT/.beads/embeddeddolt" "$HARNESS_CLONE_ROOT"
+mkdir -p "$HROOT" "$HARNESS_CLONE_ROOT" && printf '{"backend":"beads"}\n' > "$HROOT/ledger.json"
 jq -n '{repos: [{name: "r", url: "unused", default_branch: "main", check: "true", bootstrap: ""}]}' > "$HROOT/repos.json"
 git init -q "$HARNESS_CLONE_ROOT/r"
 CLONE="$HARNESS_CLONE_ROOT/r"

@@ -489,7 +489,14 @@ if [[ ! -f "$LEDGER" ]]; then
   fail=1
 else
   LTMP="$TMP/ledger"
-  mkdir -p "$LTMP/bin" "$LTMP/up/.beads/embeddeddolt/db" "$LTMP/up/sub" "$LTMP/norepo"
+  # 픽스처 루트 둘 — 판별자 ledger.json(backend beads)을 갖춘다. `root` 는 .beads/redirect 로 `up` 의 원장을
+  # 가리키는 사본 루트(워크트리·검사 사본과 같은 배선)라 자기 아래에는 embeddeddolt 가 없다 — 원장 위치를
+  # bd 에게 묻지 않고 루트 아래 경로를 조립하면 여기서 원장을 놓친다(harness-js9 의 형태). `norepo` 는
+  # 원장이 정말 없는 트리다. ledger-check.sh 는 인자 루트를 HARNESS_ROOT 로 어댑터에 넘긴다.
+  mkdir -p "$LTMP/bin" "$LTMP/up/.beads/embeddeddolt/db" "$LTMP/root/.beads" "$LTMP/norepo"
+  printf '{"backend":"beads"}\n' > "$LTMP/root/ledger.json"
+  printf '{"backend":"beads"}\n' > "$LTMP/norepo/ledger.json"
+  printf '%s\n' "$LTMP/up/.beads" > "$LTMP/root/.beads/redirect"
 
   # dolt 스텁 — 원격 있음 · 계보 공유 · ahead 는 $LTMP/ahead 파일이 정한다.
   # ahead 를 파일로 두는 이유: 자동 반영이 **실제로 상태를 바꿨는지**를 봐야 하기 때문이다.
@@ -505,11 +512,13 @@ case "$1" in
   *) : ;;
 esac
 STUB
-  # bd 스텁 — where 가 상위 체크아웃의 원장을 낸다. BD_STUB_MISS=1 이면 원장 없음(rc=1).
+  # bd 스텁 — where 가 redirect 너머(up)의 원장을 낸다. BD_STUB_MISS=1 이면 원장 없음(rc=1).
   # `bd dolt push` 는 ahead 를 0 으로 만든다(반영 성공). BD_PUSH_FAIL=1 이면 상태를 그대로
   # 두고 rc=1 — 자동 반영이 **해소하지 못한** 경우이며 그때는 막아야 한다.
+  # 어댑터는 `bd -C <루트> …` 로 부른다 — 원장 지정을 건너뛰고 하위 명령을 본다.
   cat > "$LTMP/bin/bd" <<STUB
 #!/bin/sh
+if [ "\$1" = "-C" ]; then shift 2; fi
 if [ "\$1" = "where" ]; then
   [ -n "\${BD_STUB_MISS:-}" ] && { echo "Error: No active beads workspace found." >&2; exit 1; }
   b="$LTMP/up/.beads"
@@ -551,16 +560,14 @@ STUB
   }
   set_ahead 0
 
-  # ① 격리 작업 공간 — ROOT 에 embeddeddolt 가 없고 원장은 상위에 있다.
-  run_ledger bash "$LEDGER" "$LTMP/up/sub"
-  step "격리 공간: 원장을 놓치지 않는다 (건너뜀으로 통과하지 않는다)" lacks_text "임베디드 원장 없음" "$LOUT"
-  step "격리 공간: 상위 원장을 대상으로 판정에 도달한다 (rc=0)" [ "$LRC" -eq 0 ]
-  step "격리 공간: 반영 여부를 실제로 판정했다고 말한다" has_text "원격 반영 확인됨" "$LOUT"
+  # ① 배선된 사본 루트 — ROOT 아래에 embeddeddolt 가 없고 원장은 redirect 너머에 있다.
+  run_ledger bash "$LEDGER" "$LTMP/root"
+  step "배선 루트: 원장을 놓치지 않는다 (건너뜀으로 통과하지 않는다)" lacks_text "임베디드 원장 없음" "$LOUT"
+  step "배선 루트: redirect 너머의 원장을 대상으로 판정에 도달한다 (rc=0)" [ "$LRC" -eq 0 ]
+  step "배선 루트: 반영 여부를 실제로 판정했다고 말한다" has_text "원격 반영 확인됨" "$LOUT"
 
-  # ② 원장이 정말 없는 **클론** — 종전대로 건너뛰고 rc=0. ①의 수정이 이것을 깨지 않는다.
-  #    진짜 git 저장소로 만든다. 그래야 "저장소이긴 한데 원장이 없다"(대상 트리 파생 ①·②가
-  #    둘 다 실패)를 밟는다 — 그냥 mkdir 한 디렉토리는 저장소가 아니어서 다른 이유로
-  #    같은 결과에 도달하고, 그러면 이 단언이 무엇을 본 것인지 알 수 없다.
+  # ② 원장이 정말 없는 **클론**(ledger.json 은 있으나 bd 가 원장을 못 낸다) — 건너뛰고 rc=0.
+  #    ①의 수정이 이것을 깨지 않는다. 진짜 git 저장소로 만든다 — "저장소이긴 한데 원장이 없다"를 밟는다.
   fxgit init -q "$LTMP/norepo" 2>/dev/null
   LOUT=$(env PATH="$LTMP/bin:/usr/bin:/bin" BD_STUB_MISS=1 bash "$LEDGER" "$LTMP/norepo" 2>&1); LRC=$?
   step "원장 없는 클론: 건너뛴다"        has_text "임베디드 원장 없음" "$LOUT"
@@ -577,7 +584,7 @@ STUB
   #    스위치를 여기서 켜는 것은 **pre-push 훅 블록이 켜는 그 자리를 재현**하는 것이다 —
   #    S5-push 가 그 블록에 이 변수가 실제로 있는지를 따로 단언한다.
   set_ahead 3
-  run_ledger_env LEDGER_CHECK_PUSH=1 bash "$LEDGER" "$LTMP/up/sub"
+  run_ledger_env LEDGER_CHECK_PUSH=1 bash "$LEDGER" "$LTMP/root"
   step "ahead(쓰기 모드): 막지 않고 자동 반영한다 (rc=0)" [ "$LRC" -eq 0 ]
   step "ahead(쓰기 모드): 반영을 예고한다"                has_text "bd dolt push 로 함께 반영한다" "$LOUT"
   step "ahead(쓰기 모드): 통과 문구가 '이번에 수행함' 이다" has_text "원격 반영 이번에 수행함" "$LOUT"
@@ -586,7 +593,7 @@ STUB
   # ④ 자동 반영이 **실패하면** 막는다 (acceptance ②). 자동화가 새로운 조용한 누락을
   #    만들면 안 된다 — push 가 실패했는데 통과시키면 종전보다 나빠진다.
   set_ahead 3
-  run_ledger_env LEDGER_CHECK_PUSH=1 BD_PUSH_FAIL=1 bash "$LEDGER" "$LTMP/up/sub"
+  run_ledger_env LEDGER_CHECK_PUSH=1 BD_PUSH_FAIL=1 bash "$LEDGER" "$LTMP/root"
   step "push 실패: 막는다 (rc=1)"                      [ "$LRC" -eq 1 ]
   step "push 실패: 해소하지 못했음을 말한다"            has_text "자동 반영이 해소하지 못했다" "$LOUT"
   step "push 실패: 상태를 꾸며내지 않는다 (ahead 유지)" [ "$(get_ahead)" = "3" ]
@@ -597,7 +604,7 @@ STUB
   #    ③ 은 ahead 를 0 으로 만들고 여기는 3 으로 남긴다. `bd dolt push` 스텁이 ahead 파일을
   #    0 으로 쓰므로 그 값이 곧 "원격 쓰기가 일어났는가"이고, 종료 코드가 아닌 것으로 본다.
   set_ahead 3
-  run_ledger bash "$LEDGER" "$LTMP/up/sub"
+  run_ledger bash "$LEDGER" "$LTMP/root"
   step "기본값(스위치 없음): 막지 않는다 (rc=0)"        [ "$LRC" -eq 0 ]
   step "기본값: 원격에 쓰지 않는다 (ahead 유지)"        [ "$(get_ahead)" = "3" ]
   step "기본값: 반영했다고 말하지 않는다"               lacks_text "원격 반영 이번에 수행함" "$LOUT"
@@ -606,26 +613,35 @@ STUB
 
   # ⑥ A/B 귀속 둘. 각 수정만 뺀 사본에서 그 단언이 실제로 뒤집히는가.
   #    안 뒤집히면 위 단언들은 "다른 이유로 통과한 것"과 구분되지 않는다.
-  sed 's#^  dolt_root="\$LEDGER_DB"#  dolt_root="$ROOT/.beads/embeddeddolt"#' \
-    "$LEDGER" > "$LTMP/ledger-old.sh"
-  if ! not_same "$LEDGER" "$LTMP/ledger-old.sh"; then
+  #    판정은 ledger-check.sh 가 아니라 어댑터의 beads 백엔드(scripts/ledger-beads.sh sync-check)에 있으므로
+  #    사본도 그 파일에서 뜨고, LEDGER_ROOT 를 직접 물려 돌린다(ledger.sh 가 그 백엔드를 부를 때와 같은 계약).
+  BEADS_BE="scripts/ledger-beads.sh"
+  run_be() {  # run_be <사본> <루트> <인자…> → LOUT/LRC
+    local be="$1" root="$2"; shift 2
+    LOUT=$(env PATH="$LTMP/bin:/usr/bin:/bin" AHEAD_FILE="$AHEAD_FILE" LEDGER_ROOT="$root" bash "$be" sync-check "$@" 2>&1); LRC=$?
+  }
+  sed 's#^  elif dolt_root="\$db"; #  elif dolt_root="$LEDGER_ROOT/.beads/embeddeddolt"; #' \
+    "$BEADS_BE" > "$LTMP/ledger-old.sh"
+  if ! not_same "$BEADS_BE" "$LTMP/ledger-old.sh"; then
     say_fail "원장 탐색 줄을 옛 형태로 되돌린 사본이 원본과 같거나 만들어지지 않았다 — 파생 형태가 바뀌어 sed 가 아무것도 못 지웠다. 이 절의 귀속 단언이 공허해진다"
     fail=1
   else
     set_ahead 0
-    run_ledger bash "$LTMP/ledger-old.sh" "$LTMP/up/sub"
-    step "A/B 귀속: 탐색 한 줄을 되돌리면 격리 공간에서 다시 원장을 놓친다" has_text "임베디드 원장 없음" "$LOUT"
+    run_be "$BEADS_BE" "$LTMP/root"
+    step "A/B 대조군: 원본 백엔드를 직접 돌려도 배선 루트에서 판정에 도달한다" has_text "원격 반영 확인됨" "$LOUT"
+    run_be "$LTMP/ledger-old.sh" "$LTMP/root"
+    step "A/B 귀속: 탐색 한 줄을 되돌리면 배선 루트에서 다시 원장을 놓친다" has_text "임베디드 원장 없음" "$LOUT"
   fi
 
   # 자동 반영 호출만 뺀 사본 (acceptance ④). ahead 가 그대로 남으므로 재판정이 막아야 한다 —
   # 즉 이 사본에서는 ③ 의 입력이 rc=1 이 된다. 같으면 ③ 은 자동 반영과 무관하게 통과한 것이다.
-  sed 's#^    (cd "\$ROOT" && bd dolt push).*#    :#' "$LEDGER" > "$LTMP/ledger-nopush.sh"
-  if ! not_same "$LEDGER" "$LTMP/ledger-nopush.sh"; then
+  sed 's#^            (cd "\$LEDGER_ROOT" && bd dolt push).*#            :#' "$BEADS_BE" > "$LTMP/ledger-nopush.sh"
+  if ! not_same "$BEADS_BE" "$LTMP/ledger-nopush.sh"; then
     say_fail "자동 반영 호출을 뺀 사본이 원본과 같거나 만들어지지 않았다 — 호출 형태가 바뀌어 sed 가 아무것도 못 지웠다. acceptance ④ 의 귀속이 공허해진다"
     fail=1
   else
     set_ahead 3
-    run_ledger_env LEDGER_CHECK_PUSH=1 bash "$LTMP/ledger-nopush.sh" "$LTMP/up/sub"
+    run_be "$LTMP/ledger-nopush.sh" "$LTMP/root" --push
     step "A/B 귀속: 자동 반영 호출을 빼면 같은 입력이 막힌다 (rc=1)" [ "$LRC" -eq 1 ]
     step "A/B 귀속: 그때 상태는 해소되지 않는다 (ahead 유지)"        [ "$(get_ahead)" = "3" ]
   fi
@@ -643,7 +659,7 @@ fi
 # 쌓인다.** "그 경로가 발화한 적 있는가"를 기계값으로 만드는 것이 그 로그의 존재 이유인데
 # 게이트가 그 값을 스스로 망친다 (S1·S6 이 같은 이유로 같은 형태를 쓴다). 원장 조회는 PATH
 # 앞의 스텁이 받고, 하네스 루트는 HARNESS_ROOT 로 물린 합성 루트다(lib/harness-root.sh 의 첫
-# 출처 — 판별자 .beads/embeddeddolt 만 갖춘다) — 진짜 bd·원장을 물리면 판정이 그 머신의 원장
+# 출처 — 판별자 ledger.json 만 갖춘다) — 진짜 bd·원장을 물리면 판정이 그 머신의 원장
 # 상태에 흔들려 재현되지 않는다.
 section "S7 정지 가드 (${STOPHOOK}) — 배선된 그 파일이 실제로 발화하는가"
 if [[ ! -f "$STOPHOOK" ]]; then
@@ -651,7 +667,8 @@ if [[ ! -f "$STOPHOOK" ]]; then
   fail=1
 else
   PTMP="$TMP/stopguard"
-  mkdir -p "$PTMP/bin" "$PTMP/proj" "$PTMP/data" "$PTMP/hroot/.beads/embeddeddolt"
+  mkdir -p "$PTMP/bin" "$PTMP/proj" "$PTMP/data" "$PTMP/hroot"
+  printf '{"backend":"beads"}\n' > "$PTMP/hroot/ledger.json"   # 판별자 — 훅의 오라클은 어댑터(ledger.sh)를 거쳐 PATH 앞의 스텁 bd 에 닿는다
   SDATA="$PTMP/data"
   SLOG="$SDATA/stop-resume.log"
   SORACLE="$PTMP/oracle"
@@ -666,7 +683,7 @@ else
   # assignee 를 비우면 숫자 모드 픽스처가 전부 좁히기에 걸러져 IDLE 로 무너진다.
   cat > "$PTMP/bin/bd" <<'STUB'
 #!/bin/sh
-# 훅은 `bd -C <하네스루트> list …` 로 부른다 — 원장 지정을 건너뛰고 하위 명령을 본다.
+# 훅은 어댑터를 거쳐 `bd -C <하네스루트> list …` 로 부른다 — 원장 지정을 건너뛰고 하위 명령을 본다.
 if [ "$1" = "-C" ]; then shift 2; fi
 if [ "$1" = "list" ]; then
   v=$(cat "$ORACLE_FILE" 2>/dev/null || echo 0)

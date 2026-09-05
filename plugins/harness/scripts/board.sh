@@ -1,5 +1,5 @@
 #!/bin/bash
-# beads(SSOT) → 사람이 읽는 스토리 문서 트리 렌더러.
+# 원장(SSOT — scripts/ledger.sh 가 읽는 어느 백엔드든) → 사람이 읽는 스토리 문서 트리 렌더러.
 # 사용: scripts/board.sh <스프린트ID>   (형식: YYYY-SNN)  → docs/sprints/<ID>/
 #       scripts/board.sh backlog                          → docs/backlog/
 #       scripts/board.sh adr                              → docs/adr/
@@ -64,7 +64,8 @@ fi
 # 입력 파생: epic 전수를 받아 이 대상에 속하는 epic 을 고르고 그 **자손 전부**를 붙인다.
 # 자손을 라벨이 아니라 parent 사슬로 모으는 이유: 백로그 스토리의 하위에는 sprint 라벨이
 # 없어 라벨 질의로는 마일스톤 0개가 되고, 그 상태도 rc=0 으로 성공한다 (실측 2026-08-19).
-ALL_JSON=$(cd "$ROOT" && bd list --all --json -n 0)
+# 원장은 어댑터로 읽는다 — 백엔드가 무엇이든 같은 JSON 키다(scripts/ledger.sh). 루트는 위에서 찾은 값을 그대로 물린다.
+ALL_JSON=$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" list --all --json -n 0)
 # JSON 은 항상 printf 로 파이프한다 — echo 는 backslash 확장 셸(sh, xpg_echo)에서
 # 필드 안의 \n·\uXXXX 를 raw 제어문자로 바꿔 jq 가 rc=5 로 죽는다 (실측 2026-08-19).
 if [[ "$MODE" == "adr" ]]; then
@@ -101,7 +102,7 @@ fi
 # 타임스탬프를 넣지 않는다 — 같은 bd 상태면 바이트 동일(결정론). 재렌더가 diff 를 만들지 않는다.
 HEADER="<!-- bd 생성 문서. 직접 수정 금지 — bd 로 수정 후 scripts/board.sh $TARGET 재실행 -->"
 
-glyph() { # 상태 → bd 와 같은 기호
+glyph() { # 상태 → 원장(beads)과 같은 기호
   case "$1" in
     open) echo "○" ;; in_progress) echo "◐" ;; blocked) echo "●" ;;
     closed) echo "✓" ;; deferred) echo "❄" ;; pinned) echo "📌" ;;
@@ -248,7 +249,7 @@ for did in $(printf '%s' "$JSON" | jq -r 'sort_by(.id) | .[].id'); do
 
   # 폴백 없이 실패한다. 슬러그 없는 결정을 임의의 이름으로 그리면 원장을 고칠 이유가
   # 사라지고, 그 결정은 다음 렌더에서 이름이 바뀐다.
-  [[ -n "$slug" ]] || { echo "결정 $did 에 slug: 라벨이 없다 (파일명이 된다 — bd label add $did slug:<이름>)" >&2; exit 1; }
+  [[ -n "$slug" ]] || { echo "결정 $did 에 slug: 라벨이 없다 (파일명이 된다 — ledger.sh label add $did slug:<이름>)" >&2; exit 1; }
   if [[ ! "$slug" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
     echo "슬러그 형식 위반: '$slug' (결정 $did) — 소문자·숫자·하이픈만, 첫 글자는 영숫자" >&2
     exit 1
