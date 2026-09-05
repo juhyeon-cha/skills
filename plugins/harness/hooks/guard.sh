@@ -274,9 +274,12 @@ exec_segments() {  # exec_segments <명령이름> → 그 명령을 실행하는
 }
 # 도구 이름을 변수에 담는 형태(`B=bd; $B …`)는 실행 위치에서 읽히지 않는다 — 대입문을 보고 막는다.
 # 도구 이름의 `.`(ledger.sh)은 리터럴이다 — 정규식 메타로 두면 `ledger-sh` 같은 이름도 잡는다.
+# 대입값은 경로 접두를 가질 수 있다(`L=$CLAUDE_PLUGIN_ROOT/scripts/ledger.sh` · `B=/opt/homebrew/bin/bd`) —
+# 역할 정의가 지시하는 형태가 경로라 변수에 담기는 것도 경로다. 접두는 공백·`;`·`&`·`|` 를 넘지 않고
+# `/` 로 끝나며, 도구 이름 뒤에 `/`·`.` 이 오면(`X=/a/bd/log` · `LOG=ledger.sh.log`) 그 이름은 디렉토리·다른 파일이라 잡지 않는다.
 tool_aliased() {
   local p; p="$(printf '%s' "$1" | sed 's/\./\\./g')"
-  printf '%s' "$COMMAND" | grep -Eq "(^|[^A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*=$p([^A-Za-z0-9_]|\$)"
+  printf '%s' "$COMMAND" | grep -Eq "(^|[^A-Za-z0-9_])[A-Za-z_][A-Za-z0-9_]*=([^[:space:];&|]*/)?$p([^A-Za-z0-9_/.]|\$)"
 }
 
 # ── 원장 도구 ────────────────────────────────────────────────────────
@@ -631,8 +634,10 @@ r_remote() {
   local t
   for t in $LEDGER_TOOLS; do
   while IFS= read -r seg; do
-    [ "$(subcmds_after "$t" "$(ledger_vopts "$t")" "$seg")" = "dolt" ] && has_token 'push' "$seg" || continue
-    deny "원격 반영 금지 — $t dolt push 는 원장을 원격에 반영한다. 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+    # 원장을 원격에 반영하는 하위 명령은 둘이다 — `dolt push` 와, ledger-check 가 부르는 `sync-check --push`.
+    sub="$(subcmds_after "$t" "$(ledger_vopts "$t")" "$seg")"
+    { [ "$sub" = "dolt" ] && has_token 'push' "$seg"; } || { [ "$sub" = "sync-check" ] && has_token '[-][-]push' "$seg"; } || continue
+    deny "원격 반영 금지 — $t $sub 가 원장을 원격에 반영한다($t dolt push · $t sync-check --push). 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
   done < <(exec_segments "$t")
   done
 

@@ -871,6 +871,9 @@ declare -a BD_DENY=(
   "export HARNESS_ROOT=$FX_ROOT; $FX_LS note $FX_TASK \"메모\""  # 앞 조각의 export 는 인정하지 않는다
   "$FX_LS note $FX_TASK \"메모\" HARNESS_ROOT=$FX_ROOT"          # 하위 명령 뒤는 누락이다
   'L=ledger.sh; $L create x'                                     # 별칭
+  # 경로 접두 별칭 — 역할 정의가 지시하는 형태가 경로라 변수에 담기는 것도 경로다 (harness-m8gg.5 리뷰 MUST FIX 1)
+  'L=$CLAUDE_PLUGIN_ROOT/scripts/ledger.sh; HARNESS_ROOT=/h bash $L close x'
+  'B=/opt/homebrew/bin/bd; $B create x'
 )
 for c in "${BD_DENY[@]}"; do
   runsub "$c"
@@ -894,6 +897,8 @@ declare -a BD_ALLOW=(
   "bd -C $FX_ROOT note $FX_TASK \"메모\""
   "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh 형태의 원장 지정
   "$FX_LS show $FX_TASK --json"                           # ledger.sh 읽기는 지정 없이도 면제
+  "HARNESS_ROOT=$FX_ROOT bash \"\$CLAUDE_PLUGIN_ROOT\"/scripts/ledger.sh note $FX_TASK \"메모\""   # 역할 정의가 지시하는 정상 형태 — 별칭이 아니다
+  'LOG=/tmp/ledger.sh.log; cat $LOG'                      # 도구 이름이 경로 끝이 아니다 — 별칭이 아니다
   "$FX_LS --help"
   "bd show $FX_TASK"
   'bd list -l harness'
@@ -1155,6 +1160,16 @@ for c in "${RM_ALLOW[@]}"; do
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "통과: $c" [ "$GUARD_RC" -eq 0 ]
 done
+
+# ── sync-check: `--push` 만 원격 반영이다 (harness-m8gg.5 리뷰 MUST FIX 2). **agent_type 없는
+#    서브에이전트**로 돌린다 — implementer 로 두면 ⑬(A5)이 note 외의 쓰기로 막아 통과 대조군이 사라진다.
+runsub_anon "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check --push"
+printf '  rc=%d  [agent_type 없는 서브에이전트] ledger.sh sync-check --push\n' "$GUARD_RC"
+step "차단(agent_type 없는 서브에이전트): ledger.sh sync-check --push" [ "$GUARD_RC" -eq 2 ]
+step "그 메시지는 원격 반영 쪽이다" has_text '원격 반영 금지' "$GUARD_OUT"
+runsub_anon "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check"
+printf '  rc=%d  [agent_type 없는 서브에이전트] ledger.sh sync-check\n' "$GUARD_RC"
+step "통과(agent_type 없는 서브에이전트): ledger.sh sync-check (스위치 없음은 판정만이다)" [ "$GUARD_RC" -eq 0 ]
 
 # ── 오케스트레이터는 막히지 않는다 (acceptance ②). 사용자 지시를 받으면 실제로 해야 한다.
 declare -a RM_ORCH=(
@@ -1530,6 +1545,7 @@ declare -a GR_DENY=(
   "bd -C /h show $FX_TASK && bd -C /h note $FX_TASK hi"  # occurrence 마다 본다
   'B=bd; $B note x'                            # 치환이라 하위 명령을 못 읽는다 → 차단
   "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh — 원장을 지정해도 채점자의 쓰기는 금지
+  'L="$CLAUDE_PLUGIN_ROOT"/scripts/ledger.sh; HARNESS_ROOT=/h bash "$L" note x hi'   # 경로 접두 별칭 (MUST FIX 1)
 )
 for role in $GR_R $GR_E; do
   for c in "${GR_DENY[@]}"; do
@@ -1553,6 +1569,7 @@ declare -a GR_ALLOW=(
   "bd -C $FX_ROOT show $FX_TASK"
   "bd -C $FX_ROOT list -l harness"
   "HARNESS_ROOT=$FX_ROOT $FX_LS show $FX_TASK --json"   # ledger.sh 읽기 — 역할 정의가 지시하는 형태
+  "HARNESS_ROOT=$FX_ROOT bash \"\$CLAUDE_PLUGIN_ROOT\"/scripts/ledger.sh show $FX_TASK --json"   # 인용된 경로 변수 — 별칭이 아니다
   "bd show $FX_TASK"
   'bd ready'
   'npm test'
@@ -1810,6 +1827,7 @@ declare -a IMPL_DENY=(
   'bd create x'                                                # 무-C — 아래 겹침에서 메시지를 본다
   "HARNESS_ROOT=$IMPL_H $FX_LS create x"                       # ledger.sh — 원장을 지정해도 note 외의 쓰기는 금지
   "HARNESS_ROOT=$IMPL_H $FX_LS close $FX_TASK"
+  'L=$CLAUDE_PLUGIN_ROOT/scripts/ledger.sh; HARNESS_ROOT=/h bash $L close x'   # 경로 접두 별칭 — 리뷰 실측 rc=0 이던 형태 (MUST FIX 1)
 )
 for c in "${IMPL_DENY[@]}"; do
   runimpl "$c"
@@ -1833,6 +1851,7 @@ declare -a IMPL_ALLOW=(
   "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK --file /tmp/n.txt"   # ledger.sh — implementer.md 절차 8 의 형태
   "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK \"VERIFY_PENDING: abc1234\""
   "HARNESS_ROOT=$IMPL_H $FX_LS show $FX_TASK --json"
+  "HARNESS_ROOT=$IMPL_H bash \"\$CLAUDE_PLUGIN_ROOT\"/scripts/ledger.sh note $FX_TASK \"메모\""   # 역할 정의가 지시하는 정상 형태 — 별칭이 아니다
   "bd show $FX_TASK"
   'bd ready'
   'git status'
