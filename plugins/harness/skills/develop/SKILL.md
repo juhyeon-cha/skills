@@ -243,10 +243,10 @@ The sections below came down from the always-on ruleset (the harness repo's agil
 
 **사이클의 종점은 PR 생성이다.** 여기까지는 **그 사이클에 미해결 결정이 남지 않았을 때** 스스로 진행한다 — 남았는데 사용자 지시·승인이 없으면 1 까지만 하고 멈춘다(세션 컨텍스트 블록 "절대 금지" 의 예외 둘). 되돌릴 수 없는 것의 목록은 **세션 컨텍스트 블록 "절대 금지" 첫 항목이 단일 소유한다** — 전부 명시 지시 대상이다. 근거는 `harness-dmy`.
 
-**세 단계이고 순서가 규율이다.**
+**세 단계이고 순서가 규율이다.** 대상 레포에는 하네스 git 훅을 심지 않으므로(스토리 `harness-lzs3` 결정) 커밋도 push 도 원장 검사를 대신 돌려 주지 않는다 — **원장 검사와 원장 반영은 오케스트레이터가 명시 단계로 돈다.**
 
-1. **커밋.** 그 브랜치의 작업을 커밋한다 — 커밋 게이트는 강제 장치 검사와 원장 구조 검사다. 투영은 커밋 대상이 아니다: `scripts/board.sh all` 로 로컬만 맞춘다.
-2. **원격 반영 — 작업 브랜치 push.** 실패하면 3 으로 가지 않는다. `git push` 에 묶인 원장 반영(`checks/ledger-check.sh`)이 함께 나간다 — 이 단계가 실패하면 원장만 나갔을 수 있다. 원장만 먼저 올리려면 `bd dolt push`. **클론 워크트리(`~/.harness-workspace/…`)의 원장은 `scripts/workspace.sh` 가 배선한다** — 워크트리의 `.beads/redirect` 가 하네스 원장을 가리키므로 환경 변수 없이 `ledger-check` 이 원장을 찾는다(그 검사는 위치를 `bd` 자신에게 묻는다). **배선이 없는 워크트리에서는 반영이 조용히 건너뛰어진다** — 손으로 만들었거나 배선 이전에 만든 트리가 그렇고, `scripts/workspace.sh <스토리ID>` 를 다시 돌리면 배선이 재보장된다(`harness-2a5` 회고, PR #21·#23·#25).
+1. **커밋, 그리고 원장 검사.** 그 브랜치의 작업을 커밋한다 — 커밋 게이트는 대상 레포의 것이다. 투영은 커밋 대상이 아니다: `scripts/board.sh all` 로 로컬만 맞춘다. 커밋 뒤 오케스트레이터가 워크트리에서 두 검사를 돌린다: `bash "${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh"`(원장 구조) 와 `bash "${CLAUDE_PLUGIN_ROOT}/checks/ledger-check.sh"`(원장 반영 — **읽기 모드**, `LEDGER_CHECK_PUSH` 를 켜지 않는다. 통과 문구가 `앞서 있음(반영하지 않음 — 쓰기 모드 아님)` 이면 2 에서 올릴 것이 있다는 뜻이고 `확인됨` 이면 없다). 둘 중 하나라도 rc≠0 이면 종결 미완이다(실패표).
+2. **원격 반영 — 둘이다. 작업 브랜치 push, 그 다음 `bd dolt push`.** 1 의 `board-check`·`ledger-check` 가 통과한 뒤에만 온다. 먼저 작업 브랜치를 push 하고(`git push -u origin worktree-<스토리ID>`, 근거는 `git ls-remote` 의 tip), 이어서 **`bd -C <하네스루트> dolt push` 를 명시 실행한다** — 세션 컨텍스트 블록 "절대 금지" 의 예외 하나가 승인한 범위가 정확히 이 자리다: 대상 레포 push 가 지시인 순간, 그 승인 안에서 원장을 함께 올린다. 대상 레포에 pre-push 훅이 없으므로 이 명령을 빼면 원장은 로컬 유일본으로 남는다. 반영 뒤 `ledger-check` 를 읽기 모드로 한 번 더 돌려 `확인됨` 을 본다. **어느 쪽이 실패해도 3 으로 가지 않는다.**
 3. **PR 생성과 상태 확인.** `gh pr create` 뒤에 `gh pr view --json url,state` 로 상태를 확인하고, url 을 스토리 bead 에 `bd note` 로 남긴다.
 
 **대상 레포가 자기 push·PR 규칙을 가지면 그 규칙이 이 절의 자동 진행보다 앞선다.** 그래서 **1 을 마치고 2 로 가기 전에, 그 레포 워크트리의 관례를 직접 읽는다** — 자리 목록은 위 "대상 레포의 관례" 가 단일 소유하고, 이 절이 찾는 것은 그중 **push·PR 을 다루는 문장**뿐이다.
@@ -270,8 +270,10 @@ The sections below came down from the always-on ruleset (the harness repo's agil
 | 단계 | 실패 | 판정 | 행동 |
 |---|---|---|---|
 | 1 커밋 | 커밋 게이트 rc≠0 | 종결 **미완** | 게이트 출력 전문을 `bd note`. 루프면 끊고 사람 대기 |
+| 1 원장 검사 | `board-check`·`ledger-check`(읽기 모드) rc≠0 | 종결 **미완** | 검사 출력 전문을 스토리 bead 에 `bd note`. 2 로 가지 않는다 — 원장이 원격과 갈라진 채(계보 분기·한 번도 반영 안 됨) 올리면 자동 반영도 실패한다 |
 | 1→2 관문 | 대상 레포의 규칙이 push·PR 을 사람에게 묻게 한다 | 종결 **미완** | 어느 레포의 어느 파일이 그렇게 적었는지를 스토리 bead 에 `bd note`. 2 로 가지 않는다 |
-| 2 push | rc≠0 (인증 없음·원격 없음·pre-push 게이트) | 종결 **미완**. **원장은 이미 나갔을 수 있다** | `ledger-check` 은 pre-push 안에서 원장 반영을 실행하므로 통과 뒤 원격이 거절하면 원장만 반영된 상태가 남는다. 3 으로 가지 않는다 |
+| 2 작업 브랜치 push | rc≠0 (인증 없음·원격 없음·대상 레포의 훅) | 종결 **미완** | 명령·rc·stderr 요지를 note. `bd dolt push` 로도 3 으로도 가지 않는다 — 원장은 아직 로컬이다 |
+| 2 원장 push | `bd dolt push` rc≠0, 또는 rc=0 인데 `ledger-check` 가 `확인됨` 이 아니다 | 종결 **미완**. **작업 브랜치는 이미 나갔다** | 명령·rc·stderr 요지를 스토리 bead 에 `bd note`. 3 으로 가지 않는다 — PR 이 열리면 원장 없는 PR 이 되고, 이 머신이 죽으면 판정 근거가 사라진다. 사람 대기 |
 | 3 PR | `create` rc≠0 **이지만** `view` 가 url 을 냄 | **완료** | url 을 note 에 남긴다 |
 | 3 PR | `create` rc≠0 **이고** `view` 도 url 없음 | 종결 **미완** | 명령·rc·stderr 요지를 note. 사람 대기 |
 
