@@ -16,10 +16,12 @@ Both the procedure and the verification differ per branch. **Decide the branch f
 ## 0. Branch decision — first action
 
 ```bash
-ls -d .harness-state VERSION repos.json rails.json .beads 2>/dev/null
+ls -d .harness-state VERSION repos.json rails.json ledger.json .beads 2>/dev/null
 git rev-parse --git-dir >/dev/null 2>&1 && echo "git: yes" || echo "git: no"
-bd list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
 ```
+
+"ledger: yes" means the backend named in `ledger.json` answers — for `beads` that is the local Dolt DB, for `github`·`notion` a reachable remote (a `notion` tree needs `NOTION_TOKEN` exported first, or the probe says "no" for a ledger that exists).
 
 | Observed | Branch |
 |---|---|
@@ -78,11 +80,29 @@ Follow section 4.
 
 ### 1.5 Create the context files
 
-Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `CLAUDE.md`).
+Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `ledger.json` · `CLAUDE.md`).
 
 ### 1.6 Ledger initialization and gate wiring
 
-1. `bd init --prefix <the prefix decided in section 4>`.
+The ledger backend is one value — `backend` in `ledger.json` at the harness root (shape in section 5) — and the plugin's `scripts/ledger.sh` reads nothing else to choose it: no file, or a value outside `github`·`beads`·`notion`, and every ledger command dies with rc≠0. **The default for a new harness is `github`.** Backend-specific initialization is the adapter's `init`; setup writes `ledger.json` and calls it, nothing more:
+
+```bash
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init   # arguments differ per backend — below
+```
+
+Follow the one branch that matches `backend`, then continue at item 3.
+
+#### backend: github (default)
+
+Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `ledger.json` as `{"backend":"github","owner":"<github login>"}` and run `ledger.sh init` (optionally `--title <project name>`): it creates the Projects v2 that groups the issues of every target repo and writes its `project` number back into `ledger.json` — or, if `project` is already there, verifies the number is readable. Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
+
+#### backend: notion
+
+Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never written into a tracked file — the adapter reads the environment variable only), and a page shared with that integration. Write `ledger.json` as `{"backend":"notion"}` and run `NOTION_TOKEN=… ledger.sh init --parent-page <that page's id>`: it creates the database with the schema (two requests — the self-relations `Parent`·`Blocked by` cannot go into the create request) and writes `database_id` back into `ledger.json`; with `database_id` already present it only re-applies the schema (idempotent). Item 2 below does not apply.
+
+#### backend: beads
+
+1. Write `ledger.json` as `{"backend":"beads"}` and run `ledger.sh init --prefix <the prefix decided in section 4>` (it is `bd init` in that tree).
 2. **Connect the new ledger to a remote.** What `bd init` creates is **the local DB alone**. Skip this step and the ledger becomes the **sole copy** on this machine — when the machine dies, the issues and the judgment evidence die with it. And **`checks/ledger-check.sh` does not block that state**: a missing remote is a fail-open boundary, so it prints one warning line and returns rc=0 (that file, line 32 and lines 98-102). That is why the loss path is silent.
 
    Do the three below at once, after the remote repo **actually exists** and push has been approved. If approval has not come, defer all three — wiring without reflecting makes the next `git push` fail at the pre-push gate with rc=1 (row ⓑ below).
@@ -107,16 +127,19 @@ Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `CLAUDE.md`)
    | ⓐ no remote (right after `bd init`) | **rc 0** · `⚠ 원장에 Dolt 원격이 없다` — the sole local copy passes as is |
    | ⓑ wired but not yet reflected | **rc 1** · `✗ 원장이 원격에 한 번도 반영된 적이 없다` |
    | ⓒ wired + first reflection | **rc 0** · `✓ … 원격 반영 확인됨` — no warning |
-3. **Re-run** `bash scripts/install.sh init` — the hook files exist now, so the gate blocks get attached. It is idempotent. Read the `hooksPath:` line of the output with your own eyes. It must say "하네스 블록이 있다"; if it says "없다", the commit gate **does not run**.
-4. Noise and permission cleanup: `git config beads.role maintainer` (leave it unset and every bd call spits a warning, dirtying the output an agent has to parse) · `chmod 700 .beads` (bd's recommended permissions).
-5. Add these to `.gitignore`: `.claude/worktrees/` · `.claude/ralph-loop.local.md` · `.claude/ralph-cancel` · `.claude/stop-resume.log` · `.claude/stop-resume-cancel*` · `*.harness-bak` · `docs/sprints/` · `docs/backlog/` · `docs/adr/`(the three projections — the ledger is SSOT and the hooks render them locally) · `.beads/interactions.jsonl`(the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every bd call and keeps the tree permanently dirty). **Never gitignore `.harness-state`** — it is the install record, so it has to be committed for later updates to judge drift.
+3. Noise and permission cleanup: `git config beads.role maintainer` (leave it unset and every bd call spits a warning, dirtying the output an agent has to parse) · `chmod 700 .beads` (bd's recommended permissions).
+
+#### all backends — from here on
+
+4. **Re-run** `bash scripts/install.sh init` — the hook files exist now, so the gate blocks get attached. It is idempotent. Read the `hooksPath:` line of the output with your own eyes. It must say "하네스 블록이 있다"; if it says "없다", the commit gate **does not run**.
+5. Confirm the backend answers: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` rc 0 (an empty list is the correct output for a new ledger).
+6. Add these to `.gitignore`: `.claude/worktrees/` · `.claude/ralph-loop.local.md` · `.claude/ralph-cancel` · `.claude/stop-resume.log` · `.claude/stop-resume-cancel*` · `*.harness-bak` · `docs/sprints/` · `docs/backlog/` · `docs/adr/`(the three projections — the ledger is SSOT and the hooks render them locally) · `.beads/interactions.jsonl`(the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every bd call and keeps the tree permanently dirty). **Never gitignore `.harness-state`** — it is the install record, so it has to be committed for later updates to judge drift.
 
 ### 1.7 Verification (A) — all measured
 
 | Run | Expected |
 |---|---|
-| `bd list` | rc 0. If this is blocked, everything after it is meaningless |
-| `bash checks/ledger-check.sh` | rc 0. **This call reflects nothing** — a remote write happens only when `LEDGER_CHECK_PUSH=1` turns it on, and the one place that turns it on is the `pre-push` block. **If you did 1.6-2**, the pass phrase is `원격 반영 확인됨`. If `원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)` appears, the ledger moved further after 1.6-2's `bd dolt push`, so run that command once more (it is a remote write, so it is subject to user approval). **If you deferred 1.6-2 (its "If approval has not come, defer all three"), `건너뜀` is normal** — then write "the ledger exists on this machine only · 1.6-2 must be done after approval" into the **remaining manual items** in item 4 below. `건너뜀` has four causes, told apart by the stderr warning phrase: `원장에 Dolt 원격이 없다`(= 1.6-2 not run) · `dolt 미설치` · `임베디드 원장 없음` · `DB 디렉토리가 N개다`. The last three are not a deferral but **an unreachable judgment** — remove the cause and run it again |
+| `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0. If this is blocked, everything after it is meaningless |
 | `bash checks/guardrail-check.sh` | rc 0. If a "no `jq`" warning appeared, **the wiring was not checked** — install `jq` and run it again |
 | `bash checks/workspace-check.sh` | rc 0 (it self-verifies with a temporary clone, so it passes even with no registered repo) |
 | `bash scripts/board.sh all` | rc 0. Even with no story in the ledger, an empty table `docs/backlog/index.md` comes out — the projections are outside git, so do not commit them |
@@ -125,6 +148,12 @@ Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `CLAUDE.md`)
 | `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — the plugin is registered at user scope and nowhere else |
 | `grep -c '^# --- BEGIN HARNESS GATE ---$' "$(git rev-parse --git-path hooks)/pre-commit"` | `1`. If it is 0, the gate does not run |
 | `bash scripts/install.sh manifest` · `bash checks/release-check.sh` | **non-zero is normal** — both are original-only and this is a derived install. A 0 here means the discrimination is broken. To actually compare the artifact you received, use the **argument mode** that the rc=1 output points to: `bash checks/release-check.sh <artifact directory>` — it does not call pack, so it runs in a derived install too, and it compares against this tree's CORE list |
+
+#### backend: beads — one more row
+
+| Run | Expected |
+|---|---|
+| `bash checks/ledger-check.sh` | rc 0. **This call reflects nothing** — a remote write happens only when `LEDGER_CHECK_PUSH=1` turns it on, and the one place that turns it on is the `pre-push` block. **If you did 1.6-2**, the pass phrase is `원격 반영 확인됨`. If `원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)` appears, the ledger moved further after 1.6-2's `bd dolt push`, so run that command once more (it is a remote write, so it is subject to user approval). **If you deferred 1.6-2 (its "If approval has not come, defer all three"), `건너뜀` is normal** — then write "the ledger exists on this machine only · 1.6-2 must be done after approval" into the **remaining manual items** in item 4 below. `건너뜀` has four causes, told apart by the stderr warning phrase: `원장에 Dolt 원격이 없다`(= 1.6-2 not run) · `dolt 미설치` · `임베디드 원장 없음` · `DB 디렉토리가 N개다`. The last three are not a deferral but **an unreachable judgment** — remove the cause and run it again |
 
 Then:
 
@@ -137,9 +166,21 @@ Then:
 
 **Do not use a release artifact.** The core is already inside the clone (`git clone` brought it) and the version is what this harness's owner decided. What you stand up here is the five things **missing on this machine alone**: the ledger · the plugin · the target repo clones · `core.hooksPath` · `beads.role`.
 
-`repos.json`·`rails.json`·`sprints.json`·`CLAUDE.md` are inherited. Do not run section 5's creation procedure.
+`repos.json`·`rails.json`·`sprints.json`·`ledger.json`·`CLAUDE.md` are inherited. Do not run section 5's creation procedure.
 
 ### 2.1 Restore the ledger
+
+`ledger.json` came with the clone; its `backend` decides what "restore" means here. Follow one branch.
+
+#### backend: github
+
+Nothing to restore — the issues live on GitHub. Confirm access: `gh auth status` rc 0 with the `project` scope (1.6's `gh auth refresh -s project,read:project` if it is missing), then `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0.
+
+#### backend: notion
+
+Nothing to restore either. Export `NOTION_TOKEN` on this machine (the token never travels in the clone), then `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0.
+
+#### backend: beads
 
 ```bash
 bd bootstrap --dry-run   # look at the plan first
@@ -177,9 +218,9 @@ If it does not run, wire it by hand and nothing more: `git config core.hooksPath
 
 **Do not use `scripts/install.sh init` as a fallback.** `init` first compares the record in `.harness-state` against the sha of the real files, and in a clone of a derived harness whose owner fixed the core under explicit instruction and committed it, it dies right there with "릴리스 tarball 을 다시 받아 풀어라". That is the wrong instruction for a joiner — that tree's core is what the owner decided, and drift is the owner's business to hear about, not the joiner's.
 
-### 2.4 Set the bd role
+### 2.4 Set the bd role (backend: beads only)
 
-`git config beads.role maintainer` · `chmod 700 .beads`. Without the former, every bd call spits a warning and dirties the output an agent has to parse.
+`git config beads.role maintainer` · `chmod 700 .beads`. Without the former, every bd call spits a warning and dirties the output an agent has to parse. With `github`·`notion` there is no `.beads` and nothing to set.
 
 ### 2.5 Add your own rail to `rails.json`
 
@@ -194,11 +235,11 @@ If it does not run, wire it by hand and nothing more: `git config core.hooksPath
 
 | Run | Expected |
 |---|---|
-| `bd list` | rc 0 (the ledger was restored) |
+| `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0 (the backend in `ledger.json` answers) |
 | `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — user scope and nowhere else |
 | `scripts/repo.sh list` | 0 occurrences of "클론 없음" |
 | `grep -c '^# --- BEGIN HARNESS GATE ---$' "$(git rev-parse --git-path hooks)/pre-commit"` | `1` |
-| `git config beads.role` | `maintainer` |
+| `git config beads.role` (backend: beads only) | `maintainer` |
 | `jq -e '.rails["<my rail ID>"].owner' rails.json` | rc 0, my name |
 | `bash checks/board-check.sh` | rc 0. Dying here means `rails.json` was edited wrong, or there is a `rail:` label that the registry does not have |
 | `bash checks/guardrail-check.sh` | rc 0 |
@@ -292,13 +333,46 @@ Ask the user (all at once):
 
 1. **Target repos** — the clone url, the name (omit it and it is taken from the url — it becomes the label `repo:<name>`), and the gate command (a single line run at the repo root that reports success or failure through its exit code). The default branch is auto-detected after cloning, so you need not ask.
 2. **The rail scheme** — the list of participants. A rail is a person, so there is one per assignee, and the IDs are numbers growing as `r1`·`r2`.
-3. **The work ledger** — the beads issue prefix.
+3. **The work ledger** — the backend (`github` unless the user says otherwise · `beads` · `notion`) and what that backend needs: the GitHub login that owns the Projects v2 for `github`, the issue prefix for `beads`, the id of a page shared with the integration for `notion`.
 
 ## 5. Creating the context files (A only)
 
-These four are not core but **owned by the target**, so they do not ship with the install. The shapes below are the specification — build them from here rather than from another file. (B inherits all four. Beyond the one entry for its own rail in 2.5, B touches none of them.)
+These five are not core but **owned by the target**, so they do not ship with the install. The shapes below are the specification — build them from here rather than from another file. (B inherits all five. Beyond the one entry for its own rail in 2.5, B touches none of them.)
 
-The first three are read directly by tools, so their absence kills those tools with a non-zero exit immediately: without `rails.json`, `board.sh`·`board-check.sh` stop; without `sprints.json`, `board-check.sh`·`board.sh all` stop; without `repos.json`, the EnterWorktree hook (`hooks/enter-worktree.sh`) has no bootstrap to fall back on and `workspace-cleanup.sh` stops. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
+The first four are read directly by tools, so their absence kills those tools with a non-zero exit immediately: without `rails.json`, `board.sh`·`board-check.sh` stop; without `sprints.json`, `board-check.sh`·`board.sh all` stop; without `repos.json`, the EnterWorktree hook (`hooks/enter-worktree.sh`) has no bootstrap to fall back on and `workspace-cleanup.sh` stops; without `ledger.json`, every `scripts/ledger.sh` call stops. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
+
+| File | What it holds |
+|---|---|
+| `repos.json` | the target repo registry — `scripts/repo.sh add` writes it |
+| `rails.json` | the rail registry — one rail per person |
+| `sprints.json` | the sprint registry — the only source of whether a sprint is closed |
+| `ledger.json` | the ledger backend — `github` (default) · `beads` · `notion` — and what that backend needs to find the ledger |
+| `CLAUDE.md` | the top-level rules |
+
+### `ledger.json` — the ledger backend
+
+One key, `backend`, decides which backend `scripts/ledger.sh` talks to; the rest is what that backend needs. No file, or a value outside the three, and every ledger command dies with rc≠0 — there is no fallback. The default for a new harness is `github`. The three shapes:
+
+```json
+{"backend": "github", "owner": "<github login that owns the Projects v2>", "project": 4}
+```
+
+```json
+{"backend": "notion", "database_id": "<database id>"}
+```
+
+```json
+{"backend": "beads"}
+```
+
+| Field | Where it is used |
+|---|---|
+| `backend` | picks `scripts/ledger-<backend>.sh`. Required |
+| `owner` (github) | the Projects v2 owner (a user login). Issues themselves live in the repos of `repos.json` |
+| `project` (github) | the Projects v2 number. `ledger.sh init` creates the project and writes it; `create` refuses to make an issue without it |
+| `database_id` (notion) | the database. `ledger.sh init --parent-page <id>` creates it and writes it. The token is `NOTION_TOKEN` in the environment and never in this file |
+
+`ledger.sh init` writes `project`·`database_id` into this file — the only values a tool writes here.
 
 ### `repos.json` — the target repo registry
 
