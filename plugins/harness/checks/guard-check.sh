@@ -37,7 +37,7 @@
 #      (⑫ 와 같은 판정 지점에 다른 허용 목록이 붙는다 — 겹침은 등재 순서로 메시지를 고른다).
 #      전수 시험 위에 **대상 단언**이 하나 더 붙는다 — 정정 보존이 기대는 하위 명령들을
 #      이름으로 못박는다. 전수 시험은 개수의 하한만 지키므로 파생이 얇아지면 그 경로만
-#      조용히 빠지는데 rc 는 그대로 0 이다 (근거는 docs/guardrails.md 1-2 절)
+#      조용히 빠지는데 rc 는 그대로 0 이다 (근거는 ../docs/guardrails.md 1-2 절)
 #   (⑭ A6·⑭-2 R23·⑮ A7·⑰ A8 은 그 규칙들 — r_bd_body·r_core_write·r_bead_leak — 과 함께 뺐다.
 #    플러그인 재구조화가 남긴 규칙은 앵커와 무관한 불변식 넷뿐이다. 근거는 훅 머리주석.)
 #   ⑯ S16 — 규칙 발화가 **규칙 이름과 함께** 로그에 남고, 통과도 한 줄 남아 "발화 0" 과
@@ -151,7 +151,7 @@ FX_Q_BDCLOSE="${qfx_cmd[3]}"
 FX_Q_BDCREATE="${qfx_cmd[4]}"
 FX_Q_BDUPDATE="${qfx_cmd[5]}"
 
-# rc 는 파이프 밖에서 채집한다 (docs/development.md "셸 함정").
+# rc 는 파이프 밖에서 채집한다 (../docs/development.md "셸 함정").
 GUARD_RC=0
 GUARD_OUT=""
 runh() {  # runh <훅경로> <json> [env...]
@@ -784,7 +784,7 @@ for c in "${HOME_FORMS[@]}"; do
 done
 
 # ── 부정 대조군. 통과(rc=0)는 "검사했고 문제없음"과 "검사가 실행되지 않음"을 구분하지
-# 못한다 (docs/development.md "검사가 죽었는지 검사한다"). 각 수정만 뺀 사본에서 같은 입력이
+# 못한다 (../docs/development.md "검사가 죽었는지 검사한다"). 각 수정만 뺀 사본에서 같은 입력이
 # 통과하는지 본다. 제거 전에 대상 줄이 실재하는지 먼저 단언한다 — 오타로 0줄을 지우면
 # 사본이 원본과 같아져 대조군이 조용히 무의미해진다.
 NEG_ROOT="$TMP/guard-no-rootself.sh"
@@ -1261,7 +1261,7 @@ step "면제 키가 전부 실제 gh 하위 명령이다 (역방향 단언)" [ -
 gh_is_exempt() { case " $GH_EXEMPT_SRC " in *" $1 "*) return 0 ;; esac; return 1; }
 gh_leaked=""; gh_blocked_read=""; gh_checked=0
 # 파이프로 먹이면 함수가 서브셸에서 돌아 아래 카운터가 전부 버려진다(빈 문자열 = 통과).
-# here-string 으로 먹여 현재 셸에서 돌린다 (docs/development.md "셸 함정").
+# here-string 으로 먹여 현재 셸에서 돌린다 (../docs/development.md "셸 함정").
 gh_sweep() {  # gh_sweep <접두>  — stdin 으로 하위 명령 목록을 받는다
   local prefix="$1" s
   while read -r s; do
@@ -1321,7 +1321,7 @@ GH_DL_GROUPS=$(for g in $GH_TOP; do gh_cmds "$g" | grep -x download >/dev/null &
 GH_DL_NORM=$(printf '%s\n' $GH_DL_GROUPS | grep -v '^$' | sort -u | tr '\n' ' '); GH_DL_NORM="${GH_DL_NORM% }"
 echo "  download 동사를 가진 그룹: ${GH_DL_NORM:-(없음)}"
 # **정확 집합**으로 단언한다. 하한(release·run 이 들어 있는가)만 보면 gh 에 `download` 를 가진
-# 그룹이 하나 더 생겨도 rc=0 이라, 면제가 조용히 넓어지고 docs/guardrails.md 의 "셋뿐이고 전부
+# 그룹이 하나 더 생겨도 rc=0 이라, 면제가 조용히 넓어지고 ../docs/guardrails.md 의 "셋뿐이고 전부
 # 받기만 한다"가 거짓이 된 채로 남는다. 이 변경의 안전 논거 전체가 그 "셋뿐" 위에 서 있으므로
 # 늘어나면 **시끄럽게 깨지는** 쪽이 맞다 — 깨지면 새 그룹이 정말 받기만 하는지 확인하고
 # 이 기대값과 문서를 함께 고쳐라. (빈 집합도 이 단언에 걸리므로 공허한 통과가 없다.)
@@ -1931,7 +1931,7 @@ step "전수 시험이 공허하지 않다 (차단 기대가 20개 이상)" [ "$
 #    `.claude/rules/agile.md` 의 정정 보존은 원장의 note 가 덮이지 않는다를 전제하는데,
 #    실측상 그것은 원장 도구의 성질이 아니라 이 규칙의 결과다 — bd 에는 notes 를 고치고
 #    지우는 하위 명령이 여럿 있고 append 전용인 것은 `note` 뿐이다 (근거 명령과 측정
-#    환경은 docs/guardrails.md 1-2 절).
+#    환경은 ../docs/guardrails.md 1-2 절).
 #
 #    위 전수 시험만으로는 부족하다. 그것은 BD_ALL(= `bd --help` 파생)을 돌며 **개수**의
 #    하한만 지키므로, bd 가 이름을 바꾸거나 도움말 서식이 달라져 아래 이름들이 파생
@@ -2385,7 +2385,7 @@ step "A/B 대조: 원본은 같은 입력에서 로그를 남긴다" [ -s "$LG" 
 # 났다 — 로깅이 story 브랜치에만 있어 배선된 다른 트리의 훅이 아무것도 안 남겼고,
 # 계수 명령은 그것을 "훅이 한 번도 돌지 않았다" 로 냈다 (harness-dg0.6.33). 전역 원장과
 # 달리 **훅 코드는 트리 안에 있어 브랜치를 탄다.** 두 상태를 각각 재현해 문구로 가른다.
-# 계수를 근거로 쓸 수 있는 조건은 docs/guardrail-verification.md 11절이 든다.
+# 계수를 근거로 쓸 수 있는 조건은 ../docs/guardrail-verification.md 11절이 든다.
 echo "── ⑱ 계수 명령의 부재 판정 — 훅 미실행 vs 로깅 없는 판 발화 ──"
 S17="$TMP/s17"
 mkdir -p "$S17/withlog/hooks" "$S17/nolog/hooks"

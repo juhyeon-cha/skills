@@ -24,7 +24,7 @@
 # 스크립트 자신의 플러그인 트리로 떨어지는데 **그 트리가 세션이 배선한 트리와 다를 수 있다**
 # — 그래서 검사한 훅 경로를 문구에 함께 낸다. 하네스 루트는 필요 없다 — 로그도 훅도 하네스 루트
 # 밖($HOME·플러그인)에 있어 lib/harness-root.sh 를 부르지 않는다. 계수를 근거로
-# 쓸 수 있는 조건과 이 셋의 천장은 docs/guardrail-verification.md 11절이 든다.
+# 쓸 수 있는 조건과 이 셋의 천장은 ../docs/guardrail-verification.md 11절이 든다.
 #
 # 나머지 한계는 guard.sh 의 "발화 로그" 주석이 든다 (회차 정의·session_id 부재·회전 소실).
 set -uo pipefail

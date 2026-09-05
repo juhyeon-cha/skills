@@ -153,7 +153,7 @@ if ! printf '%s' "$INPUT" | jq -e 'type == "object"' >/dev/null 2>&1; then
 fi
 
 # JSON 은 printf 로 먹인다 — echo 는 backslash 확장 셸에서 필드 안의 이스케이프를
-# 망가뜨려 jq 를 rc=5 로 죽인다 (docs/development.md "셸 함정").
+# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/development.md "셸 함정").
 field() { printf '%s' "$INPUT" | jq -r "$1 // \"\"" 2>/dev/null; }
 
 TOOL_NAME="$(field '.tool_name')"
@@ -306,7 +306,7 @@ ledger_exec_present() { local t; for t in $LEDGER_TOOLS; do [ -n "$(exec_segment
 # **관측이지 판정이 아니다.** 여기서는 아무것도 막지 않는다 — 하는 일은 claim 명령이
 # 지나갈 때 (session_id, actor) 쌍을 파일에 한 줄 적는 것뿐이고, 그 파일을 읽는 것은 정지
 # 가드(hooks/stop-resume.sh)다. 그쪽 오라클이 원장 단위라 **자기가 잡지 않은**
-# in_progress 로도 막히던 것을, 이 매핑이 세션 사거리로 좁힌다 (docs/guardrail-verification.md 8절).
+# in_progress 로도 막히던 것을, 이 매핑이 세션 사거리로 좁힌다 (../docs/guardrail-verification.md 8절).
 #
 # **파생이 아니라 관측인 이유.** actor 는 `sess-` + 무작위 6자라 session_id 에서 계산될 수
 # 없고, 한 actor 가 세션을 넘어 재사용되는 것이 이어받기 규약이다
@@ -458,7 +458,7 @@ mc_deny_root() {
 # 드러나고 반대 방향은 침묵한다. 드러나는 쪽을 고른다.
 #
 # 한계: 경로를 `file_path`·`notebook_path` 가 아닌 키로 받는 도구는 여전히 안 걸린다.
-# 그것은 이름 목록이 아니라 **입력 스키마**의 문제라 여기서 풀 수 없다 — docs/guardrails.md
+# 그것은 이름 목록이 아니라 **입력 스키마**의 문제라 여기서 풀 수 없다 — ../docs/guardrails.md
 # "못 막는 것"에 등재돼 있고 guard-check 가 그 rc=0 을 한계로 못박는다.
 w_readonly() { case "$TOOL_NAME" in Read|NotebookRead|Glob|Grep) return 0 ;; *) return 1 ;; esac; }
 w_path() {
@@ -559,7 +559,7 @@ RULES+=("Bash:r_main_shell")
 # 흔적이 거의 남지 않고 원격만 조용히 바뀐다. 되돌리기 비용이 이 훅이 다루는 것 중
 # 가장 크고, 되돌림 자체가 또 한 번의 원격 반영이라 승인 없이 시작할 수 없다.
 # 근거 문서(전부 설득이고 강제는 없었다): agents/implementer.md:27(=A3) ·
-# 세션 블록 "절대 금지"(=C2) · docs/operations.md:36 · docs/development.md "원격".
+# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36 · ../docs/development.md "원격".
 #
 # **적용 대상은 서브에이전트 호출뿐이다.** 오케스트레이터는 사용자 지시를 받으면 실제로
 # push·PR 을 해야 한다. 판정 근거는 r_bd_root 와 같은 `agent_id`·`agent_type` 의 존재이고
@@ -982,7 +982,7 @@ for rule in ${RULES[@]+"${RULES[@]}"}; do
   # 매처 대조보다 **먼저** 둔다: 이번 호출에 디스패치되지 않는 항목의 오타도 잡아야
   # 규칙이 영영 꺼진 채 남지 않는다.
   declare -F "$fn" >/dev/null || deny "규칙 등록부가 깨졌다 — '$rule' 이 가리키는 함수 $fn 이 없다"
-  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (docs/development.md).
+  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (../docs/development.md).
   [[ "$matcher" = "*" || "$matcher" = "$TOOL_NAME" ]] || continue
   "$fn"
 done

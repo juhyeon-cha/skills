@@ -4,7 +4,7 @@ harness 플러그인이 SessionStart 에 주입하는 상시 블록이다. 여�
 
 ## 절대 금지
 
-게이트가 있어도 금지는 그대로다 — 게이트는 우회 가능하고, "못 막는 것"은 "해도 되는 것"이 아니다. 강제 장치의 전수 목록·한계는 하네스 루트 `docs/guardrails.md`.
+게이트가 있어도 금지는 그대로다 — 게이트는 우회 가능하고, "못 막는 것"은 "해도 되는 것"이 아니다. 강제 장치의 전수 목록·한계는 `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`.
 
 - **원격 반영은 사용자 명시 지시 시에만** — 머지 · 태그 push · 릴리스 발행 · GitHub 이슈 조작 · 원격 구성 변경 · 기본 브랜치 직접 push · `repos.json` 에 등재되지 않은 원격 · `bd dolt push`. 예외 둘은 사용자 결정이다.
   - 예외 하나 — 대상 레포 push 에 묶인 원장 반영은 자동이다. 손으로 치는 push 가 곧 명시 지시이고, 사이클 종결 2단계의 작업 브랜치 push 도 같은 승인이다 — 그 승인 안에서 오케스트레이터가 `bd dolt push` 를 명시 단계로 돈다(대상 레포에 git 훅을 심지 않으므로 pre-push 가 대신하지 않는다). 절차는 `harness:develop` "사이클 종결".
@@ -63,4 +63,4 @@ ledger.sh create "<태스크 제목>" -t task --parent <마일스톤ID> --accept
 | 위임 메시지의 환경 스냅샷 · 장기 실행 | `harness:develop` |
 | 여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다 | `harness:plan-story` |
 | 재시도 카운터 | `harness:verify-code` |
-| 검사가 죽었는지 검사한다 | 하네스 루트 `docs/development.md` |
+| 검사가 죽었는지 검사한다 | `${CLAUDE_PLUGIN_ROOT}/docs/development.md` |

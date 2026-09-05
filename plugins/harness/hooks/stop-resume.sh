@@ -22,7 +22,7 @@
 #
 # **사거리는 이 세션이 claim 한 actor 다** — 오라클은 여전히 원장을 읽지만 판정은 그중
 # 이 세션의 몫으로 좁힌다. 잡지 않은 일로 막지 않는 것이 목적이고, 매핑을 못 읽으면
-# 종전대로 원장 전체로 판정한다(SCOPE_FAIL). 천장은 docs/guardrail-verification.md 8절이 든다.
+# 종전대로 원장 전체로 판정한다(SCOPE_FAIL). 천장은 ../docs/guardrail-verification.md 8절이 든다.
 set -euo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"

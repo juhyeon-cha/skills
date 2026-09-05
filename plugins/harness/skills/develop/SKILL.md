@@ -34,7 +34,7 @@ Start from the first task whose dependencies are clear and go **milestone by mil
 
 - **Batch mode is the default flow.** The condition is that **the milestone is single-repo** (every child task carries the same `repo:` label) and that **the task count is around 4**. Delegate every task of the milestone **to one implementer as a list**, implemented in dependency order (the implementer commits and leaves a `VERIFY_PENDING` note per task, then moves to the next — the discipline is `${CLAUDE_PLUGIN_ROOT}/agents/implementer.md` "목록을 받았을 때"), and at the end of the milestone run **verify-code once → verify-implement once → close the tasks together**. A task that is implemented but not yet closed stays `in_progress`, marked with a `VERIFY_PENDING` note.
 - **Outside the condition the former flow holds** — when the milestone crosses repos or the task count exceeds that width, delegate implementation → verify-code → verify-implement → close **per task**.
-- **This condition is written here.** Other documents (`verify-code`·`verify-implement`·`plan-story`·`implementer`·`docs/operations.md`) point at this section and do not restate the condition.
+- **This condition is written here.** Other documents (`verify-code`·`verify-implement`·`plan-story`·`implementer`·`${CLAUDE_PLUGIN_ROOT}/docs/operations.md`) point at this section and do not restate the condition.
 
 The steps below apply, **in batch mode, 0 once to the whole list and 1 once to the milestone**, with 2~5 applied whenever a signal arrives. Outside the condition, run 0~5 per task.
 
@@ -278,7 +278,7 @@ The sections below came down from the always-on ruleset (the harness repo's agil
 - **닫힌 태스크를 다시 열지 않는다.** PR 은 스토리 종결의 산출물이다. 대신 **스토리를 닫지 않는다** — 종결 미완이 스토리 상태로 남아 다음 세션이 이어받는다.
 - **멀티 레포는 레포마다 PR 하나다.** 일부 레포가 실패하면 그 레포만 미완으로 적는다.
 - **새 신호를 만들지 않는다.** 종결 미완은 `develop` "장기 실행" 의 사람 대기 신호로 취급해 루프를 끊는다.
-- **이 절이 종결 절차의 단일 소유다.** 세 스킬과 `docs/operations.md` 는 채널 고유 제약만 두고 이 절을 가리킨다.
+- **이 절이 종결 절차의 단일 소유다.** 세 스킬과 `${CLAUDE_PLUGIN_ROOT}/docs/operations.md` 는 채널 고유 제약만 두고 이 절을 가리킨다.
 
 ## 멀티 레포
 
