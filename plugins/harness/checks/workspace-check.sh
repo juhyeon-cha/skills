@@ -10,8 +10,8 @@
 #      건너뛰고, 마커가 없으면 재시도한다
 #   ③ 자기 EnterWorktree 훅을 가진 레포에서는 bootstrap 을 돌리지 않는다
 #   ④ cwd 가 워크트리 밖이면 아무것도 만들지 않고 rc=0
-#   ⑤ 하네스 루트를 못 찾으면 rc≠0 이고 stderr 가 "원장 배선 실패" 를 든다 — 훅 실패는 도구 호출을
-#      막지 않으므로 그 문구가 유일한 신호다
+#   ⑤ 하네스 루트를 못 찾으면 rc=2 이고 stderr 가 "원장 배선 실패" 를 든다 — PostToolUse 훅 실패는
+#      도구 호출을 막지 않고 exit 2 의 stderr 만 Claude 에게 실리므로, 그 출구와 문구가 유일한 신호다
 #   ⑥ cleanup — git worktree list 에서 경로가 사라지고 브랜치 worktree-<id> 와 마커도 없다
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려 실제
 # ~/.harness-workspace 는 건드리지 않는다. 훅의 하네스 루트는 HARNESS_ROOT 로 물린다 — 갓 만든
@@ -117,7 +117,7 @@ step "클론 루트에 redirect 를 만들지 않는다" [ ! -e "$CLONE/.beads/r
 echo "── ⑤ 하네스 루트를 못 찾는다 ──"
 rm -rf "$WT/.beads"
 run_hook "$WT" HARNESS_ROOT=/nonexistent 2>"$ERRF"; rc=$?
-step "rc≠0"                            [ "$rc" -ne 0 ]
+step "rc=2 (stderr 가 Claude 에게 실리는 출구)" [ "$rc" -eq 2 ]
 step "stderr 가 원장 배선 실패를 든다"  has_text "원장 배선 실패" "$(cat "$ERRF")"
 step "redirect 를 만들지 않았다"        [ ! -e "$WT/.beads/redirect" ]
 run_hook "$WT" 2>/dev/null            # 정상 배선으로 복구 — ⑥ 의 입력

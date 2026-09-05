@@ -23,15 +23,16 @@
 #
 # 하네스 루트는 lib/harness-root.sh 가 낸다 — **워크트리를 CWD 로** 부른다(재진입이면 이미 있는
 # redirect 를 따라가고, 첫 진입이면 ${HARNESS_CLONE_ROOT:-~/.harness-workspace}/.harness-root 또는
-# HARNESS_ROOT 다). 못 찾으면 rc=1 과 stderr 의 "원장 배선 실패" — 훅 실패가 도구 호출을 막지
-# 않으므로 그 문구가 유일한 신호다. 조용히 통과하지 않는다.
+# HARNESS_ROOT 다). 못 찾으면 exit 2 와 stderr 의 "원장 배선 실패". PostToolUse 는 도구 실행 뒤라 훅 실패가
+# 도구 호출을 막지 않고, exit 2 의 stderr 만 Claude 의 응답에 실린다(exit 1 은 사용자에게만 간다) —
+# 그래서 실패 출구는 전부 exit 2 이고 그 문구가 유일한 신호다. 조용히 통과하지 않는다.
 #
 # cwd 가 `*/.claude/worktrees/*` 밖이면 아무것도 만들지 않고 rc=0 — 우리 워크트리가 아니다.
 set -uo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 say() { echo "[enter-worktree] $*" >&2; }
-fail() { say "원장 배선 실패 — $*"; exit 1; }
+fail() { say "원장 배선 실패 — $*"; exit 2; }
 
 command -v jq >/dev/null 2>&1 || fail "jq 가 없다 (페이로드를 읽을 수 없다)"
 payload="$(cat)"
@@ -90,4 +91,4 @@ if (cd "$wt" && bash -c "$cmd") >&2; then
   exit 0
 fi
 say "부트스트랩 실패: '$repo' — 원장 배선은 끝났고 워크트리는 남는다. 원인 해결 후 EnterWorktree(path) 로 다시 들어가면 부트스트랩부터 재시도한다"
-exit 1
+exit 2

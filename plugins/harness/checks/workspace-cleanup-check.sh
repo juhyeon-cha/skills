@@ -190,7 +190,7 @@ echo "── ⑨ 브랜치 삭제만 실패해도 제거한 워크트리는 stdo
 # **반쯤 정리된 레포와 손도 안 댄 레포가 구분되지 않았다.** 실패는 refs 디렉토리를
 # 읽기 전용으로 만들어 주입한다 (브랜치 삭제만 막고 워크트리 제거는 막지 않는다).
 run_ws
-REFDIR="$CLONE/.git/refs/heads"   # worktree-<id> 는 refs/heads 직속 loose ref 다 (story/<id> 시절의 하위 디렉토리가 아니다)
+REFDIR="$CLONE/.git/refs/heads"   # worktree-<id> 는 refs/heads 직속 loose ref 다 (이름에 슬래시가 없어 하위 디렉토리가 아니다)
 step "준비: 워크트리 생성됨"     [ -d "$WT" ]
 step "준비: 브랜치 ref 가 파일로 있다" [ -f "$REFDIR/worktree-$BEAD" ]
 chmod 500 "$REFDIR"
