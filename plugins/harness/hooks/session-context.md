@@ -18,7 +18,7 @@ harness 플러그인이 SessionStart 에 주입하는 상시 블록이다. 여�
 
     표가 "한다" 로 나와도 **대상 레포가 자기 push·PR 규칙을 가지면 그 규칙이 앞선다.** 미해결 결정 = 사람 대기 신호가 나왔는데 사람이 아직 정하지 않은 태스크 + `status` 가 `blocked` 인 태스크. 신호 목록은 `harness:develop` "사람 대기", 단계와 실패 처리는 같은 스킬 "사이클 종결".
 - **대상 레포의 본 체크아웃(`~/.harness-workspace/<레포>` 자체)을 직접 수정하지 않는다** — 작업은 그 안의 `.claude/worktrees/<story-id>/` 워크트리에서만.
-- **플러그인 코어(스킬·역할·훅)를 설치본에서 고치지 않는다** — 고칠 곳은 skills 레포 `plugins/harness/` 이고, 설치본은 마켓플레이스 갱신으로 받는다. 프로젝트 맥락(`repos.json`·`rails.json`·`sprints.json`·`CLAUDE.md`·`.beads`)은 하네스 루트의 소유다.
+- **플러그인 코어(스킬·역할·훅)의 개선을 사용자 명시 지시 없이 설치본에서 수행하지 않는다** — 고칠 곳은 skills 레포 `plugins/harness/` 이고, 설치본은 마켓플레이스 갱신으로 받는다. 프로젝트 맥락(`repos.json`·`rails.json`·`sprints.json`·`CLAUDE.md`·`.beads`)은 하네스 루트의 소유다.
 - **완료 판정을 소감으로 하지 않는다** — 근거는 게이트 종료 코드와 acceptance 대조뿐. 만든 주체가 채점하지 않는다.
 
 ## 원장
