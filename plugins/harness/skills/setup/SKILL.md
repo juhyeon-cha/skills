@@ -13,7 +13,7 @@ This skill holds all three.
 
 Both the procedure and the verification differ per branch. **Decide the branch first and follow that section only.** Do not mix in commands from another section out of habit — calling A's `init` in B or C silently overwrites something different each time.
 
-A harness root is the clone root — the machine-local directory `~/.harness-workspace`, recognized by the `ledger.json` directly under it (section 0) — holding the context files of section 5 and nothing of the plugin. It is a plain directory, not a git repo of its own. **In transition**: section 1.1 (`git init`) and section 1.5's `.gitignore` step still describe the older layout in which the root was its own git repo. Where they disagree with section 0 and section 5's table, those two are right. The plugin (skills · role definitions · hooks · checks · scripts) is installed once per machine at user scope and is never copied into the root — `${CLAUDE_PLUGIN_ROOT}` below is its installed location.
+A harness root is the clone root — the machine-local directory `~/.harness-workspace`, recognized by the `ledger.json` directly under it (section 0) — holding the context files of section 5 and nothing of the plugin. It is a plain directory, not a git repo of its own. **In transition**: section 1.1 (`git init`), section 1.5's `.gitignore` step, and all of section 2's "from a clone" framing (its opening and 2.1's `git clone <the root's url>`) still describe the older layout in which the root was its own git repo — a plain directory has no url to clone. Where they disagree with section 0 and section 5's table, those two are right; section 2's replacement procedure is not written yet (M4). The plugin (skills · role definitions · hooks · checks · scripts) is installed once per machine at user scope and is never copied into the root — `${CLAUDE_PLUGIN_ROOT}` below is its installed location.
 
 ## 0. Branch decision — first action
 
@@ -146,7 +146,7 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/workspace-check.sh` | rc 0 (it self-verifies with a temporary clone, so it passes even with no registered repo) |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/board.sh all` | rc 0. Even with no story in the ledger, an empty table `docs/backlog/index.md` comes out — the projections are outside git, so do not commit them |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0. With no sprint yet, the ledger has **0 `sprint:` labels and the registry answers 0 entries**, so the two-way comparison passes with 0 on both sides. The registry comes from the adapter, so what it needs differs by backend: on `beads` **even an empty registry needs the `sprints.json` file itself to exist** — without it the adapter fails and this is rc=1 (section 5 creates it); on `github`·`notion` it is derived from the ledger and no registry file is read |
-| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/rules-check.sh` | rc 0 (S12 compares this file's `.gitignore` convention against the real file) |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/rules-check.sh` | rc 0. **S12 compares nothing right now** — it prints a `⊘` line and returns 0, because the root moved down to the clone root and the `.gitignore` contract it checked has no target left (dropping the subject is M4) |
 | `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — the plugin is registered at user scope and nowhere else |
 
 #### backend: beads — one more row
@@ -317,11 +317,11 @@ Ask the user (all at once):
 
 These five are not part of the plugin but **owned by the root**, so the plugin does not create them. The shapes below are the specification — build them from here rather than from another file. (B inherits all five. Beyond the one entry for its own rail in 2.5, B touches none of them.)
 
-Two of them live directly under the clone root and are read by tools there, so their absence kills those tools with a non-zero exit immediately: without `repos.json`, `scripts/repo.sh` and `workspace-cleanup.sh` stop; without `ledger.json`, the harness root cannot be recognized at all and every `scripts/ledger.sh` call stops. **`rails.json`·`sprints.json` are backend-dependent** — `board.sh`·`board-check.sh` reach the two registries only through the adapter (`ledger.sh rails`·`sprints`) and open no file of their own. On `beads` the adapter reads exactly these two files, so without `rails.json` `board.sh`·`board-check.sh` stop and without `sprints.json` `board-check.sh`·`board.sh all` stop; on `github`·`notion` the adapter derives both registries from the ledger and neither file is opened. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
+All five live directly under the clone root (= the harness root, section 0). Two of them are read by tools there, so their absence kills those tools with a non-zero exit immediately: without `repos.json`, `scripts/repo.sh` and `workspace-cleanup.sh` stop; without `ledger.json`, the harness root cannot be recognized at all and every `scripts/ledger.sh` call stops. **`rails.json`·`sprints.json` are backend-dependent** — `board.sh`·`board-check.sh` reach the two registries only through the adapter (`ledger.sh rails`·`sprints`) and open no file of their own. On `beads` the adapter reads exactly these two files, so without `rails.json` `board.sh`·`board-check.sh` stop and without `sprints.json` `board-check.sh`·`board.sh all` stop; on `github`·`notion` the adapter derives both registries from the ledger and neither file is opened. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
 
 | File | What it holds |
 |---|---|
-| `repos.json` | the target repo registry, at `~/.harness-workspace/repos.json` (not in the harness root) — `scripts/repo.sh add` writes it |
+| `repos.json` | the target repo registry, at `~/.harness-workspace/repos.json` — `scripts/repo.sh add` writes it |
 | `rails.json` | the rail registry — one rail per person |
 | `sprints.json` | the sprint registry — the only source of whether a sprint is closed |
 | `ledger.json` | the ledger backend — `github` (default) · `beads` · `notion` — and what that backend needs to find the ledger. It lives at `~/.harness-workspace/ledger.json` and **being there is what makes that directory the harness root**; `scripts/repo.sh root` writes it |
@@ -352,9 +352,9 @@ This file sits directly under the clone root (`~/.harness-workspace/ledger.json`
 
 `ledger.sh init` writes `project`·`database_id` into this file — the only values a tool writes here.
 
-### `repos.json` — the target repo registry (machine-local, directly under the clone root)
+### `repos.json` — the target repo registry (machine-local, directly under the harness root)
 
-**Do not build this file by hand**, and note that it does not live in the harness root — it sits directly under the clone root (`~/.harness-workspace/repos.json`), which the guard reserves for `scripts/repo.sh`. Running the following for each repo gathered in the interview clones and registers it in one go.
+**Do not build this file by hand** — it sits directly under the harness root (`~/.harness-workspace/repos.json`), which the guard reserves for `scripts/repo.sh`. Running the following for each repo gathered in the interview clones and registers it in one go.
 
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh add <url> --check "<one-line gate command>" --bootstrap "<worktree preparation command>"
