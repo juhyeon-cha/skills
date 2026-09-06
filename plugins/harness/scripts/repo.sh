@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 대상 레포 등록부 관리 — 클론과 repos.json 등재를 한 번에 한다.
+# 대상 레포 등록부 관리 — 클론과 등록부(클론 루트 직속 repos.json) 등재를 한 번에 한다.
 #
 # 사용:
 #   scripts/repo.sh add <url> [--name <이름>] [--branch <기본브랜치>] [--check <게이트명령>] [--bootstrap <명령>]
@@ -15,7 +15,7 @@
 # 이미 있으면 손대지 않는다(그 레포의 추적 파일이다).
 #
 # 클론 위치는 ~/.harness-workspace/<이름> 으로 고정한다. 손으로 적은 경로는 썩는다 —
-# 등록만 남고 클론이 사라진 repos.json 을 실측으로 겪었다. 위치를 도구가 정하면
+# 등록만 남고 클론이 사라진 등록부를 실측으로 겪었다. 위치를 도구가 정하면
 # "등재됐다"와 "클론이 있다"가 갈라지지 않는다.
 #
 # 스토리 워크트리는 클론 안(<클론>/.claude/worktrees/<story-id>)에 생긴다.
@@ -31,13 +31,16 @@
 # 같은 플러그인이 scope 마다 따로 잡힌다 — 실측 근거는 harness-m8gg.2.1 의 note.
 set -uo pipefail
 # 하네스 루트는 lib/harness-root.sh 가 낸다 — 호출자의 CWD 도 스크립트 위치도 쓰지 않는다
-# (플러그인은 하네스 루트 밖에 산다. CWD 를 쓰면 워크트리에서 대상 레포에 repos.json 을 만들어 버린다).
+# (플러그인은 하네스 루트 밖에 산다. 등록부의 자리는 CWD 가 아니라 클론 루트가 정한다).
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
 cd "$ROOT" || { echo "✗ 하네스 루트로 이동하지 못했다: $ROOT" >&2; exit 1; }
 
-MANIFEST="${REPOS_MANIFEST:-repos.json}"   # 재정의는 검사 스크립트용
 CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
+# 등록부는 **클론 루트 직속**이다 — 어느 클론이 이 머신에 있는가는 머신의 사실이지 하네스가
+# 공유하는 계획이 아니다. 하네스 루트에 있던 옛 파일은 읽지 않는다(있어도 무시한다): 두 자리를
+# 다 읽으면 어느 쪽이 원본인지 흐려진다.
+MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 재정의는 검사 스크립트용
 EXCLUDE_LINE=".claude/worktrees/"
 ROOT_FILE="$CLONE_ROOT/.harness-root"        # lib/harness-root.sh 의 3순위 — 읽기는 거기, 쓰기는 여기
 
@@ -47,16 +50,34 @@ have() { command -v "$1" >/dev/null 2>&1; }
 have git || die "git 이 필요하다"
 have jq || die "jq 가 필요하다"
 
-# repos.json 이 없으면 빈 등록부를 만든다 (add 일 때만 — list/remove 는 없으면 오류).
-DOC_TEXT="대상 레포 manifest. name: repo:<name> 라벨과 대응. url: 클론 소스. 클론 위치는 ~/.harness-workspace/<name> 으로 고정(scripts/repo.sh 가 관리). 게이트 명령·기본 브랜치·부트스트랩은 여기 없다 — 대상 레포 자신의 .harness.json 이 소유한다."
+# 등록부가 없으면 빈 것을 만든다 (add 일 때만 — list/remove 는 없으면 오류).
+DOC_TEXT="대상 레포 manifest (머신 로컬 — 클론 루트 직속). name: repo:<name> 라벨과 대응. url: 클론 소스(비면 원장의 owner 와 name 으로 파생한다). 클론 위치는 이 파일 옆의 <name> 으로 고정(scripts/repo.sh 가 관리). 게이트 명령·기본 브랜치·부트스트랩은 여기 없다 — 대상 레포 자신의 .harness.json 이 소유한다."
 HARNESS_JSON_DOC="하네스가 이 레포를 다루는 방법. 이 레포가 소유한다 — 하네스 루트가 아니라 여기 있어야 클론마다 갈리지 않는다. check: 게이트 명령(레포 루트 기준) — 하네스는 종료 코드만 본다. default_branch: 워크트리를 자르는 기준 브랜치. bootstrap: 워크트리 생성 직후 그 안에서 1회 실행할 준비 명령(선택, 없으면 키를 두지 않는다)."
 
 clone_path() { echo "$CLONE_ROOT/$1"; }
 harness_json() { echo "$(clone_path "$1")/.harness.json"; }
 
-# repos.json 에서 한 레포의 필드를 읽는다.
+# 등록부에서 한 레포의 필드를 읽는다.
 field_of() {
   jq -r --arg n "$1" --arg f "$2" '.repos[] | select(.name == $n) | .[$f] // ""' "$MANIFEST"
+}
+
+# 클론 소스. 등록부의 url 이 비면 원장의 owner 와 이름으로 파생한다 — 같은 owner 아래 레포가
+# 대부분이라 url 은 되풀이이고, 되풀이를 손으로 적으면 오타가 자리를 잡는다. owner 도 없으면
+# 죽는다: 클론할 곳을 모르는 채로 진행하면 restore 가 조용히 아무것도 하지 않는다.
+# 파생만 하고 죽지 않는 판 — 못 하면 rc 1. **die 로 만들면 안 된다**: die 는 exit 이라
+# `$(url_derive …) || 대체값` 안에서 서브셸을 통째로 끝내 `||` 가 돌지 못한다(실측).
+url_derive() {
+  local u; u="$(field_of "$1" url)"
+  [[ -n "$u" ]] && { printf '%s\n' "$u"; return 0; }
+  local owner=""
+  [[ -f "$ROOT/ledger.json" ]] && owner="$(jq -r '.owner // ""' "$ROOT/ledger.json" 2>/dev/null)"
+  [[ -n "$owner" ]] || return 1
+  printf 'https://github.com/%s/%s.git\n' "$owner" "$1"
+}
+url_of() {
+  url_derive "$1" \
+    || die "'$1' 의 url 이 $MANIFEST 에 없고 $ROOT/ledger.json 의 owner 도 없다 — 클론 소스를 파생할 수 없다"
 }
 
 # 대상 레포가 소유한 .harness.json 에서 한 필드를 읽는다. 파일이 없으면 그 경로를 들고 죽는다 —
@@ -167,13 +188,13 @@ ensure_clone() {
 }
 
 cmd_add() {
-  local url="" name="" branch="" check="" bootstrap=""
+  local url="" name="" branch="" check="" bootstrap="" given_branch=""
   url="${1:-}"; shift || true
   [[ -n "$url" ]] || die "사용법: scripts/repo.sh add <url> [--name <이름>] [--branch <기본브랜치>] [--check <게이트명령>] [--bootstrap <명령>]"
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --name)      name="${2:?--name 값이 없다}"; shift 2 ;;
-      --branch)    branch="${2:?--branch 값이 없다}"; shift 2 ;;
+      --branch)    branch="${2:?--branch 값이 없다}"; given_branch="$branch"; shift 2 ;;
       --check)     check="${2:?--check 값이 없다}"; shift 2 ;;
       --bootstrap) bootstrap="${2:?--bootstrap 값이 없다}"; shift 2 ;;
       *) die "알 수 없는 옵션: $1" ;;
@@ -214,10 +235,14 @@ cmd_add() {
 
   # 게이트 명령·기본 브랜치·부트스트랩은 대상 레포가 소유한다. 클론에 이미 있으면 손대지 않는다 —
   # 그 레포의 추적 파일이고, 하네스가 남의 레포 파일을 덮을 자리가 아니다.
+  # **묻지 않은 것은 만들지 않는다**: --check 도 --bootstrap 도 --branch 도 없이 부른 add(이미 있는
+  # 클론을 등록부에만 얹는 경로)는 대상 레포 체크아웃에 아무 파일도 남기지 않는다.
   local hj; hj="$(harness_json "$name")"
   if [[ -f "$hj" ]]; then
     echo "  게이트: 대상 레포가 이미 소유한다 ($hj) — 손대지 않는다"
     check="$(hfield_soft "$name" check)"
+  elif [[ -z "$check" && -z "$bootstrap" && -z "$given_branch" ]]; then
+    echo "  게이트: $hj 을 만들지 않았다 — --check/--branch/--bootstrap 없이 불렀다. 그 레포가 스스로 두어야 한다"
   else
     jq -n --arg doc "$HARNESS_JSON_DOC" --arg c "$check" --arg b "$branch" --arg bs "$bootstrap" \
       '{doc: $doc, check: $c, default_branch: $b} + (if $bs == "" then {} else {bootstrap: $bs} end)' > "$hj" \
@@ -264,7 +289,7 @@ cmd_list() {
     br="$(hfield_soft "$n" default_branch)"; chk="$(hfield_soft "$n" check)"
     [[ -f "$(harness_json "$n")" ]] || { br="✗ $(harness_json "$n") 없음"; chk="$br"; }
     printf '%s\n  url:   %s\n  브랜치: %s\n  check: %s\n  경로:  %s — %s\n  하네스 루트: %s\n' \
-      "$n" "$(field_of "$n" url)" "$br" "$chk" "$dest" "$state" "$hroot"
+      "$n" "$(url_derive "$n" || echo '✗ url 도 owner 도 없다')" "$br" "$chk" "$dest" "$state" "$hroot"
   done < <(jq -r '.repos[].name' "$MANIFEST")
 }
 
@@ -320,8 +345,7 @@ cmd_restore() {
     if git -C "$dest" rev-parse --git-dir >/dev/null 2>&1; then
       skipped=$((skipped + 1)); continue
     fi
-    url="$(field_of "$n" url)"
-    [[ -n "$url" ]] || { echo "오류: '$n' 의 url 이 등록부에 없다" >&2; fail=1; continue; }
+    if ! url="$( url_of "$n" )"; then fail=1; continue; fi
     echo "restore: $n"
     # ensure_clone 의 die 는 exit 1 이라 그대로 부르면 스크립트 전체가 죽어
     # "일부 실패해도 나머지 진행" 이 무효가 된다 — 서브셸로 exit 을 격리한다.

@@ -18,7 +18,10 @@ trap 'rm -rf "$TMP"' EXIT
 HROOT="$TMP/hroot"
 export HARNESS_ROOT="$HROOT" HARNESS_CLONE_ROOT="$TMP/clones"
 mkdir -p "$HROOT" "$HARNESS_CLONE_ROOT" && printf '{"backend":"beads"}\n' > "$HROOT/ledger.json"
-jq -n '{repos: [{name: "r", url: "unused"}]}' > "$HROOT/repos.json"
+# 등록부는 **클론 루트 직속**이다. 하네스 루트에는 옛 자리 파일을 일부러 남겨 둔다 — 새 코드가
+# 그것을 읽으면 아래 ⑥ 이 떨어진다(두 자리를 다 읽으면 어느 쪽이 원본인지 흐려진다).
+jq -n '{repos: [{name: "r", url: "unused"}]}' > "$HARNESS_CLONE_ROOT/repos.json"
+jq -n '{repos: [{name: "옛자리", url: "읽으면-안-된다"}]}' > "$HROOT/repos.json"
 git init -q "$HARNESS_CLONE_ROOT/r"
 CLONE="$HARNESS_CLONE_ROOT/r"
 LOCAL_SETTINGS="$CLONE/.claude/settings.local.json"
@@ -79,5 +82,26 @@ step "list 의 check·브랜치가 그 파일 값이다"   bash -c 'case "$1" in
 printf '{"check":""}\n' > "$CLONE/.harness.json"
 OUT=$(run check r 2>"$ERRF"); rc=$?
 step "check 가 빈 값 → rc≠0 (빈 게이트를 통과로 읽지 않는다)" [ "$rc" -ne 0 ]
+
+echo "── ⑥ 등록부의 자리는 클론 루트 직속 ──"
+OUT=$(run list 2>/dev/null)
+step "클론 루트 직속 등록부의 항목을 낸다"      has_text "url:   unused" "$OUT"
+step "하네스 루트의 옛 파일을 읽지 않는다"      lacks_text "읽으면-안-된다" "$OUT"
+
+echo "── ⑦ url 파생 ──"
+# url 이 비면 원장의 owner 와 이름으로 파생한다. owner 도 없으면 죽는다 — 클론할 곳을 모르는 채로
+# 진행하면 restore 가 조용히 아무것도 하지 않는다.
+jq -n '{repos: [{name: "r", url: ""}]}' > "$HARNESS_CLONE_ROOT/repos.json"
+printf '{"backend":"beads"}\n' > "$HROOT/ledger.json"
+OUT=$(run list 2>/dev/null)
+step "url 이 비고 owner 도 없다 → list 가 그 사실을 드러낸다" has_text "url 도 owner 도 없다" "$OUT"
+rm -rf "${HARNESS_CLONE_ROOT:?}/r"
+run restore r >/dev/null 2>"$ERRF"; rc=$?
+step "url 도 owner 도 없는 restore → rc≠0"     [ "$rc" -ne 0 ]
+step "그 stderr 가 url 과 owner 를 함께 든다"   bash -c 'case "$1" in *url*) case "$1" in *owner*) exit 0;; esac;; esac; exit 1' _ "$(cat "$ERRF")"
+printf '{"backend":"beads","owner":"fx-owner"}\n' > "$HROOT/ledger.json"
+OUT=$(run list 2>/dev/null)
+step "owner 가 있으면 url 을 owner/name 으로 파생한다" \
+  has_text "url:   https://github.com/fx-owner/r.git" "$OUT"
 
 exit $fail

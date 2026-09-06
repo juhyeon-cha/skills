@@ -59,8 +59,8 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$STORY" ]] || { echo "사용법: workspace-cleanup.sh <story-id> [--force]" >&2; exit 1; }
 
-MANIFEST="${REPOS_MANIFEST:-repos.json}"   # 재정의는 검사 스크립트용
 CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
+MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 등록부는 클론 루트 직속 (재정의는 검사 스크립트용)
 command -v jq >/dev/null 2>&1 || { echo "오류: jq 가 없다 — 라벨·등록부 해석에 필수 (없으면 '라벨 없음' 오진이 난다)" >&2; exit 1; }
 [[ -f "$MANIFEST" ]] || { echo "오류: $MANIFEST 없음" >&2; exit 1; }
 

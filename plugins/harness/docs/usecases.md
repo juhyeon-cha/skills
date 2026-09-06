@@ -41,7 +41,7 @@
 
 **Steps**
 
-1. At the harness root: `bash "$(<plugin>)/scripts/repo.sh" add <url> --check '<gate command>'` — clone and `repos.json` registration together; `--check` lands in the clone's own `.harness.json`, to be committed to that repo. The clone lands at `~/.harness-workspace/<repo>`; `repo.sh` also writes `~/.harness-workspace/.harness-root`. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
+1. At the harness root: `bash "$(<plugin>)/scripts/repo.sh" add <url> --check '<gate command>'` — clone and registration in the clone root's `repos.json` together; `--check` lands in the clone's own `.harness.json`, to be committed to that repo. The clone lands at `~/.harness-workspace/<repo>`; `repo.sh` also writes `~/.harness-workspace/.harness-root`. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
 2. `… repo.sh list` confirms the registration and the harness-root pointer.
 3. `harness:plan-story` creates the story epic: `ledger.sh create "<title>" -t epic -l sprint:<sprint ID>,rail:r1,slug:r1-<slug>,repo:<repo>`.
 4. Open a session in `<clone>` and run `harness:develop` — section 2 calls `EnterWorktree` with `name=<story ID>`; the plugin's PostToolUse hook wires the ledger and runs the repo's `bootstrap` if the repo has no EnterWorktree hook of its own.
@@ -49,7 +49,7 @@
 
 **Pass criteria**
 
-- `jq -r '.repos[].name' repos.json | grep -qx '<repo>'` → rc 0
+- `jq -r '.repos[].name' ~/.harness-workspace/repos.json | grep -qx '<repo>'` → rc 0
 - `[ -d <clone>/.git ]` → rc 0 (run through `repo.sh list`, since a Bash command string carrying the clone path is blocked by `r_main_shell`)
 - `git -C <worktree> rev-parse --abbrev-ref HEAD` prints `worktree-<story ID>`
 - `grep -qx '.claude/worktrees/' <clone>/.git/info/exclude && grep -qx '.beads' <clone>/.git/info/exclude` → rc 0, and the target repo's `.gitignore` is unchanged: `git -C <clone> status --porcelain .gitignore` prints 0 lines
@@ -235,7 +235,7 @@
 - `ledger.sh list -n 0` → rc 0 with more than 0 issues
 - `git config core.hooksPath` prints `.beads/hooks`
 - `bash scripts/plugin-root.sh` → rc 0 and prints a directory containing `.claude-plugin/plugin.json`
-- for every name in `jq -r '.repos[].name' repos.json`, `… repo.sh list` reports the clone present and the harness root `<harness root>` — there is no plugin row, and its absence is what `repo-check.sh` ④ asserts
+- for every name in `jq -r '.repos[].name' ~/.harness-workspace/repos.json`, `… repo.sh list` reports the clone present and the harness root `<harness root>` — there is no plugin row, and its absence is what `repo-check.sh` ④ asserts
 - `cat ~/.harness-workspace/.harness-root` prints `<harness root>`
 - `bash "$(<plugin>)/checks/board-check.sh"` → rc 0 (the restored ledger matches the committed registries)
 - 7 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<story ID>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints the harness ledger)

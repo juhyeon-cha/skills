@@ -321,7 +321,7 @@ Two of the four are read directly by tools, so their absence kills those tools w
 
 | File | What it holds |
 |---|---|
-| `repos.json` | the target repo registry — `scripts/repo.sh add` writes it |
+| `repos.json` | the target repo registry, at `~/.harness-workspace/repos.json` (not in the harness root) — `scripts/repo.sh add` writes it |
 | `rails.json` | the rail registry — one rail per person |
 | `sprints.json` | the sprint registry — the only source of whether a sprint is closed |
 | `ledger.json` | the ledger backend — `github` (default) · `beads` · `notion` — and what that backend needs to find the ledger |
@@ -352,9 +352,9 @@ One key, `backend`, decides which backend `scripts/ledger.sh` talks to; the rest
 
 `ledger.sh init` writes `project`·`database_id` into this file — the only values a tool writes here.
 
-### `repos.json` — the target repo registry
+### `repos.json` — the target repo registry (machine-local, directly under the clone root)
 
-**Do not build this file by hand.** Running the following for each repo gathered in the interview clones and registers it in one go.
+**Do not build this file by hand**, and note that it does not live in the harness root — it sits directly under the clone root (`~/.harness-workspace/repos.json`), which the guard reserves for `scripts/repo.sh`. Running the following for each repo gathered in the interview clones and registers it in one go.
 
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh add <url> --check "<one-line gate command>" --bootstrap "<worktree preparation command>"

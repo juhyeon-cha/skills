@@ -2,24 +2,24 @@
 # 게이트: 규약이 선언만 되고 강제되지 않던 단언들 (원장·설정·문서의 정적 검사).
 # **읽는 자리는 둘이고 검사 이름 줄마다 표지 하나가 붙는다** — 트리 · 하네스 루트 (harness-m8gg.8.4 ·
 # 관측 harness-ofwp):
-#   트리 표지 — 파일을 읽는 검사. 하네스 파일(repos.json · .gitignore)은 **검토 대상 트리** TREE — 호출
+#   트리 표지 — 파일을 읽는 검사. 트리 파일(.gitignore)은 **검토 대상 트리** TREE — 호출
 #     CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리 — 에서, 플러그인 문서(스킬·역할·훅·주입 블록)는
 #     플러그인 트리 자신에서 읽는다. CWD 위에 ledger.json 이 없으면 TREE 는 하네스 루트다(플러그인
 #     디렉토리나 대상 레포 워크트리에서 부르는 종전 형태).
 #   하네스 루트 표지 — 원장을 ledger.sh 로 읽는 검사. 원장은 언제나 lib/harness-root.sh 가 낸 루트 HROOT
 #     의 것이다 — 하네스 클론의 워크트리에서 부르면 redirect 가 가리키는 본 루트다.
-#   둘을 가르지 않으면 워크트리에서 돌린 rc 0 이 검토 대상 트리가 아니라 본 루트의 .gitignore·repos.json
+#   둘을 가르지 않으면 워크트리에서 돌린 rc 0 이 검토 대상 트리가 아니라 본 루트의 .gitignore
 #   에 대한 판정이 된다. 시작할 때 "트리: … · 원장 루트: …" 한 줄로 두 자리를 stdout 에 낸다.
 # 하네스 루트를 못 찾으면 원장을 보는 검사는 **조용히 건너뛰지 않고 실패한다**(rc≠0) — 원장 없이
 # 통과한 원장 검사는 검사가 아니다. 플러그인 문서만 보는 검사는 그대로 돈다.
 #   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [하네스 루트]
-#   R18 (harness:develop 멀티 레포) repos.json 에 경로를 적지 않는다 — 키 집합 화이트리스트  [트리]
+#   R18 (harness:develop 멀티 레포) 등록부에 경로를 적지 않는다 — 키 집합 화이트리스트  [클론 루트]
 #   S12 (skills/setup/SKILL.md) 검토 대상 트리 .gitignore 의 필수·금지 항목과 실물 잔존 (세 대조) [트리]
 #   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [하네스 루트]
 #   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 (양방향)  [트리]
 #         — "PR 생성·원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가
 #   C6  (세션 블록 「절대 금지」) 절이 살아 있고 강제 장치의 자리(${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md)를 가리킨다 [트리]
-#   R40 (harness:develop 멀티 레포) repos.json 등재 이름 ↔ 클론 디렉토리 실재 (양방향)      [트리]
+#   R40 (harness:develop 멀티 레포) 등록부의 이름 ↔ 클론 디렉토리 실재 (양방향)      [클론 루트]
 #   S22 (harness:develop 3-0) 한 워크트리에 두 태스크를 동시에 위임하지 않는다               [하네스 루트]
 #   S24 (harness:develop 4-2) 하위가 전부 종료 상태인데 열려 있는 스토리                    [하네스 루트]
 #   R-DATE (harness-dg0.6.30) 주입 블록에 YYYY-MM-DD 날짜가 없다                             [트리]
@@ -33,7 +33,7 @@
 #
 # 극성 반전(harness:develop 운영 규율): 검사 대상을 손으로 나열하지 않는다.
 #   R5  대상은 bd 원장의 태스크 전수에서 파생한다 (면제는 아래 사유 참조).
-#   R18 관측 키는 repos.json 실물에서 파생하고 허용 집합과 양방향 대조한다.
+#   R18 관측 키는 등록부 실물(클론 루트 직속)에서 파생하고 허용 집합과 양방향 대조한다.
 #       허용 집합만이 손으로 적힌 목록이며 그것이 곧 화이트리스트다 — 새 키를
 #       추가하면 이 검사가 실패하는 것이 의도다 (등재 없이 키가 늘지 않게).
 #   R-ACC 대상은 원장에서 파생한다 — 착수의 기계적 표시(status=in_progress)를 가진
@@ -49,7 +49,7 @@
 #       0건이면 실패다. 항목별 게이트 표기는 M1 이 블록에서 뺐다(harness-lzs3.2.3 — 강제 장치의
 #       목록·한계는 ../docs/guardrails.md 가 단일 소유한다) — 그래서 이 검사가 보는 것은
 #       그 포인터가 절에 살아 있는가다. 면제 칸을 두지 않는다.
-#   R40 두 집합을 **각각의 출처에서** 파생한다(등재부 = repos.json · 클론 루트 = 파일시스템)
+#   R40 두 집합을 **각각의 출처에서** 파생한다(등재부 = 클론 루트 직속 repos.json · 클론 = 파일시스템)
 #       — 한쪽에서만 파생하면 그 방향의 어긋남만 보인다. 클론 루트 쪽에서 레포가 아닌
 #       디렉토리만 사유와 함께 면제하고, 면제 키의 실재를 역방향으로 단언한다.
 #   S22 원장 쪽(동시 in_progress)과 파일시스템 쪽(그 스토리의 워크트리 수)에서 각각 파생해
@@ -126,7 +126,10 @@ need_tree() {  # need_tree <검사이름> — 검토 대상 트리가 없으면(
 }
 echo "트리: ${TREE:-(없음)} · 원장 루트: ${HROOT:-(없음)}"
 
-MANIFEST="${REPOS_MANIFEST:-$TREE/repos.json}"   # 재정의는 검사 스크립트용 (hooks/enter-worktree.sh 와 같은 규약)
+# 등록부는 검토 대상 트리에 있지 않다 — 클론 루트 직속의 머신 로컬 파일이다(scripts/repo.sh 머리 주석).
+# 그래서 R18·R40 은 TREE 를 요구하지 않고, 워크트리에서 돌려도 같은 파일 하나를 본다.
+CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
+MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 재정의는 검사 스크립트용
 SETUP_SKILL="skills/setup/SKILL.md"
 GITIGNORE="$TREE/.gitignore"
 BLOCK="hooks/session-context.md"                   # SessionStart 주입 블록 — 플러그인의 유일한 상시 로드 문서
@@ -230,8 +233,8 @@ check_r5() {
   return 0
 }
 
-# ── R18: repos.json 키 집합 화이트리스트 + 경로형 값 금지 ────────────
-# 허용 집합. 여기가 화이트리스트다 — repos.json 에 새 키가 생기면 이 검사가 실패한다.
+# ── R18: 등록부 키 집합 화이트리스트 + 경로형 값 금지 ────────────────
+# 허용 집합. 여기가 화이트리스트다 — 등록부에 새 키가 생기면 이 검사가 실패한다.
 # default_branch·check·bootstrap 은 **대상 레포 자신의 `.harness.json`** 으로 옮겼다
 # (scripts/repo.sh 머리 주석). 전환 기간에 옛 항목이 남아 있는 등록부를 실패로 읽지 않도록
 # 선택 키에 둔다 — 새로 쓰는 자리(repo.sh cmd_add)는 name·url 둘만 쓴다.
@@ -241,7 +244,6 @@ R18_TOP_REQUIRED=(repos)
 R18_TOP_OPTIONAL=(doc)
 check_r18() {
   local f=0 allowed top_allowed extra missing entry_fail
-  need_tree R18 || return 1
   if [[ ! -f "$MANIFEST" ]]; then
     echo "✗ R18 — $MANIFEST 이 없다"
     return 1
@@ -735,7 +737,7 @@ check_c6() {
   return "$f"
 }
 
-# ── R40: repos.json 등재 이름 ↔ 클론 디렉토리 실재 (양방향) ───────────
+# ── R40: 등록부의 이름 ↔ 클론 디렉토리 실재 (양방향) ─────────────────
 # 규칙 원문(harness:develop 멀티 레포): "레포 등록과 클론은 scripts/repo.sh add
 # <url> 이 함께 한다. 클론 위치는 ~/.harness-workspace/<이름> 으로 고정"
 #
@@ -760,12 +762,11 @@ check_c6() {
 #   방향 A 로, 등재에 없는 이름이 든 루트는 방향 B 로 각각 비-0 이어야 한다. **두 방향을
 #   따로 흔들어야** 한 방향만 살아 있는 판을 잡는다(한쪽만 흔들면 나머지 방향은 0건인
 #   채로 통과하고, 그 통과가 "봤는데 문제없음"으로 읽힌다).
-R40_CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
+R40_CLONE_ROOT="$CLONE_ROOT"
 R40_KEEP=()   # 클론 루트 안의 **레포가 아닌** 디렉토리. 등재할 때 사유를 함께 적는다
 check_r40() {
   local names dirs missing extra n_names n_dirs k f=0
 
-  need_tree R40 || return 1
   [[ -f "$MANIFEST" ]] || { echo "✗ R40 — $MANIFEST 이 없다 (등재부의 출처)"; return 1; }
   names=$(jq -r '.repos[]?.name // empty' "$MANIFEST" | sort)
   n_names=$(printf '%s' "$names" | grep -c . )
@@ -814,7 +815,7 @@ check_r40() {
 
   while IFS= read -r k; do
     [[ -z "$k" ]] && continue
-    echo "✗ R40 방향B — $R40_CLONE_ROOT/$k 가 있는데 $MANIFEST 에 '$k' 등재가 없다. 게이트 명령(check)의 출처가 없는 트리다"
+    echo "✗ R40 방향B — $R40_CLONE_ROOT/$k 가 있는데 $MANIFEST 에 '$k' 등재가 없다. 등록부에 없는 클론이다 — 스토리의 repo: 라벨이 가리킬 자리가 없다"
     echo "    조치: 대상 레포면 scripts/repo.sh add <url> --name $k 로 등재하고, 레포가 아니면 사유와 함께 이 검사의 R40_KEEP 에 등재하라"
     f=1
   done <<< "$extra"
