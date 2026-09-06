@@ -30,6 +30,9 @@
 #   ledger-migrate.sh apply  --plan plan.json --map map.txt [--from <루트>] [--only <id,…>]
 #   ledger-migrate.sh verify --plan plan.json --map map.txt [--from <루트>]
 #
+# **verify 는 오케스트레이터 전용이다** — 이슈를 gh api graphql 로 읽으므로 서브에이전트가 돌리면
+# guard 에 막힌다. 서브에이전트는 plan(네트워크에 닿지 않는다)과 픽스처 검사까지만 돈다.
+#
 # apply·verify 는 bd 를 부르지 않는다 — 대상 좌표는 --from 루트의 ledger.json(github 의
 # owner·project)과 repos.json 이 든다. 실증처럼 다른 Project 에 쓸 때는 그 owner·project 를 든
 # ledger.json 과 repos.json 사본을 둔 루트를 --from 으로 준다(원장 자체는 건드리지 않는다).
@@ -185,8 +188,10 @@ cmd_apply() {
     | (if \$sel == null then . else map(select(.id as \$i | \$sel | index(\$i))) end)
     | $TSORT_JQ | .[]" "$planf")" || die "plan 을 정렬하지 못했다"
 
-  local tmp; tmp="$(mktemp -d)" || die "임시 디렉토리를 만들지 못했다"
-  trap 'rm -rf "$tmp"' EXIT
+  # 전역이다 — EXIT 트랩은 이 함수가 끝난 **뒤** 스크립트 종료 시점에 돌아, local 로 잡으면
+  # 그때 변수가 없어 set -u 아래 "tmp: unbound variable" 이 나고 임시 디렉토리가 남는다(2026-09-06 실증).
+  APPLY_TMP="$(mktemp -d)" || die "임시 디렉토리를 만들지 못했다"
+  trap 'rm -rf "$APPLY_TMP"' EXIT
 
   while IFS= read -r item; do
     [ -n "$item" ] || continue
@@ -198,12 +203,12 @@ cmd_apply() {
     title="$(printf '%s' "$item" | jq -r .title)"
     labels="$(printf '%s' "$item" | jq -r "$LABELS_JQ | join(\",\")")"
     slug="$(slug_of "$repo" "$root")" || exit 1
-    printf '%s' "$item" | jq -r .body > "$tmp/body"
+    printf '%s' "$item" | jq -r .body > "$APPLY_TMP/body"
 
     for l in $(printf '%s' "$labels" | tr ',' ' '); do
       gh label create "$l" -R "$slug" --force >/dev/null 2>&1 || die "라벨 '$l' 를 $slug 에 만들지 못했다 ($id)"
     done
-    url="$(gh issue create -R "$slug" -t "$title" -F "$tmp/body" -l "$labels" 2>/dev/null)" \
+    url="$(gh issue create -R "$slug" -t "$title" -F "$APPLY_TMP/body" -l "$labels" 2>/dev/null)" \
       || die "gh issue create 실패: $id ($slug)"
     [ -n "$url" ] || die "gh issue create 가 URL 을 내지 않았다: $id ($slug)"
     num="${url##*/}"

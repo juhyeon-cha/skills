@@ -152,7 +152,10 @@ cat > "$TMP/beads.json" <<'EOF'
 EOF
 export FAKE_BD_DATA="$TMP/beads.json"
 
-run() { OUT=$(bash "$MIG" "$@" 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err"); }
+# 하위 명령마다 stderr 를 모아 둔다 — 마지막 절(⑥)이 셸 오류가 섞이지 않았는지 전수로 본다.
+# (2026-09-06 실증: apply 의 EXIT 트랩이 "tmp: unbound variable" 을 냈는데 rc 는 0 이라 31 단언이
+#  전부 통과했다. stderr 를 보지 않는 검사는 이 부류를 못 잡는다.)
+run() { OUT=$(bash "$MIG" "$@" 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err"); cat "$TMP/err" >> "$TMP/err-$1"; }
 OUT=""; ERR=""; RC=0
 
 echo "── ① plan ──"
@@ -258,6 +261,14 @@ step "가짜 gh 의 REST projectItems 에는 번호가 없다 — 실측 payload
   bash -c 'gh issue view 1 -R juhyeon-cha/skills --json projectItems | jq -e "(.projectItems[0] | has(\"number\") or has(\"project\")) | not" >/dev/null'
 run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
 step "되돌리면 다시 rc 0 (verify 가 상태를 바꾸지 않는다)" [ "$RC" -eq 0 ]
+
+echo "── ⑥ stderr ──"
+# 의도된 stderr(배열 밖 부모·의존 경고, die 메시지)는 통과해야 한다 — 셸 자신의 오류만 잡는다.
+no_shell_error() {
+  [ -f "$TMP/err-$1" ] || { echo "    ($1 을 한 번도 돌리지 않았다)"; return 1; }
+  ! grep -nE 'unbound variable|command not found|No such file|syntax error|bad substitution|: line [0-9]+:' "$TMP/err-$1"
+}
+for c in plan apply verify; do step "$c 의 stderr 에 셸 오류가 없다" no_shell_error "$c"; done
 
 if [ "$fail" -ne 0 ]; then echo "✗ ledger-migrate 검사 실패"; exit 1; fi
 echo "✓ ledger-migrate 검사 통과 — plan · apply(멱등) · verify · 실패 경로"
