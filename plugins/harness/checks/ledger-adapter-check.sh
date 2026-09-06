@@ -288,6 +288,10 @@ case "$1 $2" in
       #   기본                    ITERATION 필드가 있고 iteration 이 두 개
       #   FAKE_GH_NO_ITERATION    ITERATION 필드가 없다 (configuration 이 없는 노드만)
       #   FAKE_GH_EMPTY_ITERATION 필드는 있고 iteration 이 0개 — 갓 init 한 하네스의 모양이다
+      # 셋째 판이 실제와 같은 모양이라는 근거: 시험용 Projects v2 에 init 과 같은
+      # createProjectV2Field(dataType: ITERATION) 을 돌려, 생성 응답과 별도 fields(first:100)
+      # 질의 양쪽에서 configuration 의 iterations·completedIterations 가 둘 다 빈 배열임을 봤다
+      # (2026-09-07, skills#167). 픽스처가 스스로를 근거로 삼지 않는다 — 실측을 옮긴 것이다.
       # 상태 필드가 없으므로 status 는 iterations(현재·미래)/completedIterations(종료일이 지난
       # 것) 두 목록에서만 갈린다. projectV2.id 는 init 이 뮤테이션에 넘길 node id 다.
       *"fields(first"*)

@@ -88,9 +88,11 @@ Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope
 |---|---|---|
 | the Projects v2 | created when `project` is absent, and its number written back into `ledger.json`; when `project` is already there, the number is only verified as readable | it is the ledger's boundary — see the paragraph below |
 | an `ITERATION` field named `Sprint` on it | created when the project has no `ITERATION` field; when one is already there, `init` names it and leaves it alone | **this backend's sprints are that field's iterations.** Without it `ledger.sh sprints` dies rc≠0 and no sprint can be registered |
-| iterations inside that field | **none** | an iteration's title *is* the sprint ID (`YYYY-SNN`), and people pick it in `plan-sprint`. A placeholder would show up in `sprints` as a sprint that does not exist |
+| iterations inside that field | **none** — GitHub adds none of its own either (measured, below) | an iteration's title *is* the sprint ID (`YYYY-SNN`), and people pick it in `plan-sprint`. A placeholder would show up in `sprints` as a sprint that does not exist |
 
 So a freshly initialized root answers `ledger.sh sprints --json` with rc 0 and `[]`, and a stderr line saying the field is there but holds no iterations yet — that is the normal empty state, and it reads differently from the missing-field failure.
+
+**That empty answer was measured against real GitHub, not only against the fixture.** A throwaway Projects v2 got the same `createProjectV2Field(dataType: ITERATION)` call `init` makes: the mutation answered `configuration` `{duration:0, startDay:0, iterations:[], completedIterations:[]}`; reading the field back with a separate `fields(first:100)` query gave the same two empty arrays, so it is not an artifact of the create response; and `ledger.sh sprints --json` on that state gave rc 0, `[]`, and the "iteration 이 하나도 없다" stderr line. The throwaway project was deleted afterwards. This matters because a default configuration shipped by GitHub would make a freshly initialized root register a sprint that does not exist — the very hazard the row above names.
 
 **A harness that was set up before `init` made that field** has the project but no `ITERATION` field, so `sprints` dies rc≠0 naming the field. Re-run `ledger.sh init` on that root: it sees the project already present, creates only the missing field, and touches nothing else.
 

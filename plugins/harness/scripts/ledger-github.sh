@@ -232,6 +232,19 @@ case "$cmd" in
     # **iteration 은 하나도 만들지 않는다.** iteration 의 title 이 곧 스프린트 ID(YYYY-SNN)이고
     # 그것은 사람이 plan-sprint 에서 정하는 값이라 init 이 알 수 없다. 자리를 채우려고 하나
     # 만들면 그것이 등록부에 실재하는 스프린트로 나온다 — 없는 것보다 나쁘다.
+    #
+    # **"갓 만든 ITERATION 필드는 iteration 이 0개다" 는 실측이다** — 아래 뮤테이션을 그대로
+    # 시험용 Projects v2 에 돌려 확인했다(2026-09-07, skills#167 리뷰 대응). GitHub 이 기본
+    # configuration 을 딸려 주면 갓 init 한 루트가 없는 스프린트를 등재하므로, 픽스처가 아니라
+    # 실제 API 로 봐야 하는 자리다. 본 것 셋:
+    #   ① createProjectV2Field 응답의 configuration = {duration:0, startDay:0,
+    #      iterations:[], completedIterations:[]}
+    #   ② 같은 필드를 별도 질의(fields(first:100))로 다시 읽어도 두 배열이 그대로 비어 있다
+    #      — 생성 응답만 비어 보이는 착시가 아니다
+    #   ③ 그 상태의 `ledger.sh sprints --json` 이 rc 0 · `[]` · 아래 "iteration 이 하나도 없다"
+    #      stderr 한 줄
+    # 시험용 project 는 지웠다. 픽스처(checks/ledger-adapter-check.sh 의 FAKE_GH_EMPTY_ITERATION)
+    # 는 여기서 본 모양을 옮긴 것이지 그 반대가 아니다.
     # ponytail: 필드는 first:100(GraphQL 한 페이지 상한)까지만 읽는다. 그 이상이면 이미 있는
     # 필드를 못 보고 하나 더 만들 수 있다 — sprints 의 같은 천장과 한 짝이다.
     fq='query($o:String!,$n:Int!){ user(login:$o){ projectV2(number:$n){ id fields(first:100){ nodes{
@@ -249,6 +262,7 @@ case "$cmd" in
             { projectV2Field { ... on ProjectV2IterationField { name } } } }'
       mout="$(gh api graphql -f query="$mq" -f p="$pid" 2>&1)" \
         || die "init: ITERATION 필드를 만들지 못했다 — $mout (토큰에 project scope 가 없으면 'gh auth refresh -h github.com -s project,read:project')"
+      # "비어 있다" 는 위 실측(①②)의 결론이다 — 응답을 다시 읽어 확인하지는 않는다.
       echo "✓ ITERATION 필드 'Sprint' 를 만들었다 — iteration 은 비어 있다(스프린트 ID 는 plan-sprint 에서 사람이 정한다)"
     fi
     echo "✓ github 원장: owner=$OWNER project=$PROJECT ($LEDGER_CONFIG)"
@@ -545,7 +559,7 @@ case "$cmd" in
           || die "sprints: 사용자 $OWNER 의 Projects v2 $PROJECT 를 읽지 못했다 — 번호가 틀렸거나, owner 가 사용자가 아니다(조직 소유 project 에는 이 질의가 닿지 않는다)"
         cfg="$(printf '%s' "$out" | jq -c '[.data.user.projectV2.fields.nodes[] | select(.configuration != null)] | first // empty')" \
           || die "sprints: 필드 응답을 읽지 못했다"
-        [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 의 필드(첫 100개) 안에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다. ledger.sh init 은 이 필드를 만들지 않으므로 사람이 한 번 만든다 — 'gh project view $PROJECT --owner $OWNER --format json' 으로 project id 를 얻고, gh api graphql -f query='mutation { createProjectV2Field(input: {projectId: \"<그 id>\", dataType: ITERATION, name: \"Sprint\"}) { projectV2Field { ... on ProjectV2IterationField { id } } } }' 그 다음 같은 자리에서 updateProjectV2Field 의 iterationConfiguration 으로 iteration 을 넣는다(title 이 스프린트 ID, YYYY-SNN)"
+        [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 의 필드(첫 100개) 안에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다. 이 필드는 ledger.sh init 이 만든다(skills#167) — 이 루트에서 'HARNESS_ROOT=<루트> ledger.sh init' 을 다시 돌려라. 멱등이라 이미 있는 project 는 그대로 두고 없는 필드만 만든다. 만든 직후의 필드에는 iteration 이 하나도 없고(실측), 스프린트는 plan-sprint 가 iteration 으로 넣는다(title 이 스프린트 ID, YYYY-SNN)"
         # 빈 배열이 나오는 판이 둘이고 **문면으로 갈린다.** 필드가 없으면 위에서 rc≠0 으로
         # 죽고(원장이 답할 수 없는 상태다), 필드는 있는데 iteration 이 0개면 여기서 rc 0 의 빈
         # 배열이다 — 갓 init 한 하네스가 그 모양이고 그것은 정상 상태다. 조용히 내면 둘이
