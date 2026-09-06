@@ -3,8 +3,8 @@
 #
 # EnterWorktree 가 만든(또는 path 로 들어간) 스토리 워크트리에 하네스 원장을 배선한다. 생성은
 # 네이티브 도구의 몫이고 하네스 쪽에는 배선만 남는다(스토리 harness-lzs3 "결정됨": 대상 레포의
-# EnterWorktree 훅이 부트스트랩을 소유하고, 플러그인 훅은 배선만 쓴다. repos.json 의 bootstrap 은
-# 그 훅이 없는 레포의 폴백이다). 정리는 scripts/workspace-cleanup.sh 가 대칭으로 한다.
+# EnterWorktree 훅이 부트스트랩을 소유하고, 플러그인 훅은 배선만 쓴다. 대상 레포 .harness.json 의
+# bootstrap 은 그 훅이 없는 레포의 폴백이다). 정리는 scripts/workspace-cleanup.sh 가 대칭으로 한다.
 #
 # 하는 일 셋 — 전부 멱등이다:
 #   ① 원장 배선을 어댑터에 맡긴다: `ledger.sh wire-worktree <워크트리>`. 무엇을 쓰는지는 백엔드가
@@ -15,7 +15,7 @@
 #      이름을 gitignore 하지 않으므로 등재하지 않으면 워크트리 git status 에 뜬다. 통짜 `.beads` 라
 #      추적 중인 파일(하네스 자신의 원장 뼈대)에는 닿지 않는다. 백엔드와 무관하게 둔다 — 등재는
 #      무해하고, 백엔드를 바꿔도 이 줄이 낡지 않는다.
-#   ③ 대상 레포에 자기 EnterWorktree 훅이 없으면 repos.json 의 bootstrap 을 1회 돌린다. 마커는
+#   ③ 대상 레포에 자기 EnterWorktree 훅이 없으면 워크트리의 .harness.json 의 bootstrap 을 1회 돌린다. 마커는
 #      워크트리 밖 형제 파일(<클론>/.claude/worktrees/.bootstrapped-<이름>)이다 — 워크트리 안에 두면
 #      대상 레포 체크아웃에 untracked 로 뜬다. 마커는 scripts/workspace-cleanup.sh 가 지운다.
 #
@@ -52,7 +52,7 @@ esac
 main="${wt%%/.claude/worktrees/*}"          # 워크트리를 소유한 클론(본 체크아웃)
 rest="${wt#*/.claude/worktrees/}"
 wtname="${rest%%/*}"                          # .claude/worktrees/ 바로 아래 한 칸 = 스토리 ID
-repo="${main##*/}"                            # 클론 디렉토리 이름 = repos.json 의 name
+repo="${main##*/}"                            # 클론 디렉토리 이름 = 등록부의 name
 
 # ① 원장 배선 — 루트는 헬퍼가, 배선은 어댑터가. 헬퍼의 stderr(왜 못 찾았나 — ledger.json 의 자리)를 사유에 싣는다.
 if ! ROOT="$(cd "$wt" && bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>&1)"; then
@@ -79,12 +79,14 @@ for f in "$wt/.claude/settings.json" "$wt/.claude/settings.local.json"; do
   jq -e '.hooks.PostToolUse[]? | select(.matcher == "EnterWorktree")' "$f" >/dev/null 2>&1 && own_hook=1
 done
 if [ "$own_hook" -eq 1 ]; then
-  say "부트스트랩: 대상 레포의 EnterWorktree 훅이 소유한다 — repos.json 의 bootstrap 은 돌리지 않는다"
+  say "부트스트랩: 대상 레포의 EnterWorktree 훅이 소유한다 — .harness.json 의 bootstrap 은 돌리지 않는다"
   exit 0
 fi
-MANIFEST="${REPOS_MANIFEST:-$ROOT/repos.json}"   # 재정의는 검사 스크립트용
-[ -f "$MANIFEST" ] || { say "부트스트랩: $MANIFEST 이 없다 — 건너뛴다"; exit 0; }
-cmd="$(jq -r --arg n "$repo" '.repos[] | select(.name == $n) | .bootstrap // ""' "$MANIFEST" 2>/dev/null || true)"
+# 부트스트랩 명령의 출처는 **대상 레포 자신의 `.harness.json`** 이다(scripts/repo.sh 머리 주석).
+# 워크트리 안의 것을 읽는다 — 그 브랜치가 쓰는 준비 명령이 그 브랜치의 파일에 있다.
+HJSON="$wt/.harness.json"
+[ -f "$HJSON" ] || { say "부트스트랩: $HJSON 이 없다 — 건너뛴다"; exit 0; }
+cmd="$(jq -r '.bootstrap // ""' "$HJSON" 2>/dev/null || true)"
 [ -n "$cmd" ] || exit 0
 marker="$main/.claude/worktrees/.bootstrapped-$wtname"
 if [ -f "$marker" ]; then

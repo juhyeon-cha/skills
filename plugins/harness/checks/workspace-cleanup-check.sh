@@ -55,6 +55,12 @@ is_repo() { git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
 # ── 준비: bare origin, 등록 대상 클론 ──
 git init -q --bare "$TMP/origin.git"
 git clone -q "$TMP/origin.git" "$TMP/seed" 2>/dev/null
+# 게이트 명령·기본 브랜치·부트스트랩은 대상 레포가 소유한다 — seed 의 추적 파일로 둔다
+# (scripts/repo.sh 머리 주석). 부트스트랩 산출물은 무시되는 경로에 쓴다 — 실제 레포의
+# node_modules 와 같은 성질. 정리가 이것 때문에 막히면 게이트 ① 이 깨진다.
+jq -n --arg b "$(git -C "$TMP/seed" symbolic-ref --short HEAD)" \
+  '{check: "true", default_branch: $b, bootstrap: "mkdir -p node_modules && echo ran > node_modules/mark"}' \
+  > "$TMP/seed/.harness.json"
 ( cd "$TMP/seed" && printf 'node_modules/\n' > .gitignore && echo one > a.txt \
   && git add . && git "${GITC[@]}" commit -qm first && git push -q origin HEAD )
 DEFAULT_BRANCH=$(git -C "$TMP/seed" symbolic-ref --short HEAD)
@@ -63,12 +69,7 @@ mkdir -p "$HARNESS_CLONE_ROOT"
 git clone -q "$TMP/origin.git" "$HARNESS_CLONE_ROOT/wcclean" 2>/dev/null
 CLONE="$HARNESS_CLONE_ROOT/wcclean"
 
-# 부트스트랩 산출물은 무시되는 경로에 쓴다 — 실제 레포의 node_modules 와 같은 성질.
-# 정리가 이것 때문에 막히면 게이트 ① 이 깨진다.
-jq -n --arg b "$DEFAULT_BRANCH" \
-  '{repos: [{name: "wcclean", url: "unused-in-this-check", default_branch: $b, check: "true",
-             bootstrap: "mkdir -p node_modules && echo ran > node_modules/mark"}]}' \
-  > "$TMP/manifest.json"
+jq -n '{repos: [{name: "wcclean", url: "unused-in-this-check"}]}' > "$TMP/manifest.json"
 
 BEAD=$(ledger create "wcclean: workspace-cleanup.sh 게이트용" -t task --ephemeral -l "repo:wcclean" --silent)
 [[ -n "$BEAD" ]] || { echo "  ✗ FAILED: 검사용 bead 생성"; exit 1; }

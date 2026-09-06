@@ -359,22 +359,17 @@ One key, `backend`, decides which backend `scripts/ledger.sh` talks to; the rest
 ```bash
 bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh add <url> --check "<one-line gate command>" --bootstrap "<worktree preparation command>"
 # to give it a name different from the url use --name, to pin the default branch use --branch
+# --check/--branch/--bootstrap go into the clone's own .harness.json (below) — commit them to that repo
 # on a new machine that has the registry but no clones: repo.sh restore
 ```
 
-The clone location is fixed at `~/.harness-workspace/<name>` and no path is written into `repos.json` — a path written by hand rots. The result looks like this.
+The clone location is fixed at `~/.harness-workspace/<name>` and no path is written into `repos.json` — a path written by hand rots. **The registry holds `name` and `url` and nothing else** — how the harness treats a repo (gate command, default branch, bootstrap) is owned by that repo itself, in its own `.harness.json` (below). The result looks like this.
 
 ```json
 {
-  "doc": "대상 레포 manifest. name: repo:<name> 라벨과 대응. url: 클론 소스. 클론 위치는 ~/.harness-workspace/<name> 으로 고정(scripts/repo.sh 가 관리). check: 레포가 소유한 게이트 명령(레포 루트 기준) — 하네스는 종료 코드만 본다. bootstrap: 워크트리 생성 직후 그 안에서 1회 실행할 준비 명령(의존성 설치 등, 선택). 언어·빌드 도구 정보는 이 파일에만 둔다.",
+  "doc": "대상 레포 manifest. name: repo:<name> 라벨과 대응. url: 클론 소스. 클론 위치는 ~/.harness-workspace/<name> 으로 고정(scripts/repo.sh 가 관리). 게이트 명령·기본 브랜치·부트스트랩은 여기 없다 — 대상 레포 자신의 .harness.json 이 소유한다.",
   "repos": [
-    {
-      "name": "<repo name>",
-      "url": "<clone url>",
-      "default_branch": "main",
-      "check": "<one-line gate command>",
-      "bootstrap": "<worktree preparation command (optional)>"
-    }
+    { "name": "<repo name>", "url": "<clone url>" }
   ]
 }
 ```
@@ -382,12 +377,27 @@ The clone location is fixed at `~/.harness-workspace/<name>` and no path is writ
 | Field | Where it is used |
 |---|---|
 | `name` | Corresponds to a story's `repo:<name>` label. The clone location (`~/.harness-workspace/<name>`) is derived from it too |
-| `url` | The clone source. `repo.sh add` records it |
-| `default_branch` | The branching base for worktrees. EnterWorktree cuts them from `origin/<the default branch>` (`worktree.baseRef` default `fresh`); this field is what `repo.sh` records and `rules-check` R18 requires. `repo.sh` detects it from `origin/HEAD` or takes it via `--branch` |
-| `check` | A single line run at the repo root that reports success or failure through its exit code. implementer runs it last, evaluator re-runs it. Knowledge of the language and build tools lives here and nowhere else. **Register without `--check` and it stays empty and `repo.sh` warns** — until it is filled, that repo cannot run a gate |
-| `bootstrap` | A preparation command run once inside a worktree right after it is created (installing dependencies and the like; optional). Without it, a bare worktree can fail the gate for reasons unrelated to the code — the EnterWorktree hook (`hooks/enter-worktree.sh`) runs it once as the fallback when the target repo has no EnterWorktree hook of its own, and reports failure on stderr |
+| `url` | The clone source. `repo.sh add` records it, and `repo.sh restore` re-clones from it on a new machine |
 
 Confirm the registration result with `bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh list` — it shows registration and clone existence together.
+
+### `.harness.json` — how the harness treats one target repo
+
+This file lives **at the root of the target repo and is committed there**, not at the harness root. The repo is what knows its own gate command; put it in the harness's registry instead and the person who knows the repo cannot fix it, and two harnesses hold two different values. `repo.sh add` creates it when the clone does not have one yet — **commit it to that repo**; when the clone already has one, `repo.sh` leaves it alone.
+
+```json
+{
+  "check": "<one-line gate command>",
+  "default_branch": "main",
+  "bootstrap": "<worktree preparation command (optional — leave the key out when there is none)>"
+}
+```
+
+| Field | Where it is used |
+|---|---|
+| `check` | A single line run at the repo root that reports success or failure through its exit code. implementer runs it last, evaluator re-runs it; `repo.sh check <name>` prints it, and **rc≠0 naming the path when the file or the value is missing** — no fallback, because an absent gate must not read as a passing one. Knowledge of the language and build tools lives here and nowhere else |
+| `default_branch` | The branching base for worktrees. EnterWorktree cuts them from `origin/<the default branch>` (`worktree.baseRef` default `fresh`). `repo.sh add` records what it detected from `origin/HEAD` or took via `--branch`; `repo.sh restore` does not read it — it re-detects from `origin/HEAD`, since a clone has to exist before this file can be read |
+| `bootstrap` | A preparation command run once inside a worktree right after it is created (installing dependencies and the like; optional). Without it, a bare worktree can fail the gate for reasons unrelated to the code — the EnterWorktree hook (`hooks/enter-worktree.sh`) reads it **from the worktree's own copy** and runs it once as the fallback when the target repo has no EnterWorktree hook of its own, reporting failure on stderr |
 
 ### `rails.json` — the rail registry
 

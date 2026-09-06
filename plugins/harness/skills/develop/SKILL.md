@@ -24,7 +24,7 @@ description: Story (epic bead) development execution procedure. Use on a "스토
 
 Enter the story worktree with the native **`EnterWorktree`** tool, `name` = `<story ID>`. The worktree is `<clone>/.claude/worktrees/<story ID>` on branch **`worktree-<story ID>`**, cut from `origin/<default branch>` (the `worktree.baseRef` default, `fresh`); the tool does not take a branch name. When `git worktree list` already shows that path (picking up an interrupted cycle), enter it with `path` instead of `name`. Do not run `git worktree add` by hand — the tool and its hook own creation.
 
-The plugin's PostToolUse hook (`${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh`) wires the ledger (`ledger.sh wire-worktree` — for `beads` a `.beads/redirect` to the harness ledger — plus the clone's `.git/info/exclude`) and, when the target repo has no EnterWorktree hook of its own, runs the `bootstrap` of repos.json once (a sibling marker under `.claude/worktrees/` skips the rerun). **A hook failure does not block the tool** — it exits 2, so its stderr lands in your response (PostToolUse feeds only exit-2 stderr back to Claude): `원장 배선 실패` means the harness root (`ledger.json`) was not found. Before delegating, `${CLAUDE_PLUGIN_ROOT}/lib/harness-root.sh` run inside the worktree must print the harness root. Do not bootstrap (install dependencies) by hand.
+The plugin's PostToolUse hook (`${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh`) wires the ledger (`ledger.sh wire-worktree` — for `beads` a `.beads/redirect` to the harness ledger — plus the clone's `.git/info/exclude`) and, when the target repo has no EnterWorktree hook of its own, runs the `bootstrap` of the worktree's own `.harness.json` once (a sibling marker under `.claude/worktrees/` skips the rerun). **A hook failure does not block the tool** — it exits 2, so its stderr lands in your response (PostToolUse feeds only exit-2 stderr back to Claude): `원장 배선 실패` means the harness root (`ledger.json`) was not found. Before delegating, `${CLAUDE_PLUGIN_ROOT}/lib/harness-root.sh` run inside the worktree must print the harness root. Do not bootstrap (install dependencies) by hand.
 
 **Hold the worktree path and the harness root absolute path for the whole cycle.** The worktree sits outside the harness (`~/.harness-workspace/<repo>/.claude/worktrees/<story ID>/`), so a subagent cannot derive the harness root from its path — state it in every delegation, or `HARNESS_ROOT=<harness root> ledger.sh …` does not work. When the clone is missing, register and clone first with `scripts/repo.sh add <url>` and open the session there.
 
@@ -162,7 +162,7 @@ When it cannot be confirmed, do not write optimistically — **write that it was
 
 | Class | Example | Rerun |
 |---|---|---|
-| **Decided in the tree** | `repos.json`'s `check` | **No.** The rc is bound to the commit. Use the command and rc the worker left in the commit message, but confirm **that the record belongs to the target commit itself** — when its wording is letter for letter the same as the parent commit's (`<commit>^`) gate record, do not take it; run it directly |
+| **Decided in the tree** | the repo's own `.harness.json` `check` | **No.** The rc is bound to the commit. Use the command and rc the worker left in the commit message, but confirm **that the record belongs to the target commit itself** — when its wording is letter for letter the same as the parent commit's (`<commit>^`) gate record, do not take it; run it directly |
 | **Compared against the world outside the tree** | `board-check` (the ledger) | **Run it where it is used.** With the tree unchanged, another session changing the ledger flips it. No record — commit message, hook pass, or the previous stage's report — stands in for it |
 
 This distinction is single-owned here. Role definitions and skills write only *who runs it when* and point at this section.
@@ -285,7 +285,7 @@ Applies when diagnosing a cause and proposing an action. Not to plain observatio
 
 ## 멀티 레포
 
-- The repo list and each repo's gate command have their source in the root `repos.json`. Language and build-tool knowledge lives nowhere outside this file.
+- The repo list has its source in the root `repos.json` (`name` · `url`). **Each repo's gate command, default branch and bootstrap are owned by that repo's own `.harness.json`, at its root** — language and build-tool knowledge lives nowhere outside that file, and `repo.sh check <name>` is what prints the gate command.
 - **Registering and cloning a repo happen together in `scripts/repo.sh add <url>`.** The clone location is fixed at `~/.harness-workspace/<name>` and no path is written into `repos.json`.
 - At story pickup, the session opened in that repo's clone makes the worktree with `EnterWorktree` (name=`<story-id>`): `~/.harness-workspace/<repo name>/.claude/worktrees/<story-id>/`. The branch is `worktree-<story-id>` (the tool decides it — section 2). The session unit is (story, repo), so in a multi-repo story one session per repo runs the same procedure in its own clone.
 - **The worktree is outside the harness.** State the harness root absolute path in the delegation message — it is the only source of `HARNESS_ROOT=<harness root>`.

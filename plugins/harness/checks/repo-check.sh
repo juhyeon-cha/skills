@@ -5,6 +5,8 @@
 #      이미 있던 .claude/settings.local.json 의 내용이 apply 전후로 같고 .claude/settings.json 도 생기지 않는다
 #   ③ .harness-root 가 다른 경로를 담고 있으면 rc≠0 이고 stderr 에 두 경로가 모두 있다 (덮어쓰지 않는다)
 #   ④ list 에 하네스 루트 행이 있고 플러그인 행은 없다
+#   ⑤ 게이트 명령의 출처는 클론의 .harness.json 이다 — 있으면 check 가 그 값이고, 없으면 rc≠0 이고
+#      stderr 가 그 경로를 든다 (등록부의 값으로 폴백하지 않는다)
 # 가짜 하네스 루트(HARNESS_ROOT — 판별자 ledger.json 과 repos.json)와 가짜 클론 루트
 # (HARNESS_CLONE_ROOT)로만 돈다 — 실제 ~/.harness-workspace 도 실제 원장도 건드리지 않는다.
 # PATH 를 /usr/bin:/bin 으로 좁혀 claude 를 뺀다 — repo.sh 가 claude 를 부르지 않는다는 것도 이 PATH 에서 드러난다.
@@ -16,7 +18,7 @@ trap 'rm -rf "$TMP"' EXIT
 HROOT="$TMP/hroot"
 export HARNESS_ROOT="$HROOT" HARNESS_CLONE_ROOT="$TMP/clones"
 mkdir -p "$HROOT" "$HARNESS_CLONE_ROOT" && printf '{"backend":"beads"}\n' > "$HROOT/ledger.json"
-jq -n '{repos: [{name: "r", url: "unused", default_branch: "main", check: "true", bootstrap: ""}]}' > "$HROOT/repos.json"
+jq -n '{repos: [{name: "r", url: "unused"}]}' > "$HROOT/repos.json"
 git init -q "$HARNESS_CLONE_ROOT/r"
 CLONE="$HARNESS_CLONE_ROOT/r"
 LOCAL_SETTINGS="$CLONE/.claude/settings.local.json"
@@ -61,5 +63,21 @@ echo "── ④ list ──"
 OUT=$(run list 2>/dev/null)
 step "하네스 루트 행"                         has_text "하네스 루트: $HROOT" "$OUT"
 step "플러그인 행 없음"                       lacks_text "플러그인:" "$OUT"
+
+echo "── ⑤ 게이트 명령의 출처는 클론의 .harness.json ──"
+# 파일이 없는 상태가 먼저다 — 등록부에 값이 없으므로 폴백할 자리도 없다는 것을 여기서 못박는다.
+OUT=$(run check r 2>"$ERRF"); rc=$?
+step "파일 없음 → rc≠0"                       [ "$rc" -ne 0 ]
+step "파일 없음 → stderr 가 그 경로를 든다"    has_text "$CLONE/.harness.json" "$(cat "$ERRF")"
+step "파일 없음 → stdout 에 게이트 명령이 없다" [ -z "$OUT" ]
+step "list 도 그 부재를 드러낸다"              has_text "$CLONE/.harness.json 없음" "$(run list 2>/dev/null)"
+printf '{"check":"bash scripts/gate.sh","default_branch":"trunk"}\n' > "$CLONE/.harness.json"
+OUT=$(run check r 2>"$ERRF"); rc=$?
+step "파일 있음 → rc=0"                       [ "$rc" -eq 0 ]
+step "파일 있음 → check 값 그대로"             [ "$OUT" = "bash scripts/gate.sh" ]
+step "list 의 check·브랜치가 그 파일 값이다"   bash -c 'case "$1" in *"check: bash scripts/gate.sh"*) case "$1" in *"브랜치: trunk"*) exit 0;; esac;; esac; exit 1' _ "$(run list 2>/dev/null)"
+printf '{"check":""}\n' > "$CLONE/.harness.json"
+OUT=$(run check r 2>"$ERRF"); rc=$?
+step "check 가 빈 값 → rc≠0 (빈 게이트를 통과로 읽지 않는다)" [ "$rc" -ne 0 ]
 
 exit $fail

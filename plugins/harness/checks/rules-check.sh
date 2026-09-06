@@ -232,8 +232,11 @@ check_r5() {
 
 # ── R18: repos.json 키 집합 화이트리스트 + 경로형 값 금지 ────────────
 # 허용 집합. 여기가 화이트리스트다 — repos.json 에 새 키가 생기면 이 검사가 실패한다.
-R18_REQUIRED=(name url default_branch check)
-R18_OPTIONAL=(bootstrap)
+# default_branch·check·bootstrap 은 **대상 레포 자신의 `.harness.json`** 으로 옮겼다
+# (scripts/repo.sh 머리 주석). 전환 기간에 옛 항목이 남아 있는 등록부를 실패로 읽지 않도록
+# 선택 키에 둔다 — 새로 쓰는 자리(repo.sh cmd_add)는 name·url 둘만 쓴다.
+R18_REQUIRED=(name url)
+R18_OPTIONAL=(default_branch check bootstrap)
 R18_TOP_REQUIRED=(repos)
 R18_TOP_OPTIONAL=(doc)
 check_r18() {

@@ -45,6 +45,13 @@ is_repo() { git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
 
 # ── 준비: bare origin, 등록 대상 클론 ──
 git init -q "$TMP/seed"
+SEED_BRANCH=$(git -C "$TMP/seed" symbolic-ref --short HEAD)
+# 게이트 명령·기본 브랜치·부트스트랩은 대상 레포가 소유한다 — seed 의 추적 파일로 둔다
+# (scripts/repo.sh 머리 주석). bootstrap 은 무시되는 경로에 실행 표식을 남긴다 — 실행 횟수를
+# 게이트가 세고, 정리가 그것으로 막히지 않게.
+jq -n --arg b "$SEED_BRANCH" \
+  '{check: "true", default_branch: $b, bootstrap: "mkdir -p node_modules && echo ran >> node_modules/BOOT_MARK"}' \
+  > "$TMP/seed/.harness.json"
 ( cd "$TMP/seed" && printf 'node_modules/\n' > .gitignore && echo one > a.txt \
   && git add . && git "${GITC[@]}" commit -qm first )
 DEFAULT_BRANCH=$(git -C "$TMP/seed" symbolic-ref --short HEAD)
@@ -53,11 +60,7 @@ mkdir -p "$HARNESS_CLONE_ROOT"
 git clone -q "$TMP/origin.git" "$HARNESS_CLONE_ROOT/wscheck" 2>/dev/null
 CLONE="$HARNESS_CLONE_ROOT/wscheck"
 
-# bootstrap 은 무시되는 경로에 실행 표식을 남긴다 — 실행 횟수를 게이트가 세고, 정리가 그것으로 막히지 않게.
-jq -n --arg b "$DEFAULT_BRANCH" \
-  '{repos: [{name: "wscheck", url: "unused-in-this-check", default_branch: $b, check: "true",
-             bootstrap: "mkdir -p node_modules && echo ran >> node_modules/BOOT_MARK"}]}' \
-  > "$TMP/manifest.json"
+jq -n '{repos: [{name: "wscheck", url: "unused-in-this-check"}]}' > "$TMP/manifest.json"
 
 BEAD=$(ledger create "wscheck: EnterWorktree 왕복 게이트용" -t task --ephemeral -l "repo:wscheck" --silent)
 [[ -n "$BEAD" ]] || { echo "  ✗ FAILED: 검사용 bead 생성" ; exit 1; }

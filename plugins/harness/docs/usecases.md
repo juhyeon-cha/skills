@@ -41,7 +41,7 @@
 
 **Steps**
 
-1. At the harness root: `bash "$(<plugin>)/scripts/repo.sh" add <url> --check '<gate command>'` — clone and `repos.json` registration together. The clone lands at `~/.harness-workspace/<repo>`; `repo.sh` also writes `~/.harness-workspace/.harness-root`. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
+1. At the harness root: `bash "$(<plugin>)/scripts/repo.sh" add <url> --check '<gate command>'` — clone and `repos.json` registration together; `--check` lands in the clone's own `.harness.json`, to be committed to that repo. The clone lands at `~/.harness-workspace/<repo>`; `repo.sh` also writes `~/.harness-workspace/.harness-root`. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
 2. `… repo.sh list` confirms the registration and the harness-root pointer.
 3. `harness:plan-story` creates the story epic: `ledger.sh create "<title>" -t epic -l sprint:<sprint ID>,rail:r1,slug:r1-<slug>,repo:<repo>`.
 4. Open a session in `<clone>` and run `harness:develop` — section 2 calls `EnterWorktree` with `name=<story ID>`; the plugin's PostToolUse hook wires the ledger and runs the repo's `bootstrap` if the repo has no EnterWorktree hook of its own.
@@ -55,7 +55,7 @@
 - `grep -qx '.claude/worktrees/' <clone>/.git/info/exclude && grep -qx '.beads' <clone>/.git/info/exclude` → rc 0, and the target repo's `.gitignore` is unchanged: `git -C <clone> status --porcelain .gitignore` prints 0 lines
 - on the `beads` backend, `cat <worktree>/.beads/redirect` prints `<harness root>/.beads` and `ledger.sh where` inside the worktree prints that ledger; on `github`·`notion` there is nothing to wire, and the criterion is instead that `ledger.sh list -n 1` from inside the worktree is rc 0
 - `bash "$(<plugin>)/checks/workspace-check.sh"` → rc 0
-- inside the worktree, the repo's `check` command from `repos.json` → rc 0 (bootstrap finished)
+- inside the worktree, the repo's `check` command from its own `.harness.json` → rc 0 (bootstrap finished)
 
 ### UC-2. One story touches two repos — one session per repo, integration verification
 

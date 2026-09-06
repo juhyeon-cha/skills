@@ -29,9 +29,6 @@ step() {
 
 # ── 픽스처 루트 ───────────────────────────────────────────────────────
 ROOT="$TMP/root"; mkdir -p "$ROOT"
-cat > "$ROOT/repos.json" <<'EOF'
-{"repos":[{"name":"harness","url":"https://github.com/juhyeon-cha/harness.git","default_branch":"master","check":"true","bootstrap":""}]}
-EOF
 printf '{"backend":"github","owner":"juhyeon-cha","project":4}\n' > "$ROOT/ledger.json"
 # 등록부 파일(rails.json·sprints.json)을 두지 않는다 — board.sh 는 이제 어댑터의 rails·sprints 로
 # 읽는다. 파일이 없는 루트에서 아래 다섯 경우가 다 서는 것이 그 전환의 증거다.
@@ -48,6 +45,12 @@ cat > "$TMP/bin/gh" <<'FAKE'
 case "$1 $2" in
   "auth status") exit 0 ;;
   "api graphql")
+    # 읽기가 훑을 레포 목록 — Projects v2 의 항목이 사는 레포다(ledger-github.sh 의 repos_all).
+    # projectV2 를 함께 담으므로 스프린트 질의보다 **먼저** 갈라야 한다.
+    if [[ "$*" == *"items(first"* ]]; then
+      printf '[{"data":{"user":{"projectV2":{"items":{"nodes":[{"content":{"repository":{"name":"harness"}}}]}}}}}]'
+      exit 0
+    fi
     if [[ "$*" == *projectV2* ]]; then
       printf '{"data":{"user":{"projectV2":{"fields":{"nodes":[{},{"configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
       exit 0
