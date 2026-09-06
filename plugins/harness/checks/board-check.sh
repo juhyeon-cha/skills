@@ -41,14 +41,14 @@ fail=0
 # 착수 전 acceptance 가 필요하다는 요구가 그대로 성립한다.
 # 면제가 걸리는 자리는 둘뿐이다: acceptance 존재, 상속 ORPHAN. MISMATCH 는 좁히지 않는다 —
 # 그 해악은 `bd list -l sprint:<ID>` 집계이고 닫힌 하위에도 그대로 성립한다.
-# 역방향 단언: 면제 키가 원장에 0건이면 면제는 아무것도 안 하면서 참이 된다 — 실패로 읽는다.
+# 이 두 키가 원장에 0건인지는 **검사하지 않는다**. shell-lint.sh·check-all.sh 의 "실재하지 않는
+# 키의 면제는 검사를 조용히 지운다" 는 면제 키가 **파일·검사 이름**(정적 산출물)일 때의 단언이고,
+# 여기 키는 원장 데이터의 값이라 개수가 원장 내용에 따라 정당하게 0 이 된다 — github 백엔드로
+# 이전한 직후가 그렇다(열린 항목만 옮기므로 closed 가 0건이다. 실측 2026-09-06: Projects v2 #5
+# 129건 전부 열림, 이 단언 하나로 board-check 가 rc 1 이었다 — 하네스 루트의 pre-commit 게이트가
+# 이전 첫날 빨갛다). 0건인 면제는 아무것도 면제하지 않으므로 검사를 **강한 쪽으로** 둘 뿐이고,
+# 키가 오타나면 종료 상태 항목이 면제를 못 받아 아래 ORPHAN·acceptance 에서 시끄럽게 걸린다.
 TERMINAL_STATUS='["closed","deferred"]'
-MISSING_STATUS=$(printf '%s' "$FULL_JSON" \
-  | jq -r --argjson t "$TERMINAL_STATUS" '($t - [.[].status]) | .[]')
-for st in $MISSING_STATUS; do
-  echo "✗ 면제 목록의 status '$st' 가 원장에 0건이다 — 실재하지 않는 키의 면제는 검사를 조용히 지운다"
-  fail=1
-done
 
 # ── 스프린트 ID 형식 ────────────────────────────────────────────────
 for id in $BD_SPRINTS; do
