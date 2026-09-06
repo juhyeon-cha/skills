@@ -266,6 +266,9 @@ case "$1 $2" in
   "api -X"|"api repos"*)
     path=""; for a in "$@"; do case "$a" in repos/*) path="$a" ;; esac; done
     case "$path" in
+      # 아래 blocked_by 분기 셋은 정상 경로에서 안 불린다(의존은 GraphQL 의 blockedBy 로 온다). 지우지 마라 —
+      # 미끼다: REST 로 회귀하면 여기가 답을 주어 그 호출이 로그에 남고 "REST 0회" 단언이 잡는다.
+      # 분기를 지우면 회귀가 "모르는 호출" 로 죽어 단언이 아니라 픽스처가 실패한다.
       */issues/57/dependencies/blocked_by) echo '[{"number":58,"state":"open","repository_url":"https://api.github.com/repos/juhyeon-cha/harness"}]' ;;
       */issues/58/dependencies/blocked_by) echo '[{"number":59,"state":"closed","repository_url":"https://api.github.com/repos/juhyeon-cha/harness"}]' ;;
       */dependencies/blocked_by) echo '[]' ;;

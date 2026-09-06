@@ -38,12 +38,13 @@
 #                        `ACTOR: <값>` 한 토큰이지만 스토리 항목의 ACTOR note 는 `ACTOR: <레포> <값>`
 #                        이라(harness:develop 1절) 첫 토큰을 읽으면 스토리에서 레포 이름을 집는다.
 #   parent               sub-issue 부모의 <repo>#<number> (없으면 null)
-#   dependencies         show 에만: blocked_by 목록 [{id, status, dependency_type:"blocks"}]
+#   dependencies         blocked_by 목록 [{id, status, dependency_type:"blocks"}] — FIELDS 의 blockedBy 에서
+#                        나오므로 show 만이 아니라 list·children 등 norm 을 거치는 모든 산출물에 실린다.
 #   priority             2 고정 (대응 필드 없음)
 #   created_at·updated_at·closed_at
 #
-# ponytail: 라벨·코멘트·자식은 first:100, 이슈의 projectItems 는 first:20 까지만 읽는다 —
-# 그 이상은 페이지네이션이 필요하다(한 이슈가 21개 넘는 프로젝트에 들면 소속을 놓친다).
+# ponytail: 라벨·코멘트·자식은 first:100, blockedBy 는 first:50, 이슈의 projectItems 는 first:20 까지만
+# 읽는다 — 그 이상은 페이지네이션이 필요하다(한 이슈가 21개 넘는 프로젝트에 들면 소속을 놓친다).
 set -uo pipefail
 : "${LEDGER_ROOT:?ledger.sh 를 통해 불러라}"; : "${LEDGER_CONFIG:?ledger.sh 를 통해 불러라}"
 
@@ -86,6 +87,9 @@ FIELDS='id databaseId number title state body createdAt updatedAt closedAt repos
 NORM='def norm:
   ((.body // "") | if startswith("## Acceptance\n") then "\n" + . else . end | split("\n## Acceptance\n")) as $parts
   | (.labels.nodes | map(.name)) as $ls
+  # 이 error() 는 norm 을 거치는 모든 읽기를 죽인다 — ready 뿐 아니라 list 도이고, 따라서
+  # status·triage·board 까지 선다. 의존 51개짜리 이슈 하나면 그렇게 된다. 탈출구는 아래 메시지가
+  # 이름으로 드는 FIELDS 의 blockedBy(first:N) 을 늘리는 플러그인 편집뿐이다.
   | (if .blockedBy.totalCount > (.blockedBy.nodes | length)
      then error("blockedBy 가 잘렸다: " + .repository.name + "#" + (.number|tostring)
                 + " — totalCount=" + (.blockedBy.totalCount|tostring)
