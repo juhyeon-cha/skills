@@ -153,7 +153,7 @@ if ! printf '%s' "$INPUT" | jq -e 'type == "object"' >/dev/null 2>&1; then
 fi
 
 # JSON 은 printf 로 먹인다 — echo 는 backslash 확장 셸에서 필드 안의 이스케이프를
-# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/development.md "셸 함정").
+# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/development.md "Shell traps").
 field() { printf '%s' "$INPUT" | jq -r "$1 // \"\"" 2>/dev/null; }
 
 TOOL_NAME="$(field '.tool_name')"
@@ -686,7 +686,7 @@ RULES+=("Bash:r_main_shell")
 # 흔적이 거의 남지 않고 원격만 조용히 바뀐다. 되돌리기 비용이 이 훅이 다루는 것 중
 # 가장 크고, 되돌림 자체가 또 한 번의 원격 반영이라 승인 없이 시작할 수 없다.
 # 근거 문서(전부 설득이고 강제는 없었다): agents/implementer.md:27(=A3) ·
-# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36 · ../docs/development.md "원격".
+# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36 · ../docs/development.md "Remote".
 #
 # **적용 대상은 서브에이전트 호출뿐이다.** 오케스트레이터는 사용자 지시를 받으면 실제로
 # push·PR 을 해야 한다. 판정 근거는 r_bd_root 와 같은 `agent_id`·`agent_type` 의 존재이고

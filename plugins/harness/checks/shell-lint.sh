@@ -2,7 +2,7 @@
 # 게이트: 셸 스크립트의 정적 분석 (shellcheck).
 #
 # 왜: 이 플러그인은 셸이 본체다 — scripts·checks·hooks·lib 를 합치면 수천 줄인데, 커밋
-# 게이트가 보던 것은 `bash -n`(문법)뿐이었다. ../docs/development.md "셸 함정" 에 실측으로
+# 게이트가 보던 것은 `bash -n`(문법)뿐이었다. ../docs/development.md "Shell traps" 에 실측으로
 # 쌓인 세 항목 — 파이프 밖에서 종료 코드 채집 · `[[ ]]` 우변 glob · JSON 을 echo 로 먹이기
 # — 은 전부 shellcheck 가 이름으로 부르는 부류다. 세 번 데고 규율로 적은 자리를 도구가
 # 사전에 잡는다. 규율은 남는다 — 도구가 보는 것만 통과했다는 뜻이기 때문이다.
@@ -87,7 +87,7 @@ for f in $FILES; do
 done
 [ "$n" -gt 0 ] || { echo "✗ 면제를 뺀 검사 대상이 0개다 — 면제가 집합을 통째로 지웠다"; exit 1; }
 
-# rc 는 파이프 밖에서 채집한다 (../docs/development.md "셸 함정").
+# rc 는 파이프 밖에서 채집한다 (../docs/development.md "Shell traps").
 # 기준선 셸을 인자로 못박는다 — 이 레포의 파일은 shebang 이 `env bash` 인 것과 `bash` 인
 # 것이 섞여 있어 자동 판별에 맡기면 판정이 파일마다 갈린다.
 # (주석 첫 낱말을 도구 이름으로 시작하지 않는다 — 그 형태는 지시어로 파싱된다: SC1073.)

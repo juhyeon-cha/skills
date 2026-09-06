@@ -3,10 +3,10 @@
 > The **full list** of guardrails and gates (what is blocked) is [guardrails.md](guardrails.md).
 > This document is its pair: **how to confirm** (section 4) and **as-built observations** (sections 7–11).
 > **Section numbers continue from that document** — other documents and scripts point at "section 8" by number, so the numbers stay. Sections 1 · 2 · 3 · 5 · 5-1 · 6 · 6-1 are in guardrails.md, not here.
-> Structure: [architecture.md](architecture.md). Development rules: [development.md](development.md).
-> Paths written as `hooks/…` · `checks/…` · `scripts/…` are inside the plugin `harness@skills` (`${CLAUDE_PLUGIN_ROOT}`, `plugins/harness` in the skills repo).
+> Structure: `architecture.md` at the harness root. Development rules: [development.md](development.md).
+> Paths written as `hooks/…` · `checks/…` · `scripts/…` are inside the plugin `harness@skills` (`${CLAUDE_PLUGIN_ROOT}`, `plugins/harness` in the skills repo); `docs/…` · `.beads/…` · `.claude/…` are harness-root-relative.
 
-## 4. 검증 방법 — 강제 장치를 어떻게 확인하는가
+## 4. Verification — how the enforcement mechanisms are confirmed
 
 - **Confirm by blocking behavior, never by presence.** A rule can be registered with its function present and block nothing because of a typo in the judgment; a presence check passes it.
 - **A/B attribution is the only attribution.** `checks/guardrail-check.sh` S1 feeds each rule the synthetic stdin it must block and requires rc=2, and **requires the same input to return rc=0 in a copy with only that rule's registration removed.** Without the second half, a block by some other rule reads as "this rule is alive". The denial string does not say which rule fired — that is the measured conclusion of `harness-uhy.2.1 note`.
@@ -25,35 +25,35 @@
 - **When checking a setting, compare down to the condition under which it fires.** Measured: change only the `matcher` of a `PreToolUse` entry from `""` to `"WebFetch"` and `guard.sh` never fires on Bash·Write·Edit, while a check that compared file, registration, and command string passed rc=0 and the commit landed. The comparison key was widened to `"<event>\t<matcher>\t<command>"` — S2 compares `hooks/hooks.json` against `hooks/*.sh` that way, both directions.
 - **What it cannot catch**: a surface erased **on both sides at once** (a rule function and its test; `hooks.json` and the hook file) looks like an agreed change, not drift. That requires editing the check file itself, which is visible in review.
 
-### 4-1. 이 문서가 적는 계수 — 무엇이 검사되고 무엇이 안 되는가
+### 4-1. The counts these documents carry — what is checked and what is not
 
 These two documents are the full list, so they carry numbers. **The only ones that can rot are counts claiming the size of a set in the current tree.** Three classes, three treatments:
 
 | Class | Example | Treatment |
 |---|---|---|
 | **current-tree claim** | the counts in the headings of [guardrails.md](guardrails.md) sections 1 · 2 · 3 · the surface count in its front matter | **no machine compares them** — the plugin's `guardrail-check.sh` compares its own header's surface count against its section labels, not this document. When a rule or check is added, the heading here is edited by hand in the same change, and the `rules-check` C6 pointer is what keeps the session block pointing here |
-| **frozen point-in-time observation** | transcript file counts · ledger record counts · violation counts | fine to write — the date and the `측정` marker say "this number is from then"; the tree changing does not make it false. When a flowing value is evidence, write movement and ratios rather than absolutes (section 8 ceiling 3 · section 9) |
+| **frozen point-in-time observation** | transcript file counts · ledger record counts · violation counts | the value and its date go to the ledger note of the bead that measured it; the document keeps the conclusion and the bead pointer. When a flowing value is evidence, write movement and ratios rather than absolutes (section 8 ceiling 3 · section 9) |
 | **inline self-enumeration** | "6 kinds (inline interpreters · script smuggling · …)" in [guardrails.md](guardrails.md) section 2 | the value and the enumeration sit together, so a mismatch shows in the text. No machine comparison |
 
-### 4-2. "못 막는다"고 적은 것 — 실제로 안 막히는지 잰다
+### 4-2. What is written as "cannot block" — measuring that it is not blocked
 
 **One check runs the opposite direction.** Where the items above ask "is what must be blocked blocked", `checks/guard-check.sh` pins **"is what is written as not blockable actually not blocked"** — the limits in the "not blocked" column of [guardrails.md](guardrails.md) section 1 that have an rc=0 fixture (the relative-path and symlink cases of ⑨ · for `r_remote`: `WebFetch` to the GitHub API, `curl -X POST` to `api.github.com`, `git remote set-url` (`RM_LIMIT`) · `git branch -D` for graders · the false-positive sets `BD_FALSEPOS` and `RM_FALSEPOS`). When a rule is widened and a limit is closed, that fixture flips to rc=2 and the gate breaks loudly — the rule *"a limit pinned as rc=0 is moved to a blocking assertion when closed, not deleted"* is meant for exactly that. **When it breaks, the job is not to delete the line** but to move it into the blocking set and fix the column in guardrails.md in the same change. Delete it and the closure disappears from the gate, and the same hole can reopen unseen.
 
 **What this pinning cannot see.**
 
 - **One shape per item.** A column that enumerates several shapes has one fixture. Splitting the column further would be parsing natural language.
-- **[guardrails.md](guardrails.md) section 2 and the "한계 (못 막는 것)" list of 5-1 have no fixtures.** The former's enforcer is the permission engine, so no hook emits an rc; the latter's judgment is a tree, a remote, or an install configuration, not one command's rc — the configuration side is S6's fixtures.
+- **[guardrails.md](guardrails.md) section 2 and the "Limits (what it cannot block)" list of 5-1 have no fixtures.** The former's enforcer is the permission engine, so no hook emits an rc; the latter's judgment is a tree, a remote, or an install configuration, not one command's rc — the configuration side is S6's fixtures.
 - **A single rc=0 cannot tell "this shape leaks" from "the rule is dead".** That the rule is alive is S1's blocking assertion, and the check asserts the pair exists.
 
-## 7. 대상 레포에는 git 훅을 심지 않는다 — 원장 검사는 종결 단계의 명시 단계다
+## 7. No git hook is planted in a target repo — the ledger checks are explicit steps of the cycle close
 
-**The harness plants no git hook in a target repo** (story `harness-lzs3` decision; it closes `harness-v8n`). So in a target worktree a commit runs only that repo's own hooks, and a push runs no ledger check. The two things the harness-root hooks do for the harness repo — `board-check` at commit, `ledger-check` in write mode at push — are done in a target repo **by the orchestrator, as explicit steps of the cycle close** (`harness:develop` "사이클 종결"): `board-check` and `ledger-check` (read mode) after the commit, then `git push`, then `bd -C <harness root> dolt push`, then `ledger-check` again to see `확인됨`.
+**The harness plants no git hook in a target repo** (story `harness-lzs3` decision; it closes `harness-v8n`). So in a target worktree a commit runs only that repo's own hooks, and a push runs no ledger check. The two things the harness-root hooks do for the harness repo — `board-check` at commit, `ledger-check` in write mode at push — are done in a target repo **by the orchestrator, as explicit steps of the cycle close** — the steps are owned by `harness:develop` "사이클 종결" and not restated here.
 
-**What that means for evidence.** "The commit succeeded" is never evidence that the ledger was checked in a target repo — only "the check was run, and here is its rc" is. The failure table of the cycle close names each step's failure a **종결 미완** and the story stays open; that is the whole mechanism. **There is no gate** on whether the orchestrator ran the steps — the checks run at its hand, and `r_remote` does not see `bd dolt push` typed by the orchestrator (it is not a subagent).
+**What that means for evidence.** "The commit succeeded" is never evidence that the ledger was checked in a target repo — only "the check was run, and here is its rc" is. The failure table of the cycle close names each step's failure a **close incomplete** and the story stays open; that is the whole mechanism. **There is no gate** on whether the orchestrator ran the steps — the checks run at its hand, and `r_remote` does not see `bd dolt push` typed by the orchestrator (it is not a subagent).
 
 The harness repo itself is the exception: its clone's worktrees share the harness root's `.beads/hooks` through `core.hooksPath`, and `bd where` from such a worktree follows the redirect to the harness ledger, so the commit and push gates fire there too.
 
-## 8. 정지 가드 — `hooks/stop-resume.sh` (Stop)
+## 8. The stop guard — `hooks/stop-resume.sh` (Stop)
 
 When **this session's claimed** work is left `in_progress` and the session tries to stop, it pushes back once. Nine paths each leave one line in the log — `BLOCK` (pushed back) · `IDLE` (oracle 0) · `RECURSE` (re-entry pass) · `GAVE_UP` (ceiling) · `ORACLE_FAIL` (oracle failed) · `CANCEL` (dedicated marker consumed) · `VERIFY_PENDING` (verification-pending pass — the `DELEGATED` mark right after delegation is this path too) · `NO_CLAIM` (this session claimed nothing) · `SCOPE_FAIL` (could not read the mapping, so the scope was not narrowed — this one continues to a judgment path, so that turn writes two lines).
 
@@ -67,7 +67,7 @@ When **this session's claimed** work is left `in_progress` and the session tries
 
 Two places it backs off by design. **An unreadable oracle does not fall back to 0.** **At three re-injections per session it stops blocking** — a guard a person cannot leave is not a guard. The ceiling is counted from the `BLOCK` lines of the same session in the log (no second state file). To turn it off at once, `touch "${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}/stop-resume-cancel"` — the owner is in the file name: the first session that sees the entrance renames it to `stop-resume-cancel.<session_id>` and afterwards reads only its own; no path removes another session's marker. This marker is the guard's own and **is shared with no other mechanism** — one marker for two mechanisms leaves the record unable to say which was turned off.
 
-### 천장 (못 하는 것)
+### Ceilings (what it cannot do)
 
 1. **The oracle is ledger-wide; the narrowing is the judgment after it.** When the mapping cannot be read (`SCOPE_FAIL`) every session that runs this hook is pushed back at every stop, up to three times, even one working on something unrelated. The scope: the hook is plugin-wide and the plugin is a single user-scope install, so it runs in **every session on that machine** — the harness root, every clone, and any directory unrelated to the harness alike. The lower bound: **a session whose `cwd` reaches no ledger always passes** (`ORACLE_FAIL`).
 2. **Nobody checks that it fires.** S2 is a wiring check (`hooks.json` ↔ files), not a firing check. S7 runs the hook **directly** with Stop payloads and a fake oracle — nine paths, one log line each, execution count equal to line count, negative control (two runs differing only in the oracle), A/B against the wiring — but **what it cannot see is the runtime**: whether the runtime calls this hook at stop, and whether `decision: "block"` actually prevents the stop. S7 runs in a sandbox `cwd` with `GIT_DIR` and `GIT_INDEX_FILE` unset and `HARNESS_DATA_DIR` redirected, so it never touches the real log.
@@ -78,13 +78,13 @@ Two places it backs off by design. **An unreadable oracle does not fall back to 
 7. **An unobserved claim silently turns the guard off — the one direction this design forbids, and it has no gate** [`harness-qih`]. The observation sees only a claim with `--actor <value>`. `bd update <ID> --claim` without it lets bd pick the value (`$BEADS_ACTOR`, git `user.name`, `$USER`), which the hook cannot see in the command string — **no mapping line, and that session ends past its own work with `NO_CLAIM`.** Not hypothetical: the ledger's `assignee` holds non-`sess-` values. Blocking it needs a rule against `--actor`-less claims, which turns an observation into a judgment — outside that story's decision. **Registered as no gate**; the claim rule in `harness:develop` section 1 requiring `--actor` is the only wall, and it is persuasion.
 8. **Delete the mapping file and the scope goes with it** [`harness-qih`]. It is an ordinary file under `~/.claude/`; deleted, the next stop logs `SCOPE_FAIL` and judges on the whole ledger — what is lost is the scope, not the guard. It recovers by itself at that session's next claim. **No rotation, deliberately**: a line per claim is a different order of magnitude from the guard log, and a ceiling would erase an old session's `actor` and let that session pass silently with `NO_CLAIM` — the worse direction.
 
-### 실측 — Stop 훅은 서브에이전트가 살아 있어도 발화한다
+### Measured — the Stop hook fires while a subagent is alive
 
-The task's bead note hypothesized that a live background subagent keeps the session from reaching Stop, so the Stop hook would not fire — which would make this mechanism meaningless. **The hypothesis is false.** Measured from one session transcript (2026-08-27, python3 parse): **111** `stop_hook_summary` records, 87 `Agent` delegations, 40 liveness windows paired with completion notifications (median 576 s, max 1332 s) — **48 of the 111 fired inside those windows.** What kept the loop plugin then in use at `iteration` 1 for nine hours was not a firing failure but a **registration failure**: every record had `hookCount: 1` and ran only the loop-cancel hook this harness wired at the time; the loop plugin was in `enabledPlugins` but not in `installed_plugins.json`, with `.orphaned_at` in its cache. Not "a layer that does not fire" but **"a plugin that is not installed"** — the case section 8-1 is about.
+**A live background subagent does not keep the session from reaching Stop — the Stop hook fires inside a subagent's liveness window** (measured from one session transcript; the counts are in the `harness-m8gg.8.12` note). What kept the loop plugin then in use stuck at `iteration` 1 was not a firing failure but a **registration failure**: every `stop_hook_summary` record ran only the loop-cancel hook this harness wired at the time, because the loop plugin was in `enabledPlugins` but not in `installed_plugins.json`, with `.orphaned_at` in its cache. Not "a layer that does not fire" but **"a plugin that is not installed"** — the case section 8-1 is about.
 
-## 8-1. 등재는 있는데 설치가 없다 — 무엇이 조용히 죽는가 [`harness-dg0.6.35`]
+## 8-1. Enabled but not installed — what silently dies [`harness-dg0.6.35`]
 
-**The shape of the mismatch**: `enabledPlugins` in a settings file **turns a plugin on**. Turning on and **installing** are different — a settings file can name a plugin the machine does not have. "Registered everywhere, installed nowhere" is a normal product of a fresh clone. Measured 2026-08-27: this repo's `.claude/settings.json` then named `harness@skills` and a loop plugin from `claude-plugins-official`, and a new clone had installed neither.
+**The shape of the mismatch**: `enabledPlugins` in a settings file **turns a plugin on**. Turning on and **installing** are different — a settings file can name a plugin the machine does not have. "Registered everywhere, installed nowhere" is a normal product of a fresh clone. Measured (`harness-dg0.6.35`): the harness root's `.claude/settings.json` then named `harness@skills` and a loop plugin from `claude-plugins-official`, and a new clone had installed neither.
 
 **What silently dies in that state**:
 
@@ -101,11 +101,11 @@ The task's bead note hypothesized that a live background subagent keeps the sess
 - **The cache's `.orphaned_at` is not a discriminator on its own** [`harness-dg0.6.43`]: it was observed coexisting with `.in_use/<pid>` while the plugin's skills were alive in the session. At most it means "collection candidate".
 - **The resolver picks the highest cached version**, not the one `installed_plugins.json` names for this scope. Two cached versions of `harness` with the older one installed would make the gates run the newer tree — a mismatch the resolver does not see.
 
-## 9. 전사를 읽는 자리 — `checks/transcript-check.sh` [`harness-dg0.6.18`]
+## 9. Where transcripts are read — `checks/transcript-check.sh` [`harness-dg0.6.18`]
 
 `docs/adr/natural-language.md` 6.4 lists 12 "after-the-fact detection" items, and **9 of them hang on this one place** (D4). The condition that document attached to after-the-fact detection asked for exactly this — *"without a place that actually reads the record, 0."* **The records existed; what was missing was the reader.** This check is that one, and **it is the only place that parses transcripts** (the retrospective only calls it — `harness-dg0.6.18` ↔ `harness-2a5.1.2` ownership agreement).
 
-### 훅이냐 사후 배치냐 — 실측으로 갈랐다
+### Hook or batch — decided by measurement
 
 **The subagent-stop payload carries the transcript path.** A `SubagentStop` hook in a scratch project dumped the payload (Claude Code 2.1.247): of its 14 keys, four serve this place directly — `agent_transcript_path` (that subagent's own `agent-*.jsonl`) · `transcript_path` (the parent session) · `agent_type`/`agent_id` · **`last_assistant_message`** (the reply body itself).
 
@@ -113,17 +113,17 @@ The task's bead note hypothesized that a live background subagent keeps the sess
 
 > **This measurement shakes one judgment ground of `adr-b` (a closed document, not edited).** The `Q1✗` ground of `R9`·`A9`·`S25` was *"no observation that a subagent's reply body appears to a hook"*. It appears, as `last_assistant_message`. But `SubagentStop` is called **after** the reply, so the **blocking-time tool boundary** that document demanded is still absent — whether the three "impossible" judgments flip is outside this scope; the observation is recorded.
 
-### 판정하는 것은 A9 하나다 — 자리는 9건분이지만 판정은 1건분이다
+### Only A9 is judged — nine items have a place, one has a judgment
 
-`A9` = "the first line of a role reply is exactly `SIGNAL: <VALUE>`". The vocabulary is derived from the plugin's `agents/*.md`, so a role-definition change moves the check. **It caught real violations** — in a 2026-08-28 run 5 of 227 judgments (about 2%) were `NO_SIGNAL`, all the same shape: a one-line summary before `SIGNAL` ("All anchors verified. Compiling the verdict." …). **To an orchestrator that parses the first line, that is a reply with no signal.** Counts flow (ceiling 3); the evidence is the ratio and the shape. **The other 8 (`R9`·`R12`·`R25`·`A7`·`A13`·`A16`·`A18`·`S25`) have a place but no judgment** — do not read registration as action.
+`A9` = "the first line of a role reply is exactly `SIGNAL: <VALUE>`". The vocabulary is derived from the plugin's `agents/*.md`, so a role-definition change moves the check. **It caught real violations** — in one run about 2% of judgments were `NO_SIGNAL` (the counts are in the `harness-m8gg.8.12` note), all the same shape: a one-line summary before `SIGNAL` ("All anchors verified. Compiling the verdict." …). **To an orchestrator that parses the first line, that is a reply with no signal.** Counts flow (ceiling 3); the evidence is the ratio and the shape. **The other 8 (`R9`·`R12`·`R25`·`A7`·`A13`·`A16`·`A18`·`S25`) have a place but no judgment** — do not read registration as action.
 
-**The quietest trap was that finished delegations come in two shapes** [measured 2026-08-28]. A synchronous delegation records its end as `toolUseResult.status == "completed"` with `agentType`. **An asynchronous one leaves only `async_launched` there, with no `agentType`**, and the end arrives later as `<task-notification>` `<status>completed</status>`. A version that read only the first shape **dropped asynchronous delegations entirely** — silently, rc normal. **The dropped share is written as a ratio: about 60% of that session's delegations were asynchronous** (109→67 and 107→65 on two counts the same day — totals flow, the ratio holds). So the role is read from the transcript's own **`attributionAgent`** (common to both shapes, exactly one per file). `--self-check` feeds the same violation in both shapes to see that this path is alive.
+**The quietest trap was that finished delegations come in two shapes** [measured]. A synchronous delegation records its end as `toolUseResult.status == "completed"` with `agentType`. **An asynchronous one leaves only `async_launched` there, with no `agentType`**, and the end arrives later as `<task-notification>` `<status>completed</status>`. A version that read only the first shape **dropped asynchronous delegations entirely** — silently, rc normal. **The dropped share is written as a ratio: about 60% of that session's delegations were asynchronous** (two counts the same day, in the `harness-m8gg.8.12` note — totals flow, the ratio holds). So the role is read from the transcript's own **`attributionAgent`** (common to both shapes, exactly one per file). `--self-check` feeds the same violation in both shapes to see that this path is alive.
 
-**One layer down, the same class of trap, caught in review — a record is not a reply** [measured 2026-08-28]. When one reply calls several tools **the transcript writer splits the record** (the pieces share one `message.id`). Counting `tool_use` blocks **per record** gave exactly 1 assistant record everywhere — "1.00 per reply, max 1", an **identity independent of input** — while the question this place answers is "does it call in parallel", and **it answered "no" on any data.** Grouped by `message.id`, parallelism is real: `implementer` 12.5% · `reviewer` 34.7% · `evaluator` 35.8% (up to 4–6 per reply).
+**One layer down, the same class of trap, caught in review — a record is not a reply** [measured]. When one reply calls several tools **the transcript writer splits the record** (the pieces share one `message.id`). Counting `tool_use` blocks **per record** gave exactly 1 assistant record everywhere — "1.00 per reply, max 1", an **identity independent of input** — while the question this place answers is "does it call in parallel", and **it answered "no" on any data.** Grouped by `message.id`, parallelism is real: `implementer` 12.5% · `reviewer` 34.7% · `evaluator` 35.8% (up to 4–6 per reply).
 
 **The negative control is inside the check**: `checks/transcript-check.sh --self-check` builds two fixtures, disturbs only the one line before `SIGNAL`, and expects `rc=0 → rc=1`, asserting first that both copies exist and differ (`[ -s a ] && [ -s b ] && ! cmp -s a b`), and that an empty copy yields `rc=2` with one `UNREACHED:` line.
 
-### 천장 (못 하는 것)
+### Ceilings (what it cannot do)
 
 1. **Wired to no gate.** The target is `~/.claude/projects` — the **class that compares with something outside the tree**. Tied to a commit, rc changes whenever another session runs, and a violation unrelated to this tree blocks the commit. **So this check's rc is never substituted by a commit message — it is run where it is used.**
 2. **The population is "delegations the parent session recorded as completed"** — in-progress ones are not judged, so that the auditing session's own subagents are not mixed in (the self-referential counting trap, `harness-dg0.6.17`). The price was measured: without this definition the auditing reply itself is caught as `NO_SIGNAL`.
@@ -131,30 +131,30 @@ The task's bead note hypothesized that a live background subagent keeps the sess
 4. **`<task-notification>` is not subagent-only.** A background shell job ends the same way. A notification with no transcript file cannot be attributed to a role and is removed from the population, and **that count goes into the header line**; a transcript whose role cannot be read leaves one unreached line — asynchronous role attribution hangs on `attributionAgent` alone, and if that field vanished the population would shrink to **0 unreached · 0 violations · rc=0**.
 5. **The A9 judgment is lenient on leading whitespace.** It reads the first line after `lstrip()`, so it catches **content** before `SIGNAL`, not blank lines — narrower than the role definition's text ("no blank line before the first line"); widening it would make every serialization-side blank a violation.
 
-## 10. 릴리스 폭 — 확인 단계는 있고 게이트는 없다
+## 10. Release width — a confirmation step, no gate
 
-The width of a version bump is decided by **whether an install gets hand work** ([development.md](development.md) "릴리스"; the procedure is the `harness:release` skill). That judgment is natural language and **no gate sees it.** What exists is one confirmation command in that skill's sweep step: the diff of the plugin's `skills/setup/SKILL.md` since the previous tag (in the skills repo) — a new hand step in its update section is the definition of MAJOR.
+The width of a version bump is decided by **whether an install gets hand work** ([development.md](development.md) "Release"; the procedure is the `harness:release` skill). That judgment is natural language and **no gate sees it.** What exists is one confirmation command in that skill's sweep step: the diff of the plugin's `skills/setup/SKILL.md` since the previous tag (in the skills repo) — a new hand step in its update section is the definition of MAJOR.
 
 **This item is not one of the eight in 6-1** — that list is locked as a set with `docs/adr/natural-language.md` 6.4, and the both-way count in that section asserts it. Adding this place as a row would break the count. It stands apart in place, not in kind.
 
-### 천장 (못 하는 것)
+### Ceilings (what it cannot do)
 
 1. **It cannot be wired to any gate — the commit gate in principle.** The width is settled once, at release time, over the whole range since the previous tag; between releases there is no width for a commit to be compared against. Firing it on every commit makes every commit but the release one a false positive.
 2. **It looks one way — a miss remains, and that is the dangerous shape.** The command sees only the setup skill's diff. **Hand work that appeared without the setup skill being updated is not caught.** Then an install updates with a narrow width and no procedure, and its gate breaks right after, with the person not knowing why. **That loss has not actually happened — a hypothesis**: no install has updated across a release yet.
 3. **False positives remain.** A typo fix in the setup skill also produces output. The judgment is a person reading the diff — the command **points at what to read**, it does not judge.
 4. **rc says nothing — the signal is whether there is output.** Both cases are rc=0.
 
-## 11. 발화 계수를 근거로 쓸 수 있는 조건
+## 11. When firing counts can be used as evidence
 
 Several places say "do not quote a hand count; use the output of `scripts/guard-log.sh` as evidence". **When that holds** is pinned here — used where it does not, "0 false positives" and "logging did not happen" come out as the same value.
 
-### 성립 조건 — 셋이 전부 참일 때만
+### Conditions — only when all three hold
 
 1. **The `guard.sh` that fired has the logging call.** The log path is outside every tree (`~/.claude/harness-guard-log.tsv`, override `HARNESS_GUARD_LOG`), and the logging code is in the plugin — so **the firing hook is the installed plugin version** (or the `--plugin-dir` tree a session was started with), not whatever branch a worktree has checked out. A logging change in a plugin source tree counts nothing until that tree is what sessions load.
 2. **The counting command reads the log the hook writes.** That the two files' `HARNESS_GUARD_LOG` default agrees is derived and compared by `checks/guard-check.sh` ⑯.
 3. **The round column has not collapsed.** A payload without `session_id` folds rounds into `-` (⑯ (e) pins that value).
 
-### 부재의 세 갈래 — rc 와 문구로 갈린다
+### Three kinds of absence — told apart by rc and phrase
 
 | State | rc | Usable as evidence? |
 |---|---|---|
@@ -162,9 +162,9 @@ Several places say "do not quote a hand count; use the output of `scripts/guard-
 | no log, and **the inspected `guard.sh` has the logging call** | 1 | "the hook never ran". **Only when the inspected hook is the one sessions load** — the phrase prints the path |
 | no log, and **the inspected `guard.sh` has no logging call** | 3 | **not "0 firings".** The hook runs and leaves nothing |
 
-The three branches are reproduced, and a copy of the counting command with the distinction removed is shown unable to tell them apart, by `checks/guard-check.sh` ⑰.
+The three branches are reproduced, and a copy of the counting command with the distinction removed is shown unable to tell them apart, by `checks/guard-check.sh` ⑯.
 
-### 천장 (못 하는 것)
+### Ceilings (what it cannot do)
 
 1. **The counting command does not know which `guard.sh` actually fired.** Nothing records it afterwards — the log has no hook path, and an empty log has no log. The command inspects the plugin tree it sits in (`CLAUDE_PLUGIN_ROOT`, else its own location); when a session was started with a different `--plugin-dir`, the rc=1/rc=3 phrase is about the wrong tree — the printed path is what to compare.
 2. **rc=3 separates only the cause of absence.** A non-empty log with a non-logging version mixed in (sessions on different plugin versions) is not caught — that round's rows are simply missing, and missing rows appear under no rc. **A miss remains, and it is the more dangerous shape.**

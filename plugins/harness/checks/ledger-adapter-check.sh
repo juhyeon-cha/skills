@@ -35,7 +35,7 @@ step() {
 has_text() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
 
 # run <루트> <인자…> — HARNESS_ROOT 를 픽스처로 물려 ledger.sh 를 돌리고 OUT·ERR·RC 에 채집한다.
-# rc 는 파이프 밖에서 잡는다 (../docs/development.md "셸 함정").
+# rc 는 파이프 밖에서 잡는다 (../docs/development.md "Shell traps").
 OUT=""; ERR=""; RC=0
 run() {
   local root="$1"; shift

@@ -2,18 +2,18 @@
 
 > The harness's four value axes pinned as **the order a person actually walks**. Each usecase has an actor, steps, and pass criteria.
 >
-> Structure: [architecture.md](architecture.md). Procedure text: [operations.md](operations.md). Limits of the enforcement: [guardrails.md](guardrails.md). **Only scenarios and criteria are written here** — overlapping description is left to those documents.
+> Structure: `architecture.md` at the harness root. Procedure text: [operations.md](operations.md). Limits of the enforcement: [guardrails.md](guardrails.md). **Only scenarios and criteria are written here** — overlapping description is left to those documents.
 
-## 이 문서를 쓰는 법
+## How to use this document
 
 - **UC numbers are fixed identifiers.** They are row keys elsewhere (the defect matrix `harness-dg0.2.1`). Never reuse or shift a number — a retired usecase keeps its number with the reason.
 - **Pass criteria take two forms only**: ① `command` → expected exit code ② existence of a file or state (a path, a ledger field value, a git ref). "Works well" is not a criterion.
-- **Criteria are hypotheses; measurements live in the ledger.** The walk-throughs that produced these criteria are the notes of `harness-dg0.1.2` (2026-08-23) and later story beads — quote from there, do not copy them here.
+- **Criteria are hypotheses; measurements live in the ledger.** The walk-throughs that produced these criteria are the notes of `harness-dg0.1.2` and later story beads — quote from there, do not copy them here.
 - **Every ledger call below is the adapter.** `ledger.sh …` is short for `bash "$(<plugin>)/scripts/ledger.sh" …`; subcommands, arguments, and JSON keys are `bd`'s. Which backend answers is `backend` in the harness root's `ledger.json` — the criteria below hold on all three unless a step names one, and this harness runs `beads`.
 - Judgment commands run **from the place the actor's session opened** unless stated: the harness root for planning and retrospective, the target clone or its worktree for development. Inside a story worktree the harness root is found through the worktree wiring; from a clone root, and anywhere the wiring is absent, prefix the call with `HARNESS_ROOT=<harness root>`.
 - Placeholders: `<story ID>` · `<task ID>` · `<sprint ID>` (`YYYY-SNN`) · `<repo>` · `<clone>` (= `~/.harness-workspace/<repo>`) · `<worktree>` (= `<clone>/.claude/worktrees/<story ID>`) · `<harness root>` · `<plugin>` (= `bash <harness root>/scripts/plugin-root.sh`).
 
-## 색인
+## Index
 
 | Axis | UC | Title |
 |---|---|---|
@@ -33,9 +33,9 @@
 
 ---
 
-## 축 A — 멀티 레포
+## Axis A — multi-repo
 
-### UC-1. 새 대상 레포를 등록하고 첫 워크트리까지 간다
+### UC-1. Register a new target repo and reach the first worktree
 
 **Actor**: a person (a session opened at the harness root for registration; a session opened in the new clone for the worktree)
 
@@ -57,7 +57,7 @@
 - `bash "$(<plugin>)/checks/workspace-check.sh"` → rc 0
 - inside the worktree, the repo's `check` command from `repos.json` → rc 0 (bootstrap finished)
 
-### UC-2. 한 스토리가 두 레포를 건드린다 — 레포마다 세션 하나와 통합 검증
+### UC-2. One story touches two repos — one session per repo, integration verification
 
 **Actor**: two orchestrator sessions (one per repo, each in its own clone) + implementer subagents
 
@@ -81,9 +81,9 @@
 
 ---
 
-## 축 B — 멀티 워크트리·세션
+## Axis B — multi-worktree, sessions
 
-### UC-3. 두 세션이 서로 다른 스토리를 동시에 진행한다
+### UC-3. Two sessions work different stories at the same time
 
 **Actor**: two people (or two sessions), each opened in the clone of the repo its story touches. Two sessions on the same (story, repo) are forbidden.
 
@@ -104,7 +104,7 @@
 - `git -C <worktree> log --oneline -1` of each points at a commit on a different `worktree-<ID>` branch
 - the stop guard scopes to each session's own actor: a session that closed its own work stops without pushback while the other's tasks are still `in_progress`
 
-### UC-4. 끊긴 사이클을 새 세션이 이어받는다
+### UC-4. A new session picks up an interrupted cycle
 
 **Actor**: a new session (after the previous one vanished by compaction or exit)
 
@@ -125,13 +125,13 @@
 - the last `RETRY:` line of `ledger.sh show <task ID>` notes is the same before and after the session change (the counter does not reset)
 - the picked-up session's first report names who acts next; in a human-wait state the reason exists in `ledger.sh show <task ID>` notes
 
-### UC-5. 무인 루프가 태스크를 연속 처리하고 신호로 멈춘다
+### UC-5. An unattended loop processes tasks in sequence and stops on a signal
 
 **Actor**: a person starts it; unattended afterwards
 
 **Steps**
 
-1. Drain permission prompts before the loop — run one command inside the worktree interactively, or put the allows into the clone's `.claude/settings.local.json`.
+1. Drain permission prompts before the loop ([operations.md](operations.md) "Unattended loop").
 2. Start `/loop [interval]` with `harness:develop` sections 3–4 as the prompt. It takes nothing else — no completion sentence and no iteration ceiling; the exit is the model's per-turn rearm decision (`harness:develop` "장기 실행").
 3. Per task the loop runs implementer → verify-code → verify-implement → `ledger.sh close` (or per milestone in batch mode).
 4. Stop: from inside, end the turn without rearming; from outside, `touch "${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}/stop-resume-cancel"` — the stop guard's marker. The loop itself has no marker; what keeps a session from ending after the loop is broken is the guard, so that is the one to switch off.
@@ -149,7 +149,7 @@
 
   rc 0 = a pass path (`CANCEL`·`IDLE`·`RECURSE`·`GAVE_UP`·`ORACLE_FAIL`·`VERIFY_PENDING`·`NO_CLAIM`) · rc 1 = `BLOCK`, still pushing back · **rc 2 = no line for that session** — the guard never fired, and a zero-item pass is read as failure
 
-### UC-6. 머지를 확인한 뒤 워크트리를 정리한다
+### UC-6. Clean up the worktree after confirming the merge
 
 **Actor**: a person (the merge judgment and the cleanup instruction are a person's)
 
@@ -171,11 +171,11 @@
 
 ---
 
-## 축 C — 원장 공동 관리
+## Axis C — shared ledger
 
-### UC-7. 계획의 등록부 변경을 별도 채널로 내보낸다
+### UC-7. A planning change to the registries goes out on its own channel
 
-**Actor**: a person + an orchestrator session at the harness root. **The ledger is global and the projections are outside git** — the only thing to commit is a registry change (`sprints.json`·`rails.json`), kept apart from code ([operations.md](operations.md) "문서는 어디에도 나가지 않는다").
+**Actor**: a person + an orchestrator session at the harness root. **The ledger is global and the projections are outside git** — the only thing to commit is a registry change (`sprints.json`·`rails.json`), kept apart from code ([operations.md](operations.md) "Documents go nowhere — projections are outside git").
 
 **Steps**
 
@@ -195,7 +195,7 @@
 - 5 precedes 6 — someone reading the PR and running `ledger.sh show <story ID>` finds the issue
 - the planning procedure did not end without commit and PR: `gh pr view <number> --json url` → rc 0
 
-### UC-8. 태스크 마감이 개발 브랜치에 실려 나간다
+### UC-8. A task close rides out on the development branch
 
 **Actor**: an orchestrator session in the target clone (inside the story worktree)
 
@@ -216,7 +216,7 @@
 - after the explicit ledger reflection, `ledger-check` prints `원격 반영 확인됨` (or, where the backend has nothing to send, `원격 반영 대상 없음`) — the same criterion as UC-7; rc 0 alone proves nothing
 - **must not be blocked**: another story's branch in progress in the same sprint does not make step 5 non-zero
 
-### UC-9. 새 머신의 새 클론에서 원장과 대상 레포를 복원한다
+### UC-9. A new clone on a new machine restores the ledger and the target repos
 
 **Actor**: a person (another machine, empty)
 
@@ -243,9 +243,9 @@
 
 ---
 
-## 축 D — 자가개선
+## Axis D — self-improvement
 
-### UC-10. 스토리·스프린트를 닫고 회고 결과를 규칙에 반영한다
+### UC-10. Close a story or sprint and fold the retrospective into the rules
 
 **Actor**: a person + an orchestrator session at the harness root
 
@@ -267,7 +267,7 @@
 - the source bead's `ledger.sh show <ID>` notes carry a `반영됨 →` line
 - a `ledger.sh note` body survives verbatim — a quotation with backticks and `$(...)`, passed through `--file`, reads back from `ledger.sh show` character-identical
 
-### UC-11. 설득뿐이던 규율을 게이트로 승격한다
+### UC-11. Promote a persuasion-only rule to a gate
 
 **Actor**: a person (approval) + an implementer subagent (implementation), in a story on the `skills` repo
 

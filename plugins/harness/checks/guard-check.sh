@@ -151,7 +151,7 @@ FX_Q_BDCLOSE="${qfx_cmd[3]}"
 FX_Q_BDCREATE="${qfx_cmd[4]}"
 FX_Q_BDUPDATE="${qfx_cmd[5]}"
 
-# rc 는 파이프 밖에서 채집한다 (../docs/development.md "셸 함정").
+# rc 는 파이프 밖에서 채집한다 (../docs/development.md "Shell traps").
 GUARD_RC=0
 GUARD_OUT=""
 runh() {  # runh <훅경로> <json> [env...]
@@ -875,7 +875,7 @@ for c in "${HOME_FORMS[@]}"; do
 done
 
 # ── 부정 대조군. 통과(rc=0)는 "검사했고 문제없음"과 "검사가 실행되지 않음"을 구분하지
-# 못한다 (../docs/development.md "검사가 죽었는지 검사한다"). 각 수정만 뺀 사본에서 같은 입력이
+# 못한다 (../docs/development.md "Checking that a check is alive"). 각 수정만 뺀 사본에서 같은 입력이
 # 통과하는지 본다. 제거 전에 대상 줄이 실재하는지 먼저 단언한다 — 오타로 0줄을 지우면
 # 사본이 원본과 같아져 대조군이 조용히 무의미해진다.
 NEG_ROOT="$TMP/guard-no-rootself.sh"
@@ -1352,7 +1352,7 @@ step "면제 키가 전부 실제 gh 하위 명령이다 (역방향 단언)" [ -
 gh_is_exempt() { case " $GH_EXEMPT_SRC " in *" $1 "*) return 0 ;; esac; return 1; }
 gh_leaked=""; gh_blocked_read=""; gh_checked=0
 # 파이프로 먹이면 함수가 서브셸에서 돌아 아래 카운터가 전부 버려진다(빈 문자열 = 통과).
-# here-string 으로 먹여 현재 셸에서 돌린다 (../docs/development.md "셸 함정").
+# here-string 으로 먹여 현재 셸에서 돌린다 (../docs/development.md "Shell traps").
 gh_sweep() {  # gh_sweep <접두>  — stdin 으로 하위 명령 목록을 받는다
   local prefix="$1" s
   while read -r s; do
@@ -1412,7 +1412,7 @@ GH_DL_GROUPS=$(for g in $GH_TOP; do gh_cmds "$g" | grep -x download >/dev/null &
 GH_DL_NORM=$(printf '%s\n' $GH_DL_GROUPS | grep -v '^$' | sort -u | tr '\n' ' '); GH_DL_NORM="${GH_DL_NORM% }"
 echo "  download 동사를 가진 그룹: ${GH_DL_NORM:-(없음)}"
 # **정확 집합**으로 단언한다. 하한(release·run 이 들어 있는가)만 보면 gh 에 `download` 를 가진
-# 그룹이 하나 더 생겨도 rc=0 이라, 면제가 조용히 넓어지고 ../docs/guardrails.md 의 "셋뿐이고 전부
+# 그룹이 하나 더 생겨도 rc=0 이라, 면제가 조용히 넓어지고 hooks/guard.sh r_remote 의 면제 주석 "셋뿐이고 전부
 # 받기만 한다"가 거짓이 된 채로 남는다. 이 변경의 안전 논거 전체가 그 "셋뿐" 위에 서 있으므로
 # 늘어나면 **시끄럽게 깨지는** 쪽이 맞다 — 깨지면 새 그룹이 정말 받기만 하는지 확인하고
 # 이 기대값과 문서를 함께 고쳐라. (빈 집합도 이 단언에 걸리므로 공허한 통과가 없다.)

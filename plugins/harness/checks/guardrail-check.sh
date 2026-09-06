@@ -952,7 +952,7 @@ STUB
   step "사거리 ④: 매핑이 없으면 남의 actor 로도 막는다 (통과로 폴백하지 않는다)" is_block "$PTMP/sc-nomap.json"
   step "사거리 ④: 그 두 줄의 앞 줄이 SCOPE_FAIL 이다" \
     [ "$(tail -2 "$SLOG" | head -1 | cut -f3)" = "SCOPE_FAIL" ]
-  # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/development.md "검사가 죽었는지 검사한다").
+  # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/development.md "Checking that a check is alive").
   step "사거리 픽스처 집합이 비지 않았다 (${#SCOPE_FX[@]}종: ${SCOPE_FX[*]:-없음})" \
     [ "${#SCOPE_FX[@]}" -ge 4 ]
 

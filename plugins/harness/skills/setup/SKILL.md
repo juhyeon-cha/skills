@@ -37,7 +37,7 @@ If no row of the table matches (a `ledger.json` with no git repository, say), do
 
 ## 1. A — New harness
 
-**The procedure cannot be delegated wholesale to an implementer subagent.** Ledger initialization (1.5), and the checks after it that require a ledger (`workspace-check` creates a bead for the check — `checks/workspace-check.sh`), are blocked with rc=2 by `guard.sh`'s `r_impl_bd`. That rule's own block message says "원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다" — **that is the guardrail working as intended, and a human or an orchestrator session carries out this procedure.**
+**The procedure cannot be delegated wholesale to an implementer subagent.** Ledger initialization (1.5), and the checks after it that require a ledger (`workspace-check` creates a bead for the check — `${CLAUDE_PLUGIN_ROOT}/checks/workspace-check.sh`), are blocked with rc=2 by `guard.sh`'s `r_impl_bd`. That rule's own block message says "원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다" — **that is the guardrail working as intended, and a human or an orchestrator session carries out this procedure.**
 
 ### 1.1 Make it a git repository and connect it to your own repo
 
