@@ -136,8 +136,9 @@ fi
 #     **읽는 필드는 `.actor // .assignee` 다** (harness-kw0l.3.1 — 백로그 harness-gkfq 의 답).
 #     정규화 JSON 의 `actor` 는 "이 항목을 잡은 세션"이고 백엔드마다 사는 자리가 다르다:
 #     github 은 마지막 `ACTOR:` 코멘트(assignee 에는 claim 을 돌린 사람의 GitHub 로그인이 들어가
-#     두 값이 갈린다), notion 은 Assignee 와 같은 값, beads 는 그 개념이 assignee 하나뿐이라
-#     actor 키가 없고 뒤엣것으로 떨어진다 — 그래서 beads 판정은 종전과 같다.
+#     두 값이 갈린다), notion·beads 는 그 개념이 assignee 하나뿐이라 actor 가 같은 값이다 —
+#     그래서 beads 판정은 종전과 같다. **키는 세 백엔드에 전부 있다**(어댑터의 계약): 뒤쪽
+#     `// .assignee` 는 actor 가 null 인 항목(ACTOR 코멘트 없는 github 이슈)을 위한 것이다.
 #     이 자리는 종전에 github 백엔드에서 좁히기가 하나도 못 짚어 in_progress 가 있어도 0건으로
 #     통과하던 곳이다(harness-m8gg.4 note NIT 3 이 짚은 천장).
 #

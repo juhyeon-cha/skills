@@ -80,16 +80,22 @@ LEDGER_DIR="$ROOT/.beads"
 [ -r "$LEDGER_DIR/redirect" ] && LEDGER_DIR="$(head -1 "$LEDGER_DIR/redirect")"
 printf '%s\n' "$LEDGER_DIR" > "$COPY/.beads/redirect"
 printf '{"backend":"beads"}\n' > "$COPY/ledger.json"
+# 이 어댑터가 bd 에 더하는 것은 actor 키 하나뿐이다(harness-kw0l.3.1 — 어댑터의 계약). 그래서
+# 동등성은 **actor 를 뺀 뒤** 대조하고, actor 자체는 바로 아래에서 따로 단언한다. 두 단언을 하나로
+# 합치면 어느 쪽이 깨졌는지가 diff 한 줄에 묻힌다.
 run "$COPY" list --status open --json
-bd -C "$ROOT" list --status open --json > "$TMP/bd-list.json" 2>/dev/null
+bd -C "$ROOT" list --status open --json | jq 'map(del(.actor))' > "$TMP/bd-list.json" 2>/dev/null
 printf '%s\n' "$OUT" > "$TMP/ledger-list.json"
-step "list --status open --json 이 bd -C <루트> 와 같다" diff -q "$TMP/ledger-list.json" "$TMP/bd-list.json"
+jq 'map(del(.actor))' "$TMP/ledger-list.json" > "$TMP/ledger-list-noactor.json"
+step "list --status open --json 이 actor 를 뺀 채로 bd -C <루트> 와 같다" diff -q "$TMP/ledger-list-noactor.json" "$TMP/bd-list.json"
+step "actor 키가 모든 항목에 있고 값이 assignee 다 (bd 가 빼는 빈 assignee 는 null)" \
+  bash -c 'jq -e "length > 0 and all(has(\"actor\") and .actor == (.assignee // null))" "$1" >/dev/null' _ "$TMP/ledger-list.json"
 first_id=$(jq -r '.[0].id // empty' "$TMP/bd-list.json")
 if [ -n "$first_id" ]; then
   run "$COPY" show "$first_id" --json
-  bd -C "$ROOT" show "$first_id" --json > "$TMP/bd-show.json" 2>/dev/null
-  printf '%s\n' "$OUT" > "$TMP/ledger-show.json"
-  step "show $first_id --json 이 bd -C <루트> 와 같다" diff -q "$TMP/ledger-show.json" "$TMP/bd-show.json"
+  bd -C "$ROOT" show "$first_id" --json | jq 'map(del(.actor))' > "$TMP/bd-show.json" 2>/dev/null
+  printf '%s\n' "$OUT" | jq 'map(del(.actor))' > "$TMP/ledger-show.json"
+  step "show $first_id --json 이 actor 를 뺀 채로 bd -C <루트> 와 같다" diff -q "$TMP/ledger-show.json" "$TMP/bd-show.json"
 else
   echo "  ✗ FAILED: 열린 이슈가 0건이라 show 동등성을 대조하지 못했다"; fail=1
 fi
@@ -129,6 +135,14 @@ run "$FX" update "$C" --claim --actor "chk actor"
 run "$FX" show "$C" --json
 step "update --claim --actor 가 assignee 와 in_progress 를 만든다" \
   bash -c 'printf "%s" "$1" | jq -e ".[0] | .status == \"in_progress\" and .assignee == \"chk actor\"" >/dev/null' _ "$OUT"
+# ── actor 키 (harness-kw0l.3.1). 어댑터의 계약은 "백엔드가 무엇이든 같은 JSON 키" 다 — beads 는
+#    그 개념이 assignee 하나뿐이지만 키가 셋 중 둘에만 있으면 소비자가 `// .assignee` 폴백을
+#    잊는 순간 여기서만 조용히 어긋난다. github·notion 경로에만 단언이 있어 그 구멍을 못 잡았다.
+step "actor 키가 show --json 에 있고 assignee 와 같은 값이다 (github·notion 과 같은 키)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | has(\"actor\") and .actor == .assignee and .actor == \"chk actor\"" >/dev/null' _ "$OUT"
+run "$FX" list --status in_progress --json
+step "list --json 의 항목에도 actor 키가 있다 (정지 가드가 실제로 읽는 경로)" \
+  bash -c 'printf "%s" "$1" | jq -e "length > 0 and all(.actor == .assignee)" >/dev/null' _ "$OUT"
 run "$FX" update "$C" --status blocked
 run "$FX" label add "$C" slug:r1-x
 run "$FX" label remove "$C" rail:r1

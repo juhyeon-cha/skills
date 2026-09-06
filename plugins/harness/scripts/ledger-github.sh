@@ -33,7 +33,7 @@
 #                        assignee 와 갈리는 이유: 이 백엔드의 claim 은 assignee 에 `@me`(사람의 GitHub
 #                        로그인)를 넣고 세션 actor 는 코멘트로 남기므로 한 필드가 둘을 겸할 수 없다.
 #                        정지 가드(hooks/stop-resume.sh)가 `.actor // .assignee` 로 읽는다 —
-#                        beads 는 그 개념이 assignee 하나뿐이라 actor 키가 없고 뒤엣것으로 떨어진다.
+#                        beads·notion 은 그 개념이 assignee 하나뿐이라 actor 가 같은 값이다.
 #                        줄의 **마지막 공백 구분 토큰**을 값으로 읽는다 — claim 이 남기는 것은
 #                        `ACTOR: <값>` 한 토큰이지만 스토리 항목의 ACTOR note 는 `ACTOR: <레포> <값>`
 #                        이라(harness:develop 1절) 첫 토큰을 읽으면 스토리에서 레포 이름을 집는다.

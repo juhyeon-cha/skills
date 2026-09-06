@@ -145,4 +145,31 @@ case "${1:-}" in
     ;;
 esac
 
+# ── JSON 읽기 경로만 jq 한 겹 ─────────────────────────────────────────
+# 어댑터의 계약은 "백엔드가 무엇이든 같은 JSON 키" 다. 이 백엔드에는 "항목을 잡은 세션" 이
+# assignee 하나뿐이지만, 키가 셋 중 둘에만 있으면 소비자가 `// .assignee` 폴백을 잊는 순간
+# beads 에서 **조용히** 어긋난다. 그래서 값이 같더라도 키를 싣는다 (harness-kw0l.3.1).
+# 값은 assignee 그대로다 — 대응표는 ledger-github.sh 머리 주석이 든다. bd 는 비어 있는 필드를
+# 아예 빼므로 assignee 가 없는 항목도 있다: 그때 actor 는 null 이다(키는 그래도 싣는다 — 계약이
+# 요구하는 것은 "키가 늘 있다" 이고, 없는 키를 조건부로 빼면 소비자가 다시 폴백을 알아야 한다).
+# 이미 actor 가 실린 항목은 **덮지 않는다** — bd 는 지금 그 키를 내지 않지만, 덮는 판을 쓰면
+# 값이 있는 actor 를 assignee 로 지우게 된다(guardrail-check S7 사거리 ⑤ 가 그 판을 잡는다).
+# 쓰기·비-JSON 출력은 아래 exec 그대로다: jq 를 태우는 것은 `--json` 이 붙은 호출뿐이다.
+# 대가(실측 2026-09-06, 하네스 원장 1089건 · 출력 8.4 MB, 이 스크립트를 5회 돌린 평균):
+#   최악(`list --all --json -n 0`)  445 ms → 629 ms (+184 ms, +41%)
+#   정지 가드 경로(`list --status in_progress --json`)  357 ms → 353 ms (차이가 잡히지 않는다)
+#   그중 대부분은 jq 의 파싱·직렬화 자체다 — `jq .` 만 태워도 618 ms 이고 actor 를 더하는 map 이
+#   32 ms 다. 전수 스캔은 세션당 몇 번뿐(board·rules-check)이라 감당한다.
+# 파이프로 잇는 이유: `out="$(bd …)"` 로 받아 두면 8.4 MB 의 명령 치환·printf 왕복만으로
+# 1009 ms 가 된다(같은 방법으로 실측) — 파이프의 두 배 가까이다. bd 의 rc 는 pipefail 로 산다.
+# bd 는 실패해도 stdout 에 온전한 JSON(빈 배열)을 내므로 jq 의 파싱 오류가 stderr 에 겹치지
+# 않는다 — `show <없는 id> --json` 실측 rc=1, stderr 는 bd 의 것 한 줄.
+case " $* " in
+  *" --json "*)
+    set -o pipefail
+    bd -C "$LEDGER_ROOT" "$@" | jq 'if type == "array" then map(if has("actor") then . else .actor = .assignee end) else . end'
+    exit $?
+    ;;
+esac
+
 exec bd -C "$LEDGER_ROOT" "$@"
