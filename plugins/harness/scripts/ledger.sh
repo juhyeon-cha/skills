@@ -51,7 +51,8 @@ usage() {
   rails --json               레일 전체 — 출력 JSON 은 [{id, owner}] 배열. owner 는 레일 담당자
                              (beads: <루트>/rails.json · github: epic 의 rail: 라벨 + 그 epic 의 assignee · notion: Assignee(rich_text))
   sprints --json             스프린트 전체 — 출력 JSON 은 [{id, status}] 배열. status 는 active | closed
-                             (beads: <루트>/sprints.json · github: Projects v2 Iteration 필드, id 는 iteration 의 title · notion: select)
+                             (beads: <루트>/sprints.json · github: Projects v2 Iteration 필드, id 는 iteration 의 title ·
+                              notion: Type 이 sprint 인 페이지, id 는 Name 이고 status 는 Status select)
   help | --help
 
 beads 전용 (github · notion 은 rc≠0):

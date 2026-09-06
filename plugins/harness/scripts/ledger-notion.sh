@@ -12,6 +12,15 @@
 #   Description(rich_text, init 이 더한다) · Assignee(rich_text, init 이 더한다)
 # 자기 관계는 생성 요청에 못 넣는다(실측) — init 은 create → PATCH 두 단계다.
 #
+# **Assignee 가 rich_text 라 값이 검증되지 않는다 — 없는 사람 이름도 오타 그대로 들어간다**
+# (github 은 플랫폼이 assign 할 수 없는 login 을 막고, beads 는 rails.json 이 원본이었다).
+# 이 백엔드에서 오타는 rails 의 "한 레일에 두 사람" 충돌로만 드러난다. 속성을 people 로 바꾸는
+# 것은 이 스토리 밖이다(skills#105 의 Out of Scope).
+#
+# 등록부 둘의 자리 (스토리 skills#105 결정 2 — 백엔드가 자기 계층으로 답한다):
+#   rails    epic 페이지의 rail:<ID> 라벨 + 그 페이지의 Assignee
+#   sprints  Type 이 sprint 인 페이지 — Name 이 스프린트 ID, Status select 가 상태
+#
 # id 는 페이지 id(uuid). JSON 키 대응표 (bd 키 ← Notion):
 #   id                   페이지 id
 #   title                Name
@@ -42,24 +51,6 @@ die() { echo "ledger-notion: $*" >&2; exit 1; }
 [ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
 # 원격 반영 검사 — 페이지가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (notion 백엔드: 페이지가 원격 자체다)"; exit 0; }
-# 등록부 질의 — 이 백엔드가 자기 계층(rails 는 epic 의 Assignee(rich_text) · sprints 는 select)으로
-# 답한다(스토리 skills#105 결정 2).
-# 이 태스크(skills#142)는 배선까지다: 하위 명령 인식과 인자 검증이 여기 서고, 값을 내는 것은
-# skills#145 다. 그때까지 빈 배열이고, **빈 배열이 실제 상태가 아니라는 사실을 stderr 로 밝힌다** —
-# 조용한 빈 배열은 "레일이 없다" 와 구별되지 않는다. rc 는 0 이다: 계약이 "JSON 배열" 이고
-# 소비자(M2 의 board.sh)는 아직 없다.
-# NOTION_TOKEN 검사보다 앞에 두는 이유: 아직 Notion 에 닿지 않는 답이라 토큰을 요구할 근거가 없다.
-# skills#145 가 실제로 질의를 붙일 때 이 블록은 아래(DB·토큰 검사 뒤)로 내려간다.
-case "${1:-}" in
-  rails|sprints)
-    sub="$1"; shift
-    for a in "$@"; do [ "$a" = --json ] || die "$sub: 모르는 인자 '$a' (사용: $sub --json)"; done
-    echo "ledger-notion: $sub 는 아직 구현되지 않았다 (skills#145) — 빈 배열이 실제 상태가 아니다" >&2
-    echo '[]'
-    exit 0
-    ;;
-esac
-
 DB="$(jq -r '.database_id // empty' "$LEDGER_CONFIG")"
 [ -n "${NOTION_TOKEN:-}" ] || die "NOTION_TOKEN 환경 변수가 없다 — 통합 토큰을 환경 변수로만 준다(파일에 두지 않는다)"
 command -v curl >/dev/null 2>&1 || die "curl 이 PATH 에 없다 — Notion 백엔드는 REST 로 원장에 닿는다"
@@ -392,6 +383,77 @@ case "$cmd" in
       patch_props "$id" "$(printf '%s' "$new" | jq '{Labels:{multi_select: map({name: .})}}')" || exit 1
       echo "$msg"
     done
+    ;;
+
+  # 등록부 질의 — 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2). beads 가 루트의
+  # rails.json·sprints.json 을 읽는 자리에서 notion 은 원장 자신(페이지의 Labels·Assignee·Type·
+  # Status)을 읽는다. wire-worktree·sync-check 와 달리 위(토큰 검사 앞)에 두지 않는다 — 그 둘은
+  # Notion 에 닿지 않는 상수 응답이지만 이 둘은 실제로 원장을 읽으므로 DB·토큰이 다 필요하다.
+  rails|sprints)
+    need_db
+    for a in "$@"; do [ "$a" = --json ] || die "$cmd: 모르는 인자 '$a' (사용: $cmd --json)"; done
+    case "$cmd" in
+      rails)
+        # github 과 같은 파생이다 — id 는 epic 의 rail: 라벨, owner 는 **그 epic 의 Assignee**.
+        # task 의 assignee 는 claim 실행자라 레일 담당자가 아니다(사용자 결정, skills#141 note).
+        # 닫힌 epic 도 읽는다(--all): 레일은 그 레일의 일이 다 끝나도 등록부에 남는 사람이라,
+        # 열린 epic 만 보면 레일이 조용히 사라진다.
+        # 읽기는 list_json 을 그대로 쓴다 — 질의 조립·페이지네이션·정규화가 이미 거기 있고,
+        # 여기만 다른 경로로 읽으면 "무엇이 원장인가" 가 둘로 갈린다.
+        # ponytail: list_json 은 페이지마다 블록 조회 1회(with_notes)를 도는데 등록부는 notes 를
+        # 읽지 않는다. epic 수만큼의 낭비이고 지금 그 수는 한 자리다 — 비용이 보이면 query() 를
+        # 직접 부르는 경로로 가른다.
+        epics="$(list_json --all -t epic --label-pattern 'rail:*' -n 0)" || exit 1
+        # rail: 라벨은 있는데 Assignee 가 빈 epic 은 owner 를 낼 수 없어 아래에서 빠진다. 그 레일이
+        # 조용히 사라지는 것과 "레일이 없다" 는 구별되지 않으므로 이름을 든다. rc 는 0 이다 —
+        # 다른 epic 이 같은 레일의 owner 를 대고 있으면 결과가 온전하다.
+        blank="$(printf '%s' "$epics" | jq -r '[.[] | select(.assignee == null) | .id] | join(" ")')" \
+          || die "rails: epic 목록을 읽지 못했다"
+        [ -z "$blank" ] || echo "ledger-notion: rails: Assignee 가 없는 epic — $blank (그 epic 만으로는 레일 owner 를 파생할 수 없다: ledger.sh update <id> --assignee <이름>)" >&2
+        # 한 레일 = 한 사람이 등록부의 계약이라, 같은 레일의 epic 들이 서로 다른 사람을 가리키면
+        # 어느 쪽이 owner 인지 코드가 정할 수 없다. 하나를 골라 덮지 않고 이름을 들어 죽는다.
+        # **이 백엔드에서는 이 대조가 오타 검출을 겸한다** — Assignee 가 rich_text 라 아래 헤더
+        # 주석이 적은 대로 값 자체는 검증되지 않고, 오타는 "한 레일에 두 사람" 으로만 드러난다.
+        pairs='[ .[] | select(.assignee != null) | . as $e
+                 | ($e.labels[] | select(startswith("rail:")) | ltrimstr("rail:"))
+                 | {id: ., owner: $e.assignee} ] | group_by(.id)'
+        conflict="$(printf '%s' "$epics" | jq -r "$pairs"' | map(select((map(.owner) | unique | length) > 1)
+                      | "\(.[0].id)=" + (map(.owner) | unique | join("/"))) | join(" · ")')" \
+          || die "rails: epic 의 rail: 라벨과 Assignee 를 대조하지 못했다"
+        [ -z "$conflict" ] || die "rails: 한 레일의 epic 들이 서로 다른 Assignee 를 가리킨다 — $conflict (레일 담당자는 1명이다. Assignee 가 rich_text 라 오타도 이 모양으로 나타난다)"
+        printf '%s' "$epics" | jq "$pairs"' | map(.[0]) | sort_by(.id)' \
+          || die "rails: 출력을 만들지 못했다"
+        ;;
+      sprints)
+        # **스프린트는 같은 DB 의 페이지 한 장이다** — Type select 가 sprint, Name 이 스프린트
+        # ID(YYYY-SNN), Status select 가 상태다. 그래서 id 도 status 도 select·title 에서 그대로
+        # 나오고 파생 산술이 없다.
+        #
+        # 이 자리를 페이지로 잡은 이유: Notion 에서 **상태를 가질 수 있는 것은 페이지뿐**이다.
+        # select 의 option 은 이름밖에 없어 등재 목록은 되지만 active·closed 를 담을 데가 없고,
+        # Labels 의 sprint: 라벨도 마찬가지다. github 이 Iteration 이라는 전용 객체를 쓰는 자리에
+        # notion 에는 그런 객체가 없어 페이지가 가장 가까운 대응물이 된다.
+        # id 를 Name 으로 잡은 것은 github 이 iteration 의 title 을 쓰는 것과 같은 규약이다 —
+        # 사람이 정하는 값이고 라벨(sprint:<ID>)과 그대로 맞는다.
+        #
+        # status 는 Status select 에서 온다: closed 면 closed, 그 밖(open·in_progress·…)은 active.
+        # 계약의 status 가 둘뿐이라 다섯 값을 둘로 접는다. **닫힌 이슈 개수로 판정하지 않는다** —
+        # 그 오판이 커밋 f88d779 로 되돌려진 자리다(sprints.json 의 doc). 여기서는 이슈를 보지
+        # 않고 스프린트 자신의 Status 만 본다. 닫힌 스프린트도 읽어야 하므로 --all 이다.
+        #
+        # ponytail: Type 이 sprint 인 페이지는 list·ready 에도 이슈처럼 섞인다. 소비자가 type 으로
+        # 거르면 되고 수도 적어 지금은 감수한다 — 별도 DB 로 가르는 것은 원장이 둘이 되는 값이다.
+        # ponytail: Type select 의 option 목록에 sprint 를 init 이 넣지 않는다. Notion 은 페이지를
+        # 만들 때 없는 select 값을 만들어 준다는 전제이고, **실제 Notion 으로 확인하지 않았다**
+        # (이 태스크의 판정은 전부 오프라인 픽스처다). 질의가 거부되면 napi 가 HTTP 상태와
+        # 응답의 code 를 들어 죽으므로 조용히 빈 배열이 되지는 않는다.
+        out="$(list_json --all -t sprint -n 0)" || exit 1
+        [ "$(printf '%s' "$out" | jq -r 'length')" != "0" ] \
+          || echo "ledger-notion: sprints: Type 이 sprint 인 페이지가 원장에 하나도 없다 — 빈 배열은 '스프린트가 없다' 이고 '필드가 없다' 가 아니다 (스프린트는 ledger.sh create <YYYY-SNN> -t sprint 로 등재한다)" >&2
+        printf '%s' "$out" | jq '[.[] | {id: .title, status: (if .status == "closed" then "closed" else "active" end)}] | sort_by(.id)' \
+          || die "sprints: 출력을 만들지 못했다"
+        ;;
+    esac
     ;;
 
   *) die "'$cmd' 는 notion 백엔드에 없다 (beads 전용이거나 모르는 명령) — ledger.sh --help" ;;

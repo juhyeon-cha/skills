@@ -509,9 +509,9 @@ printf '%s %s %s\n' "$n" "$m" "$path" >> "$FAKE_CURL_LOG"
 [ -n "$data" ] && cp "$data" "$FAKE_CURL_LOG.$n"
 respond() { printf '%s' "$2" > "$out"; printf '%s' "$1"; exit 0; }
 E=e0000000-0000-0000-0000-000000000001; F=f0000000-0000-0000-0000-000000000002; T=t0000000-0000-0000-0000-000000000003; U=u0000000-0000-0000-0000-000000000004
-page() { # <id> <제목> <type> <status> <labels JSON> <parent id 또는 ""> <blocked by id 또는 ""> <acceptance> <description>
-  printf '{"object":"page","id":"%s","created_time":"2026-09-05T00:00:00.000Z","last_edited_time":"2026-09-05T00:00:00.000Z","properties":{"Name":{"title":[{"plain_text":"%s"}]},"Type":{"select":{"name":"%s"}},"Status":{"select":{"name":"%s"}},"Labels":{"multi_select":%s},"Parent":{"relation":%s},"Blocked by":{"relation":%s},"Acceptance":{"rich_text":[{"plain_text":"%s"}]},"Description":{"rich_text":[{"plain_text":"%s"}]},"Assignee":{"rich_text":[{"plain_text":"juhyeon-cha"}]}}}' \
-    "$1" "$2" "$3" "$4" "$5" "$( [ -n "$6" ] && printf '[{"id":"%s"}]' "$6" || printf '[]' )" "$( [ -n "$7" ] && printf '[{"id":"%s"}]' "$7" || printf '[]' )" "$8" "$9"
+page() { # <id> <제목> <type> <status> <labels JSON> <parent id 또는 ""> <blocked by id 또는 ""> <acceptance> <description> [assignee]
+  printf '{"object":"page","id":"%s","created_time":"2026-09-05T00:00:00.000Z","last_edited_time":"2026-09-05T00:00:00.000Z","properties":{"Name":{"title":[{"plain_text":"%s"}]},"Type":{"select":{"name":"%s"}},"Status":{"select":{"name":"%s"}},"Labels":{"multi_select":%s},"Parent":{"relation":%s},"Blocked by":{"relation":%s},"Acceptance":{"rich_text":[{"plain_text":"%s"}]},"Description":{"rich_text":[{"plain_text":"%s"}]},"Assignee":{"rich_text":[{"plain_text":"%s"}]}}}' \
+    "$1" "$2" "$3" "$4" "$5" "$( [ -n "$6" ] && printf '[{"id":"%s"}]' "$6" || printf '[]' )" "$( [ -n "$7" ] && printf '[{"id":"%s"}]' "$7" || printf '[]' )" "$8" "$9" "${10-juhyeon-cha}"
 }
 PE="$(page "$E" 에픽 epic blocked '[{"name":"repo:harness"}]' "" "$T" "조건 1" 본문)"
 PF="$(page "$F" 피처 feature open '[{"name":"repo:harness"},{"name":"rail:r1"}]' "$E" "$T" "" "")"
@@ -528,7 +528,22 @@ case "$m $path" in
   "POST pages") respond 200 '{"object":"page","id":"n0000000-0000-0000-0000-00000000000e"}' ;;
   "PATCH pages/"*|"PATCH blocks/"*|"PATCH databases/"*) respond 200 '{"object":"page"}' ;;
   "POST databases") respond 200 '{"object":"database","id":"d0000000-0000-0000-0000-00000000000d"}' ;;
-  "POST databases/"*"/query") respond 200 "$(printf '{"results":[%s,%s,%s,%s],"has_more":false,"next_cursor":null}' "$PE" "$PF" "$PT" "$PU")" ;;
+  "POST databases/"*"/query")
+    # 등록부(rails·sprints)만 다른 페이지 집합을 본다 — 위 네 페이지에 레일 epic 과 스프린트를
+    # 섞으면 list·ready 의 개수 단언이 전부 흔들린다. 질의 필터는 가짜라 무시하고(어댑터가
+    # list_json 의 jq 로 한 번 더 거른다) 이 집합만 낸다.
+    case "${FAKE_NOTION_REGISTRY:-}" in
+      "") respond 200 "$(printf '{"results":[%s,%s,%s,%s],"has_more":false,"next_cursor":null}' "$PE" "$PF" "$PT" "$PU")" ;;
+      conflict) respond 200 "$(printf '{"results":[%s,%s],"has_more":false,"next_cursor":null}' \
+        "$(page ra00000-0000-0000-0000-00000000000a 레일에픽1 epic open '[{"name":"rail:r1"}]' "" "" "" "" juhyeon-cha)" \
+        "$(page rb00000-0000-0000-0000-00000000000b 레일에픽2 epic open '[{"name":"rail:r1"}]' "" "" "" "" dongqdev)")" ;;
+      *) respond 200 "$(printf '{"results":[%s,%s,%s,%s,%s],"has_more":false,"next_cursor":null}' \
+        "$(page ra00000-0000-0000-0000-00000000000a 레일에픽 epic open '[{"name":"rail:r1"}]' "" "" "" "" juhyeon-cha)" \
+        "$(page rb00000-0000-0000-0000-00000000000b 닫힌레일에픽 epic closed '[{"name":"rail:r2"}]' "" "" "" "" dongqdev)" \
+        "$(page rc00000-0000-0000-0000-00000000000c 담당없는레일에픽 epic open '[{"name":"rail:r3"}]' "" "" "" "" '')" \
+        "$(page s100000-0000-0000-0000-000000000011 2026-S01 sprint closed '[]' "" "" "" "")" \
+        "$(page s200000-0000-0000-0000-000000000012 2026-S02 sprint in_progress '[]' "" "" "" "")")" ;;
+    esac ;;
   "GET blocks/"*"/children"*) respond 200 '{"results":[{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"메모"}]}},{"type":"paragraph","paragraph":{"rich_text":[{"plain_text":"둘째"}]}}]}' ;;
 esac
 echo "fake curl: 모르는 요청 $m $path" >&2; exit 22
@@ -618,6 +633,40 @@ step "label remove → 뺀 Labels PATCH" bash -c 'jq -e ".properties.Labels.mult
 nrun init
 step "init (database_id 있음) → PATCH databases/<id> 에 Parent·Blocked by 자기 관계와 Description·Assignee" \
   bash -c '[ "$1" -eq 0 ] && jq -e ".properties | has(\"Parent\") and has(\"Blocked by\") and has(\"Description\") and has(\"Assignee\") and .Parent.relation.database_id == \"d0000000-0000-0000-0000-00000000000d\"" "$2" >/dev/null' _ "$RC" "$(body_of PATCH "databases/d0000000-0000-0000-0000-00000000000d")"
+# ── 등록부 질의 (skills#145). rails 는 epic 의 rail: 라벨 + Assignee, sprints 는 Type 이 sprint 인
+#    페이지의 Name·Status 다. 픽스처는 FAKE_NOTION_REGISTRY 로 갈아 끼운 별도 페이지 집합이다.
+nreg() { # <FAKE_NOTION_REGISTRY 값> <인자…>
+  local mode="$1"; shift
+  OUT=$(PATH="$NPATH" FAKE_CURL_LOG="$NLOG" FAKE_NOTION_REGISTRY="$mode" NOTION_TOKEN="fake-token" HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" "$@" 2>"$TMP/err"); RC=$?
+  ERR=$(cat "$TMP/err")
+}
+# ② 토큰 없음 — 종전 스텁은 토큰 검사 **앞**에 있어 토큰 없이도 답했다. 실제로 원장을 읽는 지금은
+#    그럴 근거가 없다. 두 하위 명령 다 본다.
+for sub in rails sprints; do
+  OUT=$(env -u NOTION_TOKEN PATH="$NPATH" FAKE_CURL_LOG="$NLOG" FAKE_NOTION_REGISTRY=1 HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" "$sub" --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+  step "$sub: NOTION_TOKEN 없음 → rc≠0 · stderr 한 줄이 NOTION_TOKEN 을 든다" \
+    bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ] && printf "%s" "$2" | grep -q NOTION_TOKEN' _ "$RC" "$ERR"
+done
+nreg 1 rails --json
+step "rails: id 는 epic 의 rail: 라벨이고 owner 는 그 페이지의 Assignee다 · 닫힌 epic 도 든다(--all)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "map(.id) == [\"r1\",\"r2\"] and .[0].owner == \"juhyeon-cha\" and .[1].owner == \"dongqdev\"" >/dev/null' _ "$OUT" "$RC"
+step "rails: Assignee 가 빈 epic(r3)은 빠지고 그 사실이 stderr 로 나온다 (rc 는 0 — 나머지 결과는 온전하다)" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | grep -q Assignee && ! printf "%s" "$3" | jq -e "any(.id == \"r3\")" >/dev/null' _ "$RC" "$ERR" "$OUT"
+nreg conflict rails --json
+step "rails: 한 레일의 epic 들이 서로 다른 Assignee 를 가리키면 rc≠0 (Assignee 가 rich_text 라 오타가 이 모양으로만 드러난다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q r1' _ "$RC" "$ERR"
+nreg 1 sprints --json
+step "sprints: id 는 Name 이고 status 는 Status select 다 (closed→closed · 그 밖→active)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e ". == [{id:\"2026-S01\",status:\"closed\"},{id:\"2026-S02\",status:\"active\"}]" >/dev/null' _ "$OUT" "$RC"
+step "sprints: 계약의 status 는 둘뿐이다" \
+  bash -c 'printf "%s" "$1" | jq -e "all(.status == \"active\" or .status == \"closed\")" >/dev/null' _ "$OUT"
+# 스프린트 페이지가 0건인 것은 정상 상태다 — rc 0 의 빈 배열이되 그것이 "필드가 없다" 가 아님을 밝힌다.
+nreg "" sprints --json
+step "sprints: Type 이 sprint 인 페이지가 0건 → rc 0 의 빈 배열이고 stderr 가 그것이 '스프린트가 없다' 임을 밝힌다" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q sprint' _ "$OUT" "$RC" "$ERR"
+nreg 1 rails --all
+step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
+
 nrun dolt push
 step "beads 전용 명령(dolt) → rc≠0" [ "$RC" -ne 0 ]
 
