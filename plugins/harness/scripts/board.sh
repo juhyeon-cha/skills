@@ -320,7 +320,7 @@ for sid in $(printf '%s' "$JSON" | jq -r '[.[] | select(.issue_type=="epic")] | 
     exit 1
   fi
   owner=$(owner_of "$rail")
-  [[ -n "$owner" ]] || { echo "레일 '$rail' 이 등록부에 없다 (스토리 $sid)" >&2; exit 1; }
+  [[ -n "$owner" ]] || { echo "레일 '$rail' 이 등록부에 없거나 owner 를 낼 수 없다 (스토리 $sid)" >&2; exit 1; }
 
   dir="$slug"
 

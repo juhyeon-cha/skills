@@ -67,7 +67,10 @@ done
 # ── 레일 등록부 대조 (원장 **전수**의 rail 라벨) ────────────────────
 # 백로그 스토리도 렌더 대상이라 등록부 밖 레일은 렌더를 죽인다 — 검사가 렌더보다 좁으면
 # 게이트가 아니라 렌더 실패로 알게 된다.
-if REG_RAILS_JSON=$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" rails --json); then
+# rc 0 + 빈 출력도 실패로 본다 — 그 값을 --argjson 에 넣으면 jq 가 죽고 BAD_RAILS 가 비어
+# 조용히 통과한다(한 방향 대조라 아무것도 안 걸린다). 양방향인 스프린트 쪽은 같은 조건에서
+# 시끄럽게 걸리므로, 대칭을 맞추는 것이 이 -n 이다.
+if REG_RAILS_JSON=$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" rails --json) && [[ -n "$REG_RAILS_JSON" ]]; then
   BAD_RAILS=$(printf '%s' "$FULL_JSON" \
     | jq -r --argjson rails "$REG_RAILS_JSON" \
       '($rails | map(.id)) as $ids
