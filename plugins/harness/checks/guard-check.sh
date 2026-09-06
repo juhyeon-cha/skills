@@ -1437,7 +1437,10 @@ step "download 동사를 가진 그룹이 정확히 [$GH_DL_EXPECT] 이다 (상�
 #    경유(`-f query="$(cat …)"`) ③ 평문 미끼 얹기(질의문은 숨긴 채 읽기처럼 보이는 `query=` 를
 #    하나 더). 그래서 열거를 그만두고 극성을 되돌렸다: **읽기처럼 보여도 막는다.**
 #    이 절이 그 단언 자리다 — 종전에 rc 0 이던 형태(평문 graphql 질의 · 옵션 없는 REST GET ·
-#    미끼를 얹은 `--input`)를 여기에 그대로 두어 되돌림이 실측으로 남는다.
+#    미끼를 얹은 `--input`·`-F query=@파일`)를 여기에 그대로 두어 되돌림이 실측으로 남는다.
+#    한계: `gh api list`·`gh api search` 는 엔드포인트 토큰이 면제어와 같아 rc 0 이다. 닿는
+#    것이 없어(면제어와 같은 단일 세그먼트 엔드포인트가 없다) 두 토큰 판정을 그대로 둔다 —
+#    docs/guardrails.md `r_remote` 행과 훅의 deny 메시지가 같은 한계를 적는다.
 declare -a GH_API_DENY=(
   "gh api graphql -f query='query{ viewer{ login } }'"   # 평문 읽기 질의 — 종전 rc 0
   'gh api repos/o/r/issues/1'                            # 옵션 없는 REST GET — 종전 rc 0
@@ -1447,6 +1450,7 @@ declare -a GH_API_DENY=(
   'gh api graphql -f query="`cat mut.json`"'
   # 미끼 — 질의문은 `--input` 이 숨기고 평문 `query=` 는 훅에게 보이라고 얹은 것이다.
   'gh api graphql --input mut.json -f query="query{ viewer{ login } }"'
+  'gh api graphql -F query=@mut.graphql -f query="query{ viewer{ login } }"'   # 미끼의 -F 판 — e04abc4 에서 rc 0
 )
 for c in "${GH_API_DENY[@]}"; do
   runsub "$c"
@@ -1488,7 +1492,7 @@ for c in "${GH_LEDGER_WRITE[@]}"; do
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "짝인 쓰기는 차단: $c" [ "$GUARD_RC" -eq 2 ]
 done
-# 오케스트레이터는 판정 대상이 아니다 — 위 23건 전부 통과한다.
+# 오케스트레이터는 판정 대상이 아니다 — 위 24건 전부 통과한다.
 for c in "${GH_API_DENY[@]}" "${GH_LEDGER_READ[@]}" "${GH_LEDGER_WRITE[@]}"; do
   run "$(j_bash "$c")"
   step "통과(오케스트레이터): $c" [ "$GUARD_RC" -eq 0 ]
