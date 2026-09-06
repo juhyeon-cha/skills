@@ -37,11 +37,10 @@ claude plugin install harness@skills               # scope 인자 없이 — 기
 (acceptance 판정과 마감) → `/harness:retrospective`(회고 — 실행 중 쌓인 피드백을 플러그인
 수정 제안으로).
 
-보완 스킬 셋은 순서 밖에서 부른다:
+보완 스킬 둘은 순서 밖에서 부른다:
 
 - `/harness:triage` — 스프린트에 속하지 않은 열린 항목을 훑어 중복·폐기·후보 순위를 표로 제안하고, 확인한 행만 적용한다. plan-sprint 앞에.
 - `/harness:status` — 활성 스프린트 · 스토리별 열린/닫힌 태스크 수 · 진행 중·막힘·미결정 항목을 한 화면으로. 읽기 전용.
-- `/harness:release` — 이 마켓플레이스의 플러그인 하나를 릴리스한다(변경 정리 → 버전 폭 결정 → CHANGELOG → plugin.json 버전 → validate → 커밋·태그, 로컬까지).
 
 구현·리뷰·판정은 서브에이전트 역할 셋(`harness:implementer` · `harness:reviewer` ·
 `harness:evaluator`)에 위임된다. 무인 반복이 필요할 만큼 태스크가 많으면 develop 이 Claude Code
@@ -106,6 +105,10 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
   버전은 건드리지 않는다.
 - **아직 아무도 쓰지 않는 플러그인은 버전을 올리지 않는다.** 첫 사용자가 생기기 전의
   변경은 전부 `0.1.0` 에 쌓는다. 올려 봐야 아무에게도 알리는 바가 없다.
+- **릴리스 절차는 이 레포가 소유한다** — `.claude/skills/release/SKILL.md`(`/release`). 이전
+  태그부터 훑기 → 폭 결정 → CHANGELOG 항목 → `plugin.json` 버전 → validate → 커밋·로컬 태그.
+  이 레포에서 일할 때만 쓰는 스킬이라 플러그인으로 배포하지 않는다. 태그 push 와 GitHub
+  릴리스는 명시 지시가 있을 때만 한다.
 
 ## 커밋
 
