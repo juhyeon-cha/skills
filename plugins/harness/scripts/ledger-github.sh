@@ -55,23 +55,6 @@ die() { echo "ledger-github: $*" >&2; exit 1; }
 [ "${1:-}" = "wire-worktree" ] && { echo "ledger-github: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
 # 원격 반영 검사 — 이슈가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (github 백엔드: 이슈가 원격 자체다)"; exit 0; }
-# 등록부 질의 — 이 백엔드가 자기 계층(epic 의 rail: 라벨 + assignee · Projects v2 Iteration 필드)으로
-# 답한다(스토리 skills#105 결정 2). 이 태스크(skills#142)는 배선까지다: 하위 명령 인식과 인자 검증이
-# 여기 서고, 값을 내는 것은 skills#144 다. 그때까지 빈 배열이고, **빈 배열이 실제 상태가 아니라는
-# 사실을 stderr 로 밝힌다** — 조용한 빈 배열은 "레일이 없다" 와 구별되지 않는다. rc 는 0 이다:
-# 계약이 "JSON 배열" 이고 소비자(M2 의 board.sh)는 아직 없다.
-# gh 인증 검사보다 앞에 두는 이유: 아직 gh 에 닿지 않는 답이라 인증을 요구할 근거가 없다.
-# skills#144 가 실제로 질의를 붙일 때 이 블록은 아래(OWNER·gh 검사 뒤)로 내려간다.
-case "${1:-}" in
-  rails|sprints)
-    sub="$1"; shift
-    for a in "$@"; do [ "$a" = --json ] || die "$sub: 모르는 인자 '$a' (사용: $sub --json)"; done
-    echo "ledger-github: $sub 는 아직 구현되지 않았다 (skills#144) — 빈 배열이 실제 상태가 아니다" >&2
-    echo '[]'
-    exit 0
-    ;;
-esac
-
 OWNER="$(jq -r '.owner // empty' "$LEDGER_CONFIG")"
 PROJECT="$(jq -r '.project // empty' "$LEDGER_CONFIG")"
 [ -n "$OWNER" ] || die "$LEDGER_CONFIG 에 owner 가 없다"
@@ -384,10 +367,13 @@ case "$cmd" in
       # 그래서 rc 가 아니라 **응답에 실린 assignees 를 대조한다**(응답에 갱신된 목록이 이미 실려 온다).
       # 앞에 GET repos/<slug>/assignees/<login> 선검사를 두는 길도 되지만, 그 GET 과 이 PATCH 사이가
       # 열려 있어 같은 구멍이 남으면서 왕복만 는다. login 은 대소문자를 가리지 않아 낮춰서 견준다.
+      # **이 파이프라인의 rc 는 머리의 `set -o pipefail` 에 기댄다.** 그것이 없으면 gh 가 실패하며
+      # 오류 본문({"message":"Not Found"})을 stdout 으로 흘릴 때 마지막 jq 의 rc 만 남고, 지우기
+      # (--assignee "")에서는 그 대조가 참이 되어 실패가 성공으로 읽힌다(skills#160 재리뷰 실측).
       jq -n --arg a "$assignee" '{assignees: (if $a == "" then [] else [$a] end)}' \
         | gh api -X PATCH "repos/$SLUG/issues/$NUM" --input - 2>/dev/null \
         | jq -e --arg a "$assignee" '(.assignees[0].login // "" | ascii_downcase) == ($a | ascii_downcase)' >/dev/null \
-        || die "assignee 를 '$assignee' 로 바꾸지 못했다 — 레포 $SLUG 에 assign 할 수 없는 login 이면 GitHub 이 PATCH 를 200 으로 받고 조용히 버린다: $REPO#$NUM"
+        || die "assignee 를 '$assignee' 로 바꾸지 못했다: $REPO#$NUM — 원인 둘을 이 자리에서 가르지 않는다: (1) PATCH 자체가 실패했다(권한·네트워크·없는 이슈) (2) 200 을 받았으나 응답의 assignees 가 '$assignee' 가 아니다 — 레포 $SLUG 에 assign 할 수 없는 login 을 GitHub 이 조용히 버리는 경우다"
     fi
     if [ -n "$status" ] || [ -n "$type" ]; then
       cur="$(labels_of "$SLUG" "$NUM")" || die "라벨을 읽지 못했다: $REPO#$NUM"
@@ -457,6 +443,75 @@ case "$cmd" in
         *) die "label: add|remove 만 지원한다 (받은 것: '$sub')" ;;
       esac
     done
+    ;;
+
+  # 등록부 질의 — 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2). beads 가 루트의
+  # rails.json·sprints.json 을 읽는 자리에서 github 은 원장 자신(라벨·assignee·Projects v2)을 읽는다.
+  # wire-worktree·sync-check 와 달리 위(gh 검사 앞)에 두지 않는다 — 그 둘은 gh 에 닿지 않는 상수
+  # 응답이지만 이 둘은 실제로 원장을 읽으므로 OWNER·gh·인증이 다 필요하고, rails 는 아래에서
+  # 정의되는 list_json 을 쓴다.
+  rails|sprints)
+    for a in "$@"; do [ "$a" = --json ] || die "$cmd: 모르는 인자 '$a' (사용: $cmd --json)"; done
+    # 두 질의 모두 project 번호 없이는 답할 수 없다 — rails 는 읽기의 경계(Projects v2 소속)로,
+    # sprints 는 Iteration 필드가 사는 곳으로 쓴다. 어느 키가 문제인지 이름으로 든다.
+    [ -n "$PROJECT" ] || die "$cmd: $LEDGER_CONFIG 에 project 가 없다 (없거나 JSON 을 읽지 못했다) — rails 는 읽기의 경계가 Projects v2 소속이고 sprints 는 그 프로젝트의 Iteration 필드에서 나온다 (ledger.sh init 이 만든다)"
+    case "$cmd" in
+      rails)
+        # owner 의 출처는 **epic 의 assignee** 하나뿐이다 — task 의 assignee 는 claim 실행자의
+        # login 이라 레일 담당자가 아니다(사용자 결정, skills#141 note). 닫힌 epic 도 읽는다(--all):
+        # 레일은 그 레일의 일이 다 끝나도 등록부에 남는 사람이라, 열린 epic 만 보면 조용히 사라진다.
+        # 읽기는 list_json 을 그대로 쓴다 — 원장의 경계·라벨 필터·정규화가 이미 거기 있고, 여기만
+        # 다른 경로로 읽으면 "무엇이 원장인가" 가 둘로 갈린다.
+        epics="$(list_json --all -t epic --label-pattern 'rail:*' -n 0)" || exit 1
+        # rail: 라벨은 있는데 assignee 가 없는 epic 은 owner 를 낼 수 없어 아래에서 빠진다. 그 레일이
+        # 조용히 사라지는 것과 "레일이 없다" 는 구별되지 않으므로 이름을 든다. rc 는 0 이다 —
+        # 다른 epic 이 같은 레일의 owner 를 대고 있으면 결과가 온전하다.
+        blank="$(printf '%s' "$epics" | jq -r '[.[] | select(.assignee == null) | .id] | join(" ")')" \
+          || die "rails: epic 목록을 읽지 못했다"
+        [ -z "$blank" ] || echo "ledger-github: rails: assignee 가 없는 epic — $blank (그 epic 만으로는 레일 owner 를 파생할 수 없다: ledger.sh update <id> --assignee <login>)" >&2
+        # 한 레일 = 한 사람(rails.json 의 계약)이라, 같은 레일의 epic 들이 서로 다른 사람을 가리키면
+        # 어느 쪽이 owner 인지 코드가 정할 수 없다. 하나를 골라 덮지 않고 이름을 들어 죽는다.
+        pairs='[ .[] | select(.assignee != null) | . as $e
+                 | ($e.labels[] | select(startswith("rail:")) | ltrimstr("rail:"))
+                 | {id: ., owner: $e.assignee} ] | group_by(.id)'
+        conflict="$(printf '%s' "$epics" | jq -r "$pairs"' | map(select((map(.owner) | unique | length) > 1)
+                      | "\(.[0].id)=" + (map(.owner) | unique | join("/"))) | join(" · ")')" \
+          || die "rails: epic 의 rail: 라벨과 assignee 를 대조하지 못했다"
+        [ -z "$conflict" ] || die "rails: 한 레일의 epic 들이 서로 다른 assignee 를 가리킨다 — $conflict (레일 담당자는 1명이다)"
+        printf '%s' "$epics" | jq "$pairs"' | map(.[0]) | sort_by(.id)' \
+          || die "rails: 출력을 만들지 못했다"
+        ;;
+      sprints)
+        # id 는 iteration 의 **title**(사람이 정하는 YYYY-SNN)이다 — iteration 의 id 는 GitHub 이
+        # 만드는 불투명 값(예 390d3281)이라 스프린트 ID 가 아니다(M0 실측, skills#140 note).
+        #
+        # status 의 출처: iteration 에는 상태 필드가 없고 startDate·duration 뿐이다(같은 실측).
+        # **날짜 산술 대신 GitHub 자신이 가른 두 목록을 쓴다** — configuration.iterations 는 현재와
+        # 앞으로 올 것, completedIterations 는 종료일이 지난 것이다. 날짜로 직접 파생하지 않는
+        # 이유는 그 산술이 세 상태(과거·현재·미래)를 내는데 계약의 status 는 둘뿐이라서다: 아직
+        # 시작하지 않은 스프린트를 closed 로 낼 수는 없고, GitHub 의 구분은 그것을 active 쪽에 둔다.
+        # 이 파생은 sprints.json 이 금한 "닫힌 이슈 개수로 판정" 과도 다른 축이다 — 이슈를 보지 않는다.
+        #
+        # 읽기가 gh api graphql 인 이유: gh project field-list 는 필드의 id·name·type 만 내고
+        # iteration 목록(configuration)을 내지 않는다. 필드 생성·iteration 추가도 같은 자리다 —
+        # gh project field-create 에 ITERATION 이 없다(M0 실측).
+        # ponytail: ITERATION 필드가 여럿이면 첫 번째만 읽는다. 지금 원장에 그런 판이 없다 —
+        # 필드 이름을 계약으로 고정할 자리가 생기면 그때 이름으로 짚는다.
+        q='query($o:String!,$n:Int!){ user(login:$o){ projectV2(number:$n){ fields(first:50){ nodes{
+             ... on ProjectV2IterationField { name configuration {
+               iterations{ title } completedIterations{ title } } } } } } } }'
+        out="$(gh api graphql -f query="$q" -f o="$OWNER" -F n="$PROJECT" 2>&1)" \
+          || die "sprints: Projects v2 $PROJECT (owner $OWNER) 의 필드를 읽지 못했다 — $out"
+        printf '%s' "$out" | jq -e '.data.user.projectV2' >/dev/null 2>&1 \
+          || die "sprints: 사용자 $OWNER 의 Projects v2 $PROJECT 를 읽지 못했다 — 번호가 틀렸거나, owner 가 사용자가 아니다(조직 소유 project 에는 이 질의가 닿지 않는다)"
+        cfg="$(printf '%s' "$out" | jq -c '[.data.user.projectV2.fields.nodes[] | select(.configuration != null)] | first // empty')" \
+          || die "sprints: 필드 응답을 읽지 못했다"
+        [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다"
+        printf '%s' "$cfg" | jq '[(.configuration.iterations[] | {id: .title, status: "active"}),
+                                  (.configuration.completedIterations[] | {id: .title, status: "closed"})] | sort_by(.id)' \
+          || die "sprints: 출력을 만들지 못했다"
+        ;;
+    esac
     ;;
 
   *) die "'$cmd' 는 github 백엔드에 없다 (beads 전용이거나 모르는 명령) — ledger.sh --help" ;;

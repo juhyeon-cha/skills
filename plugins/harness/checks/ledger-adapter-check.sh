@@ -247,6 +247,15 @@ case "$1 $2" in
     all="$*"
     case "$all" in
       *addSubIssue*) echo '{"data":{"addSubIssue":{}}}' ;;
+      # Projects v2 의 필드 목록 — sprints 가 읽는 자리. FAKE_GH_NO_ITERATION 이면 ITERATION 필드가
+      # 없는 프로젝트(configuration 이 없는 노드만)를 낸다. 상태 필드가 없으므로 status 는
+      # iterations(현재·미래)/completedIterations(종료일이 지난 것) 두 목록에서만 갈린다.
+      *"fields(first"*)
+        if [ -n "${FAKE_GH_NO_ITERATION:-}" ]; then
+          echo '{"data":{"user":{"projectV2":{"fields":{"nodes":[{},{}]}}}}}'
+        else
+          echo '{"data":{"user":{"projectV2":{"fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
+        fi ;;
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
       *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
@@ -423,6 +432,26 @@ step "label add|remove → --add-label · --remove-label" \
   bash -c 'grep -q "^issue edit 57 -R juhyeon-cha/harness --add-label slug:r1-x$" "$1" && grep -q "^issue edit 57 -R juhyeon-cha/harness --remove-label rail:r1$" "$1"' _ "$LOG"
 grun dolt push
 step "beads 전용 명령(dolt) → rc≠0" [ "$RC" -ne 0 ]
+# ── 등록부 질의 (skills#144) ──────────────────────────────────────────
+# rails 의 양성 경로는 이 픽스처로 세울 수 없다 — 실제 원장에서 봤다(커밋 메시지의 실측).
+# 여기서 못박는 것은 **owner 를 어디서 파생하지 않는가** 다: 58 은 rail:r1 에 assignee 가 있으나
+# epic 이 아니고, 70 은 rail:r1 인 task 이며 프로젝트 밖이다. 둘 중 하나라도 새면 [] 가 깨진다.
+grun rails --json
+step "rails: epic 이 아닌 rail: 라벨(58 feature · 70 task)에서 owner 를 파생하지 않는다 → []" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e "length == 0" >/dev/null' _ "$RC" "$OUT"
+grun sprints --json
+step "sprints: id 는 iteration 의 title 이고 status 는 iterations→active · completedIterations→closed" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ". == [{id:\"2026-S01\",status:\"closed\"},{id:\"2026-S02\",status:\"active\"}]" >/dev/null' _ "$RC" "$OUT"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_NO_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" sprints --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "ITERATION 필드가 없으면 rc≠0 — 빈 배열은 '스프린트가 없다' 와 구별되지 않는다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q ITERATION' _ "$RC" "$ERR"
+for sub in rails sprints; do
+  OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghnoproj" bash "$LEDGER" "$sub" --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+  step "project 키 없음 → $sub 가 rc≠0 이고 stderr 한 줄이 project 를 이름으로 든다" \
+    bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ] && printf "%s" "$2" | grep -q project' _ "$RC" "$ERR"
+done
+grun rails --all
+step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
 
 echo "── ⑤ notion 오프라인 — 가짜 curl ──"
 # 가짜 curl 은 요청(메서드·경로·본문)을 번호 붙여 기록하고 정해진 답을 낸다. 페이지 4개:

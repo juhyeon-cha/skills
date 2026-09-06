@@ -40,7 +40,8 @@ usage() {
                              (github·notion: --claim 과 같이 주면 rc≠0 · beads: 가드가 없다 — bd 가 두
                               플래그를 다 받고(`bd help update` 실측) 남는 값은 bd 가 정한다, 확인하지 않았다)
                              (github: 그 이슈가 사는 레포에 assign 할 수 없는 login 이면 rc≠0 ·
-                              notion·beads: 값을 검증하지 않는다 — 없는 사람 이름도 그대로 들어간다)
+                              notion: Assignee 가 rich_text 라 값을 검증하지 않는다 — 없는 사람 이름도
+                              그대로 들어간다 · beads: 확인하지 않았다)
   dep add <id> <의존 대상 id> | --file - (JSONL {"from","to"})
   label add|remove <id> <라벨>
   wire-worktree <워크트리 절대 경로>   워크트리에 원장을 배선한다 — hooks/enter-worktree.sh 가 부른다
