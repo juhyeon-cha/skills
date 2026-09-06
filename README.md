@@ -19,9 +19,10 @@ juhyeon-cha 의 Claude Code 스킬 플러그인 마켓플레이스. 플러그인
 
 ## harness 사용법
 
-하네스는 **하네스 루트**(원장 설정 `ledger.json` · 대상 레포 목록 `repos.json` · 레일 `rails.json` ·
-스프린트 등록부 `sprints.json` 을 두는 디렉토리) 하나와, `repos.json` 에 등재된 대상 레포들의 클론
-(하네스 루트 밖 `~/.harness-workspace/<레포>` 에 둔다)으로 돈다. 플러그인은 **user scope 에 한 번만** 설치한다 — 하네스
+하네스는 **하네스 루트**(머신 로컬 디렉토리 `~/.harness-workspace` — 원장 지정 `ledger.json` 과 대상 레포
+목록 `repos.json` 을 직속으로 두고, 그 자리의 `ledger.json` 이 곧 루트의 표지다) 하나와, `repos.json` 에
+등재된 대상 레포들의 클론(그 옆 `~/.harness-workspace/<레포>`)으로 돈다. 게이트 명령·기본 브랜치는 대상 레포
+자신의 `.harness.json` 이 소유한다. 플러그인은 **user scope 에 한 번만** 설치한다 — 하네스
 트리나 대상 레포마다 등록하지 않는다.
 
 ```
