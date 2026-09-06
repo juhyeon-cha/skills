@@ -13,7 +13,7 @@ This skill holds all three.
 
 Both the procedure and the verification differ per branch. **Decide the branch first and follow that section only.** Do not mix in commands from another section out of habit — calling A's `init` in B or C silently overwrites something different each time.
 
-A harness root is an ordinary git repo holding the context files of section 5 and nothing of the plugin. The plugin (skills · role definitions · hooks · checks · scripts) is installed once per machine at user scope and is never copied into the root — `${CLAUDE_PLUGIN_ROOT}` below is its installed location.
+A harness root is the clone root — the machine-local directory `~/.harness-workspace`, recognized by the `ledger.json` directly under it (section 0) — holding the context files of section 5 and nothing of the plugin. It is a plain directory, not a git repo of its own. **In transition**: section 1.1 (`git init`) and section 1.5's `.gitignore` step still describe the older layout in which the root was its own git repo. Where they disagree with section 0 and section 5's table, those two are right. The plugin (skills · role definitions · hooks · checks · scripts) is installed once per machine at user scope and is never copied into the root — `${CLAUDE_PLUGIN_ROOT}` below is its installed location.
 
 ## 0. Branch decision — first action
 

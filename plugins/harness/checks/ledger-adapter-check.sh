@@ -5,6 +5,8 @@
 #      --help 의 목록이 플러그인이 실제 부르는 bd 하위 명령 전수(grep 으로 파생)를 덮는다.
 #   ② beads 동등성(읽기) — 실제 하네스 원장을 .beads/redirect 로 가리키는 사본 루트에서
 #      ledger.sh 의 list·show --json 이 bd -C <루트> 의 것과 바이트 단위로 같다.
+#      **backend 가 beads 일 때만 돈다.** 그 밖의 백엔드에서는 대조할 bd 원장이 루트에 없으므로
+#      사유 한 줄(⊘)과 함께 건너뛴다 — 조용한 통과가 아니라 명시적 건너뜀이다.
 #   ③ beads 왕복(쓰기) — 임시 `bd init` 픽스처에서 create·note·dep add·update·label·close·
 #      children·ready 를 bd 의 인자 규약 그대로 한 번씩 돌려 show --json 으로 확인한다.
 #      실제 원장에는 쓰지 않는다.
@@ -22,6 +24,7 @@ set -uo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 LEDGER="$PLUGIN_ROOT/scripts/ledger.sh"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
+BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json" 2>/dev/null)"
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
 
 TMP=$(mktemp -d)
@@ -72,6 +75,7 @@ for tok in $MEASURED; do
 done
 step "--help 가 측정된 bd 하위 명령 전수를 덮는다 (측정 $(printf '%s\n' "$MEASURED" | grep -c .)개, 빠짐:${missing:- 없음})" [ -z "$missing" ]
 
+if [ "$BACKEND" = beads ]; then
 echo "── ② beads 동등성 — 실제 원장 읽기 ──"
 COPY="$TMP/copy"; mkdir -p "$COPY/.beads"
 # 대조 루트 자신이 redirect 로 배선된 사본 루트일 수 있다(HARNESS_ROOT 로 물린 검사 픽스처). bd 는 redirect
@@ -98,6 +102,11 @@ if [ -n "$first_id" ]; then
   step "show $first_id --json 이 actor 를 뺀 채로 bd -C <루트> 와 같다" diff -q "$TMP/ledger-show.json" "$TMP/bd-show.json"
 else
   echo "  ✗ FAILED: 열린 이슈가 0건이라 show 동등성을 대조하지 못했다"; fail=1
+fi
+
+else
+  echo "── ② beads 동등성 — 건너뜀 (backend=${BACKEND:-없음}) ──"
+  echo "  ⊘ 실제 원장이 beads 가 아니라 bd 로 대조할 수 없다 — 이 절은 bd -C <루트> 와의 바이트 대조이고, 그 루트에 .beads 가 없다"
 fi
 
 echo "── ③ beads 왕복 — 임시 원장 쓰기 ──"

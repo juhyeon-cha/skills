@@ -15,6 +15,7 @@
 #   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [하네스 루트]
 #   R18 (harness:develop 멀티 레포) 등록부에 경로를 적지 않는다 — 키 집합 화이트리스트  [클론 루트]
 #   S12 (skills/setup/SKILL.md) 검토 대상 트리 .gitignore 의 필수·금지 항목과 실물 잔존 (세 대조) [트리]
+#       **지금은 건너뛴다 — 대상이 없다(check_s12 의 주석이 사유). 주제 폐기는 M4.**
 #   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [하네스 루트]
 #   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 (양방향)  [트리]
 #         — "PR 생성·원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가
@@ -367,6 +368,14 @@ S12_KEEP_WHY=(
 )
 check_s12() {
   local line req_part forbid_part required forbidden f=0 item
+  # **건너뛴다 — 대상이 없다.** 이 검사의 대상은 "하네스 루트 레포의 .gitignore" 인데, 하네스
+  # 루트가 클론 루트로 내려가면서 그 자리는 git 트리가 아니게 됐다. 그대로 두면 TREE 가 호출자가
+  # 선 대상 레포 워크트리로 잡혀 **모든 대상 레포에 하네스 설치 규약을 요구하는 오탐**이 된다
+  # (실측: skills 워크트리에서 ✗ 10줄).
+  # 주제 자체의 폐기(파서·면제표·setup 5항의 규약 문장을 함께 걷는다)는 M4 의 몫이다. 그때까지는
+  # 조용히 통과시키지 않고 사유를 밝히고 건너뛴다.
+  echo "⊘ S12 건너뜀 — 하네스 루트가 클론 루트로 내려가 .gitignore 계약의 대상이 없다 (주제 폐기는 M4)"
+  return 0
   need_tree S12 || return 1
   [[ -f "$SETUP_SKILL" ]] || { echo "✗ S12 — $SETUP_SKILL 이 없다 (검사 항목의 출처)"; return 1; }
   [[ -f "$GITIGNORE" ]]   || { echo "✗ S12 — $GITIGNORE 이 없다"; return 1; }
