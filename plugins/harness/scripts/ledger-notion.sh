@@ -449,7 +449,7 @@ case "$cmd" in
         # 응답의 code 를 들어 죽으므로 조용히 빈 배열이 되지는 않는다.
         out="$(list_json --all -t sprint -n 0)" || exit 1
         [ "$(printf '%s' "$out" | jq -r 'length')" != "0" ] \
-          || echo "ledger-notion: sprints: Type 이 sprint 인 페이지가 원장에 하나도 없다 — 빈 배열은 '스프린트가 없다' 이고 '필드가 없다' 가 아니다 (스프린트는 ledger.sh create <YYYY-SNN> -t sprint 로 등재한다)" >&2
+          || echo "ledger-notion: sprints: Type 이 sprint 인 페이지가 원장에 하나도 없다 — 빈 배열은 '스프린트가 없다' 이고 '읽지 못했다' 가 아니다 — 질의가 거부되면 napi 가 HTTP 상태를 들어 rc≠0 으로 죽는다 (스프린트는 ledger.sh create <YYYY-SNN> -t sprint 로 등재한다)" >&2
         printf '%s' "$out" | jq '[.[] | {id: .title, status: (if .status == "closed" then "closed" else "active" end)}] | sort_by(.id)' \
           || die "sprints: 출력을 만들지 못했다"
         ;;

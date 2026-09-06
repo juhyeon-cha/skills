@@ -703,7 +703,8 @@ step "sprints: id 는 Name 이고 status 는 Status select 다 (closed→closed 
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e ". == [{id:\"2026-S01\",status:\"closed\"},{id:\"2026-S02\",status:\"active\"}]" >/dev/null' _ "$OUT" "$RC"
 step "sprints: 계약의 status 는 둘뿐이다" \
   bash -c 'printf "%s" "$1" | jq -e "all(.status == \"active\" or .status == \"closed\")" >/dev/null' _ "$OUT"
-# 스프린트 페이지가 0건인 것은 정상 상태다 — rc 0 의 빈 배열이되 그것이 "필드가 없다" 가 아님을 밝힌다.
+# 스프린트 페이지가 0건인 것은 정상 상태다 — rc 0 의 빈 배열이되 그것이 "읽지 못했다" 가 아님을 밝힌다
+# (notion 에는 필드가 없어 github 의 "필드가 없다" 대조가 이 백엔드에서는 성립하지 않는다).
 nreg "" sprints --json
 step "sprints: Type 이 sprint 인 페이지가 0건 → rc 0 의 빈 배열이고 stderr 가 그것이 '스프린트가 없다' 임을 밝힌다" \
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q sprint' _ "$OUT" "$RC" "$ERR"
