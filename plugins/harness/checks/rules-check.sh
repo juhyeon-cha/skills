@@ -1,26 +1,35 @@
 #!/usr/bin/env bash
 # 게이트: 규약이 선언만 되고 강제되지 않던 단언들 (원장·설정·문서의 정적 검사).
-# **대상은 둘이다** — 플러그인 트리(스킬·역할·훅·주입 블록)와 하네스 루트(원장·등록부·.gitignore).
-# 하네스 루트는 lib/harness-root.sh 가 낸다. 못 찾으면 원장을 보는 검사는 **조용히 건너뛰지 않고
-# 실패한다**(rc≠0) — 원장 없이 통과한 원장 검사는 검사가 아니다. 문서만 보는 검사는 그대로 돈다.
-#   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [원장]
-#   R18 (harness:develop 멀티 레포) repos.json 에 경로를 적지 않는다 — 키 집합 화이트리스트  [하네스 루트]
-#   S12 (skills/setup/SKILL.md) 하네스 루트 .gitignore 의 필수 항목·금지 항목, 그리고 실물에만
-#         있고 규약 문장이 안 드는 잔존 (세 대조)                                          [하네스 루트]
-#   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [원장]
-#   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 — "PR 생성·
-#         원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가 (양방향)  [플러그인]
-#   C6  (세션 블록 「절대 금지」) 절이 살아 있고 강제 장치의 자리(${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md)를 가리킨다 [플러그인]
-#   R40 (harness:develop 멀티 레포) repos.json 등재 이름 ↔ 클론 디렉토리 실재 (양방향)      [하네스 루트]
-#   S22 (harness:develop 3-0) 한 워크트리에 두 태스크를 동시에 위임하지 않는다               [원장]
-#   S24 (harness:develop 4-2) 하위가 전부 종료 상태인데 열려 있는 스토리                    [원장]
-#   R-DATE (harness-dg0.6.30) 주입 블록에 YYYY-MM-DD 날짜가 없다                             [플러그인]
-#   R-BEAD (harness-dg0.6.30) 주입 블록이 가리키는 bead ID 가 원장에 실재한다                [플러그인+원장]
-#   R-WAIT (harness-dg0.6.39) 사람 대기 신호의 목록은 한 곳이 단일 소유하고, 그 절이
-#         신호를 전부 들고 있으며, 절 밖에서 목록을 다시 적은 줄이 없다                     [플러그인]
-#   R-DUP (harness-dg0.6.42) 스킬·역할 문서가 주입 블록의 문장을 그대로 복제하지
-#         않는다 — 옮기지 말고 자리(파일·절 제목)를 가리킨다                                [플러그인]
-#   R-BUDGET 주입 블록의 바이트 상한 — 상시 비용은 SessionStart 마다 실린다                 [플러그인]
+# **읽는 자리는 둘이고 검사 이름 줄마다 표지 하나가 붙는다** — 트리 · 하네스 루트 (harness-m8gg.8.4 ·
+# 관측 harness-ofwp):
+#   트리 표지 — 파일을 읽는 검사. 하네스 파일(repos.json · .gitignore)은 **검토 대상 트리** TREE — 호출
+#     CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리 — 에서, 플러그인 문서(스킬·역할·훅·주입 블록)는
+#     플러그인 트리 자신에서 읽는다. CWD 위에 ledger.json 이 없으면 TREE 는 하네스 루트다(플러그인
+#     디렉토리나 대상 레포 워크트리에서 부르는 종전 형태).
+#   하네스 루트 표지 — 원장을 ledger.sh 로 읽는 검사. 원장은 언제나 lib/harness-root.sh 가 낸 루트 HROOT
+#     의 것이다 — 하네스 클론의 워크트리에서 부르면 redirect 가 가리키는 본 루트다.
+#   둘을 가르지 않으면 워크트리에서 돌린 rc 0 이 검토 대상 트리가 아니라 본 루트의 .gitignore·repos.json
+#   에 대한 판정이 된다. 시작할 때 "트리: … · 원장 루트: …" 한 줄로 두 자리를 stdout 에 낸다.
+# 하네스 루트를 못 찾으면 원장을 보는 검사는 **조용히 건너뛰지 않고 실패한다**(rc≠0) — 원장 없이
+# 통과한 원장 검사는 검사가 아니다. 플러그인 문서만 보는 검사는 그대로 돈다.
+#   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [하네스 루트]
+#   R18 (harness:develop 멀티 레포) repos.json 에 경로를 적지 않는다 — 키 집합 화이트리스트  [트리]
+#   S12 (skills/setup/SKILL.md) 검토 대상 트리 .gitignore 의 필수·금지 항목과 실물 잔존 (세 대조) [트리]
+#   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [하네스 루트]
+#   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 (양방향)  [트리]
+#         — "PR 생성·원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가
+#   C6  (세션 블록 「절대 금지」) 절이 살아 있고 강제 장치의 자리(${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md)를 가리킨다 [트리]
+#   R40 (harness:develop 멀티 레포) repos.json 등재 이름 ↔ 클론 디렉토리 실재 (양방향)      [트리]
+#   S22 (harness:develop 3-0) 한 워크트리에 두 태스크를 동시에 위임하지 않는다               [하네스 루트]
+#   S24 (harness:develop 4-2) 하위가 전부 종료 상태인데 열려 있는 스토리                    [하네스 루트]
+#   R-DATE (harness-dg0.6.30) 주입 블록에 YYYY-MM-DD 날짜가 없다                             [트리]
+#   R-BEAD (harness-dg0.6.30) 주입 블록이 가리키는 bead ID 가 원장에 실재한다                [하네스 루트]
+#         — ID 의 출처는 플러그인 주입 블록이고 판정은 원장이다
+#   R-WAIT (harness-dg0.6.39) 사람 대기 신호의 목록은 한 곳이 단일 소유한다                  [트리]
+#         — 그 절이 신호를 전부 들고 있으며, 절 밖에서 목록을 다시 적은 줄이 없다
+#   R-DUP (harness-dg0.6.42) 스킬·역할 문서가 주입 블록의 문장을 그대로 복제하지 않는다      [트리]
+#         — 옮기지 말고 자리(파일·절 제목)를 가리킨다
+#   R-BUDGET 주입 블록의 바이트 상한 — 상시 비용은 SessionStart 마다 실린다                 [트리]
 #
 # 극성 반전(harness:develop 운영 규율): 검사 대상을 손으로 나열하지 않는다.
 #   R5  대상은 bd 원장의 태스크 전수에서 파생한다 (면제는 아래 사유 참조).
@@ -31,7 +40,7 @@
 #         태스크 전수이며, 손으로 고른 id 목록이 없다.
 #   S12 검사할 항목을 스크립트에 적지 않고 **setup/SKILL.md 원문에서 파싱한다.**
 #       규약 문서에 항목을 더하면 검사가 자동으로 그것을 요구한다. 반대 방향의 대조는
-#       하네스 루트 .gitignore 실물의 유효 줄 전수에서 파생하고, **하네스 소유가 아닌 줄만** 사유와
+#       검토 대상 트리 .gitignore 실물의 유효 줄 전수에서 파생하고, **하네스 소유가 아닌 줄만** 사유와
 #       함께 면제표(S12_KEEP/S12_KEEP_WHY)에 등재한다 — 이것이 S12 의 유일한 손목록이다.
 #       면제 키가 실물에 존재하는지 역방향으로 단언한다 (0건 면제 = 낡은 면제).
 #   R-REM 후보는 스캔 경로 전체에서 패턴으로 파생하고, **남아야 하는 것만** 사유와 함께
@@ -79,15 +88,19 @@
 # 종료 코드는 파이프 밖에서 채집한다.
 set -uo pipefail
 
+CALLER_PWD="$PWD"   # 호출 CWD — 검토 대상 트리와 원장 루트를 여기서 파생한다(아래 cd 뒤에는 잃는다)
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$PLUGIN_ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $PLUGIN_ROOT" >&2; exit 1; }
+PLUGIN_ROOT="$PWD"   # 절대 경로로 못박는다 — 아래에서 호출 CWD 로 돌아가 부른다
 
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 게이트는 jq 없이는 판정할 수 없다 (없으면 빈 질의 결과가 '위반 없음' 오진이 된다)" >&2; exit 1; }
 
-# 하네스 루트 — 원장·등록부·.gitignore 의 자리. 한 번 찾고, 못 찾으면 그것을 쓰는 검사마다 실패한다.
-HROOT="$(bash lib/harness-root.sh 2>/dev/null)" || HROOT=""
+# 원장 루트 HROOT — lib/harness-root.sh 가 **호출 CWD 에서** 낸다(플러그인 루트에서 부르면 플러그인이
+# 사는 트리의 redirect 를 따라가 검토 대상과 무관한 루트가 나온다). 한 번 찾고, 못 찾으면 그것을 쓰는
+# 검사마다 실패한다.
+HROOT="$(cd "$CALLER_PWD" && bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" || HROOT=""
 HROOT_ERR=""
-[[ -n "$HROOT" ]] || HROOT_ERR="$(bash lib/harness-root.sh 2>&1 >/dev/null | head -1)"
+[[ -n "$HROOT" ]] || HROOT_ERR="$(cd "$CALLER_PWD" && bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>&1 >/dev/null | head -1)"
 need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 ✗ 를 내고 1
   [[ -n "$HROOT" ]] && return 0
   echo "✗ $1 — 하네스 루트를 찾지 못했다 (${HROOT_ERR:-lib/harness-root.sh rc≠0}). 원장·등록부를 보는 검사라 건너뛰지 않고 실패한다 — 스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
@@ -95,9 +108,27 @@ need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 �
 }
 bdl() { HARNESS_ROOT="$HROOT" bash scripts/ledger.sh "$@"; }   # 원장은 언제나 하네스 루트의 것이다 — 어댑터로 읽는다(CWD 는 플러그인 루트)
 
-MANIFEST="${REPOS_MANIFEST:-$HROOT/repos.json}"   # 재정의는 검사 스크립트용 (hooks/enter-worktree.sh 와 같은 규약)
+# 검토 대상 트리 TREE — 호출 CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리(판별자는 harness-root.sh 와
+# 같다). 없으면 HROOT 다 — 플러그인 디렉토리·대상 레포 워크트리에서 부르는 종전 형태가 그 자리다.
+tree_of() {  # tree_of <디렉토리> — 위로 올라가며 ledger.json 을 찾는다. 없으면 rc 1
+  local d="$1"
+  while :; do
+    [[ -f "$d/ledger.json" ]] && { printf '%s\n' "$d"; return 0; }
+    [[ "$d" == / ]] && return 1
+    d="$(dirname "$d")"
+  done
+}
+TREE="$(tree_of "$CALLER_PWD")" || TREE="$HROOT"
+need_tree() {  # need_tree <검사이름> — 검토 대상 트리가 없으면(CWD 위에 ledger.json 이 없고 하네스 루트도 못 찾음) ✗ 를 내고 1
+  [[ -n "$TREE" ]] && return 0
+  echo "✗ $1 — 검토 대상 트리를 찾지 못했다 (CWD $CALLER_PWD 위에 ledger.json 이 없고 ${HROOT_ERR:-하네스 루트도 없다}). 등록부·.gitignore 를 보는 검사라 건너뛰지 않고 실패한다 — 하네스 트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
+  return 1
+}
+echo "트리: ${TREE:-(없음)} · 원장 루트: ${HROOT:-(없음)}"
+
+MANIFEST="${REPOS_MANIFEST:-$TREE/repos.json}"   # 재정의는 검사 스크립트용 (hooks/enter-worktree.sh 와 같은 규약)
 SETUP_SKILL="skills/setup/SKILL.md"
-GITIGNORE="$HROOT/.gitignore"
+GITIGNORE="$TREE/.gitignore"
 BLOCK="hooks/session-context.md"                   # SessionStart 주입 블록 — 플러그인의 유일한 상시 로드 문서
 
 fail=0
@@ -207,7 +238,7 @@ R18_TOP_REQUIRED=(repos)
 R18_TOP_OPTIONAL=(doc)
 check_r18() {
   local f=0 allowed top_allowed extra missing entry_fail
-  need_hroot R18 || return 1
+  need_tree R18 || return 1
   if [[ ! -f "$MANIFEST" ]]; then
     echo "✗ R18 — $MANIFEST 이 없다"
     return 1
@@ -324,7 +355,7 @@ S12_KEEP_WHY=(
 )
 check_s12() {
   local line req_part forbid_part required forbidden f=0 item
-  need_hroot S12 || return 1
+  need_tree S12 || return 1
   [[ -f "$SETUP_SKILL" ]] || { echo "✗ S12 — $SETUP_SKILL 이 없다 (검사 항목의 출처)"; return 1; }
   [[ -f "$GITIGNORE" ]]   || { echo "✗ S12 — $GITIGNORE 이 없다"; return 1; }
 
@@ -734,7 +765,7 @@ R40_KEEP=()   # 클론 루트 안의 **레포가 아닌** 디렉토리. 등재�
 check_r40() {
   local names dirs missing extra n_names n_dirs k f=0
 
-  need_hroot R40 || return 1
+  need_tree R40 || return 1
   [[ -f "$MANIFEST" ]] || { echo "✗ R40 — $MANIFEST 이 없다 (등재부의 출처)"; return 1; }
   names=$(jq -r '.repos[]?.name // empty' "$MANIFEST" | sort)
   n_names=$(printf '%s' "$names" | grep -c . )
