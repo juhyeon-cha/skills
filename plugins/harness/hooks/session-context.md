@@ -29,9 +29,9 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
 - The ledger is the SSOT. `docs/sprints/`·`docs/backlog/`·`docs/adr/` are projections of `scripts/board.sh all`, so they are never edited by hand.
 - Bodies (note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".
 
-## Procedure skills (10)
+## Procedure skills (9)
 
-`harness:plan-sprint` (sprint composition) → `harness:plan-story` (breakdown · acceptance) → `harness:develop` (implementation cycle — owner of the operating rules) → `harness:verify-code` (review) → `harness:verify-implement` (judgment · close) → `harness:retrospective` (retrospective) + `harness:setup` (first-time setup) · `harness:triage` (backlog triage) · `harness:status` (status, read-only) · `harness:release` (plugin release).
+`harness:plan-sprint` (sprint composition) → `harness:plan-story` (breakdown · acceptance) → `harness:develop` (implementation cycle — owner of the operating rules) → `harness:verify-code` (review) → `harness:verify-implement` (judgment · close) → `harness:retrospective` (retrospective) + `harness:setup` (first-time setup) · `harness:triage` (backlog triage) · `harness:status` (status, read-only).
 
 Role definitions (3 — subagents, the Agent tool's `subagent_type`): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
 
