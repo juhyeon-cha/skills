@@ -939,7 +939,7 @@ r_grader_shell() {
   while read -r t sub; do
     [ -n "$sub" ] || continue     # 옵션만 있는 호출(`--help`·`--version`) — 읽기다
     bd_is_read "$sub" && continue
-    deny "채점자의 $t 쓰기 금지 — '$t $sub' 는 읽기 면제 목록에 없다. agent_type=$AGENT_TYPE 의 $t 는 **읽기만**이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 기록(note·update·close·label)은 오케스트레이터의 몫이다. $(gr_can)"
+    deny "채점자의 $t 쓰기 금지 — '$t $sub' 는 읽기 면제 목록에 없다. agent_type=$AGENT_TYPE 의 $t 는 **읽기만**이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT (어댑터 전용 읽기 $LEDGER_READ_EXEMPT 도 면제다 — 등록부 질의라 상태를 바꾸지 않는다). 원장 기록(note·update·close·label)은 오케스트레이터의 몫이다. $(gr_can)"
   done < <(gr_ledger_subcmds)
   # 원장 도구가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "도구는 있는데 하위 명령을 하나도 못
   # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 낱말은 exec_segments 가 가른다.
@@ -1020,7 +1020,7 @@ r_impl_bd() {
     [ -n "$sub" ] || continue
     bd_is_read "$sub" && continue
     impl_bd_write_allowed "$sub" && continue
-    deny "implementer 의 $t 쓰기 금지 — '$t $sub' 는 허용 목록 밖이다. agent_type=$AGENT_TYPE 에게 허용된 $t **쓰기**는 '$IMPL_BD_WRITE_ALLOW' 뿐이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 그 밖의 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다 — 필요하면 무엇을 왜 바꿔야 하는지 **응답에** 적어 올려라(태스크 범위 밖이면 첫 줄 'SIGNAL: DECISION_NEEDED'). 알게 된 사실은 '$(ledger_root_form "$t") note <태스크ID> \"…\"' 로 남길 수 있다. note 와 같은 일을 하는 '$t update <id> --append-notes' 도 여기서 막히니 note 를 써라 (note 는 'update <id> --append-notes' 의 축약이다). (agents/implementer.md)"
+    deny "implementer 의 $t 쓰기 금지 — '$t $sub' 는 허용 목록 밖이다. agent_type=$AGENT_TYPE 에게 허용된 $t **쓰기**는 '$IMPL_BD_WRITE_ALLOW' 뿐이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 그 밖의 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT (어댑터 전용 읽기 $LEDGER_READ_EXEMPT 도 면제다 — 등록부 질의라 상태를 바꾸지 않는다). 원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다 — 필요하면 무엇을 왜 바꿔야 하는지 **응답에** 적어 올려라(태스크 범위 밖이면 첫 줄 'SIGNAL: DECISION_NEEDED'). 알게 된 사실은 '$(ledger_root_form "$t") note <태스크ID> \"…\"' 로 남길 수 있다. note 와 같은 일을 하는 '$t update <id> --append-notes' 도 여기서 막히니 note 를 써라 (note 는 'update <id> --append-notes' 의 축약이다). (agents/implementer.md)"
   done < <(gr_ledger_subcmds)
   # 원장 도구가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "도구는 있는데 하위 명령을 하나도 못
   # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 낱말은 exec_segments 가 가른다.
@@ -1070,9 +1070,19 @@ RULES+=("Bash:r_impl_bd")
 # 항목을 내므로 무해하지 않다 — 그래서 이것은 "안전해서"가 아니라 **작업을 멈추지 않으려고**
 # 연 구멍이며, 목록을 늘리는 것은 그만큼 구멍을 넓히는 일이다.
 BD_READ_EXEMPT="show list ready blocked children search query count graph history status prime where context info version help"
+# ledger.sh **에만** 있는 읽기 하위 명령. 위 목록과 갈라 두는 이유는 게이트가 그것을 `bd --help`
+# 파생 집합과 역방향으로 대조하기 때문이다(⑩ "면제 키가 전부 실제 bd 하위 명령이다") — bd 에
+# 대응물이 없는 이름을 그 목록에 섞으면 그 단언이 깨진다.
+# 등록부 질의 둘은 백엔드가 자기 계층에서 읽어 JSON 배열을 낼 뿐 원장의 상태를 바꾸지 않는다.
+# 이것이 막혀 있는 동안 reviewer·evaluator 가 skills#142 의 acceptance 를 검증하지 못해
+# 오케스트레이터가 대신 판정해야 했다(skills#165 의 배경).
+# ponytail: 판정이 도구를 가리지 않아 `bd rails` 도 원장 지정 없이 통과한다. bd 에 그런 하위
+# 명령이 없어 즉시 실패하고 원장에 닿지 않는다 — 도구별로 가르려면 bd_is_read 의 서명과 세
+# 호출부를 함께 바꿔야 하고, 그 대가가 이 무해한 통과보다 크다.
+LEDGER_READ_EXEMPT="rails sprints"
 
 bd_is_read() {
-  case " $BD_READ_EXEMPT " in *" $1 "*) return 0 ;; esac
+  case " $BD_READ_EXEMPT $LEDGER_READ_EXEMPT " in *" $1 "*) return 0 ;; esac
   return 1
 }
 
@@ -1107,7 +1117,7 @@ r_bd_root() {
     [ -n "$sub" ] || continue     # 옵션만 있는 호출(`--help`·`--version`·원장 지정만) — 읽기다
     bd_is_read "$sub" && continue
     ledger_root_given "$t" "${seg%%$sub*}" && continue
-    deny "$t 원장 지정 누락 — 서브에이전트의 $t 쓰기는 '$(ledger_root_form "$t") $sub …' 로 부른다($(ledger_root_alts "$t")). 원장 지정 없이 부르면 루트 탐색이 다른 하네스에 닿거나(ledger.sh) 워크트리의 부모 레포가 가진 .beads 에 붙어(bd) **조용히 성공**한다(실측: create·remember·label 이 rc=0). 읽기($BD_READ_EXEMPT)는 면제다. $(bd_root_hint)"
+    deny "$t 원장 지정 누락 — 서브에이전트의 $t 쓰기는 '$(ledger_root_form "$t") $sub …' 로 부른다($(ledger_root_alts "$t")). 원장 지정 없이 부르면 루트 탐색이 다른 하네스에 닿거나(ledger.sh) 워크트리의 부모 레포가 가진 .beads 에 붙어(bd) **조용히 성공**한다(실측: create·remember·label 이 rc=0). 읽기($BD_READ_EXEMPT · 어댑터 전용 읽기 $LEDGER_READ_EXEMPT)는 면제다. $(bd_root_hint)"
   done < <(exec_segments "$t")
   done
   return 0

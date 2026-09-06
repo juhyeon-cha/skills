@@ -2120,6 +2120,58 @@ step "면제·허용된 하위 명령이 전부 통과한다"   [ -z "$impl_bloc
 [ -n "$impl_blocked" ] && echo "    막힌 항목:$impl_blocked"
 step "전수 시험이 공허하지 않다 (차단 기대가 20개 이상)" [ "$impl_denied" -ge 20 ]
 
+# ── 어댑터 전용 읽기 (skills#165). 등록부 질의 둘은 bd 에 대응물이 없어 BD_READ_EXEMPT 와
+#    갈린 목록에 산다. 여기서 보는 것은 **면제를 넓히다 쓰기까지 열리지 않았는가** 다 —
+#    그것이 이 항목이 막는 실패다.
+#    목록은 게이트에 다시 적지 않고 훅 소스에서 파생한다(⑩·⑬ 의 선례).
+LEDGER_EXEMPT_SRC=$(grep -E '^LEDGER_READ_EXEMPT=' "$HOOK" | sed 's/^LEDGER_READ_EXEMPT="//; s/"$//')
+step "어댑터 전용 읽기 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$LEDGER_EXEMPT_SRC" ]
+echo "  LEDGER_READ_EXEMPT: $LEDGER_EXEMPT_SRC"
+# 그 이름들이 bd 하위 명령이 **아니어야** 갈라 둔 이유가 산다 — 섞였다면 ⑩ 의 역방향 단언이
+# 깨지므로 여기서 먼저 잡는다.
+ledger_only_leak=""
+for e in $LEDGER_EXEMPT_SRC; do
+  printf '%s\n' "$BD_ALL" | grep -qx -- "$e" && ledger_only_leak="$ledger_only_leak $e"
+done
+step "어댑터 전용 읽기가 bd 하위 명령과 겹치지 않는다 (겹치면 BD_READ_EXEMPT 로 가야 한다)" [ -z "$ledger_only_leak" ]
+[ -n "$ledger_only_leak" ] && echo "    겹치는 키:$ledger_only_leak"
+
+# ① 세 서브에이전트 역할 전부가 읽을 수 있다. reviewer·evaluator 를 함께 보는 것이 핵심이다 —
+#    이 둘이 막혀 있어 오케스트레이터가 대신 판정해야 했던 것이 이 태스크의 배경이다.
+ledger_read_blocked=""
+for e in $LEDGER_EXEMPT_SRC; do
+  for role in $GR_R $GR_E $IMPL_T; do
+    run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS $e --json" "$role")"
+    printf '  rc=%d  [%s] %s %s --json\n' "$GUARD_RC" "$role" "$FX_LS" "$e"
+    [ "$GUARD_RC" -eq 0 ] || ledger_read_blocked="$ledger_read_blocked $role:$e"
+  done
+  # 원장 지정이 없어도 읽기다 — r_bd_root 는 읽기 면제에 지정을 요구하지 않는다.
+  runsub "$FX_LS $e --json"
+  [ "$GUARD_RC" -eq 0 ] || ledger_read_blocked="$ledger_read_blocked no-root:$e"
+done
+step "어댑터 전용 읽기가 reviewer·evaluator·implementer 전부에게 통과한다 (원장 지정 유무 무관)" [ -z "$ledger_read_blocked" ]
+[ -n "$ledger_read_blocked" ] && echo "    막힌 조합:$ledger_read_blocked"
+
+# ② 쓰기는 그대로 막힌다. 면제 목록은 **낱말 완전 일치**라 항목을 늘려도 쓰기가 열릴 길이
+#    없는데, 그 사실을 단언으로 세워 둔다 — 나중에 판정 방식이 접두사·부분 일치로 바뀌면
+#    여기가 먼저 깨진다.
+ledger_write_leak=""
+for w in create update close label dep; do
+  for role in $GR_R $GR_E $IMPL_T; do
+    run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS $w $FX_TASK" "$role")"
+    [ "$GUARD_RC" -eq 2 ] || ledger_write_leak="$ledger_write_leak $role:$w"
+  done
+done
+# note 는 implementer 만 통과하는 쓰기다 — 역할별로 갈리는 것이 유지되는지 같은 자리에서 본다.
+for role in $GR_R $GR_E; do
+  run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK \"메모\"" "$role")"
+  [ "$GUARD_RC" -eq 2 ] || ledger_write_leak="$ledger_write_leak $role:note"
+done
+run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK \"메모\"" "$IMPL_T")"
+step "쓰기 여섯(create·update·close·label·dep·note)이 면제 확대 뒤에도 그대로 막힌다" [ -z "$ledger_write_leak" ]
+[ -n "$ledger_write_leak" ] && echo "    샌 조합:$ledger_write_leak"
+step "note 는 implementer 에게만 열린 채로다 (역할별 갈림이 살아 있다)" [ "$GUARD_RC" -eq 0 ]
+
 # ── 대상 단언: 정정 보존이 무엇에 기대고 있는지를 **이름으로** 못박는다.
 #    `.claude/rules/agile.md` 의 정정 보존은 원장의 note 가 덮이지 않는다를 전제하는데,
 #    실측상 그것은 원장 도구의 성질이 아니라 이 규칙의 결과다 — bd 에는 notes 를 고치고
