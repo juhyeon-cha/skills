@@ -376,6 +376,7 @@ tools = defaultdict(lambda: {"calls": 0, "responses": 0, "parallel": 0, "max_per
 combos = Counter()
 verdicts = Counter()
 violations = []
+unknown_roles = Counter()
 judged = 0
 
 for aid, run in sorted(runs.items(), key=lambda kv: kv[1]["ts"] or ""):
@@ -404,8 +405,14 @@ for aid, run in sorted(runs.items(), key=lambda kv: kv[1]["ts"] or ""):
         # 그 필드가 사라지면 모집단이 통째로 줄면서 미도달 0건·위반 0건·rc=0 이 된다.
         unreach("위임 %s 의 역할을 가리지 못했다 (attributionAgent·agentType 둘 다 없다) — 이 건은 판정하지 못했다" % aid)
         continue
+    # 역할 값은 플러그인 접두를 달고 온다(`harness:reviewer`). VOCAB 의 키는 agents/*.md 의
+    # 파일명이라 접두가 없다 — 벗겨서 맞춘다. 접두 없는 형태도 그대로 산다.
+    role = role.split(":")[-1]
     if role not in VOCAB:
-        continue  # 역할 에이전트가 아니다 (general-purpose · Explore 등). A9 의 대상이 아니다
+        # 조용히 빼지 않는다. 여기서 침묵하면 판정 0건의 두 원인 — 위임이 없었다와 역할을
+        # 알아보지 못했다 — 이 같은 문구로 나오고, 뒤엣것이 결함으로 보이지 않는다.
+        unknown_roles[role] += 1
+        continue
 
     texts = []
     # 한 응답이 도구를 여럿 부르면 **전사 기록기가 레코드를 쪼갠다** — 쪼개진 레코드는
@@ -466,8 +473,12 @@ for aid, run in sorted(runs.items(), key=lambda kv: kv[1]["ts"] or ""):
 
 # 판정이 0건인데 사유가 한 줄도 없으면 침묵과 구분되지 않는다. 남길 사유가 없어도 그 사실을 남긴다.
 if judged == 0 and not unreached:
-    unreach("범위 안에 판정할 역할 위임이 0건이다 (끝난 위임 %d건, since=%s, session=%s)"
-            % (len(runs), since_raw or "전체", session or "전체"))
+    unreach("범위 안에 판정할 역할 위임이 0건이다 (끝난 위임 %d건, since=%s, session=%s)%s"
+            % (len(runs), since_raw or "전체", session or "전체",
+               (" — 역할을 알아보지 못한 위임 %d건: %s"
+                % (sum(unknown_roles.values()),
+                   " · ".join("%s %d" % (r, n) for r, n in unknown_roles.most_common()))
+                ) if unknown_roles else ""))
 
 def tok(acc, n):
     """토큰 집계 한 덩어리. `billed_input` 은 세 입력 열의 합이다 — 단가가 서로 달라

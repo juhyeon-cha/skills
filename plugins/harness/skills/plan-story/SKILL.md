@@ -91,6 +91,8 @@ Ask before promoting: **does this change follow the repo's convention, or leave 
 
 Counts quoted in a plan or a body are **counted before they are written**. Carrying a number out of someone else's report means remeasuring it or naming the source.
 
+- **An acceptance item names the command that measures, not the value it measured.** A count frozen into acceptance is read back at judgment time, when the tree and the ledger have moved on — the item then fails on a number nobody disputes. The planning-time measurement belongs in the body as its ground; the item says what to run and what shape the answer takes.
+
 ## 6. Ready-to-start verification
 
 Check the finished tree with `ledger.sh children <story ID>`: 0 tasks without acceptance, no dependency cycles, **0 tasks with 2 or more `repo:` labels** (the narrowing from section 2 was skipped). Passing all three means the tree can go to the develop procedure.

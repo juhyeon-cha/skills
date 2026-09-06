@@ -789,11 +789,12 @@ STUB
   step "경로 ORACLE_FAIL(루트 없음): 사유가 헬퍼를 가리킨다" bash -c 'tail -1 "$1" | grep -q "harness-root"' _ "$SLOG"
   stop_case BLOCK       s-block   false 2
 
-  # VERIFY_PENDING — 배치 모드의 검증 대기. in_progress **전부**의 마지막 note 줄이
-  # VERIFY_PENDING 으로 시작하면 통과, 하나라도 아니면 종전대로 BLOCK. 픽스처는 합성 JSON 이다
-  # — 실원장의 표본(마지막 note 가 그 표시인 in_progress 태스크)은 배치가 끝나면 사라지므로
-  # 그것에 기대면 시험이 원장 상태에 흔들린다. 셋째 픽스처는 표시 **뒤에** note 가 더 붙은
-  # 경우다 — "마지막 줄"이 판정이지 "어딘가 있음"이 아님을 못박는다.
+  # VERIFY_PENDING — 배치 모드의 검증 대기. in_progress **전부**의 마지막 **표시 줄**이
+  # VERIFY_PENDING 으로 시작하면 통과, 하나라도 표시가 없으면 종전대로 BLOCK. 픽스처는 합성
+  # JSON 이다 — 실원장의 표본(마지막 note 가 그 표시인 in_progress 태스크)은 배치가 끝나면
+  # 사라지므로 그것에 기대면 시험이 원장 상태에 흔들린다. 셋째 픽스처는 표시 **뒤에** note 가
+  # 더 붙은 경우다 — 같은 절차가 LGTM 수령·판정 근거를 note 로 요구하므로 그 산문이 표시를
+  # 덮으면 안 된다(harness-k4wg). 표시가 아예 없는 경우(FX_VP_MISS)는 그대로 막힌다.
   # assignee 는 **이 세션의 actor** 여야 한다 — 아니면 사거리 좁히기가 먼저 걸러내
   # 이 픽스처들이 VERIFY_PENDING·BLOCK 이 아니라 IDLE 로 무너진다. 값이 어긋나는 것을
   # 아래 한 줄이 잡는다 (SCOPE_ACTOR 를 바꾸고 픽스처를 안 고치면 시끄럽게 죽는다).
@@ -807,7 +808,8 @@ STUB
   stop_case VERIFY_PENDING s-vp-pass  false "$FX_VP_PASS"
   step "경로 VERIFY_PENDING: stdout 이 비어 있다 (막지 않는다)" [ -z "$SOUT" ]
   stop_case BLOCK          s-vp-miss  false "$FX_VP_MISS"
-  stop_case BLOCK          s-vp-later false "$FX_VP_LATER"
+  stop_case VERIFY_PENDING s-vp-later false "$FX_VP_LATER"
+  step "표시 뒤의 산문 note 가 표시를 덮지 않는다 (stdout 이 비어 있다)" [ -z "$SOUT" ]
   # A/B 귀속 — 훅에서 **그 판정 줄만** 뺀 사본은 통과 픽스처를 막아야 한다. 판정 줄은 jq 로
   # 표시를 세는 한 줄이고, 빠지면 훅의 ${pending:-0} 이 0 으로 기울어 막힘이 된다. 사본이
   # 정확히 한 줄 짧음을 먼저 단언한다 — 문면이 바뀌어 grep 이 아무것도 못 빼면 이 A/B 는
@@ -821,23 +823,28 @@ STUB
   step "A/B 사본도 비-0 으로 죽지 않는다 (rc=${SRC})" [ "$SRC" -eq 0 ]
 
   # DELEGATED — 배치 위임 **직전**에 태스크마다 남기는 표시 (harness-o59 / harness-0uw). 자리와
-  # 규칙은 VERIFY_PENDING 과 같다: notes 의 마지막 비어 있지 않은 줄이고, 하나라도 표시가 없으면
+  # 규칙은 VERIFY_PENDING 과 같다: notes 의 마지막 **표시 줄**이고, 하나라도 표시가 없으면
   # 종전대로 막는다. 섞인 상태(일부 VERIFY_PENDING · 나머지 DELEGATED)도 면제 대상이다 — 배치
   # 사이클에서 앞 태스크가 커밋되고 뒤 태스크는 아직인 상태가 그 모습이라 그것이 실제 형상이다.
+  # 마지막 픽스처는 재작업이다 — VERIFY_PENDING 뒤에 새 DELEGATED 가 오면 뒤엣것이 이긴다.
   FX_DG_PASS='[{"id":"fx-d0","assignee":"probe-actor","notes":"DELEGATED: fx-milestone"},{"id":"fx-d1","assignee":"probe-actor","notes":"ACTOR: sess-fx\n\nDELEGATED: fx-milestone"}]'
   FX_DG_MIX='[{"id":"fx-m0","assignee":"probe-actor","notes":"VERIFY_PENDING: 062e13c"},{"id":"fx-m1","assignee":"probe-actor","notes":"DELEGATED: fx-milestone"}]'
   FX_DG_MISS='[{"id":"fx-x0","assignee":"probe-actor","notes":"DELEGATED: fx-milestone"},{"id":"fx-x1","assignee":"probe-actor","notes":"구현 기록"}]'
   FX_DG_EMPTY='[{"id":"fx-e0","assignee":"probe-actor","notes":""}]'
+  FX_DG_REWORK='[{"id":"fx-r0","assignee":"probe-actor","notes":"VERIFY_PENDING: 062e13c\n\nCHANGES_REQUESTED 2건\n\nDELEGATED: fx-milestone"}]'
   printf '%s' "$FX_DG_PASS" > "$PTMP/fx-dg-pass.json"; printf '%s' "$FX_DG_MISS" > "$PTMP/fx-dg-miss.json"
   step "DELEGATED 픽스처: 통과·차단 픽스처가 둘 다 실재하고 서로 다르다" not_same "$PTMP/fx-dg-pass.json" "$PTMP/fx-dg-miss.json"
   step "DELEGATED 픽스처의 assignee 가 전부 이 세션의 actor(${SCOPE_ACTOR}) 다 — 아니면 사거리가 먼저 걸러낸다" \
-    [ "$(printf '%s%s%s%s' "$FX_DG_PASS" "$FX_DG_MIX" "$FX_DG_MISS" "$FX_DG_EMPTY" | jq -rs '[.[][].assignee] | unique | join(",")')" = "$SCOPE_ACTOR" ]
+    [ "$(printf '%s%s%s%s%s' "$FX_DG_PASS" "$FX_DG_MIX" "$FX_DG_MISS" "$FX_DG_EMPTY" "$FX_DG_REWORK" | jq -rs '[.[][].assignee] | unique | join(",")')" = "$SCOPE_ACTOR" ]
   stop_case VERIFY_PENDING s-dg-pass  false "$FX_DG_PASS"
   step "DELEGATED: 전부 위임 직후 표시면 stdout 이 비어 있다 (막지 않는다)" [ -z "$SOUT" ]
   dg_log=0; tail -1 "$SLOG" | cut -f4 | grep -q '검증 대기 0건 · 위임 직후 2건' && dg_log=1
   step "DELEGATED: 그 로그 한 줄이 두 표시의 건수를 구분해 든다" [ "$dg_log" -eq 1 ]
   stop_case VERIFY_PENDING s-dg-mix   false "$FX_DG_MIX"
   step "DELEGATED: 섞인 표시도 면제된다 (stdout 이 비어 있다)" [ -z "$SOUT" ]
+  stop_case VERIFY_PENDING s-dg-rework false "$FX_DG_REWORK"
+  rw_log=0; tail -1 "$SLOG" | cut -f4 | grep -q '검증 대기 0건 · 위임 직후 1건' && rw_log=1
+  step "재작업: VERIFY_PENDING 뒤의 새 DELEGATED 가 이긴다 (위임 직후 1건으로 센다)" [ "$rw_log" -eq 1 ]
   stop_case BLOCK          s-dg-miss  false "$FX_DG_MISS"
   stop_case BLOCK          s-dg-empty false "$FX_DG_EMPTY"
   # A/B 귀속 — **DELEGATED 판정 줄만** 뺀 사본은 통과 픽스처를 막아야 한다. VERIFY_PENDING 쪽의

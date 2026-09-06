@@ -922,7 +922,9 @@ s22_judge() {  # s22_judge <원장JSON> → 판정 줄 출력, rc = 위반 여�
         [limit(16; recurse(if .parent then $byid[.parent] else empty end))]
         | map(select(.issue_type == "epic")) | first;
       def verify_pending:
-        ((.notes // "") | split("\n") | map(select(test("\\S"))) | last // "") | startswith("VERIFY_PENDING");
+        # 마지막 줄이 아니라 마지막 **표시 줄**을 본다 — 뒤따르는 산문 note 가 표시를
+        # 덮지 않는다(harness-k4wg). stop-resume.sh 의 판정과 같은 규칙이다.
+        ((.notes // "") | split("\n") | map(select(test("^(VERIFY_PENDING|DELEGATED)"))) | last // "") | startswith("VERIFY_PENDING");
       [ .[]
         | select(.issue_type == "task" and .status == "in_progress" and (verify_pending | not))
         | . as $t | (nearest_epic) as $s
