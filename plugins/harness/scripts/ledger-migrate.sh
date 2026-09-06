@@ -24,8 +24,12 @@
 # "이슈 생성"이 아니라 "항목 전체"다.
 #   · 재실행은 **루프에 들어가기 전에 미완 줄을 전부 청소한다** — 그 줄의 이슈를 gh issue delete
 #     로 지우고 줄을 버린다. 그 뒤 그 항목은 map 에 없는 항목이 되어 처음부터 다시 만들어진다.
-#     이슈가 이미 없으면(사람이 지웠다) 경고 한 줄을 남기고 줄만 버린다. 지우지 못했는데 이슈가
-#     남아 있으면 죽는다 — 중복 이슈를 만드는 것보다 멈추는 쪽이 싸다.
+#     이슈가 이미 없으면(사람이 지웠다 — 조회가 HTTP 404) 경고 한 줄을 남기고 줄만 버린다.
+#     이슈가 남아 있으면, 또는 404 가 아닌 사유(통신·인증)로 있는지조차 확인하지 못하면 죽는다
+#     — 중복 이슈를 만드는 것보다 멈추는 쪽이 싸다.
+#     **청소는 --only 로 좁히지 않는다** — map 에 있는 미완 줄 전부가 대상이라, --only 로 자른
+#     실행도 이전 실행이 남긴 다른 항목의 미완 줄을 지운다. 미완 줄은 어차피 다시 만들 것이므로
+#     의도한 동작이다(그 항목이 이번 --only 밖이면 다음 실행이 만든다).
 #   · 완료 줄은 지금처럼 건너뛴다. map_lookup·verify 는 **완료 줄만** 옮겨진 것으로 읽는다
 #     (미완 줄은 부모·의존의 대상도 아니고 verify 의 "옮기지 않았다"에 걸린다).
 #
@@ -218,15 +222,21 @@ cmd_apply() {
 
   # 미완 줄 청소 — 앞선 실행이 이슈를 만든 뒤 코멘트·project·간선을 끝내기 전에 죽은 자리다.
   # 그 이슈를 지우고 줄을 버려, 아래 루프가 그 항목을 map 에 없는 항목으로 다시 만든다.
-  local pid pref pslug0 pnum0 swept=0
+  local pid pref pslug0 pnum0 perr swept=0
   while read -r pid pref _; do
     [ -n "${pid:-}" ] || continue
     pslug0="$(slug_of "${pref%%#*}" "$root")" || exit 1
     pnum0="${pref##*#}"
     if ! gh issue delete "$pnum0" -R "$pslug0" --yes >/dev/null 2>&1; then
-      gh api "repos/$pslug0/issues/$pnum0" >/dev/null 2>&1 \
+      # 지우지 못한 사유를 가른다. **rc≠0 을 "이슈가 이미 없다"로 읽지 않는다** — 통신·인증
+      # 장애면 delete 도 조회도 실패하는데, 그때 줄만 버리면 이슈는 남고 map 에는 없어
+      # 다음 실행이 중복 이슈를 만든다(이 청소가 닫으려는 바로 그 경로다). 404 만 "없다"다.
+      perr="$(gh api "repos/$pslug0/issues/$pnum0" 2>&1 >/dev/null)" \
         && die "미완 줄의 이슈 $pref 를 지우지 못했다 ($pid) — 손으로 지운 뒤 다시 돌려라"
-      echo "  ⚠ 미완 줄 $pid → $pref: 이슈가 이미 없다 — 줄만 버린다" >&2
+      case "$perr" in
+        *"HTTP 404"*) echo "  ⚠ 미완 줄 $pid → $pref: 이슈가 이미 없다 — 줄만 버린다" >&2 ;;
+        *) die "미완 줄의 이슈 $pref 를 지우지도, 있는지 확인하지도 못했다 ($pid): $perr" ;;
+      esac
     fi
     swept=$((swept + 1))
     echo "· 미완 정리 $pid → $pref (지우고 처음부터 다시 만든다)"
@@ -270,10 +280,14 @@ cmd_apply() {
     gh project item-add "$project" --owner "$owner" --url "$url" >/dev/null 2>&1 \
       || die "Project $project 에 넣지 못했다: $id ($repo#$num)"
 
-    while IFS= read -r note; do
-      [ -n "$note" ] || continue
-      gh issue comment "$num" -R "$slug" -b "$note" >/dev/null 2>&1 || die "코멘트를 달지 못했다: $id ($repo#$num)"
-    done < <(printf '%s' "$item" | jq -r '.notes[]?')
+    # notes 는 원소가 0 아니면 1 이다(plan 이 블롭을 통째로 담는다) — 줄 단위로 읽지 않는다.
+    # 여기서 줄로 쪼개면 plan 을 고친 것이 GitHub 에 닿지 않는다. 파일로 넘겨 41001자를
+    # argv 에 싣지도 않는다.
+    printf '%s' "$item" | jq -r '.notes[0] // empty' > "$APPLY_TMP/note"
+    if [ -s "$APPLY_TMP/note" ]; then
+      gh issue comment "$num" -R "$slug" -F "$APPLY_TMP/note" >/dev/null 2>&1 \
+        || die "코멘트를 달지 못했다: $id ($repo#$num)"
+    fi
 
     local parent pmapped pslug pnum cnode pnode
     parent="$(printf '%s' "$item" | jq -r '.parent // empty')"
