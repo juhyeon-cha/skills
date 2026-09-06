@@ -24,7 +24,8 @@
 #      훅 소스에서 파생하고, `bd --help` 의 하위 명령 집합에서 면제를 뺀 나머지를 **전수** 시험한다
 #   ⑪ A3/C2 — 서브에이전트의 원격 반영(`push` 토큰)과 GitHub 조작(`gh` 의 비-읽기 하위 명령)이
 #      차단되고, 읽기(`gh pr view`·`gh pr list` 등)와 오케스트레이터는 통과한다. gh 하위 명령
-#      집합은 `gh --help`·`gh pr --help`·`gh issue --help` 에서 파생해 면제를 뺀 나머지를 전수 시험한다.
+#      집합은 `gh --help`·`gh pr --help`·`gh issue --help`·`gh project --help` 에서 파생해 면제를
+#      뺀 나머지를 전수 시험한다. 낱말로 갈리지 않는 `gh api` 하나만 전수에서 빼고 전용 절이 든다.
 #      **⑪ 은 `gh` 가 PATH 에 있어야 돈다** — 없으면 파생이 비어 단언이 깨지고 rc=1 이다(조용히
 #      통과하지는 않는다). 즉 코드가 아니라 환경 사유로 게이트가 깨질 수 있다는 뜻이다
 #   ⑫ A1/A2 — 채점자(agent_type 이 harness:reviewer·harness:evaluator)의 파일 수정(Write·Edit·
@@ -1321,19 +1322,24 @@ echo "  면제 목록($(printf '%s' "$GH_EXEMPT_SRC" | wc -w | tr -d ' ')개): $
 # gh 는 `gh <그룹> <동사>` 구조라 층마다 따로 파생한다. 최상위와, 이 규칙이 겨냥하는 두 그룹.
 gh_cmds() { gh ${1:+"$1"} --help 2>/dev/null | grep -E '^  [a-z][a-z-]+: ' | sed 's/^  //; s/:.*//' | sort -u; }
 GH_TOP=$(gh_cmds); GH_PR=$(gh_cmds pr); GH_ISSUE=$(gh_cmds issue)
+# project 는 `item-list`·`field-list` 면제(harness-kw0l.3.4)가 사는 그룹이다. 파지 않으면 아래
+# 역방향 단언이 그 둘을 "실재하지 않는 면제 키"로 잡고, 무엇보다 짝인 쓰기 동사(`item-add`·
+# `item-edit`·`field-create`·`create`)가 여전히 막히는지를 아무도 보지 않는다.
+GH_PROJECT=$(gh_cmds project)
 # release·run 은 `download` 면제(harness-u9n.3.2)가 사는 그룹이라 함께 판다. 파생에 넣지
 # 않으면 아래 역방향 단언이 `download` 를 "실재하지 않는 면제 키"로 잡고, 무엇보다 그 그룹의
 # 쓰기 동사(`release create`·`upload`·`run rerun`)가 여전히 막히는지를 아무도 보지 않는다.
 GH_RELEASE=$(gh_cmds release); GH_RUN=$(gh_cmds run)
 gh_n() { printf '%s\n' "$1" | grep -c . || true; }
-echo "  gh 하위 명령: 최상위 $(gh_n "$GH_TOP")개 · pr $(gh_n "$GH_PR")개 · issue $(gh_n "$GH_ISSUE")개 · release $(gh_n "$GH_RELEASE")개 · run $(gh_n "$GH_RUN")개"
+echo "  gh 하위 명령: 최상위 $(gh_n "$GH_TOP")개 · pr $(gh_n "$GH_PR")개 · issue $(gh_n "$GH_ISSUE")개 · release $(gh_n "$GH_RELEASE")개 · run $(gh_n "$GH_RUN")개 · project $(gh_n "$GH_PROJECT")개"
 step "gh --help 에서 최상위 집합을 파생했다 (15개 이상)" [ "$(gh_n "$GH_TOP")" -ge 15 ]
 step "gh pr --help 에서 파생했다 (10개 이상)"           [ "$(gh_n "$GH_PR")" -ge 10 ]
 step "gh issue --help 에서 파생했다 (8개 이상)"         [ "$(gh_n "$GH_ISSUE")" -ge 8 ]
 step "gh release --help 에서 파생했다 (5개 이상)"       [ "$(gh_n "$GH_RELEASE")" -ge 5 ]
 step "gh run --help 에서 파생했다 (5개 이상)"           [ "$(gh_n "$GH_RUN")" -ge 5 ]
+step "gh project --help 에서 파생했다 (10개 이상)"      [ "$(gh_n "$GH_PROJECT")" -ge 10 ]
 # 파생이 아무 낱말이나 긁어 오는 것이 아님을 못박는다 — 없으면 위 단언이 공허해진다.
-GH_ALL=$(printf '%s\n%s\n%s\n%s\n%s\n' "$GH_TOP" "$GH_PR" "$GH_ISSUE" "$GH_RELEASE" "$GH_RUN" | grep -v '^$' | sort -u)
+GH_ALL=$(printf '%s\n%s\n%s\n%s\n%s\n%s\n' "$GH_TOP" "$GH_PR" "$GH_ISSUE" "$GH_RELEASE" "$GH_RUN" "$GH_PROJECT" | grep -v '^$' | sort -u)
 gh_in_all()  { printf '%s\n' "$GH_ALL" | grep -qx -- "$1"; }
 gh_not_all() { ! gh_in_all "$1"; }
 step "양성: 파생 집합에 create 가 있다"   gh_in_all create
@@ -1350,13 +1356,19 @@ step "면제 키가 전부 실제 gh 하위 명령이다 (역방향 단언)" [ -
 # 전수 시험. 최상위는 `gh <명령>`, 그룹은 `gh pr <동사>`·`gh issue <동사>` 로 돌린다.
 # 면제어면 rc=0, 아니면 rc=2 — 목록을 손으로 적지 않으므로 새 명령의 기본값이 "차단됨"이다.
 gh_is_exempt() { case " $GH_EXEMPT_SRC " in *" $1 "*) return 0 ;; esac; return 1; }
-gh_leaked=""; gh_blocked_read=""; gh_checked=0
+# `api` 하나는 낱말로 갈리지 않는다(훅의 gh_api_is_read — 같은 `gh api` 가 GET 도 POST 도 한다).
+# 전수 시험은 동사만 붙인 형태라 이 낱말에 옳은 기대값이 없다 — 여기서 빼고, 아래 GH_API_* 가
+# 메서드·필드 옵션별로 따로 판정한다. **빼는 것을 조용히 하지 않는다**: 뺀 낱말이 실제로 그
+# 전용 절의 판정 대상인지 아래에서 단언한다.
+GH_SWEEP_SKIP="api"
+gh_leaked=""; gh_blocked_read=""; gh_checked=0; gh_skipped=""
 # 파이프로 먹이면 함수가 서브셸에서 돌아 아래 카운터가 전부 버려진다(빈 문자열 = 통과).
 # here-string 으로 먹여 현재 셸에서 돌린다 (../docs/development.md "Shell traps").
 gh_sweep() {  # gh_sweep <접두>  — stdin 으로 하위 명령 목록을 받는다
   local prefix="$1" s
   while read -r s; do
     [ -n "$s" ] || continue
+    case " $GH_SWEEP_SKIP " in *" $s "*) gh_skipped="$gh_skipped $prefix-$s"; continue ;; esac
     gh_checked=$((gh_checked + 1))
     runsub "$prefix $s"
     if gh_is_exempt "$s"; then
@@ -1371,7 +1383,9 @@ gh_sweep 'gh pr'      <<< "$GH_PR"
 gh_sweep 'gh issue'   <<< "$GH_ISSUE"
 gh_sweep 'gh release' <<< "$GH_RELEASE"
 gh_sweep 'gh run'     <<< "$GH_RUN"
-echo "  gh 하위 명령 ${gh_checked}개를 전수 시험했다"
+gh_sweep 'gh project' <<< "$GH_PROJECT"
+echo "  gh 하위 명령 ${gh_checked}개를 전수 시험했다 (전용 절로 넘긴 것:${gh_skipped:- 없음})"
+step "전수 시험에서 뺀 낱말이 GH_SWEEP_SKIP 그대로다" [ "$gh_skipped" = " gh-api" ]
 step "비면제 gh 하위 명령이 전부 차단된다 (새 명령의 기본값 = 차단)" [ -z "$gh_leaked" ]
 [ -n "$gh_leaked" ] && echo "    샌 하위 명령:$gh_leaked"
 step "면제된 읽기 하위 명령이 전부 통과한다" [ -z "$gh_blocked_read" ]
@@ -1420,6 +1434,56 @@ GH_DL_EXPECT='attestation release run'
 step "download 동사를 가진 그룹이 정확히 [$GH_DL_EXPECT] 이다 (상·하한 단언)" \
   [ "$GH_DL_NORM" = "$GH_DL_EXPECT" ]
 [ "$GH_DL_NORM" = "$GH_DL_EXPECT" ] || echo "    실제: [${GH_DL_NORM:-(없음)}] — 기대와 다르다"
+
+# ── github 백엔드의 원장 읽기 (harness-kw0l.3.4). 원장이 github 면 서브에이전트의 **원장 읽기
+#    전부**가 gh 를 타므로, 아래 여섯 형태가 막히면 implementer·reviewer·evaluator 가 통째로
+#    원장을 못 읽는다. 고치기 전 실측(2026-09-06): 여섯 중 넷이 rc=2 였다 — item-list ·
+#    field-list · api graphql · api REST GET. `download` 절과 같은 이유로 **양쪽**을 시험한다.
+declare -a GH_LEDGER_READ=(
+  'gh project item-list 4 --owner o'
+  'gh project view 4 --owner o'
+  'gh project field-list 4 --owner o'
+  'gh issue view 12 -R o/r --json projectItems'
+  "gh api graphql -f query='query{ viewer{ login } }'"   # 읽기 질의는 POST 로 나가도 읽기다
+  'gh api repos/o/r/issues/12'                           # 옵션 없는 REST 는 GET 이다
+)
+for c in "${GH_LEDGER_READ[@]}"; do
+  runsub "$c"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "원장 읽기는 통과: $c" [ "$GUARD_RC" -eq 0 ]
+done
+# 짝인 쓰기. 이 9건이 깨지면 면제가 그룹 전체를(또는 gh api 를 통째로) 열어젖힌 것이다.
+declare -a GH_LEDGER_WRITE=(
+  'gh project item-add 4 --owner o --url https://github.com/o/r/issues/1'
+  'gh project item-edit --id X --field-id F --project-id P --text v'
+  'gh project create --owner o --title T'
+  'gh issue create --title x'
+  'gh issue close 3'
+  'gh api -X POST repos/o/r/issues'
+  'gh api --method POST repos/o/r/issues'
+  'gh api repos/o/r/issues -f title=x'                   # 필드 옵션이 붙으면 gh 가 POST 로 보낸다
+  "gh api graphql -f query='mutation{ addProjectV2ItemById(input:{}) { clientMutationId } }'"
+)
+for c in "${GH_LEDGER_WRITE[@]}"; do
+  runsub "$c"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "짝인 쓰기는 차단: $c" [ "$GUARD_RC" -eq 2 ]
+done
+# 오케스트레이터는 판정 대상이 아니다 — 읽기·쓰기 15건 전부 통과한다.
+for c in "${GH_LEDGER_READ[@]}" "${GH_LEDGER_WRITE[@]}"; do
+  run "$(j_bash "$c")"
+  step "통과(오케스트레이터): $c" [ "$GUARD_RC" -eq 0 ]
+done
+# 면제 목록의 낱말에 시험이 없으면 그 낱말은 아무도 안 본 채 난간을 넓힌다. 위 전수 시험이
+# GH_ALL 을 빠짐없이 돌므로 "목록 ⊆ 파생 집합"(위 역방향 단언)이 곧 "시험 없는 낱말 0개"다.
+# 그 연결고리를 여기서 명시한다 — 전수 시험에서 뺀 `api` 만 전용 절이 든다.
+gh_untested=""
+for e in $GH_EXEMPT_SRC; do
+  case " $GH_SWEEP_SKIP " in *" $e "*) continue ;; esac
+  gh_in_all "$e" || gh_untested="$gh_untested $e"
+done
+step "면제 목록에 있는데 시험이 없는 낱말이 0개다" [ -z "$gh_untested" ]
+[ -n "$gh_untested" ] && echo "    시험이 없는 면제 키:$gh_untested"
 
 # ── 의도된 오탐. 진짜 차단과 **다른 배열**로 가른다 (⑧⑨⑩ 선례).
 declare -a RM_FALSEPOS=(

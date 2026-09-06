@@ -711,7 +711,8 @@ RULES+=("Bash:r_main_shell")
 # 두 토큰을 보는 이유는 gh 의 구조가 `gh <그룹> <동사>` 이기 때문이다 — 읽기/쓰기는
 # 동사(둘째)에서 갈리고(`gh pr view` vs `gh pr create`), 그룹 자체가 동사인 것도 있다
 # (`gh browse`·`gh search`·`gh status`). 둘 중 하나가 면제어면 통과다.
-# `gh api` 는 면제하지 않는다 — `-X POST` 를 이 층에서 읽기와 가를 수단이 없다.
+# `gh api` 는 이 목록으로 갈리지 않는 유일한 예외라 아래 gh_api_is_read 가 따로 본다 —
+# 같은 낱말이 GET 도 POST 도 하므로 목록에 넣어도 빼도 틀린다 (2026-09-06, harness-kw0l.3.4).
 # `download` 는 **받기만 하는 동사**라 면제다(2026-08-23, harness-u9n.3.2). 이 낱말이 첫·둘째
 # 토큰에 오는 gh 명령은 셋뿐이고 — `gh release download`·`gh run download`·`gh attestation
 # download` — 전부 원격에서 파일을 내려받기만 한다. 짝인 쓰기 동사(`gh release upload`·
@@ -720,7 +721,12 @@ RULES+=("Bash:r_main_shell")
 # `gh release view` 는 종전부터 면제), 그 동작을 서브에이전트가 직접 확인할 수 없었다.
 # 면제를 넣을 때는 `check` 하나가 근거였고 `update` 는 계획이었다 — harness-u9n.2.5 가
 # 그 하위 명령을 만들면서 둘이 됐다 (2026-08-23).
-GH_READ_EXEMPT="view list status diff checks browse search download"
+# `item-list`·`field-list` 는 Projects v2 조회 동사다(2026-09-06, harness-kw0l.3.4). 넣은 이유:
+# 원장 백엔드가 github 면 서브에이전트의 **원장 읽기 전부**가 gh 를 타는데, 그중 Projects v2
+# 조회(`gh project item-list`·`field-list`)가 막혀 evaluator 가 원장을 못 읽었다 [실측 2026-09-06,
+# harness-kw0l.1.1 evaluator: GUARD-DENY]. 짝인 쓰기 동사(`item-add`·`item-edit`·`field-create`·
+# `create`)는 낱말이 달라 그대로 차단이고, 게이트가 `gh project` 하위 명령을 전수로 그것을 못박는다.
+GH_READ_EXEMPT="view list status diff checks browse search download item-list field-list"
 
 # `gh` 가 **실행되는 조각**마다 선행 옵션을 건너뛴 뒤 두 토큰을 한 줄로 낸다. 판정 축이 실행
 # 위치라 URL·경로·인용문 속 `gh`(`curl …/gh/…` · `chmod +x /tmp/x/gh` · `echo "gh pr create"`)는
@@ -732,6 +738,9 @@ gh_next_pairs() {
   while IFS= read -r seg; do
     t1="$(subcmds_after gh "" "$seg")"; t1="${t1%%$'\n'*}"
     t2=""; [ -n "$t1" ] && { t2="$(subcmds_after "$t1" "" "$seg")"; t2="${t2%%$'\n'*}"; }
+    # `gh api` 만 낱말로 갈리지 않는다 — 읽기면 여기서 걸러 쌍을 내지 않고, 쓰기면 쌍을 내
+    # 아래 면제 판정에서 그대로 걸린다(`api` 는 면제 목록에 없다).
+    [ "$t1" = "api" ] && gh_api_is_read "$t2" "$seg" && continue
     printf '%s %s\n' "$t1" "$t2"
   done < <(exec_segments gh)
 }
@@ -740,6 +749,32 @@ gh_is_read() {
   [ -n "$1" ] || return 1
   case " $GH_READ_EXEMPT " in *" $1 "*) return 0 ;; esac
   return 1
+}
+
+# `gh api` 는 하위 명령 낱말로 읽기/쓰기가 갈리지 않는다 — 같은 `gh api` 가 GET 도 POST 도 한다.
+# 그래서 이 하나만 면제 목록 **밖에서** 따로 판정한다. 목록에 `api` 를 넣으면 `-f` 로 POST 되는
+# 형태까지 통째로 열리고, 넣지 않으면 원장 읽기가 막힌다(github 백엔드의 ledger.sh 는 이슈 본문과
+# Projects v2 필드를 `gh api`·`gh api graphql` 로 읽는다). 읽기로 보는 것은 아래 셋뿐이고 나머지는
+# 전부 차단이다 — 모르면 차단이라는 이 훅의 극성은 여기서도 같다.
+#   ① 메서드를 강제하는 옵션(`-X`·`--method`)의 값이 GET·HEAD 가 아니면 쓰기다.
+#   ② `graphql` 엔드포인트는 읽기 질의도 HTTP POST 로 나가므로 메서드로는 못 가른다 —
+#      질의문의 `mutation` 이 가른다.
+#   ③ 그 밖의 REST 엔드포인트는 필드 옵션(`-f`·`-F`·`--field`·`--raw-field`·`--input`)이 하나라도
+#      있으면 gh 가 POST 로 보낸다. 없으면 GET 이라 읽기다.
+# 한계: ②의 질의문은 조각 경계(`(`)에서 잘리므로 첫 괄호 뒤는 다른 조각으로 넘어간다. `mutation` 은
+# 질의문 맨 앞에 오므로 판정에는 닿지만, 괄호 안에 숨긴 쓰기는 못 본다 — 담장이 아니라 난간이다.
+GH_API_FIELD_OPTS='[-][fF]|[-][-]field|[-][-]raw-field|[-][-]input'
+gh_api_is_read() {  # gh_api_is_read <엔드포인트(gh api 다음 토큰)> <gh 가 실행되는 조각>
+  local ep="$1" seg="$2" method
+  method="$(printf '%s' "$seg" | grep -oE -- '(-X|--method)[[:space:]=]*[A-Za-z]+' | tail -1 \
+    | sed -E 's/^(-X|--method)[[:space:]=]*//' | tr 'a-z' 'A-Z')"
+  case "$method" in ""|GET|HEAD) ;; *) return 1 ;; esac
+  if [ "$ep" = "graphql" ]; then
+    has_token 'mutation' "$seg" && return 1
+    return 0
+  fi
+  has_token "$GH_API_FIELD_OPTS" "$seg" && return 1
+  return 0
 }
 
 r_remote() {
@@ -775,7 +810,7 @@ r_remote() {
     gh_is_read "$t1" && continue
     gh_is_read "$t2" && continue
     shown="gh${t1:+ $t1}${t2:+ $t2}"
-    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh run view · gh auth status). 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
+    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh project item-list · gh project field-list · gh run view · gh auth status). **gh api 만 이 목록으로 갈리지 않는다** — 메서드와 필드 옵션이 가른다: 옵션 없는 REST GET(gh api repos/o/r/issues/12)과 mutation 없는 graphql 질의(gh api graphql -f query='query{…}')는 통과하고, -X/--method 가 GET·HEAD 밖이거나 REST 에 -f·-F·--field·--raw-field·--input 이 붙으면 POST 로 나가므로 차단이다. 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
   done < <(gh_next_pairs)
   return 0
 }
