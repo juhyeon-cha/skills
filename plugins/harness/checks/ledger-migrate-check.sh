@@ -5,9 +5,11 @@
 #   ② plan 실패 경로 — repos.json 에 없는 레포 라벨이면 rc 1 이고 stdout 에 아무것도 내지 않는다.
 #   ③ apply  — 위상 순(부모·의존 먼저) · 이슈 생성 · map 기록 · 2회 실행 뒤 이슈 수가 늘지 않는다(멱등).
 #   ④ apply 실패 경로 — gh 가 죽는 항목에서 멈추고 rc 1, map 에는 성공한 것까지만. --plan 없으면 rc 1.
+#   ⑤ verify — 전부 같으면 rc 0 과 "verify: N/N 일치" · 라벨을 하나 지우면 rc 1 과 그 id·필드 ·
+#      map 이 plan 보다 짧으면 rc 1("옮기지 않은 항목 K건").
 #
 # 실제 GitHub 에 닿는 실증(Project 소속·색인 지연)은 오케스트레이터가 실증 레포에서 돈다
-# (harness-kw0l.2.1 acceptance 5).
+# (harness-kw0l.2.1 acceptance 5 · 2.2 acceptance 4).
 # set -e 를 쓰지 않는다 — 첫 실패에서 죽으면 나머지 사유가 보고되지 않는다.
 set -uo pipefail
 
@@ -197,5 +199,41 @@ run apply --from "$ROOT" --plan "$TMP/plan-ghost.json" --map "$MAP2"
 step "gh 가 죽는 항목에서 멈추고 rc 1 · map 에는 성공한 것까지만(1줄) · stderr 가 그 id 를 든다" \
   bash -c '[ "$1" -eq 1 ] && [ "$(grep -c . "$2")" -eq 1 ] && grep -q "^x-3 " "$2" && printf "%s" "$3" | grep -q "x-8"' _ "$RC" "$MAP2" "$ERR"
 
+echo "── ⑤ verify ──"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "옮긴 결과가 plan 과 같으면 rc 0 · 마지막 줄이 verify: 4/4 일치" \
+  bash -c '[ "$1" -eq 0 ] && [ "$(printf "%s\n" "$2" | tail -1)" = "verify: 4/4 일치" ]' _ "$RC" "$OUT"
+n1="$(awk '$1 == "x-1" { print $2 }' "$MAP")"; n1="${n1##*#}"
+cp "$STATE/$n1.labels" "$TMP/labels.bak"
+grep -v '^sprint:2026-S02$' "$TMP/labels.bak" > "$STATE/$n1.labels"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "라벨 하나를 지우면 rc 1 이고 그 id 와 필드(labels)가 출력에 있다" \
+  bash -c '[ "$1" -eq 1 ] && printf "%s" "$2" | grep -q "x-1" && printf "%s" "$2" | grep -q labels' _ "$RC" "$OUT"
+cp "$TMP/labels.bak" "$STATE/$n1.labels"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "되돌리면 다시 rc 0" [ "$RC" -eq 0 ]
+grep -v '^x-5 ' "$MAP" > "$TMP/map-short.txt"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$TMP/map-short.txt"
+step "map 에 없는 plan 항목이 있으면 rc 1 이고 '옮기지 않은 항목 1건'" \
+  bash -c '[ "$1" -eq 1 ] && printf "%s" "$2" | grep -q "옮기지 않은 항목 1건" && printf "%s" "$2" | grep -q "x-5"' _ "$RC" "$OUT"
+c1="$(cat "$STATE/$n1.comments")"; echo 9 > "$STATE/$n1.comments"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "코멘트 수가 notes 줄 수와 다르면 rc 1" \
+  bash -c '[ "$1" -eq 1 ] && printf "%s" "$2" | grep -q "코멘트 수"' _ "$RC" "$OUT"
+printf '%s\n' "$c1" > "$STATE/$n1.comments"
+n2="$(awk '$1 == "x-2" { print $2 }' "$MAP")"; n2="${n2##*#}"
+mv "$STATE/$n2.parent" "$TMP/parent.bak"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "sub-issue 가 없으면 rc 1 이고 parent 가 출력에 있다" \
+  bash -c '[ "$1" -eq 1 ] && printf "%s" "$2" | grep -q "x-2" && printf "%s" "$2" | grep -q parent' _ "$RC" "$OUT"
+mv "$TMP/parent.bak" "$STATE/$n2.parent"
+mv "$STATE/$n2.project" "$TMP/project.bak"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "Project 소속이 없으면 rc 1 이고 그 id 가 출력에 있다" \
+  bash -c '[ "$1" -eq 1 ] && printf "%s" "$2" | grep -q "x-2" && printf "%s" "$2" | grep -q Project' _ "$RC" "$OUT"
+mv "$TMP/project.bak" "$STATE/$n2.project"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "되돌리면 다시 rc 0 (verify 가 상태를 바꾸지 않는다)" [ "$RC" -eq 0 ]
+
 if [ "$fail" -ne 0 ]; then echo "✗ ledger-migrate 검사 실패"; exit 1; fi
-echo "✓ ledger-migrate 검사 통과 — plan · apply(멱등) · 실패 경로"
+echo "✓ ledger-migrate 검사 통과 — plan · apply(멱등) · verify · 실패 경로"

@@ -2,6 +2,7 @@
 # 원장 이전 도구 — beads 원장의 열린 항목을 github 백엔드로 옮긴다.
 #   plan   읽기: bd 에서 열린 항목 전수를 JSON 배열로 낸다 (gh 를 부르지 않는다)
 #   apply  쓰기: plan 대로 이슈·Project·코멘트·sub-issue·blocked_by 를 만든다 (map 으로 멱등)
+#   verify 대조: map 의 id 마다 이슈를 읽어 plan 과 전수 비교한다
 #
 # **이슈 규약의 단일 소유는 scripts/ledger-github.sh 의 머리 주석이다** — id 형식 <repo>#<번호> ·
 # 본문의 "## Acceptance" 절 · type:/status: 라벨 · repos.json 의 url 에서 파생하는 레포 slug.
@@ -10,19 +11,24 @@
 #   · repo 결정 규칙(2026-09-06 사용자 결정): 첫 repo: 라벨이 harness 이거나 repo: 라벨이 없으면
 #     skills · 그 밖은 그 라벨 그대로 · repos.json 에 없는 이름이면 rc 1. harness 레포는 폐기
 #     예정이라 이슈를 두지 않는다 — 어느 트리를 건드리는지는 남은 repo: 라벨이 든다.
-#   · map 파일 "<beads id> <repo>#<번호>" — apply 의 멱등 근거이자, 옮긴 결과를 원 항목으로 되짚는 색인.
+#   · map 파일 "<beads id> <repo>#<번호>" — apply 의 멱등 근거이자 verify 의 대조 대상.
 #
 # 사용:
 #   ledger-migrate.sh plan   --from <하네스루트> [--only <id,…>] [--label <라벨>] > plan.json
 #   ledger-migrate.sh apply  --plan plan.json --map map.txt [--from <루트>] [--only <id,…>]
+#   ledger-migrate.sh verify --plan plan.json --map map.txt [--from <루트>]
 #
-# apply 는 bd 를 부르지 않는다 — 대상 좌표는 --from 루트의 ledger.json(github 의
+# apply·verify 는 bd 를 부르지 않는다 — 대상 좌표는 --from 루트의 ledger.json(github 의
 # owner·project)과 repos.json 이 든다. 실증처럼 다른 Project 에 쓸 때는 그 owner·project 를 든
 # ledger.json 과 repos.json 사본을 둔 루트를 --from 으로 준다(원장 자체는 건드리지 않는다).
 # --from 을 생략하면 lib/harness-root.sh 가 찾는 루트를 쓴다.
 #
-# 라벨을 더 붙이려면 **plan --label** 에 준다 — 옮긴 결과를 plan 과 대조할 수 있어야 하므로
-# apply 는 plan 이 든 라벨 밖을 붙이지 않는다.
+# 라벨을 더 붙이려면 **plan --label** 에 준다 — apply 와 verify 가 같은 plan 을 보므로 라벨 집합
+# 비교가 어긋나지 않는다(apply 에만 붙이면 verify 가 그 라벨을 모른다).
+#
+# verify 는 검색·목록으로 판정하지 않는다: 생성 직후 gh issue list 는 5 중 3 만 냈고 39초 뒤에야
+# 5 였으며 gh project item-list 도 새 항목을 즉시 내지 않았다(harness-kw0l.1.1 실측). map 의
+# id 별 조회로만 읽고, Project 소속도 이슈 쪽 projectItems 에서 읽는다.
 set -uo pipefail
 
 die() { echo "ledger-migrate: $*" >&2; exit 1; }
@@ -48,7 +54,7 @@ need_gh() {
 }
 
 # 이슈에 붙일 라벨 전부 = type:<type> + status:<status>(open·closed 는 라벨 없음) + plan 의 labels.
-# plan 의 필드에서 파생하는 값이라 한 자리에 둔다.
+# apply(쓰기)와 verify(대조)가 같은 문자열을 만들어야 하므로 한 자리에 둔다.
 LABELS_JQ='([ "type:" + .type ]
   + (if .status == "open" or .status == "closed" then [] else [ "status:" + .status ] end)
   + (.labels // [])) | unique'
@@ -232,8 +238,102 @@ EOF
   echo "apply: 새로 만든 항목 ${n}건 · 건너뛴 항목 ${skipped}건 (map $mapf)"
 }
 
+# ── verify ────────────────────────────────────────────────────────────
+cmd_verify() {
+  local from="" planf="" mapf="" root project total=0 bad=0 missing
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --from) from="$2"; shift 2 ;;
+      --plan) planf="$2"; shift 2 ;;
+      --map) mapf="$2"; shift 2 ;;
+      *) die "verify: 모르는 인자 '$1'" ;;
+    esac
+  done
+  [ -n "$planf" ] || die "verify: --plan <파일> 이 필요하다"
+  [ -r "$planf" ] || die "verify: plan 파일을 읽지 못했다: $planf"
+  [ -n "$mapf" ] || die "verify: --map <파일> 이 필요하다"
+  [ -r "$mapf" ] || die "verify: map 파일을 읽지 못했다: $mapf"
+  root="$(resolve_root "$from")" || exit 1
+  repos_json "$root" >/dev/null
+  project="$(jq -r '.project // empty' "$root/ledger.json" 2>/dev/null)"
+  [ -n "$project" ] || die "$root/ledger.json 에 project 가 없다 — Project 소속을 판정할 수 없다"
+  need_gh
+
+  total="$(jq 'length' "$planf")"
+  # 부분 이전을 통과로 읽지 않는다 — map 에 없는 plan 항목은 그 자체로 실패다.
+  missing="$(jq -r --rawfile m "$mapf" '
+    ($m | split("\n") | map(select(. != "") | split(" ")[0])) as $done
+    | .[] | select(.id as $i | ($done | index($i)) == null) | .id' "$planf")"
+  if [ -n "$missing" ]; then
+    printf '%s\n' "$missing" | sed 's/^/✗ /;s/$/ 옮기지 않았다 (map 에 없다)/'
+    echo "옮기지 않은 항목 $(printf '%s\n' "$missing" | grep -c .)건"
+    bad=1
+  fi
+
+  local item id mapped repo num slug o r node exp act
+  while IFS= read -r item; do
+    [ -n "$item" ] || continue
+    id="$(printf '%s' "$item" | jq -r .id)"
+    mapped="$(map_lookup "$id" "$mapf")"
+    [ -n "$mapped" ] || continue   # 위에서 이미 실패로 셌다
+    repo="${mapped%%#*}"; num="${mapped##*#}"
+    slug="$(slug_of "$repo" "$root")" || exit 1
+    o="${slug%%/*}"; r="${slug##*/}"
+
+    node="$(gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r){ issue(number:$n){ title body labels(first:100){nodes{name}} comments{totalCount} parent{number repository{name}} } } }' \
+      -f o="$o" -f r="$r" -F n="$num" 2>/dev/null | jq -e '.data.repository.issue' 2>/dev/null)" || {
+      echo "✗ $id ($mapped) issue: 읽지 못했다"; bad=1; continue; }
+
+    say() { echo "✗ $id ($mapped) $1: 기대 [$2] 실제 [$3]"; bad=1; }
+
+    exp="$(printf '%s' "$item" | jq -r .title)"; act="$(printf '%s' "$node" | jq -r .title)"
+    [ "$exp" = "$act" ] || say title "$exp" "$act"
+
+    exp="$(printf '%s' "$item" | jq -r "$LABELS_JQ | join(\",\")")"
+    act="$(printf '%s' "$node" | jq -r '[.labels.nodes[].name] | unique | join(",")')"
+    [ "$exp" = "$act" ] || say labels "$exp" "$act"
+
+    exp="beads: $id"; act="$(printf '%s' "$node" | jq -r '.body | split("\n")[0]')"
+    [ "$exp" = "$act" ] || say "body 첫 줄" "$exp" "$act"
+
+    exp="$(printf '%s' "$item" | jq -r '.body | split("\n## Acceptance\n") | if length > 1 then (.[1:] | join("\n## Acceptance\n")) else "" end | ltrimstr("\n") | rtrimstr("\n")')"
+    act="$(printf '%s' "$node" | jq -r '.body | split("\n## Acceptance\n") | if length > 1 then (.[1:] | join("\n## Acceptance\n")) else "" end | ltrimstr("\n") | rtrimstr("\n")')"
+    [ "$exp" = "$act" ] || say "acceptance 절" "${exp:0:40}…" "${act:0:40}…"
+
+    # 기대 부모·의존은 map 에 옮겨진 것만이다 — 부분 plan(--only)에서 밖을 가리키는 간선은 걸리지 않는다.
+    exp="$(map_lookup "$(printf '%s' "$item" | jq -r '.parent // empty')" "$mapf")"
+    act="$(printf '%s' "$node" | jq -r 'if .parent then (.parent.repository.name + "#" + (.parent.number|tostring)) else "" end')"
+    [ "$exp" = "$act" ] || say parent "${exp:--}" "${act:--}"
+
+    exp=""
+    while IFS= read -r dep; do
+      [ -n "$dep" ] || continue
+      dep="$(map_lookup "$dep" "$mapf")"
+      [ -n "$dep" ] && exp="$exp$dep
+"
+    done < <(printf '%s' "$item" | jq -r '.deps[]?')
+    exp="$(printf '%s' "$exp" | grep -v '^$' | sort | tr '\n' ',')"
+    act="$(gh api "repos/$slug/issues/$num/dependencies/blocked_by" 2>/dev/null \
+      | jq -r '.[] | (.repository_url | split("/") | last) + "#" + (.number|tostring)' | sort | tr '\n' ',')"
+    [ "$exp" = "$act" ] || say blocked_by "${exp:--}" "${act:--}"
+
+    exp="$(printf '%s' "$item" | jq '.notes | length')"
+    act="$(printf '%s' "$node" | jq -r '.comments.totalCount')"
+    [ "$exp" = "$act" ] || say "코멘트 수" "$exp" "$act"
+
+    # Project 소속은 이슈 쪽에서 읽는다 — item-list 는 생성 직후 새 항목을 내지 않는다(1.1 실측).
+    act="$(gh issue view "$num" -R "$slug" --json projectItems 2>/dev/null \
+      | jq -r --arg p "$project" '[.projectItems[]? | (.number // .project.number // empty) | tostring] | index($p) // ""')"
+    [ -n "$act" ] || say "Project 소속" "project $project" "없음"
+  done < <(jq -c '.[]' "$planf")
+
+  if [ "$bad" -ne 0 ]; then exit 1; fi
+  echo "verify: $total/$total 일치"
+}
+
 case "${1:-}" in
   plan) shift; cmd_plan "$@" ;;
   apply) shift; cmd_apply "$@" ;;
-  *) die "plan | apply 중 하나가 필요하다 (받은 것: '${1:-}') — 사용법은 이 파일의 머리 주석" ;;
+  verify) shift; cmd_verify "$@" ;;
+  *) die "plan | apply | verify 중 하나가 필요하다 (받은 것: '${1:-}') — 사용법은 이 파일의 머리 주석" ;;
 esac
