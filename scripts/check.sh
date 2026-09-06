@@ -8,7 +8,9 @@
 #       plugins/harness/checks/shell-lint.sh 는 자기 플러그인 트리(scripts checks hooks lib)로 대상이 고정이라
 #       toolkit 의 *.sh 를 덮지 못한다 — 같은 플래그(--shell=bash --severity=warning)와 같은 규칙 면제로 여기서 전수를 돈다.
 #       미설치(shellcheck 가 PATH 에 없음)는 shell-lint.sh 와 같은 fail-open: 통과시키되 검사하지 못했다고 말한다.
-#   (c) agent-doc-audit 회귀 — 두 플러그인에서 1-correction · 4-date · 4-line-pointer 가 0줄.
+#   (c) agent-doc-audit 회귀 — 두 플러그인과 레포 루트 스킬(.claude/skills)에서
+#       1-correction · 4-date · 4-line-pointer 가 0줄. 레포 루트 스킬은 플러그인 밖에 살아
+#       (a) validate 도 (b) shellcheck 도 보지 않는 자리라, 여기가 유일한 검사 자리다.
 #       6-dead-path 는 harness 플러그인 docs 가 하네스 루트 상대 경로를 쓰므로 HARNESS_ROOT 가 있을 때만
 #       --root 로 판정하고, 없으면 판정하지 않았다고 말한다(조용히 통과하지 않는다).
 #   (d) 설명 3중 일치 — 플러그인마다 plugin.json description == marketplace.json 의 그 항목 description 이고,
@@ -57,17 +59,18 @@ fi
 
 # ── (c) agent-doc-audit 회귀 ─────────────────────────────────────────
 AUDIT=plugins/toolkit/skills/agent-doc-audit/check.sh
+SCAN='plugins/harness plugins/toolkit .claude/skills'
 crit='1-correction|4-date|4-line-pointer'
 [ -n "${HARNESS_ROOT:-}" ] && crit="$crit|6-dead-path"
-# shellcheck disable=SC2086  # HARNESS_ROOT 가 있을 때만 --root <값> 두 낱말을 붙인다
-if out=$(bash "$AUDIT" plugins/harness plugins/toolkit ${HARNESS_ROOT:+--root "$HARNESS_ROOT"} 2>&1); then
+# shellcheck disable=SC2086  # SCAN 은 낱말 분리가 의도다; HARNESS_ROOT 가 있을 때만 --root <값> 두 낱말을 붙인다
+if out=$(bash "$AUDIT" $SCAN ${HARNESS_ROOT:+--root "$HARNESS_ROOT"} 2>&1); then
   hits=$(printf '%s\n' "$out" | grep -E ":($crit):" || true)
   if [ -n "$hits" ]; then
     printf '%s\n' "$hits"
     echo "✗ (c) agent-doc-audit 회귀 — 위 줄이 0 이어야 한다 (기준 $crit)"
     fail=1
   else
-    echo "✓ (c) agent-doc-audit 회귀 없음 — plugins/harness · plugins/toolkit 에서 $crit 0줄"
+    echo "✓ (c) agent-doc-audit 회귀 없음 — ${SCAN// / · } 에서 $crit 0줄"
   fi
 else
   printf '%s\n' "$out"
