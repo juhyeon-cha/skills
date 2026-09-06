@@ -228,7 +228,7 @@ Then **ask the user to restart the session** — hooks and permissions load at s
 
 ## 3. C — Update
 
-The core is the plugin, so an update touches no file of the root. Two commands; the skills repo's `release` skill (`.claude/skills/release/SKILL.md`, not shipped in the plugin) names the same pair, and `claude plugin update` applies only after a session restart.
+The core is the plugin, so an update touches no file of the root. Two commands, and `claude plugin update` applies only after a session restart.
 
 ```bash
 claude plugin marketplace update skills
@@ -237,7 +237,7 @@ claude plugin update harness@skills
 
 ### 3.1 Confirm what was pulled
 
-`jq -r '.plugins["harness@skills"][] | "\(.scope)\t\(.version)"' ~/.claude/plugins/installed_plugins.json` — one `user` line whose version is the marketplace's latest (`claude plugin list` shows the same). Read the new edition's `CHANGELOG.md` entry at `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md` after the restart: a MAJOR entry names the hand work an install has to do (the width table in the skills repo's `release` skill), and that hand work is what 3.2 and 3.3 look for.
+`jq -r '.plugins["harness@skills"][] | "\(.scope)\t\(.version)"' ~/.claude/plugins/installed_plugins.json` — one `user` line whose version is the marketplace's latest (`claude plugin list` shows the same). Read the new edition's `CHANGELOG.md` entry at `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md` after the restart: a MAJOR entry names the hand work an install has to do, and that hand work is what 3.2 and 3.3 look for.
 
 ### 3.2 Context files the new edition requires
 
@@ -429,7 +429,7 @@ If the root already has one, append only the harness sections; if not, write a n
 **Do not drop the core-editing item.** This skeleton is **the only path by which that discipline enters a root's `CLAUDE.md`**. Write all three of the following together.
 
 - **What the core is** — the installed plugin (`${CLAUDE_PLUGIN_ROOT}`: skills · role definitions · hooks · checks · scripts). The project context created in this section (`repos.json`·`rails.json`·`sprints.json`·`ledger.json`·`CLAUDE.md`·`.beads`) is not core but owned by this root
-- **Why explicit instruction is needed** — an edit to the installed copy is overwritten by the next plugin update and vanishes silently. The place to fix is the plugin's source, the skills repo `plugins/harness/`, from which a release (that repo's `release` skill) and a plugin update (section 3) carry it to every install. Do not write it as an unconditional ban — with instruction it can be done, and even then the same fix has to go to the source so that the next update does not undo it
+- **Why explicit instruction is needed** — an edit to the installed copy is overwritten by the next plugin update and vanishes silently. The place to fix is the plugin's source, the skills repo `plugins/harness/`, from which a release and a plugin update (section 3) carry it to every install. Do not write it as an unconditional ban — with instruction it can be done, and even then the same fix has to go to the source so that the next update does not undo it
 - **The gate** — none (persuasion alone). There is nothing for a hook to guard — the loss itself is the consequence
 
 **Improvement ideas go into the ledger, not into code.** On finding a defect in or an improvement for the core, (1) leave it in your own ledger as a backlog issue (make a `-t task -l harness` issue with `ledger.sh create` — with the raw observation and the reproduction conditions), and (2) carry it to the plugin's source — a change there is a PR to the skills repo, so it goes out **only on explicit user instruction**. Section 2 of the `retrospective` procedure holds the same path.
