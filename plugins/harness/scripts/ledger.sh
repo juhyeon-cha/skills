@@ -41,6 +41,10 @@ usage() {
                              (beads: <워크트리>/.beads/redirect · github·notion: 배선할 것이 없다, rc 0)
   sync-check [--push]        원장이 원격과 어긋났는가 — checks/ledger-check.sh 가 부른다
                              (beads: Dolt 원격 대조, --push 면 앞선 커밋 반영 · github·notion: "원격 반영 대상 없음" rc 0)
+  rails --json               레일 전체 — 출력 JSON 은 [{id, owner}] 배열. owner 는 레일 담당자
+                             (beads: <루트>/rails.json · github: epic 의 rail: 라벨 + 그 epic 의 assignee · notion: People)
+  sprints --json             스프린트 전체 — 출력 JSON 은 [{id, status}] 배열. status 는 active | closed
+                             (beads: <루트>/sprints.json · github: Projects v2 Iteration 필드, id 는 iteration 의 title · notion: select)
   help | --help
 
 beads 전용 (github · notion 은 rc≠0):
