@@ -189,6 +189,40 @@ run "$FX" history "$J" --json
 step "history --json 은 jq 를 타지 않는다 (이슈 아닌 레코드에 actor 를 심지 않는다)" \
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "type == \"array\" and length > 0 and all(has(\"actor\") | not)" >/dev/null' _ "$OUT" "$RC"
 
+# ── 등록부 질의 (skills#143). 이 백엔드의 값은 <루트>/rails.json · sprints.json 에서 온다.
+#    별도 루트를 쓰는 이유: 파일이 **없는** 판을 먼저 세워야 "빈 배열 rc 0 으로 삼키지 않는다" 가
+#    판정되고, FX 는 위 왕복이 쓰는 원장이라 파일을 붙였다 뗐다 할 자리가 아니다. bd 는 부르지
+#    않는 경로라 bd init 도 필요 없다.
+RG="$TMP/reg"; mkdir -p "$RG"; printf '{"backend":"beads"}\n' > "$RG/ledger.json"
+for sub in rails sprints; do
+  run "$RG" "$sub" --json
+  step "$sub: 등록부 파일이 없으면 rc≠0 이고 stderr 가 $sub.json 을 이름으로 든다 (빈 배열 rc 0 으로 삼키지 않는다)" \
+    bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "$3.json"' _ "$RC" "$ERR" "$sub"
+done
+printf '{"rails":{"r1":{"owner":"juhyeon-cha","description":"x"},"r2":{"owner":"dongqdev","description":"y"}}}\n' > "$RG/rails.json"
+printf '{"sprints":{"2026-S01":{"status":"closed"},"2026-S02":{"status":"active"}}}\n' > "$RG/sprints.json"
+run "$RG" rails --json
+step "rails: 등재된 레일 수와 출력 배열 길이가 같고 id·owner 가 파일 그대로다" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 2 and .[0] == {id:\"r1\",owner:\"juhyeon-cha\"} and .[1] == {id:\"r2\",owner:\"dongqdev\"}" >/dev/null' _ "$OUT" "$RC"
+run "$RG" sprints --json
+step "sprints: id 는 등재 키이고 status 는 active|closed 둘 중 하나다" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "map(.id) == [\"2026-S01\",\"2026-S02\"] and all(.status == \"active\" or .status == \"closed\")" >/dev/null' _ "$OUT" "$RC"
+# 등재가 0건인 것과 파일이 없는 것은 다른 상태다 — 앞은 rc 0 의 빈 배열, 뒤는 위에서 본 rc≠0.
+printf '{"rails":{}}\n' > "$RG/rails.json"
+run "$RG" rails --json
+step "rails: 파일은 있고 등재가 0건이면 rc 0 의 빈 배열이다 (파일 없음과 구별된다)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null' _ "$OUT" "$RC"
+# 계약을 깨는 값을 그대로 흘리면 소비자(board-check)가 그것을 등재로 읽는다.
+printf '{"rails":{"r9":{"description":"owner 가 없다"}}}\n' > "$RG/rails.json"
+run "$RG" rails --json
+step "rails: owner 없는 레일 → rc≠0 이고 stderr 가 그 레일 id 를 든다 (owner:null 을 흘리지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q r9' _ "$RC" "$ERR"
+printf '{"sprints":{"2026-S03":{"status":"진행중"}}}\n' > "$RG/sprints.json"
+run "$RG" sprints --json
+step "sprints: status 가 active|closed 밖이면 rc≠0 (낯선 값을 그대로 흘리지 않는다)" [ "$RC" -ne 0 ]
+run "$RG" rails --all
+step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
+
 echo "── ④ github 오프라인 — 가짜 gh ──"
 # jq·bash 만 보이고 gh 는 없는 PATH. 가짜 gh 는 호출 전부를 LOG 에 남기고 정해진 답을 낸다.
 mkdir -p "$TMP/jqbin" "$TMP/ghbin"

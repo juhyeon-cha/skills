@@ -145,16 +145,37 @@ case "${1:-}" in
     ;;
   rails|sprints)
     # 등록부 질의 — bd 하위 명령이 아니라 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2).
-    # 이 태스크(skills#142)는 배선까지다: 하위 명령 인식과 인자 검증이 여기 서고, 값을
-    # <루트>/rails.json · sprints.json 에서 파생하는 것은 skills#143 이다. 그때까지 빈 배열이고,
-    # **빈 배열이 실제 상태가 아니라는 사실을 stderr 로 밝힌다** — 조용한 빈 배열은 "레일이 없다" 와
-    # 구별되지 않는다. rc 는 0 이다: 계약이 "JSON 배열" 이고 소비자(M2 의 board.sh)는 아직 없다.
+    # 이 백엔드의 자기 계층은 **원장 루트의 JSON 파일 둘**이다: <루트>/rails.json · sprints.json.
+    # bd(Dolt)에는 레일도 스프린트도 없어 대응물이 없고, 그래서 결정 2 가 "파일은 사라지는 것이
+    # 아니라 beads 백엔드의 구현 세부가 된다" 로 정했다. 파일의 계약은 그 파일 자신의 doc 키가 든다.
+    #
+    # **파일이 없으면 rc≠0 이다.** 빈 배열 rc 0 으로 삼키면 "등재가 하나도 없다" 와 구별되지 않고,
+    # 소비자(board-check)는 원장의 rail:·sprint: 라벨을 전부 미등재로 읽는다 — 등록부가 통째로
+    # 사라진 판이 정상 상태와 같은 문면이 된다.
+    #
+    # 계약을 깨는 값도 흘리지 않는다. owner 없는 레일(레일 담당자는 1명이 원본이다)과 active·closed
+    # 밖의 status(sprints.json 의 doc 이 그 둘뿐이라고 못박는다)는 jq 의 error() 로 죽인다 —
+    # `{id, owner:null}` 이나 낯선 status 를 그대로 내면 소비자가 그것을 등재로 읽는다.
     sub="$1"; shift
     for a in "$@"; do
       [ "$a" = --json ] || { echo "ledger-beads $sub: 모르는 인자 '$a' (사용: $sub --json)" >&2; exit 1; }
     done
-    echo "ledger-beads $sub: 아직 구현되지 않았다 (skills#143 이 $LEDGER_ROOT/$sub.json 을 읽는다) — 빈 배열이 실제 상태가 아니다" >&2
-    echo '[]'
+    f="$LEDGER_ROOT/$sub.json"
+    [ -r "$f" ] || { echo "ledger-beads $sub: $f 가 없다(또는 읽을 수 없다) — 이 백엔드에서 등록부의 원본이 그 파일이다. 빈 배열로 답하면 '등재가 없다' 와 구별되지 않는다" >&2; exit 1; }
+    case "$sub" in
+      rails)
+        q='[(.rails // error("최상위 rails 키가 없다")) | to_entries[]
+            | {id: .key, owner: (.value.owner // error("레일 \(.key) 에 owner 가 없다 — 레일은 사람이고 담당자 1명이 등록부의 계약이다"))}]' ;;
+      sprints)
+        q='[(.sprints // error("최상위 sprints 키가 없다")) | to_entries[]
+            | {id: .key, status: (.value.status as $s
+                | if $s == "active" or $s == "closed" then $s
+                  else error("스프린트 \(.key) 의 status 가 \($s | tojson) 다 — active|closed 둘뿐이다") end)}]' ;;
+    esac
+    # jq 의 실패 문면을 그대로 물어 나른다 — 어느 키가 왜 문제인지는 jq 가 이미 이름으로 든다.
+    # 성공하면 stderr 가 비므로 2>&1 로 합쳐 받아도 출력이 섞이지 않는다.
+    out=$(jq "$q" "$f" 2>&1) || { echo "ledger-beads $sub: $f 를 읽지 못했다 — $(printf '%s' "$out" | sed 's/^jq: //' | head -1)" >&2; exit 1; }
+    printf '%s\n' "$out"
     exit 0
     ;;
 esac
