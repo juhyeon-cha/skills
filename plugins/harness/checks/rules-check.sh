@@ -108,27 +108,34 @@ need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 �
 }
 bdl() { HARNESS_ROOT="$HROOT" bash scripts/ledger.sh "$@"; }   # 원장은 언제나 하네스 루트의 것이다 — 어댑터로 읽는다(CWD 는 플러그인 루트)
 
-# 검토 대상 트리 TREE — 호출 CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리(판별자는 harness-root.sh 와
-# 같다). 없으면 HROOT 다 — 플러그인 디렉토리·대상 레포 워크트리에서 부르는 종전 형태가 그 자리다.
+# 검토 대상 트리 TREE — 호출 CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리.
+#
+# **클론 루트는 건너뛴다.** 원장 지정 파일이 클론 루트 직속으로 내려오면서(lib/harness-root.sh)
+# 그 자리의 ledger.json 은 "이 머신이 어느 원장에 붙는가" 를 말할 뿐 검토할 트리의 표지가 아니고,
+# 그 디렉토리는 git 트리도 아니다. 건너뛰지 않으면 클론 안에서 돌린 검사가 전부 그 디렉토리를
+# 검토 대상으로 잡아 .gitignore 를 찾지 못한다.
+#
+# 못 찾으면 **호출자가 선 git 트리의 최상단**이다 — 검토 대상 트리는 말 그대로 지금 서 있는 트리다.
+# 그것도 아니면 빈 값이고 need_tree 가 실패한다(조용히 통과하지 않는다).
+CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
 tree_of() {  # tree_of <디렉토리> — 위로 올라가며 ledger.json 을 찾는다. 없으면 rc 1
   local d="$1"
   while :; do
-    [[ -f "$d/ledger.json" ]] && { printf '%s\n' "$d"; return 0; }
+    [[ "$d" != "$CLONE_ROOT" && -f "$d/ledger.json" ]] && { printf '%s\n' "$d"; return 0; }
     [[ "$d" == / ]] && return 1
     d="$(dirname "$d")"
   done
 }
-TREE="$(tree_of "$CALLER_PWD")" || TREE="$HROOT"
+TREE="$(tree_of "$CALLER_PWD")" || TREE="$(git -C "$CALLER_PWD" rev-parse --show-toplevel 2>/dev/null)" || TREE=""
 need_tree() {  # need_tree <검사이름> — 검토 대상 트리가 없으면(CWD 위에 ledger.json 이 없고 하네스 루트도 못 찾음) ✗ 를 내고 1
   [[ -n "$TREE" ]] && return 0
-  echo "✗ $1 — 검토 대상 트리를 찾지 못했다 (CWD $CALLER_PWD 위에 ledger.json 이 없고 ${HROOT_ERR:-하네스 루트도 없다}). 등록부·.gitignore 를 보는 검사라 건너뛰지 않고 실패한다 — 하네스 트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
+  echo "✗ $1 — 검토 대상 트리를 찾지 못했다 (CWD $CALLER_PWD 위에 ledger.json 도 git 트리도 없다). .gitignore 를 보는 검사라 건너뛰지 않고 실패한다 — 하네스 트리 안에서 돌려라"
   return 1
 }
 echo "트리: ${TREE:-(없음)} · 원장 루트: ${HROOT:-(없음)}"
 
 # 등록부는 검토 대상 트리에 있지 않다 — 클론 루트 직속의 머신 로컬 파일이다(scripts/repo.sh 머리 주석).
 # 그래서 R18·R40 은 TREE 를 요구하지 않고, 워크트리에서 돌려도 같은 파일 하나를 본다.
-CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
 MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 재정의는 검사 스크립트용
 SETUP_SKILL="skills/setup/SKILL.md"
 GITIGNORE="$TREE/.gitignore"

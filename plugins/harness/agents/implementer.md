@@ -43,7 +43,7 @@ When a task gets stuck or needs a decision, **stop there** and signal. An `IMPLE
 ## Forbidden
 
 - `git push` · PR creation · GitHub issue changes · `ledger.sh close` (all the orchestrator's or a human's)
-- **A ledger.sh call without `HARNESS_ROOT=<harness root>`.** Without the variable, root discovery (`lib/harness-root.sh`) can reach a **different** harness through `~/.harness-workspace/.harness-root` — in the wrong ledger `note` dies loudly on an id mismatch, but `create` succeeds silently.
+- **A ledger.sh call without `HARNESS_ROOT=<harness root>`.** Without the variable, root discovery (`lib/harness-root.sh`) falls back to the clone root's own `ledger.json`, which on a machine carrying more than one harness can be a **different** ledger — there `note` dies loudly on an id mismatch, but `create` succeeds silently.
 - **Ledger writes other than `ledger.sh note`** (`create`·`update`·`label`·`remember` and the like — changing the ledger's structure is the orchestrator's)
 - Touching another task's scope (including the output of an already closed task)
 - Cutting gate output and judging from the cut

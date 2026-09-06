@@ -18,22 +18,22 @@ A harness root is an ordinary git repo holding the context files of section 5 an
 ## 0. Branch decision — first action
 
 ```bash
-ls -d repos.json rails.json sprints.json ledger.json .beads 2>/dev/null
-git rev-parse --git-dir >/dev/null 2>&1 && echo "git: yes" || echo "git: no"
-HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
+ls -d ~/.harness-workspace/ledger.json ~/.harness-workspace/repos.json 2>/dev/null   # the harness root is the clone root
+ls -d rails.json sprints.json .beads 2>/dev/null
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
 ```
 
-`HARNESS_ROOT=$PWD` is not optional here — 1.5 says why. "ledger: yes" means the backend named in `ledger.json` answers — for `beads` that is the local Dolt DB, for `github`·`notion` a reachable remote (a `notion` tree needs `NOTION_TOKEN` exported first, or the probe says "no" for a ledger that exists).
+The harness root is the clone root (`~/.harness-workspace`), and `ledger.json` directly under it is the marker — so the first line, not the current directory, decides. "ledger: yes" means the backend named in `ledger.json` answers — for `beads` that is the local Dolt DB, for `github`·`notion` a reachable remote (a `notion` tree needs `NOTION_TOKEN` exported first, or the probe says "no" for a ledger that exists).
 
 | Observed | Branch |
 |---|---|
-| `ledger.json` no · git no | Nothing stands here yet — an empty directory where a **new harness** is set up → **A**, section 1 |
-| `ledger.json` yes · git yes · ledger no | A standing harness was cloned — the root's files came with the clone, and this machine has no ledger access yet → **B**, section 2 |
-| `ledger.json` yes · git yes · ledger yes | A harness already in use on this machine. Update only → **C**, section 3 |
+| `~/.harness-workspace/ledger.json` no | Nothing stands on this machine yet → **A**, section 1 |
+| that file yes · ledger no | The ledger is named but this machine has no access to it yet → **B**, section 2 |
+| that file yes · ledger yes | A harness already in use on this machine. Update only → **C**, section 3 |
 
 The discriminator is `ledger.json` — the same file `lib/harness-root.sh` uses to recognize a harness root.
 
-If no row of the table matches (a `ledger.json` with no git repository, say), do not guess your way forward — ask in one line. Picking the wrong branch falls toward the side that is expensive to undo (initializing a ledger over one that exists).
+If no row of the table matches, do not guess your way forward — ask in one line. Picking the wrong branch falls toward the side that is expensive to undo (initializing a ledger over one that exists).
 
 ## 1. A — New harness
 
@@ -74,13 +74,13 @@ The ledger backend is one value — `backend` in `ledger.json` at the harness ro
 HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init   # arguments differ per backend — below
 ```
 
-**Every `ledger.sh` call in this procedure is prefixed with `HARNESS_ROOT=$PWD` (run from the harness root), and so is every plugin check and script that reads the ledger.** Without the variable, `ledger.sh` asks `lib/harness-root.sh` for the root, and during setup the two other sources are not there yet — no story worktree wiring, and the clone root's `.harness-root` pointer is written later by `scripts/repo.sh` (or points at *another* harness on a machine that already has one — a silent write into someone else's ledger if that one has a `ledger.json`). With `HARNESS_ROOT` set, `ledger.sh` uses it as-is. The prefix is harmless in any backend, so the commands below carry it everywhere.
+**Every `ledger.sh` call in this procedure is prefixed with `HARNESS_ROOT=$PWD` (run from the harness root), and so is every plugin check and script that reads the ledger.** Without the variable, `ledger.sh` asks `lib/harness-root.sh` for the root, and during setup its only other source is not there yet — the clone root's own `ledger.json`, written later by `scripts/repo.sh root` (or already there and naming *another* harness on a machine that carries one — a silent write into someone else's ledger). With `HARNESS_ROOT` set, `ledger.sh` uses it as-is. The prefix is harmless in any backend, so the commands below carry it everywhere.
 
 Follow the one branch that matches `backend`, then continue at "all backends".
 
 #### backend: github (default)
 
-Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `ledger.json` as `{"backend":"github","owner":"<github login>"}` and run `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init` (optionally `--title <project name>`). Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
+Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Create the ledger pointer with `bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh root --backend github --owner <github login>` — it writes `~/.harness-workspace/ledger.json`, the harness root marker. **Do not write that file by hand**: the guard reserves the clone-root layer for `repo.sh`, so a direct write is refused. Then run `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init` (optionally `--title <project name>`). Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
 
 **What `init` makes, and what it deliberately does not.** Two things, and it is idempotent in both — running it again on a root that already has them changes nothing and says so:
 
@@ -317,19 +317,19 @@ Ask the user (all at once):
 
 These five are not part of the plugin but **owned by the root**, so the plugin does not create them. The shapes below are the specification — build them from here rather than from another file. (B inherits all five. Beyond the one entry for its own rail in 2.5, B touches none of them.)
 
-Two of the four are read directly by tools, so their absence kills those tools with a non-zero exit immediately: without `repos.json`, the EnterWorktree hook (`hooks/enter-worktree.sh`) has no bootstrap to fall back on and `workspace-cleanup.sh` stops; without `ledger.json`, every `scripts/ledger.sh` call stops. **`rails.json`·`sprints.json` are backend-dependent** — `board.sh`·`board-check.sh` reach the two registries only through the adapter (`ledger.sh rails`·`sprints`) and open no file of their own. On `beads` the adapter reads exactly these two files, so without `rails.json` `board.sh`·`board-check.sh` stop and without `sprints.json` `board-check.sh`·`board.sh all` stop; on `github`·`notion` the adapter derives both registries from the ledger and neither file is opened. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
+Two of them live directly under the clone root and are read by tools there, so their absence kills those tools with a non-zero exit immediately: without `repos.json`, `scripts/repo.sh` and `workspace-cleanup.sh` stop; without `ledger.json`, the harness root cannot be recognized at all and every `scripts/ledger.sh` call stops. **`rails.json`·`sprints.json` are backend-dependent** — `board.sh`·`board-check.sh` reach the two registries only through the adapter (`ledger.sh rails`·`sprints`) and open no file of their own. On `beads` the adapter reads exactly these two files, so without `rails.json` `board.sh`·`board-check.sh` stop and without `sprints.json` `board-check.sh`·`board.sh all` stop; on `github`·`notion` the adapter derives both registries from the ledger and neither file is opened. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
 
 | File | What it holds |
 |---|---|
 | `repos.json` | the target repo registry, at `~/.harness-workspace/repos.json` (not in the harness root) — `scripts/repo.sh add` writes it |
 | `rails.json` | the rail registry — one rail per person |
 | `sprints.json` | the sprint registry — the only source of whether a sprint is closed |
-| `ledger.json` | the ledger backend — `github` (default) · `beads` · `notion` — and what that backend needs to find the ledger |
+| `ledger.json` | the ledger backend — `github` (default) · `beads` · `notion` — and what that backend needs to find the ledger. It lives at `~/.harness-workspace/ledger.json` and **being there is what makes that directory the harness root**; `scripts/repo.sh root` writes it |
 | `CLAUDE.md` | the top-level rules |
 
 ### `ledger.json` — the ledger backend
 
-One key, `backend`, decides which backend `scripts/ledger.sh` talks to; the rest is what that backend needs. No file, or a value outside the three, and every ledger command dies with rc≠0 — there is no fallback. The default for a new harness is `github`. The three shapes:
+This file sits directly under the clone root (`~/.harness-workspace/ledger.json`) and is written by `scripts/repo.sh root`, never by hand. One key, `backend`, decides which backend `scripts/ledger.sh` talks to; the rest is what that backend needs. No file, or a value outside the three, and every ledger command dies with rc≠0 — there is no fallback. The default for a new harness is `github`. The three shapes:
 
 ```json
 {"backend": "github", "owner": "<github login that owns the Projects v2>", "project": 4}
@@ -346,7 +346,7 @@ One key, `backend`, decides which backend `scripts/ledger.sh` talks to; the rest
 | Field | Where it is used |
 |---|---|
 | `backend` | picks `scripts/ledger-<backend>.sh`. Required |
-| `owner` (github) | the Projects v2 owner (a user login). Issues themselves live in the repos of `repos.json` |
+| `owner` (github) | the Projects v2 owner (a user login). **It also owns the repos the issues live in** — the adapter derives a repo slug as `owner/<the repo: label's name>` |
 | `project` (github) | the Projects v2 number. `ledger.sh init` creates the project and writes it; `create` refuses to make an issue without it. **It is also the read boundary** — `list`·`ready` return only the issues in this project, so a wrong number yields 0 rows (with a stderr line saying so), not the repos' issues |
 | `database_id` (notion) | the database. `ledger.sh init --parent-page <id>` creates it and writes it. The token is `NOTION_TOKEN` in the environment and never in this file |
 

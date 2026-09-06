@@ -47,8 +47,8 @@ set -uo pipefail
 die() { echo "ledger-notion: $*" >&2; exit 1; }
 
 # 워크트리 배선 — 이 백엔드는 워크트리에 아무것도 두지 않는다. 페이지는 원격에 있고 루트는
-# HARNESS_ROOT 또는 ~/.harness-workspace/.harness-root(lib/harness-root.sh)로 찾는다. 토큰 없이도 답한다.
-[ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
+# HARNESS_ROOT 또는 ~/.harness-workspace/ledger.json(lib/harness-root.sh)으로 찾는다. 토큰 없이도 답한다.
+[ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트 직속의 ledger.json 으로 찾는다"; exit 0; }
 # 원격 반영 검사 — 페이지가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (notion 백엔드: 페이지가 원격 자체다)"; exit 0; }
 DB="$(jq -r '.database_id // empty' "$LEDGER_CONFIG")"

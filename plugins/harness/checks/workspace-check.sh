@@ -15,7 +15,7 @@
 #   ⑥ cleanup — git worktree list 에서 경로가 사라지고 브랜치 worktree-<id> 와 마커도 없다
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려 실제
 # ~/.harness-workspace 는 건드리지 않는다. 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 갓 만든
-# 워크트리에는 redirect 가 없어 헬퍼가 .harness-root 파일에 기대는데, 그 파일은 이 머신의 상태다.
+# 헬퍼는 클론 루트 직속 ledger.json 에 기대는데, 그 파일은 이 머신의 상태다.
 set -uo pipefail
 # 하네스 루트(원장의 자리 — 검사용 bead 를 만든다)는 lib/harness-root.sh 가 낸다. 못 찾으면 rc=1.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -78,7 +78,7 @@ run_hook() {
     | env HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$@" bash "$HOOK"
 }
 # cleanup 도 HARNESS_ROOT 로 물린다 — 이 검사가 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌렸으므로
-# lib/harness-root.sh 의 .harness-root 폴백이 사라진다. 하네스 루트를 CWD 로 부르면(check-all 경유)
+# lib/harness-root.sh 의 클론 루트 폴백이 임시 디렉토리를 가리킨다. 하네스 루트를 CWD 로 부르면(check-all 경유)
 # redirect 도 없어 루트를 못 찾았다 (실측 2026-09-06, harness-m8gg.8.2).
 run_cl() { HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD"; }
 
@@ -92,10 +92,13 @@ step "redirect 가 하네스 원장을 가리킨다" [ "$(cat "$WT/.beads/redire
 step "가리키는 곳이 실재한다"           [ -d "$(cat "$WT/.beads/redirect" 2>/dev/null)" ]
 step "클론 exclude 에 .beads 등재"      grep -qxF ".beads" "$CLONE/.git/info/exclude"
 step "클론 exclude 에 .claude/worktrees/ 등재" grep -qxF ".claude/worktrees/" "$CLONE/.git/info/exclude"
-# 재진입 경로 — HARNESS_ROOT 없이 워크트리에서 부른 루트 탐색기가 배선을 따라 하네스 루트를 낸다
-# (HARNESS_CLONE_ROOT 가 임시 디렉토리라 .harness-root 폴백은 없다 — 배선이 유일한 출처다).
-step "워크트리에서 lib/harness-root.sh 가 배선을 따라 하네스 루트를 낸다" \
-  [ "$(cd "$WT" && env -u HARNESS_ROOT bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" = "$ROOT" ]
+# 재진입 경로 — HARNESS_ROOT 없이 부른 루트 탐색기는 **배선을 따라가지 않는다.** 답은 클론 루트
+# 직속의 ledger.json 하나이고, 워크트리 안에서 부르든 밖에서 부르든 같다(lib/harness-root.sh).
+step "클론 루트에 ledger.json 이 없으면 워크트리에서도 rc≠0 (배선으로 폴백하지 않는다)" \
+  bash -c '! (cd "$1" && env -u HARNESS_ROOT bash "$2/lib/harness-root.sh" >/dev/null 2>&1)' _ "$WT" "$PLUGIN_ROOT"
+printf '{"backend":"beads"}\n' > "$HARNESS_CLONE_ROOT/ledger.json"
+step "클론 루트 직속 ledger.json 이 있으면 워크트리에서도 그 디렉토리를 낸다" \
+  [ "$(cd "$WT" && env -u HARNESS_ROOT bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" = "$HARNESS_CLONE_ROOT" ]
 step "워크트리 git status 가 비어 있다 (배선이 untracked 로 뜨지 않는다)" [ -z "$(git -C "$WT" status --short)" ]
 
 echo "── ② 부트스트랩 폴백 ──"

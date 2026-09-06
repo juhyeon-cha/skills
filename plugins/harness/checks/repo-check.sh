@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# scripts/repo.sh 의 클론 루트 층(apply)을 고정하는 게이트.
-#   ① apply r → rc=0 · <클론루트>/.harness-root == 하네스 루트 · 재실행해도 rc=0 (멱등)
+# scripts/repo.sh 의 클론 루트 층을 고정하는 게이트. **그 층은 이 스크립트만 쓴다** — 가드가 다른
+# 경로의 직접 쓰기를 막으므로, 여기서 죽으면 하네스 루트를 만들 수단이 사라진다.
+#   ① root --backend <b> → rc=0 · <클론루트>/ledger.json 이 그 backend 를 담는다 · 재실행 rc=0 (멱등)
 #   ② 클론의 .claude/ 아래를 쓰지 않는다 — 플러그인은 user scope 로 한 번 설치되므로 클론에 등록이 없다:
-#      이미 있던 .claude/settings.local.json 의 내용이 apply 전후로 같고 .claude/settings.json 도 생기지 않는다
-#   ③ .harness-root 가 다른 경로를 담고 있으면 rc≠0 이고 stderr 에 두 경로가 모두 있다 (덮어쓰지 않는다)
+#      이미 있던 .claude/settings.local.json 의 내용이 명령 전후로 같고 .claude/settings.json 도 생기지 않는다
+#   ③ ledger.json 이 다른 backend 를 담고 있으면 rc≠0 이고 stderr 에 두 값이 모두 있다 (덮어쓰지 않는다)
 #   ④ list 에 하네스 루트 행이 있고 플러그인 행은 없다
 #   ⑤ 게이트 명령의 출처는 클론의 .harness.json 이다 — 있으면 check 가 그 값이고, 없으면 rc≠0 이고
 #      stderr 가 그 경로를 든다 (등록부의 값으로 폴백하지 않는다)
@@ -37,30 +38,35 @@ step() {
 has_text() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
 lacks_text() { ! has_text "$1" "$2"; }
 
-echo "── ① apply ──"
-run apply r >/dev/null 2>"$ERRF"; rc=$?
+echo "── ① root — 하네스 루트를 만드는 유일한 수단 ──"
+# HARNESS_ROOT 를 빼고 돈다: root 는 판별자 자체를 만드는 명령이라 판별 전에 답을 알아야 한다.
+run_noroot() { PATH=/usr/bin:/bin env -u HARNESS_ROOT bash "$PLUGIN_ROOT/scripts/repo.sh" "$@"; }
+run_noroot root --backend github --owner fx-owner --project 7 >/dev/null 2>"$ERRF"; rc=$?
 step "rc=0"                                  [ "$rc" -eq 0 ]
-step ".harness-root == 하네스 루트"           [ "$(cat "$HARNESS_CLONE_ROOT/.harness-root" 2>/dev/null)" = "$HROOT" ]
-run apply r >/dev/null 2>&1; rc=$?
-step "재실행 rc=0"                            [ "$rc" -eq 0 ]
+step "<클론루트>/ledger.json 에 backend·owner·project 가 담긴다" \
+  bash -c 'jq -e ".backend == \"github\" and .owner == \"fx-owner\" and .project == 7" "$1" >/dev/null' _ "$HARNESS_CLONE_ROOT/ledger.json"
+step "그 파일이 곧 루트 판별자다 — harness-root.sh 가 클론 루트를 낸다" \
+  bash -c '[ "$(PATH=/usr/bin:/bin env -u HARNESS_ROOT bash "$1/lib/harness-root.sh" 2>/dev/null)" = "$2" ]' _ "$PLUGIN_ROOT" "$HARNESS_CLONE_ROOT"
+run_noroot root --backend github >/dev/null 2>&1; rc=$?
+step "재실행 rc=0 (멱등)"                     [ "$rc" -eq 0 ]
 
 echo "── ② 클론의 .claude/ 를 쓰지 않는다 ──"
 mkdir -p "$(dirname "$LOCAL_SETTINGS")"
 SEED='{"permissions":{"allow":["x"]}}'
 printf '%s\n' "$SEED" > "$LOCAL_SETTINGS"
-run apply r >/dev/null 2>&1; rc=$?
-step "rc=0"                                  [ "$rc" -eq 0 ]
+run_noroot root --backend github >/dev/null 2>&1
+run list >/dev/null 2>&1
+run restore r >/dev/null 2>&1; rc=$?
+step "restore(클론 이미 있음) rc=0"           [ "$rc" -eq 0 ]
 step "기존 settings.local.json 내용 동일"      [ "$(cat "$LOCAL_SETTINGS")" = "$SEED" ]
 step "<클론>/.claude/settings.json 이 없다"    test ! -e "$CLONE/.claude/settings.json"
 
-echo "── ③ .harness-root 가 다른 경로 ──"
-printf '%s\n' "$TMP/other-root" > "$HARNESS_CLONE_ROOT/.harness-root"
-run apply r >/dev/null 2>"$ERRF"; rc=$?
+echo "── ③ ledger.json 이 다른 backend ──"
+run_noroot root --backend beads >/dev/null 2>"$ERRF"; rc=$?
 step "rc≠0"                                  [ "$rc" -ne 0 ]
-step "stderr 에 기존 경로"                    has_text "$TMP/other-root" "$(cat "$ERRF")"
-step "stderr 에 지금 루트"                    has_text "$HROOT" "$(cat "$ERRF")"
-step "덮어쓰지 않았다"                        [ "$(cat "$HARNESS_CLONE_ROOT/.harness-root")" = "$TMP/other-root" ]
-printf '%s\n' "$HROOT" > "$HARNESS_CLONE_ROOT/.harness-root"
+step "stderr 에 기존 backend"                 has_text "github" "$(cat "$ERRF")"
+step "stderr 에 요청한 backend"               has_text "beads" "$(cat "$ERRF")"
+step "덮어쓰지 않았다"                        bash -c 'jq -e ".backend == \"github\"" "$1" >/dev/null' _ "$HARNESS_CLONE_ROOT/ledger.json"
 
 echo "── ④ list ──"
 OUT=$(run list 2>/dev/null)

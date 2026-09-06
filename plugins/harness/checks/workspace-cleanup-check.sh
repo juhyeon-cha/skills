@@ -21,7 +21,7 @@
 #
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려
 # 실제 ~/.harness-workspace 는 건드리지 않는다 (workspace-check.sh 와 같은 격리 방식).
-# 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 임시 HARNESS_CLONE_ROOT 에는 .harness-root 가
+# 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 임시 HARNESS_CLONE_ROOT 에는 ledger.json 이
 # 없어 CWD 가 하네스 루트일 때(redirect 도 없다) 헬퍼가 루트를 못 찾는다.
 set -uo pipefail
 # 하네스 루트(원장의 자리 — 검사용 bead 를 만든다)는 lib/harness-root.sh 가 낸다. 못 찾으면 rc=1.
@@ -86,7 +86,7 @@ run_ws() {
     | HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" bash "$PLUGIN_ROOT/hooks/enter-worktree.sh" >/dev/null 2>&1
 }
 # cleanup 도 HARNESS_ROOT 로 물린다 — 이 검사가 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌렸으므로
-# lib/harness-root.sh 의 .harness-root 폴백이 사라진다. 하네스 루트를 CWD 로 부르면(check-all 경유)
+# lib/harness-root.sh 의 클론 루트 폴백이 임시 디렉토리를 가리킨다. 하네스 루트를 CWD 로 부르면(check-all 경유)
 # redirect 도 없어 루트를 못 찾았다 (실측 2026-09-06, harness-m8gg.8.2).
 run_cl() { HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD" "$@"; }
 

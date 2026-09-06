@@ -1092,7 +1092,7 @@ bd_is_read() {
 # 차단 시점에만 도는 호출이라 도구 호출마다의 비용은 없다.
 bd_root_hint() {
   local r
-  # cwd 로 못 들어가도(합성 페이로드·사라진 디렉토리) 헬퍼는 돈다 — HARNESS_ROOT·.harness-root 파일은 cwd 와 무관하다.
+  # cwd 로 못 들어가도(합성 페이로드·사라진 디렉토리) 헬퍼는 돈다 — HARNESS_ROOT·클론 루트 직속 ledger.json 은 cwd 와 무관하다.
   if r="$(cd "${CWD:-.}" 2>/dev/null; bash "$GUARD_ROOT/lib/harness-root.sh" 2>/dev/null)" && [ -n "$r" ]; then
     printf '%s' "이 호출의 cwd 에서 찾은 하네스 루트는 $r 다 — 위임 메시지가 다른 값을 주지 않았다면 그것이다."
   else

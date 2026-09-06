@@ -41,8 +41,8 @@
 
 **Steps**
 
-1. At the harness root: `bash "$(<plugin>)/scripts/repo.sh" add <url> --check '<gate command>'` — clone and registration in the clone root's `repos.json` together; `--check` lands in the clone's own `.harness.json`, to be committed to that repo. The clone lands at `~/.harness-workspace/<repo>`; `repo.sh` also writes `~/.harness-workspace/.harness-root`. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
-2. `… repo.sh list` confirms the registration and the harness-root pointer.
+1. At the harness root: `bash "$(<plugin>)/scripts/repo.sh" add <url> --check '<gate command>'` — clone and registration in the clone root's `repos.json` together; `--check` lands in the clone's own `.harness.json`, to be committed to that repo. The clone lands at `~/.harness-workspace/<repo>`, beside the clone root's `ledger.json` — the harness root marker that `repo.sh root` writes. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
+2. `… repo.sh list` confirms the registration and the harness root.
 3. `harness:plan-story` creates the story epic: `ledger.sh create "<title>" -t epic -l sprint:<sprint ID>,rail:r1,slug:r1-<slug>,repo:<repo>`.
 4. Open a session in `<clone>` and run `harness:develop` — section 2 calls `EnterWorktree` with `name=<story ID>`; the plugin's PostToolUse hook wires the ledger and runs the repo's `bootstrap` if the repo has no EnterWorktree hook of its own.
 5. `harness:develop` 3-1 delegates to `harness:implementer` with the worktree path and the harness root absolute path.
@@ -227,7 +227,7 @@
 3. `ledger.sh list` confirms the ledger answers.
 4. `git config core.hooksPath` — if not `.beads/hooks`, set it: `git config core.hooksPath .beads/hooks`.
 5. Install the plugin — once per machine, at user scope: `claude plugin marketplace add juhyeon-cha/skills` then `claude plugin install harness@skills`; `claude plugin list` shows it. Before the marketplace carries it, `claude --plugin-dir <skills clone>/plugins/harness` and `HARNESS_PLUGIN_ROOT` for the hooks.
-6. `bash "$(<plugin>)/scripts/repo.sh" restore` re-clones the registered repos from their urls and writes `~/.harness-workspace/.harness-root`. It touches no clone's `.claude/` — step 5's install already serves them all.
+6. `bash "$(<plugin>)/scripts/repo.sh" root --backend <backend> --owner <owner>` writes `~/.harness-workspace/ledger.json`, then `… repo.sh restore` re-clones the registered repos from their urls. Neither touches a clone's `.claude/` — step 5's install already serves them all.
 7. Resume an interrupted story: open a session in its clone and `harness:develop` → `EnterWorktree`.
 
 **Pass criteria**
@@ -236,7 +236,7 @@
 - `git config core.hooksPath` prints `.beads/hooks`
 - `bash scripts/plugin-root.sh` → rc 0 and prints a directory containing `.claude-plugin/plugin.json`
 - for every name in `jq -r '.repos[].name' ~/.harness-workspace/repos.json`, `… repo.sh list` reports the clone present and the harness root `<harness root>` — there is no plugin row, and its absence is what `repo-check.sh` ④ asserts
-- `cat ~/.harness-workspace/.harness-root` prints `<harness root>`
+- `bash "$(<plugin>)/lib/harness-root.sh"` prints `~/.harness-workspace` — that directory is the harness root, and its `ledger.json` is the marker
 - `bash "$(<plugin>)/checks/board-check.sh"` → rc 0 (the restored ledger matches the committed registries)
 - 7 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<story ID>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints the harness ledger)
 - the failure path is judged too: on `beads`, if the ledger was never pushed, 2 fails with `remote at that url contains no Dolt data` (non-zero), and `ledger.sh list` being non-zero in that state is normal

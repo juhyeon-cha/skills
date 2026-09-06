@@ -30,7 +30,7 @@ What loads automatically in both: the project `CLAUDE.md` of the directory the s
 
 1. See ready work with `ledger.sh ready`. A sprint in progress is read from `docs/sprints/<ID>/` (outside git — if missing or stale, `bash "$(bash scripts/plugin-root.sh)/scripts/board.sh" all` at the harness root).
 2. Call the skill that fits the work (the cycle above).
-3. In a development session, `harness:develop` section 2 enters the worktree; inside it, `lib/harness-root.sh` finds the harness root through the wiring `ledger.sh wire-worktree` left (on `beads`, `.beads/redirect`). Before the worktree exists, the same helper reads `~/.harness-workspace/.harness-root` from the clone root, which `repo.sh` writes. Either way the marker of the root is `ledger.json`.
+3. In a development session, `harness:develop` section 2 enters the worktree. `lib/harness-root.sh` gives the same answer from anywhere — `HARNESS_ROOT`, else the clone root (`~/.harness-workspace`), whose marker is the `ledger.json` directly under it that `repo.sh root` writes. Worktree wiring (on `beads`, `.beads/redirect`) is a beads-backend matter and no longer takes part in finding the root.
 
 ## Unattended loop
 
