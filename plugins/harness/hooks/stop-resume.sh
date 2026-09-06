@@ -131,12 +131,16 @@ fi
 #     guard.sh 가 claim 이 지나가는 순간에 (session_id, actor) 를 적어 둔 것을 여기서 읽는다.
 #     actor 의 원천은 스토리 bead 의 note `ACTOR: <레포> <값>` 이다(harness:develop 1절 "ACTOR
 #     note" — 세션 단위가 (스토리, 레포)라 레포가 앞에 붙는다). **여기 오는 것은 `<값>` 뿐이다** —
-#     claim 의 `--actor <값>` 을 guard.sh 가 관측하고, 원장의 assignee 도 그 값이다. 이 훅은
+#     claim 의 `--actor <값>` 을 guard.sh 가 관측하고, 원장의 actor 도 그 값이다. 이 훅은
 #     note 를 읽지 않으므로 레포 접두는 판정에 들어오지 않는다.
-#     ponytail: github 백엔드의 assignee 는 actor 값이 아니라 claim 을 돌린 사람의 GitHub 로그인이다
-#     (ledger-github.sh 머리주석 · harness-m8gg.4 note NIT 3). 그 백엔드에서는 아래 좁히기가 이 세션의
-#     것을 하나도 못 짚어 in_progress 가 있어도 0건으로 통과한다 — 가드가 조용히 꺼지는 자리다.
-#     고치려면 백엔드가 actor 를 따로(라벨 등) 실어야 하고 그것은 어댑터 설계라 여기 밖이다.
+#     **읽는 필드는 `.actor // .assignee` 다** (harness-kw0l.3.1 — 백로그 harness-gkfq 의 답).
+#     정규화 JSON 의 `actor` 는 "이 항목을 잡은 세션"이고 백엔드마다 사는 자리가 다르다:
+#     github 은 마지막 `ACTOR:` 코멘트(assignee 에는 claim 을 돌린 사람의 GitHub 로그인이 들어가
+#     두 값이 갈린다), notion·beads 는 그 개념이 assignee 하나뿐이라 actor 가 같은 값이다 —
+#     그래서 beads 판정은 종전과 같다. **키는 세 백엔드에 전부 있다**(어댑터의 계약): 뒤쪽
+#     `// .assignee` 는 actor 가 null 인 항목(ACTOR 코멘트 없는 github 이슈)을 위한 것이다.
+#     이 자리는 종전에 github 백엔드에서 좁히기가 하나도 못 짚어 in_progress 가 있어도 0건으로
+#     통과하던 곳이다(harness-m8gg.4 note NIT 3 이 짚은 천장).
 #
 #     **폴백의 방향이 둘로 갈린다 — 하나로 합치면 가드가 조용히 꺼지거나 아무것도 안 고쳐진다.**
 #       · 매핑을 **읽지 못했다**(없다·읽기 실패) → 종전대로 **원장 전체**로 판정한다(SCOPE_FAIL).
@@ -151,7 +155,7 @@ if actors="$(awk -F'\t' -v s="$SID" '$2 == s && $3 != "" { print $3 }' "$SESSION
     log NO_CLAIM "매핑($SESSION_ACTOR_LOG)에 이 세션의 actor 가 없다 — 잡은 것이 없는 세션은 하다 만 일도 없다. in_progress ${n}건은 남의 것이다"
     exit 0
   fi
-  narrowed="$(printf '%s' "$oracle" | jq --arg a "$actors" '($a | split("\n")) as $act | [.[] | . as $i | select($act | index($i.assignee // ""))]' 2>/dev/null)" && oracle="$narrowed"  # SCOPE_NARROW
+  narrowed="$(printf '%s' "$oracle" | jq --arg a "$actors" '($a | split("\n")) as $act | [.[] | . as $i | select($act | index($i.actor // $i.assignee // ""))]' 2>/dev/null)" && oracle="$narrowed"  # SCOPE_NARROW
   # 좁힌 결과를 셀 수 없으면 좁히기 **전** 값을 쓴다 — 0 으로 폴백하지 않는다.
   n="$(printf '%s' "$oracle" | jq 'length' 2>/dev/null || echo "$n")"
   SCOPE="이 세션의 actor $(printf '%s' "$actors" | tr '\n' ' ')"

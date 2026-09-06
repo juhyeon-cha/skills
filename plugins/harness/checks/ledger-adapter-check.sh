@@ -80,16 +80,22 @@ LEDGER_DIR="$ROOT/.beads"
 [ -r "$LEDGER_DIR/redirect" ] && LEDGER_DIR="$(head -1 "$LEDGER_DIR/redirect")"
 printf '%s\n' "$LEDGER_DIR" > "$COPY/.beads/redirect"
 printf '{"backend":"beads"}\n' > "$COPY/ledger.json"
+# 이 어댑터가 bd 에 더하는 것은 actor 키 하나뿐이다(harness-kw0l.3.1 — 어댑터의 계약). 그래서
+# 동등성은 **actor 를 뺀 뒤** 대조하고, actor 자체는 바로 아래에서 따로 단언한다. 두 단언을 하나로
+# 합치면 어느 쪽이 깨졌는지가 diff 한 줄에 묻힌다.
 run "$COPY" list --status open --json
-bd -C "$ROOT" list --status open --json > "$TMP/bd-list.json" 2>/dev/null
+bd -C "$ROOT" list --status open --json | jq 'map(del(.actor))' > "$TMP/bd-list.json" 2>/dev/null
 printf '%s\n' "$OUT" > "$TMP/ledger-list.json"
-step "list --status open --json 이 bd -C <루트> 와 같다" diff -q "$TMP/ledger-list.json" "$TMP/bd-list.json"
+jq 'map(del(.actor))' "$TMP/ledger-list.json" > "$TMP/ledger-list-noactor.json"
+step "list --status open --json 이 actor 를 뺀 채로 bd -C <루트> 와 같다" diff -q "$TMP/ledger-list-noactor.json" "$TMP/bd-list.json"
+step "actor 키가 모든 항목에 있고 값이 assignee 다 (bd 가 빼는 빈 assignee 는 null)" \
+  bash -c 'jq -e "length > 0 and all(has(\"actor\") and .actor == (.assignee // null))" "$1" >/dev/null' _ "$TMP/ledger-list.json"
 first_id=$(jq -r '.[0].id // empty' "$TMP/bd-list.json")
 if [ -n "$first_id" ]; then
   run "$COPY" show "$first_id" --json
-  bd -C "$ROOT" show "$first_id" --json > "$TMP/bd-show.json" 2>/dev/null
-  printf '%s\n' "$OUT" > "$TMP/ledger-show.json"
-  step "show $first_id --json 이 bd -C <루트> 와 같다" diff -q "$TMP/ledger-show.json" "$TMP/bd-show.json"
+  bd -C "$ROOT" show "$first_id" --json | jq 'map(del(.actor))' > "$TMP/bd-show.json" 2>/dev/null
+  printf '%s\n' "$OUT" | jq 'map(del(.actor))' > "$TMP/ledger-show.json"
+  step "show $first_id --json 이 actor 를 뺀 채로 bd -C <루트> 와 같다" diff -q "$TMP/ledger-show.json" "$TMP/bd-show.json"
 else
   echo "  ✗ FAILED: 열린 이슈가 0건이라 show 동등성을 대조하지 못했다"; fail=1
 fi
@@ -129,6 +135,14 @@ run "$FX" update "$C" --claim --actor "chk actor"
 run "$FX" show "$C" --json
 step "update --claim --actor 가 assignee 와 in_progress 를 만든다" \
   bash -c 'printf "%s" "$1" | jq -e ".[0] | .status == \"in_progress\" and .assignee == \"chk actor\"" >/dev/null' _ "$OUT"
+# ── actor 키 (harness-kw0l.3.1). 어댑터의 계약은 "백엔드가 무엇이든 같은 JSON 키" 다 — beads 는
+#    그 개념이 assignee 하나뿐이지만 키가 셋 중 둘에만 있으면 소비자가 `// .assignee` 폴백을
+#    잊는 순간 여기서만 조용히 어긋난다. github·notion 경로에만 단언이 있어 그 구멍을 못 잡았다.
+step "actor 키가 show --json 에 있고 assignee 와 같은 값이다 (github·notion 과 같은 키)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | has(\"actor\") and .actor == .assignee and .actor == \"chk actor\"" >/dev/null' _ "$OUT"
+run "$FX" list --status in_progress --json
+step "list --json 의 항목에도 actor 키가 있다 (정지 가드가 실제로 읽는 경로)" \
+  bash -c 'printf "%s" "$1" | jq -e "length > 0 and all(.actor == .assignee)" >/dev/null' _ "$OUT"
 run "$FX" update "$C" --status blocked
 run "$FX" label add "$C" slug:r1-x
 run "$FX" label remove "$C" rail:r1
@@ -151,6 +165,30 @@ run "$FX" list -l repo:x --all --json -n 0
 step "list -l <라벨> --all --json -n 0 이 라벨 있는 것만 낸다" \
   bash -c 'printf "%s" "$1" | jq -e --arg c "$2" "length == 1 and .[0].id == \$c" >/dev/null' _ "$OUT" "$C"
 
+# ── jq 경로 판별 (harness-kw0l.3.1 리뷰 MUST FIX 1). 판별은 **읽기 하위 명령 한정**과 **argv 원소
+#    완전 일치** 둘 다여야 한다. 처음 판은 `case " $* " in *" --json "*` 이었고, 그것은 인자 **값**
+#    안의 토큰까지 잡아 쓰기 명령을 jq 로 보냈다 — 그러면 **쓰기가 이미 일어난 뒤** 출력이 jq 파싱
+#    오류로 죽어 rc 5(jq 실측)가 되고 stdout 이 사라진다. `create --silent` 의 id 를 잃은 채 실패하니
+#    재시도가 중복 생성이 된다.
+#    가설이 아니다: 실측 2026-09-06, 하네스 원장 1089건 중 **31건**이 title·acceptance·description 에
+#    ` --json ` 을 갖고 있다(`jq '[.[]|select((.title+.acceptance_criteria+.description)|test(" --json "))]|length'`).
+#    develop 의 "원장에 본문을 넘기는 형태" 가 그 본문을 `--acceptance "$(cat …)"` 로 인자에 싣는다.
+run "$FX" create "제목에 --json 이 든다" -t task --silent; J="$OUT"; j_rc=$RC
+step "본문에 --json 이 든 create --silent 의 stdout 이 id 한 줄로 온전하다 (id 소실 → 재시도 중복 생성)" \
+  bash -c '[ "$2" -eq 0 ] && [ "$(printf "%s\n" "$1" | grep -c .)" -eq 1 ] && [ "$1" != "${1#lac-}" ]' _ "$J" "$j_rc"
+run "$FX" note "$J" "그 --json 경로를 고쳤다"
+step "본문에 --json 이 든 note 가 rc 0 이고 stderr 에 jq 파싱 오류가 없다" \
+  bash -c '[ "$2" -eq 0 ] && ! printf "%s" "$1" | grep -q "parse error"' _ "$ERR" "$RC"
+run "$FX" close "$J" --reason "그 --json 경로를 고쳤다"; close_rc=$RC; close_err="$ERR"
+run "$FX" show "$J" --json
+step "본문에 --json 이 든 close 가 rc 0 이고 닫힘·사유·메모가 온전하다" \
+  bash -c '[ "$2" -eq 0 ] && ! printf "%s" "$3" | grep -q "parse error" && printf "%s" "$1" | jq -e ".[0] | .status == \"closed\" and .close_reason == \"그 --json 경로를 고쳤다\" and (.notes | contains(\"그 --json 경로를 고쳤다\"))" >/dev/null' _ "$OUT" "$close_rc" "$close_err"
+# 읽기 명령 한정 쪽 — history --json 은 커밋 레코드 배열이라 이슈가 아니다. jq 를 타면 그 레코드에
+# actor:null 이 심긴다. 완전 일치만으로는 막히지 않는 형태라 여기서 따로 든다.
+run "$FX" history "$J" --json
+step "history --json 은 jq 를 타지 않는다 (이슈 아닌 레코드에 actor 를 심지 않는다)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "type == \"array\" and length > 0 and all(has(\"actor\") | not)" >/dev/null' _ "$OUT" "$RC"
+
 echo "── ④ github 오프라인 — 가짜 gh ──"
 # jq·bash 만 보이고 gh 는 없는 PATH. 가짜 gh 는 호출 전부를 LOG 에 남기고 정해진 답을 낸다.
 mkdir -p "$TMP/jqbin" "$TMP/ghbin"
@@ -166,13 +204,27 @@ cat > "$TMP/ghbin/gh" <<'FAKE'
 #!/usr/bin/env bash
 # 가짜 gh — 호출을 기록하고 정해진 답을 낸다. 판정은 기록과 답의 형태로 한다.
 printf '%s\n' "$*" >> "$FAKE_GH_LOG"
-node() { # <번호> <제목> <상태> <라벨 JSON> <부모 JSON> <본문>
-  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"%s","state":"%s","body":"%s","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":%s},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":[{"body":"메모"}]},"parent":%s}' \
-    "$1" "$1" "$1" "$2" "$3" "$6" "$4" "$5"
+node() { # <번호> <제목> <상태> <라벨 JSON> <부모 JSON> <본문> [<projectItems nodes JSON — 기본 project 4>]
+  local pi='[{"project":{"number":4}}]'
+  [ $# -ge 7 ] && pi="$7"
+  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"%s","state":"%s","body":"%s","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":%s},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":[{"body":"메모"}]},"parent":%s,"projectItems":{"nodes":%s}}' \
+    "$1" "$1" "$1" "$2" "$3" "$6" "$4" "$5" "$pi"
+}
+# actor 픽스처 — 코멘트만 갈아 끼운 노드. assignee 는 로그인명 그대로다(그것이 이 백엔드에서
+# actor 와 assignee 가 갈리는 이유다 — ledger-github.sh 대응표).
+node_actor() { # <번호> <코멘트 nodes JSON>
+  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"actor 픽스처","state":"OPEN","body":"본문","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:task"},{"name":"repo:harness"}]},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":%s},"parent":null}' \
+    "$1" "$1" "$1" "$2"
 }
 N57='[{"name":"type:epic"},{"name":"repo:harness"},{"name":"status:blocked"}]'
 N58='[{"name":"type:feature"},{"name":"repo:harness"},{"name":"rail:r1"}]'
 N59='[{"name":"type:task"},{"name":"repo:harness"}]'
+# 70·71 — 같은 레포에 살지만 원장의 경계(Project 4) 밖이다. 70 은 다른 프로젝트, 71 은 어느
+# 프로젝트에도 없다(레포 자신의 이슈가 이 모양이다). 라벨을 57~59 와 같은 계열로 두어 경계가
+# 새면 -t·-l 질의에도 걸리게 한다 — 걸리면 아래 단언이 떨어진다.
+N70='[{"name":"type:task"},{"name":"repo:harness"},{"name":"rail:r1"}]'
+PI70='[{"project":{"number":9}}]'
+PI71='[]'
 case "$1 $2" in
   "auth status") [ -z "${FAKE_GH_AUTH_FAIL:-}" ] || exit 1; exit 0 ;;
   "label create"|"issue comment"|"issue close"|"issue edit"|"issue reopen"|"project item-add") exit 0 ;;
@@ -187,8 +239,17 @@ case "$1 $2" in
     case "$all" in
       *addSubIssue*) echo '{"data":{"addSubIssue":{}}}' ;;
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
-      *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" ;;
+      *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
+      # 70 — 프로젝트 밖 이슈. show 는 id 로 직접 읽으므로 소속을 요구하지 않는다(ledger-github.sh 머리 주석).
+      *"n=70"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" ;;
+      # 60 — ACTOR 코멘트가 하나. 뒤에 다른 note 가 더 붙어도 값이 살아야 한다.
+      *"n=60"*) printf '{"data":{"repository":{"issue":%s}}}' \
+        "$(node_actor 60 '[{"body":"메모"},{"body":"ACTOR: sess-abc123"},{"body":"두 번째 메모"}]')" ;;
+      # 62 — ACTOR 코멘트가 둘이고 뒤엣것이 스토리 형태(`ACTOR: <레포> <값>`)다. 마지막 코멘트의
+      #      마지막 토큰이 값이다 — 첫 토큰을 읽으면 레포 이름(harness)을 집는다.
+      *"n=62"*) printf '{"data":{"repository":{"issue":%s}}}' \
+        "$(node_actor 62 '[{"body":"ACTOR: sess-old111"},{"body":"ACTOR: harness sess-new222"}]')" ;;
       *) printf '{"data":{"repository":{"issue":%s}}}' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1\n')" ;;
     esac; exit 0 ;;
   "api -X"|"api repos"*)
@@ -237,11 +298,22 @@ grun create "x" -t task
 step "create 에 repo: 라벨도 --parent 도 없으면 rc≠0" [ "$RC" -ne 0 ]
 
 grun show 'harness#57' --json
-step "show --json 의 키가 bd 와 같다 (id·title·status·issue_type·labels·acceptance_criteria·notes·assignee·parent)" \
-  bash -c 'printf "%s" "$1" | jq -e ".[0] | keys | contains([\"id\",\"title\",\"status\",\"issue_type\",\"labels\",\"acceptance_criteria\",\"notes\",\"assignee\",\"parent\",\"description\",\"dependencies\"])" >/dev/null' _ "$OUT"
+step "show --json 의 키가 bd 와 같다 (id·title·status·issue_type·labels·acceptance_criteria·notes·assignee·actor·parent)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | keys | contains([\"id\",\"title\",\"status\",\"issue_type\",\"labels\",\"acceptance_criteria\",\"notes\",\"assignee\",\"actor\",\"parent\",\"description\",\"dependencies\"])" >/dev/null' _ "$OUT"
 step "show --json 의 값 대응: status:blocked 라벨→blocked · type:epic→epic · labels 에서 type:·status: 제거 · 코멘트→notes · 본문 절 분리" \
   bash -c 'printf "%s" "$1" | jq -e ".[0] | .id == \"harness#57\" and .status == \"blocked\" and .issue_type == \"epic\" and .labels == [\"repo:harness\"] and .notes == \"메모\" and .acceptance_criteria == \"조건 1\" and .description == \"본문\" and .assignee == \"juhyeon-cha\" and .parent == null and (.dependencies | length == 1) and .dependencies[0].id == \"harness#58\"" >/dev/null' _ "$OUT"
 step "jq -r .[0].status 가 그대로 돈다" bash -c '[ "$(printf "%s" "$1" | jq -r ".[0].status")" = "blocked" ]' _ "$OUT"
+# ── actor 키 (harness-kw0l.3.1). 정지 가드가 `.actor // .assignee` 로 읽는 필드다. github 은 이
+#    둘이 갈린다 — assignee 는 claim 을 돌린 사람의 GitHub 로그인이고 actor 는 세션 값이다.
+#    실패 경로를 같은 자리에서 함께 못박는다: ACTOR 코멘트가 없으면 actor 는 null 이다(57번).
+step "actor 실패 경로: ACTOR 코멘트가 없는 이슈의 actor 는 null 이다 (assignee 로 새지 않는다)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | has(\"actor\") and .actor == null and .assignee == \"juhyeon-cha\"" >/dev/null' _ "$OUT"
+grun show 'harness#60' --json
+step "actor: 마지막 ACTOR 코멘트의 값을 싣고 assignee 는 로그인명 그대로다 (둘이 갈린다)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | .actor == \"sess-abc123\" and .assignee == \"juhyeon-cha\"" >/dev/null' _ "$OUT"
+grun show 'harness#62' --json
+step "actor: ACTOR 코멘트가 둘이면 마지막 것이고, 스토리 형태(ACTOR: <레포> <값>)는 마지막 토큰이다" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0].actor == \"sess-new222\"" >/dev/null' _ "$OUT"
 # compose_body 는 본문을 "\n" 으로 끝낸다(위 픽스처 57 의 body 가 그 형태) — bd 처럼 acceptance_criteria 에 끝 개행이 없어야 한다.
 step "본문 끝 개행이 acceptance_criteria 에 남지 않는다" bash -c 'printf "%s" "$1" | jq -e ".[0].acceptance_criteria | endswith(\"\\n\") | not" >/dev/null' _ "$OUT"
 grun show 'harness#999' --json
@@ -261,9 +333,35 @@ grun children 'harness#57' --json
 step "children --json 이 subIssues 2건을 parent 와 함께 낸다" \
   bash -c 'printf "%s" "$1" | jq -e "length == 2 and .[0].id == \"harness#58\" and .[0].parent == \"harness#57\" and .[1].status == \"closed\"" >/dev/null' _ "$OUT"
 grun list --json
-step "list --json 은 closed 를 뺀다 (3건 중 2건)" bash -c 'printf "%s" "$1" | jq -e "length == 2" >/dev/null' _ "$OUT"
+step "list --json 은 closed 를 뺀다 (프로젝트 안 3건 중 2건)" bash -c 'printf "%s" "$1" | jq -e "length == 2" >/dev/null' _ "$OUT"
+# 정지 가드가 실제로 읽는 것은 show 가 아니라 `list --status in_progress --json` 이다 — 그쪽에도
+# actor 키가 실려야 좁히기가 산다. show 에만 있으면 가드는 조용히 종전 동작으로 돌아간다.
+step "list --json 의 항목에도 actor 키가 있다 (정지 가드가 읽는 경로)" \
+  bash -c 'printf "%s" "$1" | jq -e "all(has(\"actor\"))" >/dev/null' _ "$OUT"
+: > "$LOG"
 grun list --all --json -n 0
-step "list --all --json -n 0 은 전부 낸다 (3건)" bash -c 'printf "%s" "$1" | jq -e "length == 3" >/dev/null' _ "$OUT"
+step "list --all --json -n 0 은 프로젝트 안 전부를 낸다 (5건 중 3건)" bash -c 'printf "%s" "$1" | jq -e "length == 3" >/dev/null' _ "$OUT"
+# ── 원장의 경계 = Projects v2 소속 (harness-kw0l.3.5) ─────────────────
+# 픽스처의 레포 이슈 5건 중 70(다른 프로젝트)·71(프로젝트 없음)은 원장이 아니다. 거르지 않으면
+# 경계가 "등재 레포의 모든 이슈" 가 되어 triage·status 가 남의 백로그를 원장으로 읽는다.
+step "경계: 프로젝트 밖 이슈(70·71)가 읽기에 0건이고 프로젝트 안(57·58·59)은 전수다" \
+  bash -c 'printf "%s" "$1" | jq -e "(map(.id) | sort) == [\"harness#57\",\"harness#58\",\"harness#59\"]" >/dev/null' _ "$OUT"
+step "경계: 소속 판정에 gh project item-list 를 쓰지 않는다 (item-add 직후 안 나오는 목록이다)" \
+  bash -c '! grep -q "^project item-list" "$1"' _ "$LOG"
+step "호출 수: 읽기 한 번에 레포마다 GraphQL 1회다 (이슈마다 1회가 아니다 — projectItems 를 같은 질의에 얹는다)" \
+  bash -c '[ "$(grep -c "^api graphql" "$1")" -eq 1 ] && [ "$(grep -c "issues(first" "$1")" -eq 1 ]' _ "$LOG"
+grun show 'harness#70' --json
+step "경계 밖이어도 show 는 id 로 읽는다 (소속을 요구하지 않는다)" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ".[0].id == \"harness#70\"" >/dev/null' _ "$RC" "$OUT"
+# 없는 project 번호 → 조용한 전수가 아니라 0건이고, 0건이 정상 상태와 구별되도록 stderr 로 밝힌다.
+mkdir -p "$TMP/ghbadproj"; cp "$GH/repos.json" "$TMP/ghbadproj/"
+printf '{"backend":"github","owner":"juhyeon-cha","project":99999}\n' > "$TMP/ghbadproj/ledger.json"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghbadproj" bash "$LEDGER" list --all --json -n 0 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "없는 project 번호 → 0건 + stderr 가 그 사실을 밝힌다 (rc 0 — 빈 프로젝트도 같은 모양이라 실패로 읽을 수 없다)" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q "99999"' _ "$RC" "$OUT" "$ERR"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghnoproj" bash "$LEDGER" list --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "project 키 없음 → list 가 rc≠0 (경계를 정할 수 없는데 전수를 내지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q project' _ "$RC" "$ERR"
 grun list -l repo:harness,rail:r1 --status open --json
 step "list -l a,b --status open 은 AND 로 거른다 (58 만)" bash -c 'printf "%s" "$1" | jq -e "length == 1 and .[0].id == \"harness#58\"" >/dev/null' _ "$OUT"
 grun list --label-pattern 'rail:*' --all --json

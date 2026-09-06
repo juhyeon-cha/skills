@@ -952,9 +952,23 @@ STUB
   step "사거리 ④: 매핑이 없으면 남의 actor 로도 막는다 (통과로 폴백하지 않는다)" is_block "$PTMP/sc-nomap.json"
   step "사거리 ④: 그 두 줄의 앞 줄이 SCOPE_FAIL 이다" \
     [ "$(tail -2 "$SLOG" | head -1 | cut -f3)" = "SCOPE_FAIL" ]
+  # ⑤ github 모양 — assignee 는 claim 을 돌린 사람의 GitHub 로그인이고 actor 가 세션 값이다
+  #    (ledger-github.sh 대응표). 좁히기는 `.actor // .assignee` 로 읽으므로 이 세션의 것으로 센다.
+  #    **이 줄이 백로그 harness-gkfq 가 짚은 자리다** — actor 를 안 읽던 때는 assignee 만 보고
+  #    아무것도 못 짚어, in_progress 가 있어도 IDLE 로 통과했다(가드가 조용히 꺼졌다).
+  FX_SC_GH='[{"id":"harness#7","assignee":"juhyeon-cha","actor":"probe-actor"}]'
+  stop_case BLOCK s-sc-gh false "$FX_SC_GH"; SCOPE_FX+=("github 모양(actor=세션·assignee=로그인)→block")
+  printf '%s' "$SOUT" > "$PTMP/sc-gh.json"
+  step "사거리 ⑤: github 모양(assignee 는 로그인, actor 가 세션 값)도 이 세션의 것으로 센다" is_block "$PTMP/sc-gh.json"
+  # ⑥ 실패 경로 — ACTOR 코멘트가 없는 이슈는 actor 가 null 이다. assignee 로 새면 안 된다:
+  #    로그인명은 이 세션의 actor 가 아니므로 남의 것으로 세고 통과해야 한다.
+  FX_SC_GH_NULL='[{"id":"harness#8","assignee":"juhyeon-cha","actor":null}]'
+  stop_case IDLE s-sc-ghnull false "$FX_SC_GH_NULL"; SCOPE_FX+=("github 모양 actor=null→통과")
+  step "사거리 ⑥: actor 가 null 이면 assignee 로 새지 않는다 (막지 않는다)" [ -z "$SOUT" ]
+
   # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/development.md "Checking that a check is alive").
   step "사거리 픽스처 집합이 비지 않았다 (${#SCOPE_FX[@]}종: ${SCOPE_FX[*]:-없음})" \
-    [ "${#SCOPE_FX[@]}" -ge 4 ]
+    [ "${#SCOPE_FX[@]}" -ge 6 ]
 
   # A/B 귀속 — 훅에서 **좁히기 판정 줄만** 뺀 사본은 픽스처 ① 을 막아야 한다. 사본이
   # 정확히 한 줄 짧음을 먼저 단언한다: 표지가 사라져 grep 이 아무것도 못 빼면 이 A/B 는

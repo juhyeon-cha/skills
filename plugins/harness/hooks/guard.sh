@@ -711,7 +711,17 @@ RULES+=("Bash:r_main_shell")
 # 두 토큰을 보는 이유는 gh 의 구조가 `gh <그룹> <동사>` 이기 때문이다 — 읽기/쓰기는
 # 동사(둘째)에서 갈리고(`gh pr view` vs `gh pr create`), 그룹 자체가 동사인 것도 있다
 # (`gh browse`·`gh search`·`gh status`). 둘 중 하나가 면제어면 통과다.
-# `gh api` 는 면제하지 않는다 — `-X POST` 를 이 층에서 읽기와 가를 수단이 없다.
+# **`gh api` 는 가르지 않는다 — 통째로 차단이다** (사용자 결정 2026-09-06, harness-kw0l.3.4).
+# 하위 명령이 곧 연산인 나머지와 달리 `gh api` 는 임의 요청이라 명령 문자열로 읽기·쓰기를
+# 가를 수 없다. 실제로 가르려던 세 회차가 전부 우회로 샜다 — 파일 경유(`--input`·`-F
+# query=@파일`) → 치환 경유(`-f query="$(cat …)"`) → 평문 미끼 얹기(질의문을 숨긴 채
+# 읽기처럼 보이는 `query=` 를 하나 더 붙인다). 개별 형태를 막을 때마다 다음이 나왔고,
+# 그것이 정규식 판정의 구조적 한계다. 그래서 극성을 되돌린다: 읽기처럼 보여도 막는다.
+# **원장 읽기는 `ledger.sh` 로 한다.** 이 훅은 Bash 도구 호출 문자열만 보므로, 서브에이전트가
+# `HARNESS_ROOT=<루트> bash <플러그인>/scripts/ledger.sh show …` 를 부르면 그 안에서 어댑터가
+# 부르는 gh 는 훅을 타지 않는다 — 원장 접근 경로는 그 하나뿐이다.
+# **대가**: 서브에이전트는 GitHub 를 `gh api` 로 직접 조회하지 못한다. 하위 명령 형태
+# (`gh pr view`·`gh issue view`·`gh project item-list`)는 그대로 쓸 수 있다.
 # `download` 는 **받기만 하는 동사**라 면제다(2026-08-23, harness-u9n.3.2). 이 낱말이 첫·둘째
 # 토큰에 오는 gh 명령은 셋뿐이고 — `gh release download`·`gh run download`·`gh attestation
 # download` — 전부 원격에서 파일을 내려받기만 한다. 짝인 쓰기 동사(`gh release upload`·
@@ -720,7 +730,12 @@ RULES+=("Bash:r_main_shell")
 # `gh release view` 는 종전부터 면제), 그 동작을 서브에이전트가 직접 확인할 수 없었다.
 # 면제를 넣을 때는 `check` 하나가 근거였고 `update` 는 계획이었다 — harness-u9n.2.5 가
 # 그 하위 명령을 만들면서 둘이 됐다 (2026-08-23).
-GH_READ_EXEMPT="view list status diff checks browse search download"
+# `item-list`·`field-list` 는 Projects v2 조회 동사다(2026-09-06, harness-kw0l.3.4). 넣은 이유:
+# 원장 백엔드가 github 면 서브에이전트의 **원장 읽기 전부**가 gh 를 타는데, 그중 Projects v2
+# 조회(`gh project item-list`·`field-list`)가 막혀 evaluator 가 원장을 못 읽었다 [실측 2026-09-06,
+# harness-kw0l.1.1 evaluator: GUARD-DENY]. 짝인 쓰기 동사(`item-add`·`item-edit`·`field-create`·
+# `create`)는 낱말이 달라 그대로 차단이고, 게이트가 `gh project` 하위 명령을 전수로 그것을 못박는다.
+GH_READ_EXEMPT="view list status diff checks browse search download item-list field-list"
 
 # `gh` 가 **실행되는 조각**마다 선행 옵션을 건너뛴 뒤 두 토큰을 한 줄로 낸다. 판정 축이 실행
 # 위치라 URL·경로·인용문 속 `gh`(`curl …/gh/…` · `chmod +x /tmp/x/gh` · `echo "gh pr create"`)는
@@ -775,7 +790,7 @@ r_remote() {
     gh_is_read "$t1" && continue
     gh_is_read "$t2" && continue
     shown="gh${t1:+ $t1}${t2:+ $t2}"
-    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh run view · gh auth status). 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
+    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh project item-list · gh project field-list · gh run view · gh auth status). **gh api 는 형태를 가리지 않고 차단이다** — 하위 명령이 아니라 임의 요청이라 명령 문자열로는 읽기·쓰기를 가를 수 없다(가르려던 세 회차가 파일 경유·치환 경유·평문 미끼로 전부 샜다). 읽기처럼 보여도 막는다. 예외는 엔드포인트 토큰이 면제어와 같아지는 'gh api list'·'gh api search' 둘뿐이고(실측 rc 0), 면제어와 정확히 같은 단일 세그먼트 엔드포인트가 없어 닿는 것이 없다. **원장은 ledger.sh 로 읽어라** — 'HARNESS_ROOT=<하네스루트> bash \"\$CLAUDE_PLUGIN_ROOT\"/scripts/ledger.sh show <id> --json' 형태이고, 어댑터가 그 안에서 부르는 gh 는 이 훅을 타지 않는다. 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
   done < <(gh_next_pairs)
   return 0
 }

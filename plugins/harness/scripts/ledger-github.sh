@@ -10,6 +10,15 @@
 # 이슈를 만드는 레포: -l 의 첫 repo: 라벨 → 없으면 --parent 의 레포 → 둘 다 없으면 rc≠0(폴백 없음).
 # 레포 slug(owner/name)는 하네스 루트 repos.json 의 url 에서 파생한다 — 등재되지 않은 레포는 rc≠0.
 #
+# **원장의 경계는 Projects v2 소속이다** (사용자 결정 2026-09-06). list·ready 는 등재 레포의 이슈를
+# 받아 각 이슈의 projectItems 로 project 소속을 보고 거른다 — 거르지 않으면 경계가 "등재 레포의 모든
+# 이슈" 가 되어 남의 레포 백로그가 원장으로 읽힌다 (실측 2026-09-06: 픽스처 152건 중 약 120건이
+# 대상 레포 자신의 이슈였고 열린 29건은 전부 그쪽이었다 — harness-kw0l.3.2 의 note).
+# 소속을 **이슈 쪽에서** 판정하는 이유: `gh project item-list` 는 item-add 직후 그 항목을 내지 않는다
+# (M0 실측). 이슈의 projectItems 는 같은 질의에 얹히므로 레포마다 GraphQL 1회 그대로다.
+# **show·children 은 id 로 직접 읽으므로 소속을 요구하지 않는다** — 이미 아는 id 를 못 읽게 막는 것은
+# 경계가 아니라 사고다. 소속 필터는 "무엇이 원장의 목록인가" 를 정할 뿐이다.
+#
 # JSON 키 대응표 (bd 키 ← GitHub):
 #   id                   <repo>#<number>
 #   title                title
@@ -20,12 +29,21 @@
 #   labels               라벨 전부 − type:·status: (인코딩용 라벨은 뺀다), 정렬
 #   notes                코멘트 본문을 "\n" 로 이은 문자열 (0건이면 null) — note·ACTOR:·close 사유가 전부 여기
 #   assignee             첫 assignee 의 login (없으면 null)
+#   actor                마지막 `ACTOR: <값>` 코멘트의 <값> (없으면 null) — 그 항목을 잡은 세션이다.
+#                        assignee 와 갈리는 이유: 이 백엔드의 claim 은 assignee 에 `@me`(사람의 GitHub
+#                        로그인)를 넣고 세션 actor 는 코멘트로 남기므로 한 필드가 둘을 겸할 수 없다.
+#                        정지 가드(hooks/stop-resume.sh)가 `.actor // .assignee` 로 읽는다 —
+#                        beads·notion 은 그 개념이 assignee 하나뿐이라 actor 가 같은 값이다.
+#                        줄의 **마지막 공백 구분 토큰**을 값으로 읽는다 — claim 이 남기는 것은
+#                        `ACTOR: <값>` 한 토큰이지만 스토리 항목의 ACTOR note 는 `ACTOR: <레포> <값>`
+#                        이라(harness:develop 1절) 첫 토큰을 읽으면 스토리에서 레포 이름을 집는다.
 #   parent               sub-issue 부모의 <repo>#<number> (없으면 null)
 #   dependencies         show 에만: blocked_by 목록 [{id, status, dependency_type:"blocks"}]
 #   priority             2 고정 (대응 필드 없음)
 #   created_at·updated_at·closed_at
 #
-# ponytail: 라벨·코멘트·자식은 first:100 까지만 읽는다 — 그 이상은 페이지네이션이 필요하다.
+# ponytail: 라벨·코멘트·자식은 first:100, 이슈의 projectItems 는 first:20 까지만 읽는다 —
+# 그 이상은 페이지네이션이 필요하다(한 이슈가 21개 넘는 프로젝트에 들면 소속을 놓친다).
 set -uo pipefail
 : "${LEDGER_ROOT:?ledger.sh 를 통해 불러라}"; : "${LEDGER_CONFIG:?ledger.sh 를 통해 불러라}"
 
@@ -77,6 +95,10 @@ NORM='def norm:
       labels: ($ls | map(select((startswith("type:") or startswith("status:")) | not)) | sort),
       notes: (if (.comments.nodes|length) == 0 then null else (.comments.nodes | map(.body) | join("\n")) end),
       assignee: (.assignees.nodes[0].login // null),
+      actor: ([.comments.nodes[].body
+               | capture("^ACTOR:[ \t]*(?<v>[^\r\n]*)").v
+               | (split(" ") | map(select(length > 0)) | last)]
+              | map(select(. != null)) | last),
       parent: (if .parent then (.parent.repository.name + "#" + (.parent.number|tostring)) else null end),
       priority: 2,
       created_at: .createdAt, updated_at: .updatedAt, closed_at: .closedAt };'
@@ -112,8 +134,11 @@ labels_of() { gh issue view "$2" -R "$1" --json labels --jq '.labels[].name'; }
 glob_to_re() { printf '^%s$\n' "$(printf '%s' "$1" | sed -e 's/[][\.^$(){}|+?\\]/\\&/g' -e 's/\*/.*/g')"; }
 
 # ── list / ready ──────────────────────────────────────────────────────
+# 소속 판정용 필드. FIELDS 에 넣지 않는 이유: show·children 은 소속을 요구하지 않으므로(머리 주석)
+# 그쪽 질의까지 무겁게 할 까닭이 없다. 읽기 경로에만 얹는다.
+PROJECT_FIELD='projectItems(first:20){nodes{project{number}}}'
 list_json() { # 옵션을 파싱해 정규화된 JSON 배열을 낸다. 상태 필터가 closed 를 안 들면 OPEN 만 읽는다.
-  local labels="" pattern="" status="" type="" parent="" all="" limit=50 o r states out="[]" re=""
+  local labels="" pattern="" status="" type="" parent="" all="" limit=50 o r states out="[]" re="" nodes seen=0 kept=0
   while [ $# -gt 0 ]; do
     case "$1" in
       -l|--label|--labels) labels="$2"; shift 2 ;;
@@ -134,14 +159,27 @@ list_json() { # 옵션을 파싱해 정규화된 JSON 배열을 낸다. 상태 �
   # 되고 "이슈 0건" 으로 rc 0 이 났다(harness-m8gg.4 verify-code 2차의 관찰). 실패를 삼키지 않는다.
   local names
   [ -r "$LEDGER_ROOT/repos.json" ] || die "list: $LEDGER_ROOT/repos.json 이 없다 — 이슈가 사는 레포 목록의 출처다"
+  [ -n "$PROJECT" ] || die "list: $LEDGER_CONFIG 에 project 가 없다 — 읽기의 경계가 Projects v2 소속이라 번호 없이는 무엇이 원장인지 정할 수 없다 (ledger.sh init 이 만든다)"
   names="$(repos_all)" || die "list: $LEDGER_ROOT/repos.json 을 읽지 못했다 (유효한 JSON 인가)"
   for name in $names; do
     o="$(slug_of "$name")"; r="${o##*/}"; o="${o%%/*}"
-    page="$(gh api graphql --paginate --slurp -f query="query(\$o:String!,\$r:String!,\$endCursor:String){ repository(owner:\$o,name:\$r){ issues(first:100, after:\$endCursor, states:$states){ nodes{ $FIELDS } pageInfo{hasNextPage endCursor} } } }" -f o="$o" -f r="$r" 2>/dev/null)" \
+    page="$(gh api graphql --paginate --slurp -f query="query(\$o:String!,\$r:String!,\$endCursor:String){ repository(owner:\$o,name:\$r){ issues(first:100, after:\$endCursor, states:$states){ nodes{ $FIELDS $PROJECT_FIELD } pageInfo{hasNextPage endCursor} } } }" -f o="$o" -f r="$r" 2>/dev/null)" \
       || die "list: $o/$r 의 이슈를 읽지 못했다"
-    out="$(printf '%s\n%s' "$out" "$page" | jq -s "$NORM"'.[0] + ([.[1][].data.repository.issues.nodes[]] | map(norm))')" \
+    nodes="$(printf '%s' "$page" | jq '[.[].data.repository.issues.nodes[]]')" \
+      || die "list: $o/$r 의 응답을 읽지 못했다"
+    seen=$((seen + $(printf '%s' "$nodes" | jq 'length')))
+    # 경계: Projects v2 소속. 번호는 문자열로 견줘 ledger.json 의 project 가 수가 아니어도 죽지 않는다.
+    nodes="$(printf '%s' "$nodes" | jq --arg p "$PROJECT" 'map(select(any(.projectItems.nodes[]?; (.project.number | tostring) == $p)))')" \
+      || die "list: $o/$r 의 project 소속을 판정하지 못했다"
+    kept=$((kept + $(printf '%s' "$nodes" | jq 'length')))
+    out="$(printf '%s\n%s' "$out" "$nodes" | jq -s "$NORM"'.[0] + (.[1] | map(norm))')" \
       || die "list: $o/$r 의 응답을 정규화하지 못했다"
   done
+  # 없는(또는 틀린) project 번호는 조용히 "이슈 0건" 이 된다 — 0건은 정상 상태와 구별되지 않으므로
+  # 그 사실을 stderr 로 밝힌다. rc 는 0 이다: 갓 만든 빈 프로젝트도 같은 모양이라 실패로 읽을 수 없다.
+  if [ "$kept" -eq 0 ] && [ "$seen" -gt 0 ]; then
+    echo "ledger-github: Project $PROJECT 에 든 이슈가 0건이다 — 등재 레포의 이슈 ${seen}건은 전부 프로젝트 밖이다. $LEDGER_CONFIG 의 project 번호를 확인하라." >&2
+  fi
   [ -n "$pattern" ] && re="$(glob_to_re "$pattern")"
   printf '%s' "$out" | jq --arg labels "$labels" --arg re "$re" --arg status "$status" --arg type "$type" --arg parent "$parent" --arg all "$all" --argjson limit "$limit" '
     ($labels | if . == "" then [] else split(",") end) as $need
