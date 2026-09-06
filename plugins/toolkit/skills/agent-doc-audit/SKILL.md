@@ -71,9 +71,10 @@ bash check.sh <dir> [<dir>…] [--root <dir>]…
 
 One line per candidate on stdout: `<file>:<line>:<criterion>:<sentence>`. It catches what a regex
 can: dates, line-number pointers, correction vocabulary, backtick paths that do not exist, and lines
-with Korean outside quotes and headings. When the documents point into another tree (a plugin
-pointing at its harness root), pass that tree as `--root` — it is consulted for path existence but
-not scanned; otherwise its paths read as dead. `CHANGELOG.md` files are skipped: a changelog is history,
+with Korean outside quotes and headings. Dates, line-number pointers, and Korean are not reported
+inside fenced code blocks — a date in an example JSON is data, not a claim the rule makes. When the
+documents point into another tree (a plugin pointing at its harness root), pass that tree as `--root`
+— it is consulted for path existence but not scanned; otherwise its paths read as dead. `CHANGELOG.md` files are skipped: a changelog is history,
 not a place a command is called from, so its old paths and dates are correct as they stand. A missing directory is rc≠0 with the reason on stderr. rc 0 means the sweep ran, not that nothing was found.
 
 ### 2. Read

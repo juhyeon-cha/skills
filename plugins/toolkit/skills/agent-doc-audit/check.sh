@@ -9,8 +9,8 @@
 # 하네스 루트의 docs/ 를 가리키면 그 루트를 --root 로 준다(그 트리의 투영까지 훑지 않으려고).
 #
 # 출력 한 줄 = 파일:줄:기준:문장. 기준 표지는 SKILL.md 의 번호를 앞에 단다:
-#   4-date          YYYY-MM-DD 날짜
-#   4-line-pointer  파일 경로 뒤의 :<줄 번호>
+#   4-date          YYYY-MM-DD 날짜 — 펜스 코드 블록 안은 뺀다(예시 JSON 의 날짜는 데이터이지 주장이 아니다)
+#   4-line-pointer  파일 경로 뒤의 :<줄 번호> — 펜스 코드 블록 안은 뺀다
 #   1-correction    정정 어휘 (종전 · 이전에는 · 바로잡 · 정정)
 #   6-dead-path     백틱 안 경로가 실재하지 않는다 — 파일의 디렉토리 · 인자로 받은 디렉토리 전부 · CWD
 #                   어디서도 test -e 가 거짓. 자리표시자(<…> ${…} * ~ 공백)와 URL 은 보지 않고, 경로로
@@ -57,8 +57,8 @@ while (my $line = <$fh>) {
   $n++; chomp $line;
   if ($line =~ /^\s*(```|~~~)/) { $fence = !$fence; next; }
   my @hits;
-  push @hits, "4-date"         if $line =~ /(?<![\d.])\d{4}-\d{2}-\d{2}(?![\d.])/;
-  push @hits, "4-line-pointer" if $line =~ /[\w.\/-]+\.[A-Za-z]+:\d+/;
+  push @hits, "4-date"         if !$fence && $line =~ /(?<![\d.])\d{4}-\d{2}-\d{2}(?![\d.])/;
+  push @hits, "4-line-pointer" if !$fence && $line =~ /[\w.\/-]+\.[A-Za-z]+:\d+/;
   push @hits, "1-correction"   if $line =~ /종전|이전에는|바로잡|정정/;
   my $dead = 0;
   while ($line =~ /`([^`]+)`/g) {
