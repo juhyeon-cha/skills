@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# jq 식과 GraphQL 질의는 단일 인용이 맞다 — 그 안의 $x 는 셸이 아니라 jq·GraphQL 의 변수다.
+# 이 파일 전체에서 SC2016 을 끈다(맨 shellcheck 도 rc 0 이 되게).
+# shellcheck disable=SC2016
+#
 # 원장 이전 도구 — beads 원장의 열린 항목을 github 백엔드로 옮긴다.
 #   plan   읽기: bd 에서 열린 항목 전수를 JSON 배열로 낸다 (gh 를 부르지 않는다)
 #   apply  쓰기: plan 대로 이슈·Project·코멘트·sub-issue·blocked_by 를 만든다 (map 으로 멱등)
@@ -8,10 +12,18 @@
 # 본문의 "## Acceptance" 절 · type:/status: 라벨 · repos.json 의 url 에서 파생하는 레포 slug.
 # 여기서 다시 정의하지 않고 그대로 따른다. 이 도구가 더하는 것은 셋뿐이다:
 #   · 본문 첫 줄 "beads: <원 id>" — 옮긴 뒤에도 원 id 로 되짚는다.
+#     부모가 plan 배열 밖이면 둘째 줄 "beads-parent: <부모 id>" — 아래 참조.
 #   · repo 결정 규칙(2026-09-06 사용자 결정): 첫 repo: 라벨이 harness 이거나 repo: 라벨이 없으면
 #     skills · 그 밖은 그 라벨 그대로 · repos.json 에 없는 이름이면 rc 1. harness 레포는 폐기
 #     예정이라 이슈를 두지 않는다 — 어느 트리를 건드리는지는 남은 repo: 라벨이 든다.
 #   · map 파일 "<beads id> <repo>#<번호>" — apply 의 멱등 근거이자 verify 의 대조 대상.
+#
+# **plan 배열 밖을 가리키는 부모·의존은 간선을 걸지 않는다** — apply 가 stderr 경고 한 줄을 남기고
+# 넘어가고, verify 도 그 간선을 기대하지 않는다. --only 로 자른 부분 plan 만의 이야기가 아니다:
+# 열린 항목의 부모·의존이 **이미 닫혀** plan(status != closed) 밖인 경우가 실제로 있다.
+# 2026-09-06 전수 plan 실측(--from ~/workspace/harness, 146건): 배열 밖 부모 12건 · 배열 밖 의존 17건.
+# 닫힌 조상까지 끌어오면 "열린 항목만 옮긴다"가 깨지므로 옮기지 않는다. 대신 부모 쪽은 유실을 남긴다 —
+# 본문 둘째 줄 "beads-parent: <부모 id>" 가 이슈에 남아 원 원장으로 되짚을 수 있다(의존 쪽은 경고뿐).
 #
 # 사용:
 #   ledger-migrate.sh plan   --from <하네스루트> [--only <id,…>] [--label <라벨>] > plan.json
@@ -107,19 +119,24 @@ cmd_plan() {
   detail="$(bd -C "$root" show --json $ids)" || die "bd show 를 읽지 못했다"
 
   plan="$(printf '%s' "$detail" | jq --argjson extra "$extra" '
-    map(
+    [ .[].id ] as $planids
+    | map(
       (.labels // []) as $ls
       | ([ $ls[] | select(startswith("repo:")) | ltrimstr("repo:") ] | first) as $r0
       | (if ($r0 == null or $r0 == "harness") then "skills" else $r0 end) as $repo
       | ((.description // "") | rtrimstr("\n")) as $desc
       | ((.acceptance_criteria // "") | rtrimstr("\n")) as $acc
       | ((.notes // "") | split("\n") | map(select(test("\\S")))) as $notes
+      # 부모가 plan 밖(대개 이미 닫힌 부모)이면 sub-issue 를 걸 곳이 없다 — 유실을 본문 둘째 줄에 남긴다.
+      | (.parent // "") as $par
+      | (if $par != "" and ($planids | index($par)) == null
+         then "\nbeads-parent: " + $par else "" end) as $orphan
       | { id: .id,
           repo: $repo,
           type: .issue_type,
           status: .status,
           title: .title,
-          body: ([ "beads: " + .id ]
+          body: ([ "beads: " + .id + $orphan ]
                  + (if $desc == "" then [] else [ $desc ] end)
                  + (if $acc == "" then [] else [ "## Acceptance\n\n" + $acc ] end) | join("\n\n")),
           labels: (($ls | map(select((startswith("type:") or startswith("status:")) | not))) + $extra | unique),
@@ -280,7 +297,7 @@ cmd_verify() {
     slug="$(slug_of "$repo" "$root")" || exit 1
     o="${slug%%/*}"; r="${slug##*/}"
 
-    node="$(gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r){ issue(number:$n){ title body labels(first:100){nodes{name}} comments{totalCount} parent{number repository{name}} } } }' \
+    node="$(gh api graphql -f query='query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r){ issue(number:$n){ title body labels(first:100){nodes{name}} comments{totalCount} parent{number repository{name}} projectItems(first:10){nodes{project{number}}} } } }' \
       -f o="$o" -f r="$r" -F n="$num" 2>/dev/null | jq -e '.data.repository.issue' 2>/dev/null)" || {
       echo "✗ $id ($mapped) issue: 읽지 못했다"; bad=1; continue; }
 
@@ -300,7 +317,10 @@ cmd_verify() {
     act="$(printf '%s' "$node" | jq -r '.body | split("\n## Acceptance\n") | if length > 1 then (.[1:] | join("\n## Acceptance\n")) else "" end | ltrimstr("\n") | rtrimstr("\n")')"
     [ "$exp" = "$act" ] || say "acceptance 절" "${exp:0:40}…" "${act:0:40}…"
 
-    # 기대 부모·의존은 map 에 옮겨진 것만이다 — 부분 plan(--only)에서 밖을 가리키는 간선은 걸리지 않는다.
+    # 기대 부모·의존은 map 에 옮겨진 것만이다 — plan 배열 밖을 가리키는 간선은 apply 가 걸지 않으므로
+    # 여기서도 기대하지 않는다. --only 로 자른 경우뿐 아니라 **부모·의존이 이미 닫혀** plan 밖인 경우가
+    # 전수 plan 에서도 난다(2026-09-06 실측 146건 중 배열 밖 부모 12 · 배열 밖 의존 17 — 머리 주석).
+    # 부모 쪽 유실은 이슈 본문 둘째 줄 "beads-parent:" 가 든다.
     exp="$(map_lookup "$(printf '%s' "$item" | jq -r '.parent // empty')" "$mapf")"
     act="$(printf '%s' "$node" | jq -r 'if .parent then (.parent.repository.name + "#" + (.parent.number|tostring)) else "" end')"
     [ "$exp" = "$act" ] || say parent "${exp:--}" "${act:--}"
@@ -321,10 +341,14 @@ cmd_verify() {
     act="$(printf '%s' "$node" | jq -r '.comments.totalCount')"
     [ "$exp" = "$act" ] || say "코멘트 수" "$exp" "$act"
 
-    # Project 소속은 이슈 쪽에서 읽는다 — item-list 는 생성 직후 새 항목을 내지 않는다(1.1 실측).
-    act="$(gh issue view "$num" -R "$slug" --json projectItems 2>/dev/null \
-      | jq -r --arg p "$project" '[.projectItems[]? | (.number // .project.number // empty) | tostring] | index($p) // ""')"
-    [ -n "$act" ] || say "Project 소속" "project $project" "없음"
+    # Project 소속은 **번호로** 판정한다 — 위 per-issue GraphQL 이 이미 실어 온 projectItems 를 쓴다.
+    # gh project item-list 는 item-add 직후 새 항목을 내지 않고(1.1 실측), gh issue view --json
+    # projectItems 의 REST payload 에는 번호가 아예 없다 — 2026-09-06 실측으로 나오는 것은
+    # {"projectItems":[{"status":{…},"title":"harness-ledger-probe"}]} 뿐이다(제목 대조는 부정확하다).
+    exp="$(printf '%s' "$node" | jq -r '[.projectItems.nodes[]?.project.number | tostring] | join(",")')"
+    printf '%s' "$node" | jq -e --arg p "$project" \
+      '[.projectItems.nodes[]?.project.number | tostring] | index($p) != null' >/dev/null \
+      || say "Project 소속" "project $project" "${exp:-없음}"
   done < <(jq -c '.[]' "$planf")
 
   if [ "$bad" -ne 0 ]; then exit 1; fi

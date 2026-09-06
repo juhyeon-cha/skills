@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# 단언은 bash -c '…' 안의 jq 식이다 — 그 안의 $1·$OUT 같은 것은 이 셸이 아니라 자식 셸·jq 의
+# 변수이므로 단일 인용이 맞다. 이 파일 전체에서 SC2016 을 끈다(맨 shellcheck 도 rc 0 이 되게).
+# shellcheck disable=SC2016
+#
 # 게이트: 이전 도구(scripts/ledger-migrate.sh)를 픽스처로 단언한다. 네트워크에 닿지 않는다.
 #
 #   ① plan   — 가짜 bd 의 원장에서 열린 항목만 · repo 결정 규칙 · 본문 첫 줄 · 라벨 · deps · notes.
@@ -6,7 +10,11 @@
 #   ③ apply  — 위상 순(부모·의존 먼저) · 이슈 생성 · map 기록 · 2회 실행 뒤 이슈 수가 늘지 않는다(멱등).
 #   ④ apply 실패 경로 — gh 가 죽는 항목에서 멈추고 rc 1, map 에는 성공한 것까지만. --plan 없으면 rc 1.
 #   ⑤ verify — 전부 같으면 rc 0 과 "verify: N/N 일치" · 라벨을 하나 지우면 rc 1 과 그 id·필드 ·
-#      map 이 plan 보다 짧으면 rc 1("옮기지 않은 항목 K건").
+#      map 이 plan 보다 짧으면 rc 1("옮기지 않은 항목 K건") · Project 가 없거나 번호가 다르면 rc 1.
+#
+# 가짜 gh 는 **실측 payload 형태**를 낸다 — 코드가 기대하는 모양을 흉내 내면 단언이 거짓 통과한다.
+# 특히 Project 소속: GraphQL 은 projectItems.nodes[].project.number 를 싣고, REST(gh issue view
+# --json projectItems)는 번호 없이 status·title 만 낸다(2026-09-06 실측). 두 형태가 그대로 있다.
 #
 # 실제 GitHub 에 닿는 실증(Project 소속·색인 지연)은 오케스트레이터가 실증 레포에서 돈다
 # (harness-kw0l.2.1 acceptance 5 · 2.2 acceptance 4).
@@ -73,7 +81,9 @@ case "$1 $2" in
   "issue comment")
     n="$3"; echo $(( $(cat "$S/$n.comments") + 1 )) > "$S/$n.comments"; exit 0 ;;
   "issue view")
-    n="$3"; printf '{"projectItems":[{"number":%s}]}' "$(cat "$S/$n.project" 2>/dev/null || echo 0)"; exit 0 ;;
+    # 실측 payload 그대로(2026-09-06): REST 의 projectItems 에는 **번호가 없고** status·title 뿐이다.
+    # 코드가 기대하는 모양을 흉내 내지 않는다 — 여기로 Project 판정을 되돌리면 단언이 붉어진다.
+    printf '{"projectItems":[{"status":{"name":"Todo"},"title":"harness-ledger-probe"}]}'; exit 0 ;;
   "project item-add")
     url="$(arg_after --url "$@")"; echo "$2x" >/dev/null; printf '%s' "$3" > "$S/${url##*/}.project"; exit 0 ;;
   "api graphql")
@@ -88,12 +98,15 @@ case "$1 $2" in
       pv="$(cat "$S/$n.parent")"
       par="$(jq -n --arg r "${pv%%#*}" --argjson n "${pv##*#}" '{number: $n, repository: {name: $r}}')"
     fi
+    # GraphQL 의 projectItems 는 REST 와 형태가 다르다 — nodes[].project.number 로 번호가 실려 온다.
+    pi='{"nodes":[]}'
+    [ -s "$S/$n.project" ] && pi="$(jq -n --argjson p "$(cat "$S/$n.project")" '{nodes: [{project: {number: $p}}]}')"
     jq -n --rawfile t "$S/$n.title" --rawfile b "$S/$n.body" --rawfile l "$S/$n.labels" \
-       --argjson c "$(cat "$S/$n.comments")" --argjson par "$par" \
+       --argjson c "$(cat "$S/$n.comments")" --argjson par "$par" --argjson pi "$pi" \
        '{data: {repository: {issue: {
           title: ($t | rtrimstr("\n")), body: $b,
           labels: {nodes: ($l | split("\n") | map(select(. != "")) | map({name: .}))},
-          comments: {totalCount: $c}, parent: $par}}}}'
+          comments: {totalCount: $c}, parent: $par, projectItems: $pi}}}}'
     exit 0 ;;
 esac
 # api repos/<slug>/issues/<n>[…]
@@ -122,6 +135,7 @@ STATE="$TMP/ghstate"; mkdir -p "$STATE"
 export FAKE_GH_STATE="$STATE" FAKE_GH_LOG="$TMP/gh.log"; : > "$FAKE_GH_LOG"
 
 # 원장 픽스처 — x-2 를 맨 앞에 두어 위상 정렬(부모 x-1·의존 x-3 이 먼저)을 판정한다.
+# x-5 의 부모 x-4 는 **닫혀 있어** plan 배열 밖이다 — 전수 plan 에서도 나는 형태다(실측 146건 중 12건).
 cat > "$TMP/beads.json" <<'EOF'
 [
  {"id":"x-2","title":"자식 태스크","status":"in_progress","issue_type":"task","assignee":"sess-abc",
@@ -133,7 +147,7 @@ cat > "$TMP/beads.json" <<'EOF'
  {"id":"x-3","title":"라벨 없는 버그","status":"blocked","issue_type":"bug","description":"버그 본문",
   "labels":[],"parent":null,"dependencies":[]},
  {"id":"x-4","title":"닫힌 것","status":"closed","issue_type":"task","labels":["repo:skills"],"parent":null,"dependencies":[]},
- {"id":"x-5","title":"미룬 것","status":"deferred","issue_type":"task","description":"","labels":["repo:sap-harness"],"parent":null,"dependencies":[]}
+ {"id":"x-5","title":"미룬 것","status":"deferred","issue_type":"task","description":"","labels":["repo:sap-harness"],"parent":"x-4","dependencies":[]}
 ]
 EOF
 export FAKE_BD_DATA="$TMP/beads.json"
@@ -149,6 +163,10 @@ step "repo 규칙: repo:harness→skills · 라벨 없음→skills · 그 밖은
   bash -c 'printf "%s" "$1" | jq -e "(map({(.id): .repo}) | add) == {\"x-1\":\"skills\",\"x-2\":\"sap-harness\",\"x-3\":\"skills\",\"x-5\":\"sap-harness\"}" >/dev/null' _ "$OUT"
 step "본문 첫 줄이 beads: <id> 이고 그 뒤 description · ## Acceptance 절" \
   bash -c 'printf "%s" "$1" | jq -e ".[] | select(.id == \"x-1\") | .body == \"beads: x-1\n\n부모 본문\n\n## Acceptance\n\n조건 1\"" >/dev/null' _ "$OUT"
+step "부모가 plan 밖(닫힌 x-4)이면 본문 둘째 줄이 beads-parent: <부모 id>" \
+  bash -c 'printf "%s" "$1" | jq -e ".[] | select(.id == \"x-5\") | .body == \"beads: x-5\nbeads-parent: x-4\"" >/dev/null' _ "$OUT"
+step "부모가 plan 안이면 beads-parent 줄이 없다" \
+  bash -c 'printf "%s" "$1" | jq -e "all(.[] | select(.id == \"x-2\"); .body | contains(\"beads-parent\") | not)" >/dev/null' _ "$OUT"
 step "acceptance 가 없는 항목의 본문에는 ## Acceptance 절이 없다" \
   bash -c 'printf "%s" "$1" | jq -e ".[] | select(.id == \"x-3\") | .body == \"beads: x-3\n\n버그 본문\"" >/dev/null' _ "$OUT"
 step "labels 는 원 라벨 그대로(repo: 포함)이고 type:·status: 를 담지 않는다" \
@@ -231,7 +249,13 @@ mv "$STATE/$n2.project" "$TMP/project.bak"
 run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
 step "Project 소속이 없으면 rc 1 이고 그 id 가 출력에 있다" \
   bash -c '[ "$1" -eq 1 ] && printf "%s" "$2" | grep -q "x-2" && printf "%s" "$2" | grep -q Project' _ "$RC" "$OUT"
+printf '7\n' > "$STATE/$n2.project"
+run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
+step "다른 Project(#7)에 들어 있으면 rc 1 이고 기대·실제 번호가 출력에 있다" \
+  bash -c '[ "$1" -eq 1 ] && printf "%s" "$2" | grep -q "x-2" && printf "%s" "$2" | grep -q "기대 \[project 4\] 실제 \[7\]"' _ "$RC" "$OUT"
 mv "$TMP/project.bak" "$STATE/$n2.project"
+step "가짜 gh 의 REST projectItems 에는 번호가 없다 — 실측 payload 형태다(2)" \
+  bash -c 'gh issue view 1 -R juhyeon-cha/skills --json projectItems | jq -e "(.projectItems[0] | has(\"number\") or has(\"project\")) | not" >/dev/null'
 run verify --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP"
 step "되돌리면 다시 rc 0 (verify 가 상태를 바꾸지 않는다)" [ "$RC" -eq 0 ]
 
