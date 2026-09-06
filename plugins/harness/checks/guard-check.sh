@@ -589,6 +589,8 @@ declare -a MC_SH_READ_PASS=(
   "[ -f $MCROOT/repo/README.md ] && echo y"          # `[` 는 tr 이 지우던 낱말 — 첫 실행 낱말이 경로 basename 이었다
   "if [ -f $MCROOT/repo/f ]; then cat $MCROOT/repo/f; fi"
   "echo \"\$(cat $MCROOT/repo/f)\""                  # 큰따옴표 안의 명령 치환은 경계로 남는다 — 아래 MIX 의 rm 대조군과 쌍
+  "sed -n 1,5p \"$MCROOT/repo/f\""                   # 인용된 피연산자 — 인용 안이 토큰 하나뿐이면 스크립트가 아니다(아래 sed w 대조군과 쌍)
+  "sed 's/a/b/' $MCROOT/repo/f"                      # 경로 없는 스크립트 + 인용 밖 피연산자
 )
 for c in "${MC_SH_READ_PASS[@]}"; do
   runm "$(j_bash "$c")"
@@ -645,6 +647,16 @@ declare -a MC_SH_READ_MIX=(
   "echo \"\$(rm -rf $MCROOT/repo/src)\""
   "cd $MCROOT/repo && gh pr checkout 5"
   "for f in $MCROOT/repo/*; do rm \$f; done"
+  # verify-code 1차(harness-m8gg.8.5)가 f00b729 에서 rc=0 으로 실측한 우회 — 실행 낱말 앞의 셸 래퍼(문자열
+  # `sh -c` 판정이 놓치던 `-lc`·`-ec`), sed·awk 스크립트 본문의 쓰기, 결합 짧은 옵션·BSD `-I`·`--out=` 접두.
+  "bash -lc \"cat $MCROOT/repo/f; rm -rf $MCROOT/repo/src\""
+  "sh -ec \"cat $MCROOT/repo/f; rm -rf $MCROOT/repo/src\""
+  "awk 'BEGIN{system(\"rm -rf $MCROOT/repo/src\")}'"
+  "awk '{print \"rm -rf $MCROOT/repo/src\" | \"sh\"}' /etc/hosts"
+  "sed 's/a/b/w $MCROOT/repo/f' /etc/hosts"
+  "sed -I 1d $MCROOT/repo/f"
+  "sort -ro $MCROOT/repo/f $MCROOT/repo/f"
+  "sort --out=$MCROOT/repo/f $MCROOT/repo/f"
 )
 for c in "${MC_SH_READ_MIX[@]}"; do
   runm "$(j_bash "$c")"

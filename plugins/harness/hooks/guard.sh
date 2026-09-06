@@ -269,6 +269,22 @@ seg_exec_word() {  # seg_exec_word <조각> → 첫 실행 낱말 (없으면 빈
         /=/ { next }
         { sub(".*/", ""); print; exit }'
 }
+# 조각의 실행 낱말 **앞에** 셸 래퍼(bash·sh·zsh)가 서면 0 — `bash -lc "cat f; rm -rf …"` 의 실행 낱말은
+# cat 이지만 인용 안이 스크립트라 그 뒤의 rm 이 가려진다. 토큰을 보지 문자열 `-c` 를 세지 않는다
+# (`bash -lc`·`sh -ec`·`bash -o pipefail -c` 가 전부 같은 형태다 — harness-m8gg.8.5 리뷰 MUST FIX 1).
+seg_shell_wrapped() {  # seg_shell_wrapped <조각>
+  printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=[-' '\n' \
+    | awk -v w="$EXEC_WRAPPERS" '
+        BEGIN { split(w, a, " "); for (k in a) wrap[a[k]] = 1 }
+        $0 == "" { next }
+        /^-/ { next }
+        /^[0-9]+[smhd]?$/ { next }
+        /=/ { next }
+        { sub(".*/", "") }
+        wrap[$0] { if ($0 == "bash" || $0 == "sh" || $0 == "zsh") found = 1; next }
+        { exit }
+        END { exit !found }'
+}
 exec_segments() {  # exec_segments <명령이름> → 그 명령을 실행하는 조각들 (한 줄에 하나)
   local seg
   while IFS= read -r seg; do
@@ -511,13 +527,45 @@ RULES+=("*:r_main_write")
 # 위의 COMMAND 는 인용부호를 먼저 걷어내므로 그 구분이 사라진다 — 그래서 이 판정만 COMMAND_RAW 에서
 # 인용 안의 `; | & ( )` 를 공백으로 바꾼 뒤 걷어낸다(harness-c2bo 의 괄호 결함이 이 자리다).
 # 큰따옴표 안의 `$(` 는 명령 치환이라 경계로 남긴다 — `echo "$(rm -rf …)"` 의 rm 을 봐야 한다.
-# `bash -c "…"` 는 인용 안이 스크립트라 경계를 지우면 그 안의 쓰기가 가려진다 — 조각에 `sh -c` 가
-# 있으면(bash·zsh 도 이 문자열을 품는다) 읽기로 보지 않는다.
+# `bash -c "…"` 는 인용 안이 스크립트라 경계를 지우면 그 안의 쓰기가 가려진다 — 조각의 실행 낱말 앞에
+# 셸 래퍼가 서면(seg_shell_wrapped) 읽기로 보지 않는다.
 # 읽기 낱말 목록 — 여기 한 자리뿐이다. 게이트(checks/guard-check.sh ⑨)가 이 줄에서 파생해 낱말마다
 # 통과를 단언하므로 시험 없는 낱말은 없다. 옵션에 따라 쓰기가 되는 낱말은 MC_WRITE_OPTS 에 그 옵션을 둔다.
 MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find"
 # 읽기 낱말이 쓰기가 되는 옵션 — `<낱말>:<정규식>`. 조각에 그 토큰이 있으면 읽기가 아니다.
-MC_WRITE_OPTS="sed:-[A-Za-z]*i[^[:space:]]*|--in-place[^[:space:]]* sort:-o[^[:space:]]*|--output[^[:space:]]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)"
+# 결합 짧은 옵션(`sed -ni`·`sort -ro`)·BSD 의 `-I`·getopt_long 접두(`--out=`)까지 한 형태로 잡는다 —
+# 낱개 `-i`·`-o`·`--output` 만 적으면 그 셋이 샌다(harness-m8gg.8.5 리뷰 MUST FIX 4, macOS sort 로 파일 생성 실측).
+MC_WRITE_OPTS="sed:-[A-Za-z]*[iI][^[:space:]]*|--i[^[:space:]]* sort:-[A-Za-z]*o[^[:space:]]*|--o[^[:space:]]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)"
+# sed·awk 의 쓰기는 옵션이 아니라 **스크립트 본문**에도 있다 — sed 의 `w <파일>` 명령, awk 의 system()·
+# `print … | "sh"`. 스크립트는 인용되고 파일 피연산자는 인용 밖이므로, 이 두 낱말의 조각은 COMMAND_RAW 의
+# 인용 안에 본 체크아웃 경로가 들면 읽기로 보지 않는다. 인용 내용이 토큰 하나뿐이면(`sed -n 1p "<경로>"`)
+# 피연산자를 인용한 것이라 센다. 못 보는 것: `-f <스크립트파일>` — 본문이 명령 문자열에 없다.
+MC_SCRIPT_CMDS="sed awk"
+mc_quoted_texts() {  # COMMAND_RAW 의 최외곽 인용 내용 — 한 줄에 하나, 토큰 하나뿐인 것은 뺀다
+  printf '%s\n' "$COMMAND_RAW" | awk '
+    {
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (q == "") { if (c == "\"" || c == "\047") { q = c; buf = "" } }
+        else if (c == q) { n = split(buf, t, /[[:space:]]+/); k = 0; for (j = 1; j <= n; j++) if (t[j] != "") k++; if (k > 1) print buf; q = "" }
+        else buf = buf c
+      }
+    }'
+}
+mc_quoted_has_main() {  # 인용 안에 본 체크아웃 경로(워크트리 제외)가 있으면 0. mc_locate 의 전역은 되돌린다.
+  local q cand hit=1 sp="$MC_PATH" sr="$MC_REPO" ss="$MC_SUB"
+  while IFS= read -r q; do
+    q="${q//\$\{HOME\}/$HOME}"; q="${q//\$HOME/$HOME}"
+    while IFS= read -r cand; do
+      [ -n "$cand" ] || continue
+      mc_locate "$cand" || continue
+      case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
+      hit=0; break 2
+    done < <(printf '%s' "$q" | grep -oE "[~/][^[:space:]\"'\`;|&()<>]*")
+  done < <(mc_quoted_texts)
+  MC_PATH="$sp"; MC_REPO="$sr"; MC_SUB="$ss"
+  return $hit
+}
 # **모든 형태가 읽기인 하위 명령만 든다.** `branch`(-D)·`tag`(-d)·`config`(값 쓰기)·
 # `remote`(add·remove)·`stash`(bare 형태)는 읽기 형태가 있어도 쓰기 형태가 있어 뺀다 —
 # 목록은 옵션을 보지 않으므로 등재하면 그 쓰기까지 함께 통과한다. 채점자 쪽 목록
@@ -548,7 +596,7 @@ mc_all_readonly() {
     [ -n "$(printf '%s' "$seg" | tr -d '[:space:]')" ] || continue
     any=1
     case "$(printf '%s' "$seg" | sed -E 's#[0-9]?>&[0-9]##g; s#[0-9]?>/dev/null##g')" in *'>'*) return 1 ;; esac
-    case "$seg" in *"sh -c"*) return 1 ;; esac
+    seg_shell_wrapped "$seg" && return 1
     w="$(seg_exec_word "$seg")"
     # 실행 낱말이 없는 조각은 **명령이 아니므로** 읽기·쓰기를 가를 대상이 아니다 —
     # 변수 대입만 있는 조각(`P=<경로>; …`)이 그렇다. 판정은 명령을 실행하는 조각이 든다.
@@ -561,6 +609,7 @@ mc_all_readonly() {
     case " $MC_READ_CMDS " in *" $w "*)
       re=""; for e in $MC_WRITE_OPTS; do [ "${e%%:*}" = "$w" ] && re="${e#*:}"; done
       [ -n "$re" ] && printf '%s' "$seg" | grep -Eq "(^|[[:space:]])($re)([[:space:]]|$)" && return 1
+      case " $MC_SCRIPT_CMDS " in *" $w "*) mc_quoted_has_main && return 1 ;; esac
       continue ;;
     esac
     if [ "$w" = "git" ]; then
@@ -570,7 +619,8 @@ mc_all_readonly() {
       case " $MC_GIT_READ_OPT " in *" $sub:$nxt "*) continue ;; esac
     fi
     if [ "$w" = "gh" ]; then
-      # r_remote 와 같은 면제 — gh 다음 두 토큰 중 하나가 GH_READ_EXEMPT 면 읽기다.
+      # r_remote 와 같은 면제 — gh 다음 두 토큰 중 하나가 GH_READ_EXEMPT 면 읽기다. 그 목록의 `download` 는
+      # 원격 읽기지만 로컬 쓰기라(`gh release download -D <본 체크아웃>` 이 통과한다) 면제 재사용의 대가로 감수한다.
       nxt="$(subcmds_after gh "" "$seg")"; nxt="${nxt%%$'\n'*}"
       sub=""; [ -n "$nxt" ] && { sub="$(subcmds_after "$nxt" "" "$seg")"; sub="${sub%%$'\n'*}"; }
       { gh_is_read "$nxt" || gh_is_read "$sub"; } && continue
