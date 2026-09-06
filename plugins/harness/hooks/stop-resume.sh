@@ -184,9 +184,13 @@ fi
 #     커밋 뒤의 VERIFY_PENDING 이 DELEGATED 를 자연히 교체한다.
 #     아래 jq 두 줄이 판정이고 guardrail-check S7 의 A/B 가 **각각** 그 줄만 뺀 사본을 돌린다 —
 #     빠지면 그 표시의 건수가 0 이라 통과가 아니라 막힘으로 기운다 (jq 오류도 같은 방향).
+# 판정 대상은 notes 의 마지막 줄이 아니라 마지막 **표시 줄**이다. 같은 절차가 LGTM 수령·판정
+# 근거를 note 로 남기라 요구하므로, 마지막 줄로 읽으면 그 산문이 표시를 덮어 매번 손으로
+# 보충하게 된다(harness-k4wg). 표시 줄만 골라 그중 마지막을 보면 DELEGATED → VERIFY_PENDING →
+# 재작업의 DELEGATED 순서는 그대로 살고 사이의 산문은 무해하다.
 vp=0; dg=0
-vp="$(printf '%s' "$oracle" | jq '[.[] | select(((.notes // "") | split("\n") | map(select(test("\\S"))) | last // "") | startswith("VERIFY_PENDING"))] | length' 2>/dev/null || echo 0)"
-dg="$(printf '%s' "$oracle" | jq '[.[] | select(((.notes // "") | split("\n") | map(select(test("\\S"))) | last // "") | startswith("DELEGATED"))] | length' 2>/dev/null || echo 0)"
+vp="$(printf '%s' "$oracle" | jq '[.[] | select((((.notes // "") | split("\n") | map(select(test("^(VERIFY_PENDING|DELEGATED)"))) | last) // "") | startswith("VERIFY_PENDING"))] | length' 2>/dev/null || echo 0)"
+dg="$(printf '%s' "$oracle" | jq '[.[] | select((((.notes // "") | split("\n") | map(select(test("^(VERIFY_PENDING|DELEGATED)"))) | last) // "") | startswith("DELEGATED"))] | length' 2>/dev/null || echo 0)"
 pending=$(( ${vp:-0} + ${dg:-0} ))
 if [[ "$pending" -eq "$n" ]]; then
   log VERIFY_PENDING "in_progress ${n}건 전부 표시가 있다(검증 대기 ${vp}건 · 위임 직후 ${dg}건 · 범위: $SCOPE) — 막을 이유가 없다"
