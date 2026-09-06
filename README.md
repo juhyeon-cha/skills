@@ -20,8 +20,8 @@ juhyeon-cha 의 Claude Code 스킬 플러그인 마켓플레이스. 플러그인
 ## harness 사용법
 
 하네스는 **하네스 루트**(원장 설정 `ledger.json` · 대상 레포 목록 `repos.json` · 레일 `rails.json` ·
-스프린트 등록부 `sprints.json` 을 두는 디렉토리) 하나와, 그 아래 등재된 대상 레포들의 클론
-(`~/.harness-workspace/<레포>`)으로 돈다. 플러그인은 **user scope 에 한 번만** 설치한다 — 하네스
+스프린트 등록부 `sprints.json` 을 두는 디렉토리) 하나와, `repos.json` 에 등재된 대상 레포들의 클론
+(하네스 루트 밖 `~/.harness-workspace/<레포>` 에 둔다)으로 돈다. 플러그인은 **user scope 에 한 번만** 설치한다 — 하네스
 트리나 대상 레포마다 등록하지 않는다.
 
 ```
@@ -29,8 +29,7 @@ claude plugin marketplace add juhyeon-cha/skills   # 머신당 한 번
 claude plugin install harness@skills               # scope 인자 없이 — 기본이 user
 ```
 
-**진입점은 `/harness:setup`** 이다(최초 1회 — 새 하네스 세우기 · 이미 선 하네스에 합류 ·
-설치본 갱신). 그 뒤의 한 사이클은 절차 스킬 순서대로다:
+**진입점은 `/harness:setup`** 이다(새 하네스 세우기 · 이미 선 하네스에 합류 · 설치본 갱신). 그 뒤의 한 사이클은 절차 스킬 순서대로다:
 
 `/harness:plan-sprint`(스프린트 편성) → `/harness:plan-story`(스토리를 마일스톤·태스크로
 분해하고 acceptance 를 쓴다) → `/harness:develop`(워크스페이스 생성 → 마일스톤 단위 구현→검증
