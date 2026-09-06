@@ -132,17 +132,15 @@
 **Steps**
 
 1. Drain permission prompts before the loop — run one command inside the worktree interactively, or put the allows into the clone's `.claude/settings.local.json`.
-2. Start `/ralph-loop` with `harness:develop` sections 3–4 as the prompt, `--completion-promise "<done sentence>"` and `--max-iterations <N>`.
+2. Start `/loop [interval]` with `harness:develop` sections 3–4 as the prompt. It takes nothing else — no completion sentence and no iteration ceiling; the exit is the model's per-turn rearm decision (`harness:develop` "장기 실행").
 3. Per task the loop runs implementer → verify-code → verify-implement → `ledger.sh close` (or per milestone in batch mode).
-4. Stop: from inside, `cancel-ralph`; from outside, **both markers** — `touch "${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}/ralph-cancel"` (loop cancel) and `touch "${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}/stop-resume-cancel"` (stop-guard cancel). Two mechanisms, two owners; the guard does not read the loop marker. **The first alone clears the loop state and the session is still pushed back by the stop guard.**
+4. Stop: from inside, end the turn without rearming; from outside, `touch "${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}/stop-resume-cancel"` — the stop guard's marker. The loop itself has no marker; what keeps a session from ending after the loop is broken is the guard, so that is the one to switch off.
 
 **Pass criteria**
 
-- the start command contains both `--completion-promise` and `--max-iterations` (otherwise it does not start)
 - after one iteration the task has transitioned: `ledger.sh show <task ID>` status == `closed` with a non-empty `close_reason`
 - at the end of an iteration **the product of the declared next action exists**: the closed-task count grew, or a human-wait reason note appeared — neither is failure
 - on a human-wait signal (the list is `harness:develop` "사람 대기"), the reason exists in `ledger.sh show <task ID>` notes and the loop has stopped
-- after the stop the loop state is gone: `[ ! -f <clone>/.claude/ralph-loop.local.md ]` → rc 0 (the ralph-loop plugin keeps its state in the project the session opened in). **Not evidence of the stop on its own** — it is rc 0 while the stop guard is still pushing back
 - after the stop the guard is not pushing back: the session's last path in the log is not `BLOCK`:
 
   ```

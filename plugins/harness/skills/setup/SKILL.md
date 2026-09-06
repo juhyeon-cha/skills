@@ -138,7 +138,7 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
 
 4. **Re-run** `bash scripts/install.sh init` — the hook files exist now, so the gate blocks get attached. It is idempotent. Read the `hooksPath:` line of the output with your own eyes. It must say "하네스 블록이 있다"; if it says "없다", the commit gate **does not run**.
 5. Confirm the backend answers: `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` rc 0 (an empty list is the correct output for a new ledger).
-6. Add these to `.gitignore`: `.claude/worktrees/` · `.claude/ralph-loop.local.md` · `.claude/ralph-cancel` · `.claude/stop-resume.log` · `.claude/stop-resume-cancel*` · `*.harness-bak` · `docs/sprints/` · `docs/backlog/` · `docs/adr/`(the three projections — the ledger is SSOT and the hooks render them locally) · `.beads/interactions.jsonl`(the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every ledger call and keeps the tree permanently dirty). **Never gitignore `.harness-state`** — it is the install record, so it has to be committed for later updates to judge drift.
+6. Add these to `.gitignore`: `.claude/worktrees/` · `*.harness-bak` · `docs/sprints/` · `docs/backlog/` · `docs/adr/`(the three projections — the ledger is SSOT and the hooks render them locally) · `.beads/interactions.jsonl`(the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every ledger call and keeps the tree permanently dirty). **Never gitignore `.harness-state`** — it is the install record, so it has to be committed for later updates to judge drift.
 
 ### 1.7 Verification (A) — all measured
 

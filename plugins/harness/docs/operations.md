@@ -35,7 +35,7 @@ What loads automatically in both: the project `CLAUDE.md` of the directory the s
 ## 무인 루프
 
 - **Drain permission prompts before an unattended loop.** The worktree is outside the project directory, so the first command there may ask for approval and nobody answers during the loop — run one command in the worktree interactively first, or put the needed allows into `.claude/settings.local.json` of the clone.
-- The loop follows `harness:develop` "장기 실행". **Those rules are not restated here** — each rule targets a different loop (`/ralph-loop` · `/loop`) and there are two stop markers, so a copy necessarily diverges.
+- The loop is `/loop` (built into Claude Code) and follows `harness:develop` "장기 실행" — how it relates to the pipeline, how it is broken from inside, and the stop guard's marker for the outside. **Those rules are not restated here** — that section is their single owner, so a copy necessarily diverges.
 
 ## 문서는 어디에도 나가지 않는다 — 투영은 git 밖이다
 

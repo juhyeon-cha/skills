@@ -8,14 +8,15 @@
 #     전사: ~/.claude/projects/-Users-juhyeon-workspace-harness/1bdbd772-…-09805d429bba.jsonl
 #     stop_hook_summary 레코드 111건. Agent 위임 87건, 그중 완료 알림(task-notification)과
 #     tool-use-id 로 짝지어진 liveness 창 40건. **111건 중 48건이 그 창 안에서 발화했다.**
-#   ralph-loop 이 9시간 동안 iteration=1 이었던 원인은 발화 실패가 아니라 등록 실패다:
-#   111건 전부 hookCount=1 이고 실행된 명령은 ralph-cancel.sh 하나뿐이다. 플러그인 Stop
-#   훅은 한 번도 실행되지 않았고, ralph-loop 은 installed_plugins.json 에 없으며 캐시에
-#   .orphaned_at 이 있다. 즉 "발화하지 않는 계층"이 아니라 "설치되지 않은 플러그인"이었다.
+#   당시 쓰던 루프 플러그인이 9시간 동안 iteration=1 이었던 원인은 발화 실패가 아니라 등록
+#   실패다: 111건 전부 hookCount=1 이고 실행된 명령은 당시 이 하네스가 Stop 에 걸어 둔 루프
+#   취소 훅 하나뿐이다. 플러그인 Stop 훅은 한 번도 실행되지 않았고, 그 플러그인은
+#   installed_plugins.json 에 없으며 캐시에 .orphaned_at 이 있다. 즉 "발화하지 않는
+#   계층"이 아니라 "설치되지 않은 플러그인"이었다.
 #
 # 다섯 경로가 각각 로그를 한 줄 남긴다: BLOCK · IDLE · RECURSE · GAVE_UP · ORACLE_FAIL.
 # CANCEL 이 여섯째다 — 전용 마커로 끈 것도 남긴다. 조용히 꺼지는 장치는 있다고 믿게
-# 만들어 없는 것보다 나쁘고, 그것이 harness-dg0.3.1 note 가 ralph-loop 을 탈락시킨 사유였다.
+# 만들어 없는 것보다 나쁘고, 그것이 harness-dg0.3.1 note 가 그 루프 플러그인을 탈락시킨 사유였다.
 # VERIFY_PENDING 이 일곱째다 — 배치 모드의 검증 대기 완료분도, 위임 직후 아직 구현이 시작되지
 # 않은 구간(DELEGATED)도 하다 만 일이 아니다. 두 표시를 한 경로가 건수를 갈라 적는다 (4b).
 # NO_CLAIM 이 여덟째, SCOPE_FAIL 이 아홉째다 — 사거리 좁히기의 두 폴백이다 (3b).
@@ -42,8 +43,8 @@ LOG="$DATA/stop-resume.log"
 # 세션→actor 매핑. hooks/guard.sh 가 claim 을 관측해 적는 파일이고(그쪽의
 # "세션→actor 매핑 관측" 절) 여기서는 읽기만 한다. 경로 규약을 그쪽과 같게 둔다.
 SESSION_ACTOR_LOG="${HARNESS_SESSION_ACTOR_LOG:-$HOME/.claude/harness-session-actor.tsv}"
-# 전용 취소 마커. 루프 취소 마커($DATA/ralph-cancel)는 **읽지 않는다** —
-# 소유가 다르고, 한 마커로 두 장치를 끄면 무엇을 껐는지 기록이 구분하지 못한다.
+# 전용 취소 마커 — 다른 장치와 나눠 쓰지 않는다. 한 마커로 두 장치를 끄면 무엇을
+# 껐는지 기록이 구분하지 못한다.
 # **소유자는 파일 내용이 아니라 이름에 있다** (harness-o59). 이 경로는 사람이 touch 하는
 # 입구이고, 처음 본 세션이 자기 자리($CANCEL.<session_id>)로 mv 한다 — 어느 경로도 남의
 # 마커를 rm 하지 않으므로 동시에 도는 세션이 서로의 마커를 뺏지 못한다. 죽은 세션의 잔존은
