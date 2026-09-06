@@ -165,6 +165,30 @@ run "$FX" list -l repo:x --all --json -n 0
 step "list -l <라벨> --all --json -n 0 이 라벨 있는 것만 낸다" \
   bash -c 'printf "%s" "$1" | jq -e --arg c "$2" "length == 1 and .[0].id == \$c" >/dev/null' _ "$OUT" "$C"
 
+# ── jq 경로 판별 (harness-kw0l.3.1 리뷰 MUST FIX 1). 판별은 **읽기 하위 명령 한정**과 **argv 원소
+#    완전 일치** 둘 다여야 한다. 처음 판은 `case " $* " in *" --json "*` 이었고, 그것은 인자 **값**
+#    안의 토큰까지 잡아 쓰기 명령을 jq 로 보냈다 — 그러면 **쓰기가 이미 일어난 뒤** 출력이 jq 파싱
+#    오류로 죽어 rc 5(jq 실측)가 되고 stdout 이 사라진다. `create --silent` 의 id 를 잃은 채 실패하니
+#    재시도가 중복 생성이 된다.
+#    가설이 아니다: 실측 2026-09-06, 하네스 원장 1089건 중 **31건**이 title·acceptance·description 에
+#    ` --json ` 을 갖고 있다(`jq '[.[]|select((.title+.acceptance_criteria+.description)|test(" --json "))]|length'`).
+#    develop 의 "원장에 본문을 넘기는 형태" 가 그 본문을 `--acceptance "$(cat …)"` 로 인자에 싣는다.
+run "$FX" create "제목에 --json 이 든다" -t task --silent; J="$OUT"; j_rc=$RC
+step "본문에 --json 이 든 create --silent 의 stdout 이 id 한 줄로 온전하다 (id 소실 → 재시도 중복 생성)" \
+  bash -c '[ "$2" -eq 0 ] && [ "$(printf "%s\n" "$1" | grep -c .)" -eq 1 ] && [ "$1" != "${1#lac-}" ]' _ "$J" "$j_rc"
+run "$FX" note "$J" "그 --json 경로를 고쳤다"
+step "본문에 --json 이 든 note 가 rc 0 이고 stderr 에 jq 파싱 오류가 없다" \
+  bash -c '[ "$2" -eq 0 ] && ! printf "%s" "$1" | grep -q "parse error"' _ "$ERR" "$RC"
+run "$FX" close "$J" --reason "그 --json 경로를 고쳤다"; close_rc=$RC; close_err="$ERR"
+run "$FX" show "$J" --json
+step "본문에 --json 이 든 close 가 rc 0 이고 닫힘·사유·메모가 온전하다" \
+  bash -c '[ "$2" -eq 0 ] && ! printf "%s" "$3" | grep -q "parse error" && printf "%s" "$1" | jq -e ".[0] | .status == \"closed\" and .close_reason == \"그 --json 경로를 고쳤다\" and (.notes | contains(\"그 --json 경로를 고쳤다\"))" >/dev/null' _ "$OUT" "$close_rc" "$close_err"
+# 읽기 명령 한정 쪽 — history --json 은 커밋 레코드 배열이라 이슈가 아니다. jq 를 타면 그 레코드에
+# actor:null 이 심긴다. 완전 일치만으로는 막히지 않는 형태라 여기서 따로 든다.
+run "$FX" history "$J" --json
+step "history --json 은 jq 를 타지 않는다 (이슈 아닌 레코드에 actor 를 심지 않는다)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "type == \"array\" and length > 0 and all(has(\"actor\") | not)" >/dev/null' _ "$OUT" "$RC"
+
 echo "── ④ github 오프라인 — 가짜 gh ──"
 # jq·bash 만 보이고 gh 는 없는 PATH. 가짜 gh 는 호출 전부를 LOG 에 남기고 정해진 답을 낸다.
 mkdir -p "$TMP/jqbin" "$TMP/ghbin"

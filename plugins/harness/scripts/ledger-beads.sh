@@ -162,13 +162,30 @@ esac
 #   32 ms 다. 전수 스캔은 세션당 몇 번뿐(board·rules-check)이라 감당한다.
 # 파이프로 잇는 이유: `out="$(bd …)"` 로 받아 두면 8.4 MB 의 명령 치환·printf 왕복만으로
 # 1009 ms 가 된다(같은 방법으로 실측) — 파이프의 두 배 가까이다. bd 의 rc 는 pipefail 로 산다.
-# bd 는 실패해도 stdout 에 온전한 JSON(빈 배열)을 내므로 jq 의 파싱 오류가 stderr 에 겹치지
-# 않는다 — `show <없는 id> --json` 실측 rc=1, stderr 는 bd 의 것 한 줄.
-case " $* " in
-  *" --json "*)
-    set -o pipefail
-    bd -C "$LEDGER_ROOT" "$@" | jq 'if type == "array" then map(if has("actor") then . else .actor = .assignee end) else . end'
-    exit $?
+# bd 는 실패해도 stdout 에 온전한 JSON 을 내므로 jq 의 파싱 오류가 stderr 에 겹치지 않는다 —
+# `show <없는 id> --json` 실측(2026-09-06, 이 어댑터 경유): rc=1, stdout 은 빈 배열이 아니라
+# `{"error":…,"schema_version":1}` 객체 하나이고, stderr 는 네 줄(beads.role 미설정 경고 세 줄 +
+# bd 의 오류 한 줄)이다. 유효 JSON 이라 jq 가 파싱에 죽지 않는다는 결론은 그대로다.
+#
+# jq 를 태울 호출의 판별은 **읽기 하위 명령 한정**과 **argv 원소 완전 일치** 둘 다다 — 한쪽만으로는
+# 새는 형태가 남는다:
+#  · 문자열 훑기(`case " $* " in *" --json "*`)는 인자 **값** 안의 토큰까지 잡는다. develop 의
+#    "원장에 본문을 넘기는 형태" 는 본문을 `--acceptance "$(cat …)"` 로 인자에 실으라고 정하고,
+#    실측(2026-09-06) 하네스 원장 1089건 중 **31건**이 title·acceptance·description 에 ` --json `
+#    을 갖고 있다. 그런 note·close 는 **쓰기가 이미 일어난 뒤** 출력이 jq 파싱 오류로 죽어 rc 가
+#    5 가 되고(jq 실측) stdout 이 사라진다 — `create --silent` 의 id 를 잃은 채 실패하니 재시도가
+#    중복 생성이 된다.
+#  · 완전 일치만으로는 `note <id> --json` 같은 쓰기 호출이 남고, `history --json`(커밋 레코드 배열)·
+#    `graph --json`(객체)처럼 이슈가 아닌 출력에 actor 를 심게 된다.
+# 두 형태 모두 checks/ledger-adapter-check.sh ③ 이 단언으로 든다.
+case "${1:-}" in
+  show|list|ready|blocked|children|search|query)
+    for a in "$@"; do
+      [ "$a" = --json ] || continue
+      set -o pipefail
+      bd -C "$LEDGER_ROOT" "$@" | jq 'if type == "array" then map(if has("actor") then . else .actor = .assignee end) else . end'
+      exit $?
+    done
     ;;
 esac
 
