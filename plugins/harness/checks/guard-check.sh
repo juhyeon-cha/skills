@@ -1436,8 +1436,8 @@ step "download 동사를 가진 그룹이 정확히 [$GH_DL_EXPECT] 이다 (상�
 [ "$GH_DL_NORM" = "$GH_DL_EXPECT" ] || echo "    실제: [${GH_DL_NORM:-(없음)}] — 기대와 다르다"
 
 # ── github 백엔드의 원장 읽기 (harness-kw0l.3.4). 원장이 github 면 서브에이전트의 **원장 읽기
-#    전부**가 gh 를 타므로, 아래 여섯 형태가 막히면 implementer·reviewer·evaluator 가 통째로
-#    원장을 못 읽는다. 고치기 전 실측(2026-09-06): 여섯 중 넷이 rc=2 였다 — item-list ·
+#    전부**가 gh 를 타므로, 아래 일곱 형태가 막히면 implementer·reviewer·evaluator 가 통째로
+#    원장을 못 읽는다. 고치기 전 실측(2026-09-06, 당시 여섯): 넷이 rc=2 였다 — item-list ·
 #    field-list · api graphql · api REST GET. `download` 절과 같은 이유로 **양쪽**을 시험한다.
 declare -a GH_LEDGER_READ=(
   'gh project item-list 4 --owner o'
@@ -1446,13 +1446,16 @@ declare -a GH_LEDGER_READ=(
   'gh issue view 12 -R o/r --json projectItems'
   "gh api graphql -f query='query{ viewer{ login } }'"   # 읽기 질의는 POST 로 나가도 읽기다
   'gh api repos/o/r/issues/12'                           # 옵션 없는 REST 는 GET 이다
+  # 일곱째는 아래 `=@` 차단의 대조군이다 — ledger-github.sh 의 show·sub-issue 질의는 Int! 변수를
+  # `-F n=<번호>` 로 넘긴다. `-F` 를 통째로 막으면 이 읽기가 함께 죽어 3.4 가 고친 구멍이 되돌아온다.
+  'gh api graphql -f query=q -F n=12'
 )
 for c in "${GH_LEDGER_READ[@]}"; do
   runsub "$c"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "원장 읽기는 통과: $c" [ "$GUARD_RC" -eq 0 ]
 done
-# 짝인 쓰기. 이 9건이 깨지면 면제가 그룹 전체를(또는 gh api 를 통째로) 열어젖힌 것이다.
+# 짝인 쓰기. 이 12건이 깨지면 면제가 그룹 전체를(또는 gh api 를 통째로) 열어젖힌 것이다.
 declare -a GH_LEDGER_WRITE=(
   'gh project item-add 4 --owner o --url https://github.com/o/r/issues/1'
   'gh project item-edit --id X --field-id F --project-id P --text v'
@@ -1463,13 +1466,19 @@ declare -a GH_LEDGER_WRITE=(
   'gh api --method POST repos/o/r/issues'
   'gh api repos/o/r/issues -f title=x'                   # 필드 옵션이 붙으면 gh 가 POST 로 보낸다
   "gh api graphql -f query='mutation{ addProjectV2ItemById(input:{}) { clientMutationId } }'"
+  # 질의문을 파일·표준입력에서 받는 형태 — 훅이 질의문을 못 보므로 `mutation` 검사가 공허하다.
+  # verify-code 1차 실측(2026-09-06): 3.4 의 graphql 분기가 이 셋을 rc 0 으로 열었다(그 전엔 rc 2).
+  # 단언이 없어 지나갔던 자리라 세 형태를 전부 박는다.
+  'gh api graphql --input mut.json'
+  'gh api graphql -F query=@mut.graphql'
+  'gh api graphql --raw-field query=@mut.graphql'
 )
 for c in "${GH_LEDGER_WRITE[@]}"; do
   runsub "$c"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "짝인 쓰기는 차단: $c" [ "$GUARD_RC" -eq 2 ]
 done
-# 오케스트레이터는 판정 대상이 아니다 — 읽기·쓰기 15건 전부 통과한다.
+# 오케스트레이터는 판정 대상이 아니다 — 읽기·쓰기 19건 전부 통과한다.
 for c in "${GH_LEDGER_READ[@]}" "${GH_LEDGER_WRITE[@]}"; do
   run "$(j_bash "$c")"
   step "통과(오케스트레이터): $c" [ "$GUARD_RC" -eq 0 ]
