@@ -12,8 +12,9 @@
 #   ⑤ verify — 전부 같으면 rc 0 과 "verify: N/N 일치" · 라벨을 하나 지우면 rc 1 과 그 id·필드 ·
 #      map 이 plan 보다 짧으면 rc 1("옮기지 않은 항목 K건") · Project 가 없거나 번호가 다르면 rc 1.
 #   ⑥ 미완(PENDING) 줄 청소 — 이슈가 있으면 지우고 그 항목만 다시 만든다(완료 줄은 건너뛴다) ·
-#      이슈가 이미 없으면(HTTP 404) 경고만 남기고 줄을 버린다 · 404 가 아닌 사유로 확인조차
-#      못 하면 줄을 남긴 채 죽는다(rc≠0 을 "없다"로 읽으면 다음 실행이 중복 이슈를 만든다).
+#      이슈가 이미 없으면 경고만 남기고 줄을 버린다 — 한 번도 없던 번호는 HTTP 404, 이미 지워진
+#      번호는 HTTP 410 이다(2026-09-06 실측) · 그 둘이 아닌 사유로 확인조차 못 하면 줄을 남긴 채
+#      죽는다(rc≠0 을 "없다"로 읽으면 다음 실행이 중복 이슈를 만든다).
 #
 # 가짜 gh 는 **실측 payload 형태**를 낸다 — 코드가 기대하는 모양을 흉내 내면 단언이 거짓 통과한다.
 # 특히 Project 소속: GraphQL 은 projectItems.nodes[].project.number 를 싣고, REST(gh issue view
@@ -66,7 +67,9 @@ chmod +x "$BIN/bd"
 # 가짜 gh — 이슈 상태를 $FAKE_GH_STATE 에 파일로 둔다(제목·본문·라벨·코멘트 수·부모·blocked_by·project).
 # 호출은 전부 $FAKE_GH_LOG 에 남긴다. slug 에 ghost 가 들면 issue create 가 죽는다(실패 경로용).
 # FAKE_GH_NET_FAIL=1 이면 auth status 말고 전부 통신 장애로 죽는다 — 404 와 장애를 가르는지 본다.
-# 없는 이슈의 조회·삭제는 **실측 문구 그대로** "gh: Not Found (HTTP 404)" 를 stderr 에 낸다.
+# 없는 이슈의 조회·삭제는 **실측 문구 그대로** 를 stderr 에 낸다(2026-09-06, gh 2.98.0 실측).
+# 한 번도 없던 번호: "gh: Not Found (HTTP 404)". 지운 번호는 묘비(<n>.gone)를 남겨, 되조회가
+# "gh: This issue was deleted (HTTP 410)", 되삭제가 GraphQL "Could not resolve to an issue…" 다.
 cat > "$BIN/gh" <<'FAKEGH'
 #!/usr/bin/env bash
 S="$FAKE_GH_STATE"; printf '%s\n' "$*" >> "$FAKE_GH_LOG"
@@ -80,8 +83,9 @@ case "$1 $2" in
   "label create") exit 0 ;;
   "issue delete")
     n="$3"
+    [ -f "$S/$n.gone" ] && { echo "GraphQL: Could not resolve to an issue or pull request with the number of $n. (repository.issue)" >&2; exit 1; }
     [ -f "$S/$n.title" ] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
-    rm -f "$S/$n".*; exit 0 ;;
+    rm -f "$S/$n".*; : > "$S/$n.gone"; exit 0 ;;
   "issue create")
     slug="$(arg_after -R "$@")"
     case "$slug" in *ghost*) echo "gh: could not create issue" >&2; exit 1 ;; esac
@@ -137,6 +141,7 @@ case "$path" in
     printf ']\n'; exit 0 ;;
   repos/*/issues/*)
     n="${path##*/}"
+    [ -f "$S/$n.gone" ] && { echo "gh: This issue was deleted (HTTP 410)" >&2; exit 1; }
     [ -f "$S/$n.title" ] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
     case "$*" in *.node_id*) echo "NODE_$n" ;; *) echo "$(( n + 1000 ))" ;; esac; exit 0 ;;
 esac
@@ -306,6 +311,19 @@ run apply --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP4" --only x-3
 step "미완 줄의 이슈가 이미 없으면(HTTP 404) 경고만 남기고 줄을 버려 다시 만든다" \
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | grep -q "이슈가 이미 없다" && [ "$(grep -cE "^x-3 [^ ]+$" "$3")" -eq 1 ]' \
   _ "$RC" "$ERR" "$MAP4"
+# 지운 번호의 되조회는 404 가 아니라 **410** 이다(2026-09-06 실측: "gh: This issue was deleted
+# (HTTP 410)"). 앞선 실행이 delete 에 성공하고 map 줄을 버리기 전에 죽은 자리가 이 형태다 —
+# 되삭제는 GraphQL "Could not resolve…" 로 rc 1 이라 조회로 갈라야 하고, 410 을 "없다"로 읽지
+# 않으면 그 map 은 사람이 손으로 고치기 전까지 영구히 막힌다.
+step "가짜 gh 가 지운 번호에 410 을 낸다 — 이 단언의 전제다" \
+  bash -c 'e="$("$1" api "repos/juhyeon-cha/skills/issues/$2" 2>&1 >/dev/null)"; printf "%s" "$e" | grep -q "gh: This issue was deleted (HTTP 410)"' \
+  _ "$BIN/gh" "$n3"
+MAP4B="$TMP/map4b.txt"
+printf 'x-3 skills#%s PENDING\n' "$n3" > "$MAP4B"
+run apply --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP4B" --only x-3
+step "미완 줄의 이슈가 이미 지워졌으면(HTTP 410) 경고만 남기고 줄을 버려 다시 만든다" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | grep -q "이슈가 이미 없다" && [ "$(grep -cE "^x-3 [^ ]+$" "$3")" -eq 1 ]' \
+  _ "$RC" "$ERR" "$MAP4B"
 MAP5="$TMP/map5.txt"
 awk '$1 == "x-3" { print $1, $2, "PENDING" }' "$MAP4" > "$MAP5"; cp "$MAP5" "$TMP/map5.bak"
 OUT=$(FAKE_GH_NET_FAIL=1 bash "$MIG" apply --from "$ROOT" --plan "$TMP/plan.json" --map "$MAP5" --only x-3 2>"$TMP/err")
