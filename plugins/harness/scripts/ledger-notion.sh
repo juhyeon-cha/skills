@@ -42,6 +42,22 @@ die() { echo "ledger-notion: $*" >&2; exit 1; }
 [ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
 # 원격 반영 검사 — 페이지가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (notion 백엔드: 페이지가 원격 자체다)"; exit 0; }
+# 등록부 질의 — 이 백엔드가 자기 계층(People · select)으로 답한다(스토리 skills#105 결정 2).
+# 이 태스크(skills#142)는 배선까지다: 하위 명령 인식과 인자 검증이 여기 서고, 값을 내는 것은
+# skills#145 다. 그때까지 빈 배열이고, **빈 배열이 실제 상태가 아니라는 사실을 stderr 로 밝힌다** —
+# 조용한 빈 배열은 "레일이 없다" 와 구별되지 않는다. rc 는 0 이다: 계약이 "JSON 배열" 이고
+# 소비자(M2 의 board.sh)는 아직 없다.
+# NOTION_TOKEN 검사보다 앞에 두는 이유: 아직 Notion 에 닿지 않는 답이라 토큰을 요구할 근거가 없다.
+# skills#145 가 실제로 질의를 붙일 때 이 블록은 아래(DB·토큰 검사 뒤)로 내려간다.
+case "${1:-}" in
+  rails|sprints)
+    sub="$1"; shift
+    for a in "$@"; do [ "$a" = --json ] || die "$sub: 모르는 인자 '$a' (사용: $sub --json)"; done
+    echo "ledger-notion: $sub 는 아직 구현되지 않았다 (skills#145) — 빈 배열이 실제 상태가 아니다" >&2
+    echo '[]'
+    exit 0
+    ;;
+esac
 
 DB="$(jq -r '.database_id // empty' "$LEDGER_CONFIG")"
 [ -n "${NOTION_TOKEN:-}" ] || die "NOTION_TOKEN 환경 변수가 없다 — 통합 토큰을 환경 변수로만 준다(파일에 두지 않는다)"

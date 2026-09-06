@@ -143,6 +143,20 @@ case "${1:-}" in
     shift
     sync_check "$@"
     ;;
+  rails|sprints)
+    # 등록부 질의 — bd 하위 명령이 아니라 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2).
+    # 이 태스크(skills#142)는 배선까지다: 하위 명령 인식과 인자 검증이 여기 서고, 값을
+    # <루트>/rails.json · sprints.json 에서 파생하는 것은 skills#143 이다. 그때까지 빈 배열이고,
+    # **빈 배열이 실제 상태가 아니라는 사실을 stderr 로 밝힌다** — 조용한 빈 배열은 "레일이 없다" 와
+    # 구별되지 않는다. rc 는 0 이다: 계약이 "JSON 배열" 이고 소비자(M2 의 board.sh)는 아직 없다.
+    sub="$1"; shift
+    for a in "$@"; do
+      [ "$a" = --json ] || { echo "ledger-beads $sub: 모르는 인자 '$a' (사용: $sub --json)" >&2; exit 1; }
+    done
+    echo "ledger-beads $sub: 아직 구현되지 않았다 (skills#143 이 $LEDGER_ROOT/$sub.json 을 읽는다) — 빈 배열이 실제 상태가 아니다" >&2
+    echo '[]'
+    exit 0
+    ;;
 esac
 
 # ── JSON 읽기 경로만 jq 한 겹 ─────────────────────────────────────────
