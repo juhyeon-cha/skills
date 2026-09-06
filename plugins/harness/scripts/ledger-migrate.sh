@@ -18,6 +18,26 @@
 #     예정이라 이슈를 두지 않는다 — 어느 트리를 건드리는지는 남은 repo: 라벨이 든다.
 #   · map 파일 "<beads id> <repo>#<번호>" — apply 의 멱등 근거이자 verify 의 대조 대상.
 #
+# **map 의 줄은 두 형태다 — 완료 줄 "<beads id> <repo>#<번호>"(낱말 2개)와 미완 줄
+# "<beads id> <repo>#<번호> PENDING"(낱말 3개).** 미완 줄은 이슈를 만든 직후에 적히고,
+# 코멘트·project item-add·부모·의존까지 다 끝난 뒤에야 완료 줄로 바뀐다. 그래서 멱등의 단위가
+# "이슈 생성"이 아니라 "항목 전체"다.
+#   · 재실행은 **루프에 들어가기 전에 미완 줄을 전부 청소한다** — 그 줄의 이슈를 gh issue delete
+#     로 지우고 줄을 버린다. 그 뒤 그 항목은 map 에 없는 항목이 되어 처음부터 다시 만들어진다.
+#     이슈가 이미 없으면(사람이 지웠다) 경고 한 줄을 남기고 줄만 버린다. 지우지 못했는데 이슈가
+#     남아 있으면 죽는다 — 중복 이슈를 만드는 것보다 멈추는 쪽이 싸다.
+#   · 완료 줄은 지금처럼 건너뛴다. map_lookup·verify 는 **완료 줄만** 옮겨진 것으로 읽는다
+#     (미완 줄은 부모·의존의 대상도 아니고 verify 의 "옮기지 않았다"에 걸린다).
+#
+# **원장 note 블롭은 이슈당 코멘트 하나다** — 줄 단위로 쪼개지 않는다. 2026-09-06 실측
+# (--from ~/workspace/harness, 129건): 줄 단위로 쪼개면 코멘트 1585건(harness-2a5 혼자 602줄)이고,
+# 통째로 두면 49건이다(note 가 빈 항목 80건은 코멘트가 없다). 가장 큰 블롭이 41001자로 GitHub
+# 코멘트 한도 65536 안이다. ACTOR 줄이 있으면 같은 코멘트의 뒤에 빈 줄 하나를 두고 붙는다
+# (그래야 notes 원소가 항상 0개나 1개다).
+#
+# **라벨은 레포마다 한 번 만든다** — plan 전체의 라벨 합집합을 레포별로 모아 루프 앞에서 만든다.
+# 같은 129건 plan 실측: 이슈마다 부르면 gh label create 543회, (레포,라벨) 합집합은 56회다.
+#
 # **plan 배열 밖을 가리키는 부모·의존은 간선을 걸지 않는다** — apply 가 stderr 경고 한 줄을 남기고
 # 넘어가고, verify 도 그 간선을 기대하지 않는다. --only 로 자른 부분 plan 만의 이야기가 아니다:
 # 열린 항목의 부모·의존이 **이미 닫혀** plan(status != closed) 밖인 경우가 실제로 있다.
@@ -89,9 +109,9 @@ TSORT_JQ='. as $all | [ $all[].id ] as $ids
                rest: (.rest | map(select(.id as $i | ($ready | map(.id) | index($i)) == null))) } end)
   | .done'
 
-map_lookup() { # <beads id> <map 파일> → <repo>#<번호> (없으면 빈 문자열)
+map_lookup() { # <beads id> <map 파일> → <repo>#<번호> (완료 줄만; 없으면 빈 문자열)
   [ -r "$2" ] || return 0
-  awk -v k="$1" '$1 == k { print $2; exit }' "$2"
+  awk -v k="$1" 'NF == 2 && $1 == k { print $2; exit }' "$2"
 }
 
 # ── plan ──────────────────────────────────────────────────────────────
@@ -129,7 +149,9 @@ cmd_plan() {
       | (if ($r0 == null or $r0 == "harness") then "skills" else $r0 end) as $repo
       | ((.description // "") | rtrimstr("\n")) as $desc
       | ((.acceptance_criteria // "") | rtrimstr("\n")) as $acc
-      | ((.notes // "") | split("\n") | map(select(test("\\S")))) as $notes
+      | ((.notes // "") | rtrimstr("\n")) as $note
+      | (if .status == "in_progress" and (.assignee // "") != ""
+         then "ACTOR: " + .assignee else "" end) as $actor
       # 부모가 plan 밖(대개 이미 닫힌 부모)이면 sub-issue 를 걸 곳이 없다 — 유실을 본문 둘째 줄에 남긴다.
       | (.parent // "") as $par
       | (if $par != "" and ($planids | index($par)) == null
@@ -145,8 +167,9 @@ cmd_plan() {
           labels: (($ls | map(select((startswith("type:") or startswith("status:")) | not))) + $extra | unique),
           parent: .parent,
           deps: [ .dependencies[]? | select(.dependency_type == "blocks") | .id ],
-          notes: ($notes + (if .status == "in_progress" and (.assignee // "") != ""
-                            then [ "ACTOR: " + .assignee ] else [] end)) })')" \
+          # 코멘트 하나짜리 배열이다 — 빈 원소는 넣지 않으므로 length 는 0 아니면 1 이다.
+          notes: ([ $note, $actor ] | map(select(test("\\S"))) | join("\n\n")
+                  | if . == "" then [] else [ . ] end) })')" \
     || die "plan 을 만들지 못했다"
 
   # repos.json 에 없는 레포는 여기서 죽는다 — 아무것도 내지 않는다(부분 plan 을 남기지 않는다).
@@ -193,6 +216,37 @@ cmd_apply() {
   APPLY_TMP="$(mktemp -d)" || die "임시 디렉토리를 만들지 못했다"
   trap 'rm -rf "$APPLY_TMP"' EXIT
 
+  # 미완 줄 청소 — 앞선 실행이 이슈를 만든 뒤 코멘트·project·간선을 끝내기 전에 죽은 자리다.
+  # 그 이슈를 지우고 줄을 버려, 아래 루프가 그 항목을 map 에 없는 항목으로 다시 만든다.
+  local pid pref pslug0 pnum0 swept=0
+  while read -r pid pref _; do
+    [ -n "${pid:-}" ] || continue
+    pslug0="$(slug_of "${pref%%#*}" "$root")" || exit 1
+    pnum0="${pref##*#}"
+    if ! gh issue delete "$pnum0" -R "$pslug0" --yes >/dev/null 2>&1; then
+      gh api "repos/$pslug0/issues/$pnum0" >/dev/null 2>&1 \
+        && die "미완 줄의 이슈 $pref 를 지우지 못했다 ($pid) — 손으로 지운 뒤 다시 돌려라"
+      echo "  ⚠ 미완 줄 $pid → $pref: 이슈가 이미 없다 — 줄만 버린다" >&2
+    fi
+    swept=$((swept + 1))
+    echo "· 미완 정리 $pid → $pref (지우고 처음부터 다시 만든다)"
+  done < <(awk 'NF == 3 && $3 == "PENDING"' "$mapf")
+  if [ "$swept" -gt 0 ]; then
+    awk 'NF == 2' "$mapf" > "$APPLY_TMP/map" && cp "$APPLY_TMP/map" "$mapf" \
+      || die "map 에서 미완 줄을 지우지 못했다: $mapf"
+  fi
+
+  # 라벨은 이슈마다가 아니라 레포마다 한 번이다 — plan 전체의 합집합을 레포별로 모아 여기서 만든다.
+  local lrepo lname lslug lcnt=0
+  while IFS=$'\t' read -r lrepo lname; do
+    [ -n "${lname:-}" ] || continue
+    lslug="$(slug_of "$lrepo" "$root")" || exit 1
+    gh label create "$lname" -R "$lslug" --force >/dev/null 2>&1 \
+      || die "라벨 '$lname' 를 $lslug 에 만들지 못했다"
+    lcnt=$((lcnt + 1))
+  done < <(printf '%s\n' "$items" | jq -rs '[ .[] | .repo as $r | ('"$LABELS_JQ"') | .[] | $r + "\t" + . ] | unique | .[]')
+  echo "· 라벨 ${lcnt}건을 레포별로 만들었다 (이슈 수와 무관하다)"
+
   while IFS= read -r item; do
     [ -n "$item" ] || continue
     local id repo slug title labels url num already
@@ -205,16 +259,13 @@ cmd_apply() {
     slug="$(slug_of "$repo" "$root")" || exit 1
     printf '%s' "$item" | jq -r .body > "$APPLY_TMP/body"
 
-    for l in $(printf '%s' "$labels" | tr ',' ' '); do
-      gh label create "$l" -R "$slug" --force >/dev/null 2>&1 || die "라벨 '$l' 를 $slug 에 만들지 못했다 ($id)"
-    done
     url="$(gh issue create -R "$slug" -t "$title" -F "$APPLY_TMP/body" -l "$labels" 2>/dev/null)" \
       || die "gh issue create 실패: $id ($slug)"
     [ -n "$url" ] || die "gh issue create 가 URL 을 내지 않았다: $id ($slug)"
     num="${url##*/}"
-    # 만든 즉시 기록한다 — 여기서 죽어도 다시 돌릴 때 같은 이슈를 두 번 만들지 않는다.
-    printf '%s %s#%s\n' "$id" "$repo" "$num" >> "$mapf" || die "map 에 쓰지 못했다: $mapf"
-    n=$((n + 1))
+    # 만든 즉시 **미완 줄**로 기록한다 — 여기서 죽어도 다시 돌릴 때 같은 이슈를 두 번 만들지
+    # 않고, 아래를 다 끝내지 못한 채 죽으면 다음 실행이 이 이슈를 지우고 처음부터 다시 만든다.
+    printf '%s %s#%s PENDING\n' "$id" "$repo" "$num" >> "$mapf" || die "map 에 쓰지 못했다: $mapf"
 
     gh project item-add "$project" --owner "$owner" --url "$url" >/dev/null 2>&1 \
       || die "Project $project 에 넣지 못했다: $id ($repo#$num)"
@@ -252,6 +303,11 @@ cmd_apply() {
         || die "blocked_by 를 걸지 못했다: $id ← $dep"
     done < <(printf '%s' "$item" | jq -r '.deps[]?')
 
+    # 코멘트·project·부모·의존까지 다 끝났다 — 이제야 완료 줄로 바꾼다.
+    awk -v k="$id" '{ if ($1 == k) print $1, $2; else print $0 }' "$mapf" > "$APPLY_TMP/map" \
+      && cp "$APPLY_TMP/map" "$mapf" || die "map 의 미완 줄을 완료로 바꾸지 못했다: $id"
+    n=$((n + 1))
+
     echo "✓ $id → $repo#$num"
   done <<EOF
 $items
@@ -284,7 +340,7 @@ cmd_verify() {
   total="$(jq 'length' "$planf")"
   # 부분 이전을 통과로 읽지 않는다 — map 에 없는 plan 항목은 그 자체로 실패다.
   missing="$(jq -r --rawfile m "$mapf" '
-    ($m | split("\n") | map(select(. != "") | split(" ")[0])) as $done
+    ($m | split("\n") | map(select(. != "") | split(" ")) | map(select(length == 2) | .[0])) as $done
     | .[] | select(.id as $i | ($done | index($i)) == null) | .id' "$planf")"
   if [ -n "$missing" ]; then
     printf '%s\n' "$missing" | sed 's/^/✗ /;s/$/ 옮기지 않았다 (map 에 없다)/'
