@@ -3,12 +3,14 @@
 # ledger.sh 가 부른다(직접 부르지 않는다). 명령 문면은 harness-m8gg.3.1 의 실측 그대로다.
 #
 # ledger.json = {"backend":"github","owner":"<o>","project":<n>}
-#   owner   Projects v2 의 소유자(사용자 login). 이슈가 사는 레포의 소유자는 repos.json 의 url 이 정한다.
+#   owner   Projects v2 의 소유자(사용자 login). **이슈가 사는 레포의 소유자도 이 값이다.**
 #   project Projects v2 번호. 없으면 create 가 item-add 를 건너뛰지 않고 rc≠0 이다 — `ledger.sh init` 이 만든다.
 #
 # id 형식: <repo>#<번호> (예: harness#57). 번호만으로는 멀티 레포에서 레포를 못 짚는다.
-# 이슈를 만드는 레포: -l 의 첫 repo: 라벨 → 없으면 --parent 의 레포 → 둘 다 없으면 rc≠0(폴백 없음).
-# 레포 slug(owner/name)는 하네스 루트 repos.json 의 url 에서 파생한다 — 등재되지 않은 레포는 rc≠0.
+# 이슈를 만드는 레포: -l 의 `repo:` 라벨 **정확히 하나**. 0개거나 2개 이상이면 rc≠0(폴백 없음) —
+# 이 어댑터는 이름의 실재를 확인할 등록부를 읽지 않으므로, 애매한 입력을 여기서 세워 막는다.
+# 여러 레포에 걸치는 스토리는 만든 뒤 `label add` 로 나머지 `repo:` 라벨을 더한다.
+# 레포 slug 는 `owner/<repo 이름>` 이다 — 대상 레포 등록부를 읽지 않는다. 이름의 실재는 gh 가 판정한다.
 #
 # **원장의 경계는 Projects v2 소속이다** (사용자 결정 2026-09-06). list·ready 는 등재 레포의 이슈를
 # 받아 각 이슈의 projectItems 로 project 소속을 보고 거른다 — 거르지 않으면 경계가 "등재 레포의 모든
@@ -63,12 +65,9 @@ command -v gh >/dev/null 2>&1 || die "gh 가 PATH 에 없다 — GitHub 백엔�
 gh auth status >/dev/null 2>&1 || die "gh 인증이 없다 — 사람이 gh auth login 을 먼저 한다"
 
 # ── 레포·id ───────────────────────────────────────────────────────────
-slug_of() { # <repo 이름> → owner/name (repos.json 의 url 에서)
-  local url
-  url="$(jq -r --arg n "$1" '.repos[] | select(.name == $n) | .url' "$LEDGER_ROOT/repos.json" 2>/dev/null | head -1)"
-  [ -n "$url" ] || die "repos.json 에 없는 레포 '$1' — 이슈가 살 레포는 등재된 것이어야 한다"
-  url="${url%.git}"; url="${url#*github.com/}"; url="${url#*github.com:}"
-  printf '%s\n' "$url"
+slug_of() { # <repo 이름> → owner/name — owner 는 ledger.json 이 정한다(등록부를 읽지 않는다)
+  [ -n "$1" ] || die "레포 이름이 비었다"
+  printf '%s/%s\n' "$OWNER" "$1"
 }
 REPO=""; NUM=""; SLUG=""
 split_id() { # <repo>#<n> → REPO NUM SLUG
@@ -79,7 +78,17 @@ split_id() { # <repo>#<n> → REPO NUM SLUG
   case "$NUM" in ''|*[!0-9]*) die "id 형식은 <repo>#<번호> 다: '$1'" ;; esac
   SLUG="$(slug_of "$REPO")" || exit 1
 }
-repos_all() { jq -r '.repos[].name' "$LEDGER_ROOT/repos.json"; }
+# 읽기가 훑을 레포 목록 — **Projects v2 항목이 사는 레포다.** 등록부를 읽지 않는다: 등록부는
+# 머신 로컬이고 원장은 원격이라 둘이 갈리면 원격이 옳고, 이 백엔드의 원장 경계는 이미 project
+# 소속이다(머리 주석). 항목이 0건이면 훑을 레포도 0개이고 그것은 갓 만든 빈 프로젝트의 정상
+# 모양이므로 실패가 아니다 — 호출자가 stderr 로 밝힌다.
+# ponytail: content 가 Issue 인 항목만 이름을 낸다 — draft 항목·PR 은 원장이 아니다.
+repos_all() {
+  local out
+  out="$(gh api graphql --paginate --slurp -f query='query($o:String!,$n:Int!,$endCursor:String){ user(login:$o){ projectV2(number:$n){ items(first:100, after:$endCursor){ nodes{ content{ ... on Issue { repository{name} } } } pageInfo{hasNextPage endCursor} } } } }' -f o="$OWNER" -F n="$PROJECT" 2>/dev/null)" \
+    || return 1
+  printf '%s' "$out" | jq -r '[.[].data.user.projectV2.items.nodes[]?.content.repository.name // empty] | unique | .[]'
+}
 
 # ── GraphQL ───────────────────────────────────────────────────────────
 FIELDS='id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body}} parent{number repository{name}} blockedBy(first:50){totalCount nodes{number state repository{name}}}'
@@ -167,9 +176,9 @@ list_json() { # 옵션을 파싱해 정규화된 JSON 배열을 낸다. 상태 �
   # 레포 목록의 출처가 없으면 여기서 죽는다 — `for name in $(repos_all)` 안의 실패는 명령 치환에 갇혀 빈 루프가
   # 되고 "이슈 0건" 으로 rc 0 이 났다(harness-m8gg.4 verify-code 2차의 관찰). 실패를 삼키지 않는다.
   local names
-  [ -r "$LEDGER_ROOT/repos.json" ] || die "list: $LEDGER_ROOT/repos.json 이 없다 — 이슈가 사는 레포 목록의 출처다"
   [ -n "$PROJECT" ] || die "list: $LEDGER_CONFIG 에 project 가 없다 — 읽기의 경계가 Projects v2 소속이라 번호 없이는 무엇이 원장인지 정할 수 없다 (ledger.sh init 이 만든다)"
-  names="$(repos_all)" || die "list: $LEDGER_ROOT/repos.json 을 읽지 못했다 (유효한 JSON 인가)"
+  names="$(repos_all)" || die "list: Project $PROJECT (owner $OWNER) 의 항목을 읽지 못했다 — 이슈가 사는 레포 목록의 출처다"
+  [ -n "$names" ] || echo "ledger-github: Project $PROJECT (owner $OWNER) 에 이슈 항목이 0건이다 — 훑을 레포가 없다. $LEDGER_CONFIG 의 project 번호를 확인하라." >&2
   for name in $names; do
     o="$(slug_of "$name")"; r="${o##*/}"; o="${o%%/*}"
     page="$(gh api graphql --paginate --slurp -f query="query(\$o:String!,\$r:String!,\$endCursor:String){ repository(owner:\$o,name:\$r){ issues(first:100, after:\$endCursor, states:$states){ nodes{ $FIELDS $PROJECT_FIELD } pageInfo{hasNextPage endCursor} } } }" -f o="$o" -f r="$r" 2>/dev/null)" \
@@ -288,10 +297,13 @@ case "$cmd" in
       esac
     done
     [ -n "$PROJECT" ] || die "$LEDGER_CONFIG 에 project 가 없다 — 이슈를 Projects v2 에 넣지 못하므로 만들지 않는다 (ledger.sh init 이 만든다)"
-    repo=""
-    for l in $(printf '%s' "$labels" | tr ',' ' '); do case "$l" in repo:*) repo="${l#repo:}"; break ;; esac; done
-    if [ -z "$repo" ] && [ -n "$parent" ]; then split_id "$parent"; repo="$REPO"; fi
-    [ -n "$repo" ] || die "create: 이슈가 살 레포를 모른다 — -l repo:<이름> 또는 --parent 가 필요하다"
+    # 이슈가 살 레포는 `repo:` 라벨 정확히 하나가 정한다. 등록부가 사라져 이름의 실재를 여기서
+    # 확인할 수 없으므로(머리 주석), 애매한 입력 — 0개(레포를 모른다) · 2개 이상(어느 쪽인지
+    # 모른다) — 을 세워서 막는다. --parent 로 넘겨받던 폴백은 없앴다: 부모의 레포를 조용히
+    # 물려받으면 라벨과 실제 자리가 갈린 이슈가 생긴다.
+    repo=""; nrepo=0
+    for l in $(printf '%s' "$labels" | tr ',' ' '); do case "$l" in repo:*) repo="${l#repo:}"; nrepo=$((nrepo + 1)) ;; esac; done
+    [ "$nrepo" -eq 1 ] || die "create: repo: 라벨이 ${nrepo}개다 — 이슈가 살 레포는 정확히 하나여야 한다 (-l repo:<이름>). 여러 레포에 걸치는 스토리는 만든 뒤 'label add' 로 나머지를 더한다"
     slug="$(slug_of "$repo")" || exit 1
     all_labels="type:$type${labels:+,$labels}"
     for l in $(printf '%s' "$all_labels" | tr ',' ' '); do ensure_label "$slug" "$l"; done

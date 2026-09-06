@@ -229,9 +229,6 @@ mkdir -p "$TMP/jqbin" "$TMP/ghbin"
 ln -s "$(command -v jq)" "$TMP/jqbin/jq"
 NOGH_PATH="$TMP/jqbin:/usr/bin:/bin"
 GH="$TMP/ghbin"; mkdir -p "$GH"
-cat > "$GH/repos.json" <<'EOF'
-{"repos":[{"name":"harness","url":"https://github.com/juhyeon-cha/harness.git","default_branch":"master","check":"true","bootstrap":""}]}
-EOF
 printf '{"backend":"github","owner":"juhyeon-cha","project":4}\n' > "$GH/ledger.json"
 LOG="$TMP/gh.log"
 cat > "$TMP/ghbin/gh" <<'FAKE'
@@ -302,9 +299,20 @@ case "$1 $2" in
         else
           echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
         fi ;;
+      # Projects v2 의 항목 — 읽기가 훑을 레포 목록의 출처다(등록부가 아니다). content 가
+      # Issue 가 아닌 항목(draft)을 한 건 섞어 두어, 그것이 이름으로 새면 아래 단언이 떨어진다.
+      *"items(first"*)
+        [ -z "${FAKE_GH_ITEMS_FAIL:-}" ] || { echo 'gh: Could not resolve to a ProjectV2' >&2; exit 1; }
+        if [ -n "${FAKE_GH_NO_ITEMS:-}" ]; then
+          echo '[{"data":{"user":{"projectV2":{"items":{"nodes":[]}}}}}]'
+        else
+          echo '[{"data":{"user":{"projectV2":{"items":{"nodes":[{"content":{"repository":{"name":"harness"}}},{"content":{"repository":{"name":"harness"}}},{"content":{}}]}}}}}]'
+        fi ;;
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
       *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
+      # 없는 레포 — 등록부가 사라져 이름의 실재를 판정하는 것은 원격뿐이다(ledger-github.sh 머리 주석).
+      *"r=nowhere"*) echo 'gh: Could not resolve to a Repository' >&2; exit 1 ;;
       # 70 — 프로젝트 밖 이슈. show 는 id 로 직접 읽으므로 소속을 요구하지 않는다(ledger-github.sh 머리 주석).
       *"n=70"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" ;;
       # 72 — blockedBy 가 first:N 에 잘린 응답. 조용히 자르면 ready 가 막힌 것을 열렸다고 낸다.
@@ -345,7 +353,7 @@ step "gh 없음 → rc≠0 · stderr 한 줄이 gh 를 든다" bash -c '[ "$1" -
 OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_AUTH_FAIL=1 HARNESS_ROOT="$GH" bash "$LEDGER" show 'harness#57' 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
 step "gh auth status rc≠0 → rc≠0 · stderr 한 줄" bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ]' _ "$RC" "$ERR"
 
-mkdir -p "$TMP/ghnoproj"; cp "$GH/repos.json" "$TMP/ghnoproj/"
+mkdir -p "$TMP/ghnoproj"
 printf '{"backend":"github","owner":"juhyeon-cha"}\n' > "$TMP/ghnoproj/ledger.json"
 : > "$LOG"
 OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghnoproj" bash "$LEDGER" create "x" -l repo:harness 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
@@ -364,7 +372,14 @@ step "create → 라벨 생성(type:task·repo·rail) → issue create(-R·-t·-
 step "create 의 본문이 <description>\\n\\n## Acceptance\\n\\n<acceptance> 형태다" \
   bash -c '[ "$(cat "$1")" = "$(printf "본문\n\n## Acceptance\n\n조건")" ]' _ "$LOG.body"
 grun create "x" -t task
-step "create 에 repo: 라벨도 --parent 도 없으면 rc≠0" [ "$RC" -ne 0 ]
+step "create 에 repo: 라벨이 없으면 rc≠0 (--parent 폴백 없음)" [ "$RC" -ne 0 ]
+grun create "x" -t task --parent 'harness#58'
+step "create: --parent 만으로는 레포를 정하지 않는다 — repo: 라벨 0개는 rc≠0 이고 stderr 가 그 개수를 든다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "repo: 라벨이 0개"' _ "$RC" "$ERR"
+: > "$LOG"
+grun create "x" -t task -l repo:harness,repo:skills
+step "create: repo: 라벨 2개 → rc≠0 이고 stderr 가 그 개수를 든다 · 이슈를 만들지 않는다 (등록부가 사라진 자리를 메우는 판정)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "repo: 라벨이 2개" && ! grep -q "^issue create" "$3"' _ "$RC" "$ERR" "$LOG"
 
 grun show 'harness#57' --json
 step "show --json 의 키가 bd 와 같다 (id·title·status·issue_type·labels·acceptance_criteria·notes·assignee·actor·parent)" \
@@ -390,13 +405,18 @@ step "없는 id → rc≠0" [ "$RC" -ne 0 ]
 grun show 57
 step "형식 밖 id(번호만) → rc≠0" [ "$RC" -ne 0 ]
 grun show 'nowhere#1'
-step "repos.json 에 없는 레포 → rc≠0" [ "$RC" -ne 0 ]
-# repos.json 이 아예 없는 루트 — 종전에는 레포 루프가 빈 채로 돌아 "이슈 0건" 으로 rc 0 이 났다
-# (harness-m8gg.4 verify-code 2차 관찰). 실패를 삼키지 않는다.
-mkdir -p "$TMP/ghnorepos"; cp "$GH/ledger.json" "$TMP/ghnorepos/"
-OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghnorepos" bash "$LEDGER" list --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
-step "repos.json 없는 루트에서 list → rc≠0 이고 stderr 가 repos.json 을 든다 (빈 목록 rc 0 으로 삼키지 않는다)" \
-  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "repos.json"' _ "$RC" "$ERR"
+step "없는 레포 → rc≠0 (이름의 실재는 원격이 판정한다 — 등록부를 읽지 않는다)" [ "$RC" -ne 0 ]
+step "slug 는 ledger.json 의 owner 와 repo 이름으로 파생한다 (등록부의 url 이 아니다)" \
+  bash -c 'grep -q -- "-f o=juhyeon-cha" "$1" && grep -q -- "-f r=nowhere" "$1"' _ "$LOG"
+# 레포 목록의 출처가 실패하면 삼키지 않는다 — 종전에는 레포 루프가 빈 채로 돌아 "이슈 0건" 으로
+# rc 0 이 났다(harness-m8gg.4 verify-code 2차 관찰).
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_ITEMS_FAIL=1 HARNESS_ROOT="$GH" bash "$LEDGER" list --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "프로젝트 항목을 읽지 못하면 list → rc≠0 이고 stderr 가 project 번호를 든다 (빈 목록 rc 0 으로 삼키지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "Project 4"' _ "$RC" "$ERR"
+# 항목 0건은 갓 만든 빈 프로젝트의 정상 모양이다 — 실패가 아니라 rc 0 의 빈 배열 + stderr 한 줄.
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_NO_ITEMS=1 HARNESS_ROOT="$GH" bash "$LEDGER" list --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "프로젝트 항목 0건 → rc 0 · 빈 배열 · stderr 가 그 사실을 밝힌다 (빈 프로젝트는 실패가 아니다)" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q "항목이 0건"' _ "$RC" "$OUT" "$ERR"
 
 grun children 'harness#57' --json
 step "children --json 이 subIssues 2건을 parent 와 함께 낸다" \
@@ -417,13 +437,13 @@ step "경계: 프로젝트 밖 이슈(70·71)가 읽기에 0건이고 프로젝�
   bash -c 'printf "%s" "$1" | jq -e "(map(.id) | sort) == [\"harness#57\",\"harness#58\",\"harness#59\"]" >/dev/null' _ "$OUT"
 step "경계: 소속 판정에 gh project item-list 를 쓰지 않는다 (item-add 직후 안 나오는 목록이다)" \
   bash -c '! grep -q "^project item-list" "$1"' _ "$LOG"
-step "호출 수: 읽기 한 번에 레포마다 GraphQL 1회다 (이슈마다 1회가 아니다 — projectItems 를 같은 질의에 얹는다)" \
-  bash -c '[ "$(grep -c "^api graphql" "$1")" -eq 1 ] && [ "$(grep -c "issues(first" "$1")" -eq 1 ]' _ "$LOG"
+step "호출 수: 읽기 한 번에 레포 목록 1회 + 레포마다 GraphQL 1회다 (이슈마다 1회가 아니다 — projectItems 를 같은 질의에 얹는다)" \
+  bash -c '[ "$(grep -c "^api graphql" "$1")" -eq 2 ] && [ "$(grep -c "items(first" "$1")" -eq 1 ] && [ "$(grep -c "issues(first" "$1")" -eq 1 ]' _ "$LOG"
 grun show 'harness#70' --json
 step "경계 밖이어도 show 는 id 로 읽는다 (소속을 요구하지 않는다)" \
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ".[0].id == \"harness#70\"" >/dev/null' _ "$RC" "$OUT"
 # 없는 project 번호 → 조용한 전수가 아니라 0건이고, 0건이 정상 상태와 구별되도록 stderr 로 밝힌다.
-mkdir -p "$TMP/ghbadproj"; cp "$GH/repos.json" "$TMP/ghbadproj/"
+mkdir -p "$TMP/ghbadproj"
 printf '{"backend":"github","owner":"juhyeon-cha","project":99999}\n' > "$TMP/ghbadproj/ledger.json"
 OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghbadproj" bash "$LEDGER" list --all --json -n 0 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
 step "없는 project 번호 → 0건 + stderr 가 그 사실을 밝힌다 (rc 0 — 빈 프로젝트도 같은 모양이라 실패로 읽을 수 없다)" \
@@ -442,8 +462,8 @@ grun ready --json
 step "ready 는 open 이고 의존이 전부 closed 인 것만 (57 은 열린 58 에 막혀 빠지고, 58 은 닫힌 59 뿐이라 든다)" \
   bash -c 'printf "%s" "$1" | jq -e "map(.id) == [\"harness#58\"]" >/dev/null' _ "$OUT"
 # 이 스토리의 완료 형상. 종전에는 열린 이슈마다 REST 를 한 번씩 불렀다 — 호출 수가 항목 수에 선형이었다.
-step "ready 가 의존 조회 REST 를 한 번도 부르지 않는다 — 호출은 등재 레포마다 GraphQL 1회뿐이다" \
-  bash -c '! grep -q "dependencies/blocked_by" "$1" && [ "$(grep -c "^api graphql" "$1")" -eq 1 ]' _ "$LOG"
+step "ready 가 의존 조회 REST 를 한 번도 부르지 않는다 — 호출은 레포 목록 1회 + 레포마다 GraphQL 1회뿐이다" \
+  bash -c '! grep -q "dependencies/blocked_by" "$1" && [ "$(grep -c "^api graphql" "$1")" -eq 2 ]' _ "$LOG"
 grun show 'harness#72' --json
 step "blockedBy 가 잘린 응답(totalCount 9 > 받은 노드 1) → rc≠0 · stderr 가 두 수를 함께 낸다 (조용히 자르지 않는다)" \
   bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "totalCount=9" && printf "%s" "$2" | grep -q "받은 노드=1"' _ "$RC" "$ERR"
