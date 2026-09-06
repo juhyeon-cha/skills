@@ -82,6 +82,8 @@ Follow the one branch that matches `backend`, then continue at "all backends".
 
 Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `ledger.json` as `{"backend":"github","owner":"<github login>"}` and run `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init` (optionally `--title <project name>`): it creates the Projects v2 that groups the issues of every target repo and writes its `project` number back into `ledger.json` — or, if `project` is already there, verifies the number is readable. Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
 
+**The ledger's boundary is membership in that Projects v2, not "the issues of the registered repos".** Reads (`list`·`ready`, and therefore every projection and check built on them) return only the issues that are in the `project`, so a target repo's own issues — bug reports, other people's backlog — stay outside the harness even though they live in a repo the harness reads. That is the point: without the boundary, `triage` would offer somebody else's backlog as harness work. What puts an issue inside is `ledger.sh create`, which adds it to the project as it makes it; an issue made any other way is not in the ledger until someone adds it to the project.
+
 #### backend: notion
 
 Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never written into a tracked file — the adapter reads the environment variable only), and a page shared with that integration. Write `ledger.json` as `{"backend":"notion"}` and run `HARNESS_ROOT=$PWD NOTION_TOKEN=… bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init --parent-page <that page's id>`: it creates the database with the schema (two requests — the self-relations `Parent`·`Blocked by` cannot go into the create request) and writes `database_id` back into `ledger.json`; with `database_id` already present it only re-applies the schema (idempotent). Item 2 below does not apply.
@@ -157,7 +159,14 @@ The root's files came with the clone (`git clone` brought the context files), an
 
 #### backend: github
 
-Nothing to restore — the issues live on GitHub. Confirm access: `gh auth status` rc 0 with the `project` scope (1.5's `gh auth refresh -s project,read:project` if it is missing), then `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0 (the `HARNESS_ROOT` prefix is 1.5's rule — the same discriminator gap applies to a clone).
+**Nothing to restore** — the issues and the Projects v2 live on GitHub, so there is no local copy to bring back and nothing to write into `ledger.json`. What a second participant actually does is four things:
+
+1. **Clone the harness root** (`git clone <the root's url>` and `cd` into it) — this is what section 2 means by "from a clone", and it is the prerequisite for everything below.
+2. **`ledger.json` came with that clone.** `owner` and `project` are already in it — do not run `ledger.sh init`, which would create a *second* Projects v2 and make this machine read a different ledger from everyone else's.
+3. **`gh auth status` rc 0, with the `project` scope on the token** — `gh auth refresh -s project,read:project` if it is missing (1.5 has the same command and the `-h github.com` caveat for a non-interactive runner). The scope is not optional: the ledger's boundary is Projects v2 membership, so reads need it too, not just writes.
+4. **`HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0** (the `HARNESS_ROOT` prefix is 1.5's rule — the same discriminator gap applies to a clone). This is the whole restore: rc 0 with a row means this machine reads the same ledger as the others.
+
+If that `list` prints 0 rows while the target repos do have issues, `ledger.sh` says so on stderr — the `project` number in the inherited `ledger.json` is pointing somewhere else. Do not "fix" it by running `init`; ask whoever owns the root.
 
 #### backend: notion
 
@@ -324,7 +333,7 @@ One key, `backend`, decides which backend `scripts/ledger.sh` talks to; the rest
 |---|---|
 | `backend` | picks `scripts/ledger-<backend>.sh`. Required |
 | `owner` (github) | the Projects v2 owner (a user login). Issues themselves live in the repos of `repos.json` |
-| `project` (github) | the Projects v2 number. `ledger.sh init` creates the project and writes it; `create` refuses to make an issue without it |
+| `project` (github) | the Projects v2 number. `ledger.sh init` creates the project and writes it; `create` refuses to make an issue without it. **It is also the read boundary** — `list`·`ready` return only the issues in this project, so a wrong number yields 0 rows (with a stderr line saying so), not the repos' issues |
 | `database_id` (notion) | the database. `ledger.sh init --parent-page <id>` creates it and writes it. The token is `NOTION_TOKEN` in the environment and never in this file |
 
 `ledger.sh init` writes `project`·`database_id` into this file — the only values a tool writes here.

@@ -90,6 +90,24 @@ None of the three → no contamination. Any one → redo that judgment.
 
 Seconds, and that is normal. Measured: `bd dolt pull` (nothing to receive) 7.6 s — **split in two, neither of which the harness can touch**: `dolt fetch` directly is 3.7 s (network round trip to the remote) and the remaining 3 s is inside the `bd` wrapper. **That local ledger size is unrelated to transfer volume (incremental) is a judgment, not a measurement** — pull was not re-timed after gc. On that judgment, no further investigation. Evidence: story `harness-5qyb` body ②.
 
+## 원장 이전 — `beads` → `github`
+
+Moving a standing ledger to another backend. The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/ledger-migrate.sh`, and **the order of its three subcommands is the procedure** — each one's output is the next one's input.
+
+```bash
+P=${CLAUDE_PLUGIN_ROOT}
+bash $P/scripts/ledger-migrate.sh plan   --from <harness root> > plan.json
+bash $P/scripts/ledger-migrate.sh apply  --plan plan.json --map map.txt --from <harness root>
+bash $P/scripts/ledger-migrate.sh verify --plan plan.json --map map.txt --from <harness root>
+```
+
+- **`plan` reads only.** It takes every **open** item out of `bd` as a JSON array and touches no network. Closed items do not move — the finished work stays in the old ledger, which is why a closed sprint renders as 0 items afterwards (`board.sh` passes that; `scripts/board.sh` says why at its zero-count branch).
+- **`apply` writes,** and `map.txt` (`<beads id> <repo>#<number>` per line) is what makes it idempotent — a re-run skips what the map already names. Keep the map; without it a second `apply` duplicates every issue.
+- **`verify` compares** the plan against the issues themselves, reading each one by the id in the map. It does not judge by search or listing: right after creation `gh issue list` returned 3 of 5 and only had 5 after 39 s, and `gh project item-list` did not show new items either (`harness-kw0l.1.1`). **`verify` is the orchestrator's** — it reads through `gh api graphql`, which `guard.sh` denies to a subagent.
+- Details the tool owns and this section does not restate: the issue conventions (id shape · the `## Acceptance` section · `type:`/`status:` labels), the repo-decision rule, and what happens to a parent or a dependency that falls outside the plan array. They are in that script's header comment.
+
+**Run a migration as the only session on the ledger.** Same discipline as `dolt gc` above, for a different reason: `apply` is writing the same items that another session may be reading, and a half-applied ledger is not a state anyone can judge from — a reviewer looking up acceptance mid-migration gets an item that exists in one backend and not the other, and nothing in the output says which. So: tell the other sessions of this machine (find them through the ledger's `in_progress`·`assignee`·`updated_at`), **put a numeric wait limit in the notice** (`<HH:MM>까지 회신이 없으면 진행합니다`), wait for a reply rather than assuming one, run `plan`→`apply`→`verify` to the end in one sitting, and say afterwards that it is done. Switching `ledger.json`'s `backend` is the last step, not the first — until `verify` passes, the old ledger is still the one to read.
+
 ## New clone, new harness, update
 
 - **A new clone of the harness root — make the ledger answer first.** `ledger.json` comes with the clone and its `backend` decides what "restore" means. The per-backend procedure (ledger restore · plugin install at user scope · `core.hooksPath` · target clones through `repo.sh restore`) is owned by `harness:setup` "2. B — Join an existing harness (from a clone)" and is not restated here. Until `ledger.sh list` is rc 0, every skill and gate is powerless.
