@@ -1,11 +1,13 @@
 #!/bin/bash
 # 게이트: 원장의 구조가 등록부·규약과 맞는가.
 #   · 스프린트 ID 형식(YYYY-SNN)
-#   · rail:* 라벨의 rails.json 등재 (원장 전수)
-#   · sprint:* 라벨 ↔ sprints.json 등록부의 양방향 일치 (+status 값)
+#   · rail:* 라벨의 레일 등록부 등재 (원장 전수)
+#   · sprint:* 라벨 ↔ 스프린트 등록부의 양방향 일치 (+status 값)
 #   · 스프린트 라벨의 하위 상속·조상 존재
 #   · 스프린트 태스크의 acceptance 존재
 # 극성: 검사 집합은 **원장 전수**에서 파생한다 — 라벨이 있는 것만 보지 않는다.
+# 등록부는 어댑터가 낸다 — 백엔드가 무엇이든 rails 는 [{id, owner}], sprints 는 [{id, status}] 다
+# (scripts/ledger.sh). 이 검사는 등록부 파일을 열지 않는다: 여는 순간 beads 에서만 서는 게이트가 된다.
 #
 # 투영(docs/sprints/·docs/backlog/)은 검사하지 않는다. 그 트리는 git 밖의 생성물이라 낡을
 # 수는 있어도 커밋될 수는 없다 — 다시 그리는 것은 scripts/board.sh all 이고, post-merge·
@@ -65,55 +67,54 @@ done
 # ── 레일 등록부 대조 (원장 **전수**의 rail 라벨) ────────────────────
 # 백로그 스토리도 렌더 대상이라 등록부 밖 레일은 렌더를 죽인다 — 검사가 렌더보다 좁으면
 # 게이트가 아니라 렌더 실패로 알게 된다.
-if [[ -f rails.json ]]; then
+if REG_RAILS_JSON=$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" rails --json); then
   BAD_RAILS=$(printf '%s' "$FULL_JSON" \
-    | jq -r --slurpfile rails rails.json \
-      '[.[] | (.labels // [])[] | select(startswith("rail:")) | sub("rail:";"")] | unique
-       | map(select(. as $r | $rails[0].rails | has($r) | not)) | .[]')
+    | jq -r --argjson rails "$REG_RAILS_JSON" \
+      '($rails | map(.id)) as $ids
+       | [.[] | (.labels // [])[] | select(startswith("rail:")) | sub("rail:";"")] | unique
+       | map(select(. as $r | $ids | index($r) == null)) | .[]')
   for r in $BAD_RAILS; do
-    echo "✗ rail:$r — rails.json 에 등재되지 않은 레일"
+    echo "✗ rail:$r — 레일 등록부에 등재되지 않은 레일"
     fail=1
   done
 else
-  echo "✗ rails.json 이 없다"
+  echo "✗ 레일 등록부를 읽지 못했다 (어댑터의 rails — 위 stderr 가 사유다)"
   fail=1
 fi
 
 # ── 스프린트 등록부 대조 (양방향) ────────────────────────────────────
-# 스프린트 종료 여부의 원본은 sprints.json 의 status 다. 라벨→등록부만 보면 원장에 없는
+# 스프린트 종료 여부의 원본은 등록부의 status 다. 라벨→등록부만 보면 원장에 없는
 # 유령 등재가 침묵으로 통과하고, 등록부→라벨만 보면 미등재 스프린트가 통과한다.
-if [[ -f sprints.json ]]; then
-  # -e 를 쓰지 않는다. 빈 등록부({"sprints":{}})는 **정상**인데 -e 는 빈 스트림에 rc=4 를 낸다.
-  if ! REG_SPRINTS=$(jq -r '.sprints | keys[]' sprints.json 2>/dev/null); then
-    echo "✗ sprints.json 에서 sprints 객체를 읽을 수 없다 (구문 오류이거나 sprints 키가 없다)"
-    fail=1
-  else
-    for id in $BD_SPRINTS; do
-      if ! grep -qx "$id" <<< "$REG_SPRINTS"; then
-        echo "✗ sprint:$id — sprints.json 에 등재되지 않은 스프린트 (개설했다면 status 와 함께 등재하라)"
-        fail=1
-      fi
-    done
-    for id in $REG_SPRINTS; do
-      if ! grep -qx "$id" <<< "$BD_SPRINTS"; then
-        echo "✗ sprints.json 의 '$id' — 원장에 sprint:$id 라벨이 하나도 없다 (오타이거나 이관 후 잔존이다)"
-        fail=1
-      fi
-    done
-    # status 는 두 값뿐이다. 키만 보고 값을 안 보면 오타난 상태가 등재된 채로 통과한다.
-    BAD_STATUS=$(jq -r '.sprints | to_entries[]
-      | select((.value.status // "") != "active" and (.value.status // "") != "closed")
-      | "\(.key)\t\(.value.status // "")"' sprints.json)
-    if [[ -n "$BAD_STATUS" ]]; then
-      while IFS=$'\t' read -r sid st; do
-        [[ -z "$sid" ]] && continue
-        echo "✗ sprints.json 의 '$sid' — status 가 active·closed 가 아니다 ('$st')"
-        fail=1
-      done <<< "$BAD_STATUS"
+if REG_SPRINTS_JSON=$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" sprints --json); then
+  # 빈 등록부([])는 **정상**이다 — 갓 만든 하네스가 그 모양이라 0건을 실패로 읽지 않는다.
+  REG_SPRINTS=$(printf '%s' "$REG_SPRINTS_JSON" | jq -r '.[].id')
+  for id in $BD_SPRINTS; do
+    if ! grep -qx "$id" <<< "$REG_SPRINTS"; then
+      echo "✗ sprint:$id — 스프린트 등록부에 등재되지 않은 스프린트 (개설했다면 status 와 함께 등재하라)"
+      fail=1
     fi
+  done
+  for id in $REG_SPRINTS; do
+    if ! grep -qx "$id" <<< "$BD_SPRINTS"; then
+      echo "✗ 스프린트 등록부의 '$id' — 원장에 sprint:$id 라벨이 하나도 없다 (오타이거나 이관 후 잔존이다)"
+      fail=1
+    fi
+  done
+  # status 는 두 값뿐이다. 어댑터의 계약이 그 둘이지만 여기서 다시 본다 — 계약을 지키는지는
+  # 백엔드마다 다르고(beads 는 그 자리에서 죽고 github·notion 은 파생한다), 값을 안 보면
+  # 계약을 어긴 백엔드에서 오타난 상태가 등재된 채로 통과한다.
+  BAD_STATUS=$(printf '%s' "$REG_SPRINTS_JSON" | jq -r '.[]
+    | select((.status // "") != "active" and (.status // "") != "closed")
+    | "\(.id)\t\(.status // "")"')
+  if [[ -n "$BAD_STATUS" ]]; then
+    while IFS=$'\t' read -r sid st; do
+      [[ -z "$sid" ]] && continue
+      echo "✗ 스프린트 등록부의 '$sid' — status 가 active·closed 가 아니다 ('$st')"
+      fail=1
+    done <<< "$BAD_STATUS"
   fi
 else
-  echo "✗ sprints.json 이 없다 — 스프린트 종료 여부의 원본이다"
+  echo "✗ 스프린트 등록부를 읽지 못했다 (어댑터의 sprints — 위 stderr 가 사유다). 스프린트 종료 여부의 원본이다"
   fail=1
 fi
 
