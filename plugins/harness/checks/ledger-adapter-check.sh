@@ -24,8 +24,8 @@ set -uo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 LEDGER="$PLUGIN_ROOT/scripts/ledger.sh"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
-BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json" 2>/dev/null)"
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
+BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json" 2>/dev/null)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -75,7 +75,10 @@ for tok in $MEASURED; do
 done
 step "--help 가 측정된 bd 하위 명령 전수를 덮는다 (측정 $(printf '%s\n' "$MEASURED" | grep -c .)개, 빠짐:${missing:- 없음})" [ -z "$missing" ]
 
+# 마감 판정 줄(맨 아래)이 이 라벨을 그대로 쓴다 — 건너뛴 절이 통과 항목으로 열거되면
+# 게이트가 꺼진 상태와 통과한 상태가 같은 문장으로 보인다.
 if [ "$BACKEND" = beads ]; then
+EQUIV_LABEL="beads 동등성"
 echo "── ② beads 동등성 — 실제 원장 읽기 ──"
 COPY="$TMP/copy"; mkdir -p "$COPY/.beads"
 # 대조 루트 자신이 redirect 로 배선된 사본 루트일 수 있다(HARNESS_ROOT 로 물린 검사 픽스처). bd 는 redirect
@@ -105,6 +108,7 @@ else
 fi
 
 else
+  EQUIV_LABEL="beads 동등성 ⊘ 건너뜀(backend=${BACKEND:-없음})"
   echo "── ② beads 동등성 — 건너뜀 (backend=${BACKEND:-없음}) ──"
   echo "  ⊘ 실제 원장이 beads 가 아니라 bd 로 대조할 수 없다 — 이 절은 bd -C <루트> 와의 바이트 대조이고, 그 루트에 .beads 가 없다"
 fi
@@ -747,4 +751,4 @@ if [ "$fail" -ne 0 ]; then
   echo "✗ 원장 어댑터 검사 실패 — 위 항목을 고쳐라"
   exit 1
 fi
-echo "✓ 원장 어댑터 검사 통과 — 경계 · beads 동등성 · beads 왕복 · github 오프라인 · notion 오프라인"
+echo "✓ 원장 어댑터 검사 통과 — 경계 · $EQUIV_LABEL · beads 왕복 · github 오프라인 · notion 오프라인"
