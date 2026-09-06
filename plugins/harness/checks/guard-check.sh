@@ -2136,6 +2136,33 @@ done
 step "어댑터 전용 읽기가 bd 하위 명령과 겹치지 않는다 (겹치면 BD_READ_EXEMPT 로 가야 한다)" [ -z "$ledger_only_leak" ]
 [ -n "$ledger_only_leak" ] && echo "    겹치는 키:$ledger_only_leak"
 
+# ledger.sh 의 하위 명령 전집. bd 쪽이 `bd --help` 에서 파생하듯(⑩) 이쪽은 `ledger.sh` 의
+# usage() 힙독에서 파생한다 — bd 에 대응물이 없는 이름(rails·sprints·init·wire-worktree·
+# sync-check…)은 BD_ALL 에 없어 ⑩ 의 전수 시험이 닿지 않는 자리였다. 손으로 적은 낱말 몇 개로
+# 대신하면 새 하위 명령의 기본값이 "시험 안 됨"이 된다.
+# 두 줄 모양을 다 읽는다: `  <이름> <인자…>` 와 beads 전용 절의 `  a · b · c` 나열.
+LEDGER_ALL=$(sed -n "/^usage()/,/^}/p" "$ROOT/scripts/ledger.sh" | sed -n "/^사용:/,/^EOF$/p" \
+  | grep -E '^  [a-z]' \
+  | awk '{ n=split($0, p, "·"); for (i=1;i<=n;i++) { split(p[i], w, " "); if (w[1] ~ /^[a-z][a-z-]*$/) print w[1] } }' \
+  | sort -u)
+LEDGER_ALL_N=$(printf '%s\n' "$LEDGER_ALL" | grep -c . || true)
+step "ledger.sh usage() 에서 하위 명령 집합을 파생했다 (25개 이상)" [ "$LEDGER_ALL_N" -ge 25 ]
+echo "  ledger.sh 하위 명령 ${LEDGER_ALL_N}개"
+# 파생이 아무 낱말이나 긁어 오는 것이 아님을 못박는다 — 이게 없으면 아래 전수가 공허해진다.
+ls_in_all()  { printf '%s\n' "$LEDGER_ALL" | grep -qx -- "$1"; }
+ls_not_in()  { ! ls_in_all "$1"; }
+step "양성: 파생 집합에 close·sprints·wire-worktree 가 있다" \
+  bash -c 'printf "%s\n" "$1" | grep -qx close && printf "%s\n" "$1" | grep -qx sprints && printf "%s\n" "$1" | grep -qx wire-worktree' _ "$LEDGER_ALL"
+step "음성: 힙독의 비-하위명령 토큰(cat)과 없는 이름은 파생 집합에 없다" \
+  bash -c '! printf "%s\n" "$1" | grep -qx cat && ! printf "%s\n" "$1" | grep -qx __notasubcmd__' _ "$LEDGER_ALL"
+# 역방향 — 면제 키가 전부 실제 ledger.sh 하위 명령이다 (⑩ 이 bd 쪽에 세운 것과 같은 단언).
+ledger_exempt_phantom=""
+for e in $LEDGER_EXEMPT_SRC; do
+  ls_in_all "$e" || ledger_exempt_phantom="$ledger_exempt_phantom $e"
+done
+step "어댑터 전용 면제 키가 전부 실제 ledger.sh 하위 명령이다 (역방향 단언)" [ -z "$ledger_exempt_phantom" ]
+[ -n "$ledger_exempt_phantom" ] && echo "    ledger.sh 에 없는 키:$ledger_exempt_phantom"
+
 # ① 세 서브에이전트 역할 전부가 읽을 수 있다. reviewer·evaluator 를 함께 보는 것이 핵심이다 —
 #    이 둘이 막혀 있어 오케스트레이터가 대신 판정해야 했던 것이 이 태스크의 배경이다.
 ledger_read_blocked=""
@@ -2152,25 +2179,29 @@ done
 step "어댑터 전용 읽기가 reviewer·evaluator·implementer 전부에게 통과한다 (원장 지정 유무 무관)" [ -z "$ledger_read_blocked" ]
 [ -n "$ledger_read_blocked" ] && echo "    막힌 조합:$ledger_read_blocked"
 
-# ② 쓰기는 그대로 막힌다. 면제 목록은 **낱말 완전 일치**라 항목을 늘려도 쓰기가 열릴 길이
-#    없는데, 그 사실을 단언으로 세워 둔다 — 나중에 판정 방식이 접두사·부분 일치로 바뀌면
-#    여기가 먼저 깨진다.
-ledger_write_leak=""
-for w in create update close label dep; do
+# ② 면제 밖은 전부 막힌다 — **전수**다. 면제 두 목록(BD_READ_EXEMPT ∪ LEDGER_READ_EXEMPT)을
+#    LEDGER_ALL 에서 뺀 나머지가 대상이고, implementer 에게만 열린 쓰기(IMPL_BD_WRITE_ALLOW)는
+#    통과 기대로 갈린다. 손으로 적은 낱말 목록이 아니므로 ledger.sh 에 하위 명령이 생기면
+#    기본값이 "차단 기대"다 — 새 이름을 시험 없이 지나치는 길이 없다.
+ledger_write_leak=""; ledger_open_blocked=""; ledger_denied=0
+for s in $LEDGER_ALL; do
+  case " $BD_EXEMPT_SRC $LEDGER_EXEMPT_SRC " in *" $s "*) continue ;; esac
   for role in $GR_R $GR_E $IMPL_T; do
-    run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS $w $FX_TASK" "$role")"
-    [ "$GUARD_RC" -eq 2 ] || ledger_write_leak="$ledger_write_leak $role:$w"
+    run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS $s $FX_TASK" "$role")"
+    if [ "$role" = "$IMPL_T" ] && case " $IMPL_ALLOW_SRC " in *" $s "*) true ;; *) false ;; esac; then
+      [ "$GUARD_RC" -eq 0 ] || ledger_open_blocked="$ledger_open_blocked $role:$s"
+    else
+      ledger_denied=$((ledger_denied + 1))
+      [ "$GUARD_RC" -eq 2 ] || ledger_write_leak="$ledger_write_leak $role:$s"
+    fi
   done
 done
-# note 는 implementer 만 통과하는 쓰기다 — 역할별로 갈리는 것이 유지되는지 같은 자리에서 본다.
-for role in $GR_R $GR_E; do
-  run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK \"메모\"" "$role")"
-  [ "$GUARD_RC" -eq 2 ] || ledger_write_leak="$ledger_write_leak $role:note"
-done
-run "$(j_sub "HARNESS_ROOT=$IMPL_H $FX_LS note $FX_TASK \"메모\"" "$IMPL_T")"
-step "쓰기 여섯(create·update·close·label·dep·note)이 면제 확대 뒤에도 그대로 막힌다" [ -z "$ledger_write_leak" ]
+echo "  비면제 하위 명령을 역할 셋에 전수 시험했다 (차단 기대 ${ledger_denied}건)"
+step "면제·허용 밖의 ledger.sh 하위 명령이 전부 차단된다 (새 하위 명령의 기본값 = 차단)" [ -z "$ledger_write_leak" ]
 [ -n "$ledger_write_leak" ] && echo "    샌 조합:$ledger_write_leak"
-step "note 는 implementer 에게만 열린 채로다 (역할별 갈림이 살아 있다)" [ "$GUARD_RC" -eq 0 ]
+step "implementer 에게 열린 쓰기(note)는 그대로 통과한다 — 역할별 갈림이 살아 있다" [ -z "$ledger_open_blocked" ]
+[ -n "$ledger_open_blocked" ] && echo "    막힌 조합:$ledger_open_blocked"
+step "전수 시험이 공허하지 않다 (차단 기대가 40건 이상)" [ "$ledger_denied" -ge 40 ]
 
 # ── 대상 단언: 정정 보존이 무엇에 기대고 있는지를 **이름으로** 못박는다.
 #    `.claude/rules/agile.md` 의 정정 보존은 원장의 note 가 덮이지 않는다를 전제하는데,
