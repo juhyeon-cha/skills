@@ -758,15 +758,19 @@ gh_is_read() {
 # 전부 차단이다 — 모르면 차단이라는 이 훅의 극성은 여기서도 같다.
 #   ① 메서드를 강제하는 옵션(`-X`·`--method`)의 값이 GET·HEAD 가 아니면 쓰기다.
 #   ② `graphql` 엔드포인트는 읽기 질의도 HTTP POST 로 나가므로 메서드로는 못 가른다 —
-#      질의문의 `mutation` 이 가른다. **단, 질의문이 명령줄에 있을 때만** 그렇다: 파일·표준입력에서
-#      받는 형태(`--input <파일>`·`-F key=@파일`·`@-`)는 훅이 질의문을 아예 못 보므로 `mutation`
-#      검사가 공허해진다 — 그 형태는 내용을 보지 않고 차단한다(모르면 차단).
+#      질의문이 가른다. 그래서 **질의문이 조각 안에 평문으로 보일 때만** 판정할 수 있다:
+#      `query=` 의 값이 (따옴표를 빼고) `query` 나 `{` 로 시작하면 그것이 GraphQL 질의문이고,
+#      그 조각에 `mutation` 이 없으면 읽기다. 그 밖은 전부 차단이다 — 값이 비었거나(`-f
+#      query="$(cat q)"` 처럼 조각 경계에서 잘린 경우) 백틱·`@파일`·`--input` 이면 훅은 무엇을
+#      보내는지 아예 알 수 없다(모르면 차단). 옵션 이름을 열거해 막는 것이 아니라 **보이는 것만
+#      통과**시키므로, 질의문을 숨기는 새 형태가 생겨도 자동으로 차단 쪽에 선다.
 #   ③ 그 밖의 REST 엔드포인트는 필드 옵션(`-f`·`-F`·`--field`·`--raw-field`·`--input`)이 하나라도
 #      있으면 gh 가 POST 로 보낸다. 없으면 GET 이라 읽기다.
-# 한계: ②의 질의문은 조각 경계(`(`)에서 잘리므로 첫 괄호 뒤는 다른 조각으로 넘어간다. `mutation` 은
-# 질의문 맨 앞에 오므로 판정에는 닿지만, 괄호 안에 숨긴 쓰기는 못 본다 — 담장이 아니라 난간이다.
-# ②의 `=@` 차단은 형태만 본다 — 값에 `@` 가 든 읽기 질의(`-f q='…@include…'` 처럼 `=@` 로 붙는
-# 경우)는 오탐으로 막힌다. 극성상 그쪽이 옳다: 파일에서 받는 임의 mutation 이 통과하는 것보다 낫다.
+# 한계: ②의 질의문은 조각 경계(`(`)에서 잘리므로 첫 괄호 뒤는 다른 조각으로 넘어간다. 즉 훅이 보는
+# 것은 질의문의 머리(`query(` 앞)뿐이고, 괄호 안에 숨긴 쓰기는 못 본다 — 담장이 아니라 난간이다.
+# 오탐 쪽: 질의문을 변수·파일에 담아 넘기는 읽기(`-f query="$Q"`·`--input read.graphql`)는 막힌다.
+# 극성상 그쪽이 옳다 — 실물 어댑터(scripts/ledger-github.sh·ledger-migrate.sh)의 읽기 질의는 전부
+# 질의문을 명령줄에 평문으로 두므로 통과하고, 그 전수는 checks/guard-check.sh 가 단언한다.
 GH_API_FIELD_OPTS='[-][fF]|[-][-]field|[-][-]raw-field|[-][-]input'
 gh_api_is_read() {  # gh_api_is_read <엔드포인트(gh api 다음 토큰)> <gh 가 실행되는 조각>
   local ep="$1" seg="$2" method
@@ -774,10 +778,10 @@ gh_api_is_read() {  # gh_api_is_read <엔드포인트(gh api 다음 토큰)> <gh
     | sed -E 's/^(-X|--method)[[:space:]=]*//' | tr 'a-z' 'A-Z')"
   case "$method" in ""|GET|HEAD) ;; *) return 1 ;; esac
   if [ "$ep" = "graphql" ]; then
-    # 질의문을 파일·표준입력에서 받는 형태는 내용을 볼 수 없으므로 차단한다. `-F n=12` 처럼
-    # 변수만 typed 로 넘기는 읽기(ledger-github.sh 의 show·sub-issue 질의)는 `=@` 가 없어 통과한다.
-    has_token '[-][-]input' "$seg" && return 1
-    printf '%s' "$seg" | grep -q '=@' && return 1
+    # 질의문이 평문으로 보이지 않으면 차단한다(`--input`·`=@파일`·`$(`·백틱은 값이 이 검사를
+    # 통과하지 못한다). `-F n=12` 처럼 변수만 typed 로 넘기는 읽기(ledger-github.sh 의
+    # show·sub-issue 질의)는 `query=` 값이 그대로 보이므로 통과한다.
+    printf '%s' "$seg" | grep -qE "query=[\"']?(query|\{)" || return 1
     has_token 'mutation' "$seg" && return 1
     return 0
   fi

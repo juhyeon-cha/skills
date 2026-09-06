@@ -1436,9 +1436,13 @@ step "download 동사를 가진 그룹이 정확히 [$GH_DL_EXPECT] 이다 (상�
 [ "$GH_DL_NORM" = "$GH_DL_EXPECT" ] || echo "    실제: [${GH_DL_NORM:-(없음)}] — 기대와 다르다"
 
 # ── github 백엔드의 원장 읽기 (harness-kw0l.3.4). 원장이 github 면 서브에이전트의 **원장 읽기
-#    전부**가 gh 를 타므로, 아래 일곱 형태가 막히면 implementer·reviewer·evaluator 가 통째로
+#    전부**가 gh 를 타므로, 아래 열 형태가 막히면 implementer·reviewer·evaluator 가 통째로
 #    원장을 못 읽는다. 고치기 전 실측(2026-09-06, 당시 여섯): 넷이 rc=2 였다 — item-list ·
 #    field-list · api graphql · api REST GET. `download` 절과 같은 이유로 **양쪽**을 시험한다.
+#    뒤 넷은 합성이 아니라 **실물에서 뽑은 전수**다: scripts/ledger-github.sh·ledger-migrate.sh 를
+#    `grep 'gh api graphql'` 해 나온 여섯 중 읽기 넷을 변수만 전개해 그대로 옮겼다(나머지 둘은
+#    addSubIssue mutation 이라 아래 쓰기 절이 든다). graphql 분기가 "질의문이 안 보이면 차단"
+#    극성이므로, 과차단의 방어선은 이 넷뿐이다 — 어댑터의 질의 형태를 바꾸면 여기도 함께 고친다.
 declare -a GH_LEDGER_READ=(
   'gh project item-list 4 --owner o'
   'gh project view 4 --owner o'
@@ -1446,16 +1450,22 @@ declare -a GH_LEDGER_READ=(
   'gh issue view 12 -R o/r --json projectItems'
   "gh api graphql -f query='query{ viewer{ login } }'"   # 읽기 질의는 POST 로 나가도 읽기다
   'gh api repos/o/r/issues/12'                           # 옵션 없는 REST 는 GET 이다
-  # 일곱째는 아래 `=@` 차단의 대조군이다 — ledger-github.sh 의 show·sub-issue 질의는 Int! 변수를
-  # `-F n=<번호>` 로 넘긴다. `-F` 를 통째로 막으면 이 읽기가 함께 죽어 3.4 가 고친 구멍이 되돌아온다.
-  'gh api graphql -f query=q -F n=12'
+  # ledger-github.sh:108 show — Int! 변수를 `-F n=<번호>` 로 넘긴다. `-F` 를 통째로 막으면 이 읽기가
+  # 죽어 3.4 가 고친 구멍이 되돌아온다(verify-code 1차의 최소 수정 제안이 그것이었다).
+  'gh api graphql -f query="query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r){ issue(number:$n){ id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body}} parent{number repository{name}} } } }" -f o=owner -f r=repo -F n=12'
+  # ledger-github.sh:166 list — `--paginate --slurp` 가 붙는 유일한 형태다.
+  'gh api graphql --paginate --slurp -f query="query($o:String!,$r:String!,$endCursor:String){ repository(owner:$o,name:$r){ issues(first:100, after:$endCursor, states:[OPEN]){ nodes{ number title projectItems(first:20){nodes{project{number}}} } pageInfo{hasNextPage endCursor} } } }" -f o=owner -f r=repo'
+  # ledger-github.sh:266 children — show 와 같은 `-F n=` 형태다.
+  'gh api graphql -f query="query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r){ issue(number:$n){ subIssues(first:100){ nodes{ number title } } } } }" -f o=owner -f r=repo -F n=12'
+  # ledger-migrate.sh:305 verify — 질의문을 홑따옴표로 두는 유일한 실물 읽기다.
+  "gh api graphql -f query='query(\$o:String!,\$r:String!,\$n:Int!){ repository(owner:\$o,name:\$r){ issue(number:\$n){ title body labels(first:100){nodes{name}} comments{totalCount} parent{number repository{name}} projectItems(first:10){nodes{project{number}}} } } }' -f o=owner -f r=repo -F n=12"
 )
 for c in "${GH_LEDGER_READ[@]}"; do
   runsub "$c"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "원장 읽기는 통과: $c" [ "$GUARD_RC" -eq 0 ]
 done
-# 짝인 쓰기. 이 12건이 깨지면 면제가 그룹 전체를(또는 gh api 를 통째로) 열어젖힌 것이다.
+# 짝인 쓰기. 이 16건이 깨지면 면제가 그룹 전체를(또는 gh api 를 통째로) 열어젖힌 것이다.
 declare -a GH_LEDGER_WRITE=(
   'gh project item-add 4 --owner o --url https://github.com/o/r/issues/1'
   'gh project item-edit --id X --field-id F --project-id P --text v'
@@ -1472,13 +1482,21 @@ declare -a GH_LEDGER_WRITE=(
   'gh api graphql --input mut.json'
   'gh api graphql -F query=@mut.graphql'
   'gh api graphql --raw-field query=@mut.graphql'
+  # verify-code 2차 실측(2026-09-06): 옵션 이름만 바꾼 같은 부류가 `-f` 로 남아 rc 0 이었다 —
+  # `$(` 가 조각 경계라 gh 조각이 `gh api graphql -f query=` 로 잘려 셋 다 안 걸렸다. 그래서
+  # 분기를 "질의문이 평문으로 보일 때만 읽기" 로 되돌렸고, 아래 셋이 그 극성을 문다.
+  'gh api graphql -f query="$(cat mut.json)"'
+  'gh api graphql -f query="`cat mut.json`"'
+  'gh api graphql -f query="$Q"'
+  # 실물의 쓰기 — ledger-github.sh:124 · ledger-migrate.sh:236 의 addSubIssue.
+  "gh api graphql -f query='mutation(\$p:ID!,\$c:ID!){ addSubIssue(input:{issueId:\$p, subIssueId:\$c}) { issue { number } subIssue { number } } }' -f p=P -f c=C"
 )
 for c in "${GH_LEDGER_WRITE[@]}"; do
   runsub "$c"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "짝인 쓰기는 차단: $c" [ "$GUARD_RC" -eq 2 ]
 done
-# 오케스트레이터는 판정 대상이 아니다 — 읽기·쓰기 19건 전부 통과한다.
+# 오케스트레이터는 판정 대상이 아니다 — 읽기·쓰기 26건 전부 통과한다.
 for c in "${GH_LEDGER_READ[@]}" "${GH_LEDGER_WRITE[@]}"; do
   run "$(j_bash "$c")"
   step "통과(오케스트레이터): $c" [ "$GUARD_RC" -eq 0 ]
