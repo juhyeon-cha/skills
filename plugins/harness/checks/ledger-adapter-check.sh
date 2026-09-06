@@ -204,16 +204,25 @@ cat > "$TMP/ghbin/gh" <<'FAKE'
 #!/usr/bin/env bash
 # 가짜 gh — 호출을 기록하고 정해진 답을 낸다. 판정은 기록과 답의 형태로 한다.
 printf '%s\n' "$*" >> "$FAKE_GH_LOG"
+# blockedBy — 이슈 번호로 정해지는 픽스처. 같은 GraphQL 질의가 실어 오므로 node() 안에서 붙인다.
+# 57 은 열린 58 에 막히고, 58 은 닫힌 59 에만 막힌다 → ready 는 58 만 내야 한다.
+# 72 는 절단 픽스처다: totalCount 가 받은 노드 수보다 크다 (first:N 을 넘은 응답).
+bb() { case "$1" in
+  57) printf '{"totalCount":1,"nodes":[{"number":58,"state":"OPEN","repository":{"name":"harness"}}]}' ;;
+  58) printf '{"totalCount":1,"nodes":[{"number":59,"state":"CLOSED","repository":{"name":"harness"}}]}' ;;
+  72) printf '{"totalCount":9,"nodes":[{"number":59,"state":"CLOSED","repository":{"name":"harness"}}]}' ;;
+  *)  printf '{"totalCount":0,"nodes":[]}' ;;
+esac; }
 node() { # <번호> <제목> <상태> <라벨 JSON> <부모 JSON> <본문> [<projectItems nodes JSON — 기본 project 4>]
   local pi='[{"project":{"number":4}}]'
   [ $# -ge 7 ] && pi="$7"
-  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"%s","state":"%s","body":"%s","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":%s},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":[{"body":"메모"}]},"parent":%s,"projectItems":{"nodes":%s}}' \
-    "$1" "$1" "$1" "$2" "$3" "$6" "$4" "$5" "$pi"
+  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"%s","state":"%s","body":"%s","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":%s},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":[{"body":"메모"}]},"parent":%s,"blockedBy":%s,"projectItems":{"nodes":%s}}' \
+    "$1" "$1" "$1" "$2" "$3" "$6" "$4" "$5" "$(bb "$1")" "$pi"
 }
 # actor 픽스처 — 코멘트만 갈아 끼운 노드. assignee 는 로그인명 그대로다(그것이 이 백엔드에서
 # actor 와 assignee 가 갈리는 이유다 — ledger-github.sh 대응표).
 node_actor() { # <번호> <코멘트 nodes JSON>
-  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"actor 픽스처","state":"OPEN","body":"본문","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:task"},{"name":"repo:harness"}]},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":%s},"parent":null}' \
+  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"actor 픽스처","state":"OPEN","body":"본문","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:task"},{"name":"repo:harness"}]},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":%s},"parent":null,"blockedBy":{"totalCount":0,"nodes":[]}}' \
     "$1" "$1" "$1" "$2"
 }
 N57='[{"name":"type:epic"},{"name":"repo:harness"},{"name":"status:blocked"}]'
@@ -243,6 +252,8 @@ case "$1 $2" in
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
       # 70 — 프로젝트 밖 이슈. show 는 id 로 직접 읽으므로 소속을 요구하지 않는다(ledger-github.sh 머리 주석).
       *"n=70"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" ;;
+      # 72 — blockedBy 가 first:N 에 잘린 응답. 조용히 자르면 ready 가 막힌 것을 열렸다고 낸다.
+      *"n=72"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 72 절단 OPEN "$N59" null "")" ;;
       # 60 — ACTOR 코멘트가 하나. 뒤에 다른 note 가 더 붙어도 값이 살아야 한다.
       *"n=60"*) printf '{"data":{"repository":{"issue":%s}}}' \
         "$(node_actor 60 '[{"body":"메모"},{"body":"ACTOR: sess-abc123"},{"body":"두 번째 메모"}]')" ;;
@@ -368,9 +379,16 @@ grun list --label-pattern 'rail:*' --all --json
 step "list --label-pattern glob (rail:* → 58 만)" bash -c 'printf "%s" "$1" | jq -e "length == 1 and .[0].id == \"harness#58\"" >/dev/null' _ "$OUT"
 grun list -t task --all --json
 step "list -t task (59 만)" bash -c 'printf "%s" "$1" | jq -e "length == 1 and .[0].id == \"harness#59\"" >/dev/null' _ "$OUT"
+: > "$LOG"
 grun ready --json
-step "ready 는 open 이고 blocked_by 가 전부 closed 인 것만 (57 은 58 에 막혀 빠지고, 58 은 든다)" \
+step "ready 는 open 이고 의존이 전부 closed 인 것만 (57 은 열린 58 에 막혀 빠지고, 58 은 닫힌 59 뿐이라 든다)" \
   bash -c 'printf "%s" "$1" | jq -e "map(.id) == [\"harness#58\"]" >/dev/null' _ "$OUT"
+# 이 스토리의 완료 형상. 종전에는 열린 이슈마다 REST 를 한 번씩 불렀다 — 호출 수가 항목 수에 선형이었다.
+step "ready 가 의존 조회 REST 를 한 번도 부르지 않는다 — 호출은 등재 레포마다 GraphQL 1회뿐이다" \
+  bash -c '! grep -q "dependencies/blocked_by" "$1" && [ "$(grep -c "^api graphql" "$1")" -eq 1 ]' _ "$LOG"
+grun show 'harness#72' --json
+step "blockedBy 가 잘린 응답(totalCount 9 > 받은 노드 1) → rc≠0 · stderr 가 두 수를 함께 낸다 (조용히 자르지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "totalCount=9" && printf "%s" "$2" | grep -q "받은 노드=1"' _ "$RC" "$ERR"
 
 : > "$LOG"
 grun dep add 'harness#60' 'harness#59'

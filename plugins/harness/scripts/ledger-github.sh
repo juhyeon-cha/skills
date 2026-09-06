@@ -81,11 +81,17 @@ split_id() { # <repo>#<n> → REPO NUM SLUG
 repos_all() { jq -r '.repos[].name' "$LEDGER_ROOT/repos.json"; }
 
 # ── GraphQL ───────────────────────────────────────────────────────────
-FIELDS='id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body}} parent{number repository{name}}'
+FIELDS='id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body}} parent{number repository{name}} blockedBy(first:50){totalCount nodes{number state repository{name}}}'
 # bd 의 키로 정규화한다. body 는 "<description>\n\n## Acceptance\n\n<acceptance>" 로 쓰고 같은 자리에서 가른다.
 NORM='def norm:
   ((.body // "") | if startswith("## Acceptance\n") then "\n" + . else . end | split("\n## Acceptance\n")) as $parts
   | (.labels.nodes | map(.name)) as $ls
+  | (if .blockedBy.totalCount > (.blockedBy.nodes | length)
+     then error("blockedBy 가 잘렸다: " + .repository.name + "#" + (.number|tostring)
+                + " — totalCount=" + (.blockedBy.totalCount|tostring)
+                + " 받은 노드=" + (.blockedBy.nodes|length|tostring)
+                + " · FIELDS 의 blockedBy(first:N) 을 늘려라. 조용히 자르면 ready 가 막힌 것을 열렸다고 낸다.")
+     else . end)
   | { id: (.repository.name + "#" + (.number|tostring)),
       title: .title,
       description: (($parts[0] // "") | rtrimstr("\n")),
@@ -99,6 +105,9 @@ NORM='def norm:
                | capture("^ACTOR:[ \t]*(?<v>[^\r\n]*)").v
                | (split(" ") | map(select(length > 0)) | last)]
               | map(select(. != null)) | last),
+      dependencies: (.blockedBy.nodes | map({ id: (.repository.name + "#" + (.number|tostring)),
+                                              status: (if .state == "CLOSED" then "closed" else "open" end),
+                                              dependency_type: "blocks" })),
       parent: (if .parent then (.parent.repository.name + "#" + (.parent.number|tostring)) else null end),
       priority: 2,
       created_at: .createdAt, updated_at: .updatedAt, closed_at: .closedAt };'
@@ -112,10 +121,6 @@ fetch_issue() { # SLUG NUM → 원본 노드 JSON (없는 이슈면 gh 가 rc≠
 }
 node_id() { gh api "repos/$1/issues/$2" --jq .node_id; }
 db_id()   { gh api "repos/$1/issues/$2" --jq .id; }
-blocked_by() { # SLUG NUM → [{id, status, dependency_type}]
-  gh api "repos/$1/issues/$2/dependencies/blocked_by" 2>/dev/null \
-    | jq '[.[] | {id: ((.repository_url | split("/") | last) + "#" + (.number|tostring)), status: (if .state == "closed" then "closed" else "open" end), dependency_type: "blocks"}]'
-}
 ensure_label() { gh label create "$2" -R "$1" --force >/dev/null 2>&1 || die "라벨 '$2' 를 $1 에 만들지 못했다"; }
 add_sub_issue() { # 부모 SLUG NUM, 자식 SLUG NUM
   local p c
@@ -252,8 +257,7 @@ case "$cmd" in
     [ $# -gt 0 ] || die "show: id 가 필요하다"
     split_id "$1"; shift
     node="$(fetch_issue "$SLUG" "$NUM")" || exit 1
-    deps="$(blocked_by "$SLUG" "$NUM")" || deps="[]"
-    obj="$(printf '%s' "$node" | jq --argjson deps "$deps" "$NORM"'[norm + {dependencies: $deps}]')" || die "show: 응답을 정규화하지 못했다: $REPO#$NUM"
+    obj="$(printf '%s' "$node" | jq "$NORM"'[norm]')" || die "show: 응답을 정규화하지 못했다: $REPO#$NUM"
     if want_json "$@"; then printf '%s\n' "$obj"; else
       printf '%s' "$obj" | jq -r '.[0] | "\(.id) [\(.issue_type) · \(.status)] \(.title)\nlabels: \(.labels | join(", "))\nparent: \(.parent // "-")  assignee: \(.assignee // "-")\n\n\(.description)\n\nACCEPTANCE\n\(.acceptance_criteria)\n\nNOTES\n\(.notes // "")"'
     fi
@@ -275,23 +279,16 @@ case "$cmd" in
     ;;
 
   ready)
-    # open 이고 blocked_by 가 전부 closed 인 것 (bd ready 와 같이 in_progress·blocked·deferred 는 뺀다).
-    # ponytail: 이슈마다 REST 한 번 — 열린 이슈 수만큼 호출한다.
+    # open 이고 의존이 전부 closed 인 것 (bd ready 와 같이 in_progress·blocked·deferred 는 뺀다).
+    # 의존 관계는 list_json 의 GraphQL 질의가 blockedBy 로 이미 실어 온다 — 이슈마다 따로 부르지 않는다.
     limit=50; args=""; json=""
     while [ $# -gt 0 ]; do
       case "$1" in -n|--limit) limit="$2"; shift 2 ;; --json) json=1; shift ;; -l|--label|--labels|-t|--type) args="$args $1 $2"; shift 2 ;; *) die "ready: 모르는 인자 '$1'" ;; esac
     done
     # shellcheck disable=SC2086
     arr="$(list_json --status open -n 0 $args)" || exit 1
-    ready="[]"
-    for id in $(printf '%s' "$arr" | jq -r '.[].id'); do
-      split_id "$id"
-      deps="$(blocked_by "$SLUG" "$NUM")" || die "blocked_by 조회 실패: $id"
-      if printf '%s' "$deps" | jq -e 'all(.[]; .status == "closed")' >/dev/null; then
-        ready="$(printf '%s' "$ready" | jq --arg id "$id" '. + [$id]')"
-      fi
-    done
-    arr="$(printf '%s' "$arr" | jq --argjson r "$ready" --argjson limit "$limit" 'map(select(.id as $i | $r | index($i) != null)) | if $limit > 0 then .[:$limit] else . end')"
+    arr="$(printf '%s' "$arr" | jq --argjson limit "$limit" 'map(select(all(.dependencies[]; .status == "closed"))) | if $limit > 0 then .[:$limit] else . end')" \
+      || die "ready: 의존 관계로 거르지 못했다"
     if [ -n "$json" ]; then printf '%s\n' "$arr"; else printf '%s' "$arr" | print_rows; fi
     ;;
 
