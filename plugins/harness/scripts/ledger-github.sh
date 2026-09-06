@@ -43,8 +43,9 @@
 #   priority             2 고정 (대응 필드 없음)
 #   created_at·updated_at·closed_at
 #
-# ponytail: 라벨·코멘트·자식은 first:100, blockedBy 는 first:50, 이슈의 projectItems 는 first:20 까지만
-# 읽는다 — 그 이상은 페이지네이션이 필요하다(한 이슈가 21개 넘는 프로젝트에 들면 소속을 놓친다).
+# ponytail: 라벨·코멘트·자식은 first:100, blockedBy 는 first:50, 이슈의 projectItems 는 first:20,
+# sprints 의 project 필드는 first:100 까지만 읽는다 — 그 이상은 페이지네이션이 필요하다
+# (한 이슈가 21개 넘는 프로젝트에 들면 소속을 놓친다).
 set -uo pipefail
 : "${LEDGER_ROOT:?ledger.sh 를 통해 불러라}"; : "${LEDGER_CONFIG:?ledger.sh 를 통해 불러라}"
 
@@ -497,8 +498,12 @@ case "$cmd" in
         # gh project field-create 에 ITERATION 이 없다(M0 실측).
         # ponytail: ITERATION 필드가 여럿이면 첫 번째만 읽는다. 지금 원장에 그런 판이 없다 —
         # 필드 이름을 계약으로 고정할 자리가 생기면 그때 이름으로 짚는다.
-        q='query($o:String!,$n:Int!){ user(login:$o){ projectV2(number:$n){ fields(first:50){ nodes{
-             ... on ProjectV2IterationField { name configuration {
+        # ponytail: 필드는 first:100(GraphQL 한 페이지 상한) 까지만 읽는다 — 그 이상이면
+        # 페이지네이션이 필요하고, 아래 die 는 "첫 100개 안에 없다" 까지만 말한다.
+        # ponytail: user(login:) 이라 조직 소유 project 에는 닿지 않는다 — 아래 die 가 사유로
+        # 그 사실을 든다. 조직 소유 원장이 생기면 organization(login:) 으로 가른다.
+        q='query($o:String!,$n:Int!){ user(login:$o){ projectV2(number:$n){ fields(first:100){ nodes{
+             ... on ProjectV2IterationField { configuration {
                iterations{ title } completedIterations{ title } } } } } } } }'
         out="$(gh api graphql -f query="$q" -f o="$OWNER" -F n="$PROJECT" 2>&1)" \
           || die "sprints: Projects v2 $PROJECT (owner $OWNER) 의 필드를 읽지 못했다 — $out"
@@ -506,7 +511,7 @@ case "$cmd" in
           || die "sprints: 사용자 $OWNER 의 Projects v2 $PROJECT 를 읽지 못했다 — 번호가 틀렸거나, owner 가 사용자가 아니다(조직 소유 project 에는 이 질의가 닿지 않는다)"
         cfg="$(printf '%s' "$out" | jq -c '[.data.user.projectV2.fields.nodes[] | select(.configuration != null)] | first // empty')" \
           || die "sprints: 필드 응답을 읽지 못했다"
-        [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다"
+        [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 의 필드(첫 100개) 안에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다. ledger.sh init 은 이 필드를 만들지 않으므로 사람이 한 번 만든다 — 'gh project view $PROJECT --owner $OWNER --format json' 으로 project id 를 얻고, gh api graphql -f query='mutation { createProjectV2Field(input: {projectId: \"<그 id>\", dataType: ITERATION, name: \"Sprint\"}) { projectV2Field { ... on ProjectV2IterationField { id } } } }' 그 다음 같은 자리에서 updateProjectV2Field 의 iterationConfiguration 으로 iteration 을 넣는다(title 이 스프린트 ID, YYYY-SNN)"
         printf '%s' "$cfg" | jq '[(.configuration.iterations[] | {id: .title, status: "active"}),
                                   (.configuration.completedIterations[] | {id: .title, status: "closed"})] | sort_by(.id)' \
           || die "sprints: 출력을 만들지 못했다"
