@@ -38,7 +38,7 @@ description: Story → milestone → task breakdown and acceptance writing. Use 
 
 ## 2. Break it down
 
-Build epic (story) → feature (milestone) → task per the session context block "애자일 계층 ↔ beads 매핑 규약". Express ordering constraints as `blocks` dependencies. A story headed for an unattended loop carries **only tasks with no external wait** (a live system, a human approval).
+Build epic (story) → feature (milestone) → task per the session context block "Agile hierarchy ↔ ledger mapping". Express ordering constraints as `blocks` dependencies. A story headed for an unattended loop carries **only tasks with no external wait** (a live system, a human approval).
 
 **Story size ceiling: one story = one PR = 5 milestones.** Size a milestone to the batch condition (single repo · task count) — that condition is written in `develop` section 3 and stays there.
 
@@ -105,7 +105,7 @@ When the breakdown changed a registry (`sprints.json` · `rails.json`), ship it 
 
 - **Derive no id from creation order.** There is no way to confirm whether the rule is `max+1` or `count+1`, and one failure that shifts the numbering makes a dependency edge **join the wrong pair with no error**. Take the **actual id** from `ledger.sh create --silent` output and use that.
 - **Hang the dependencies in one shot with `ledger.sh dep add --file -`** — it takes `{"from":…,"to":…}` JSONL on stdin and runs one whole-graph cycle check before committing. `from` is the dependent side, `to` the prerequisite.
-- **Assert positively at the end** — child count · that every acceptance is filled · one `repo:` label · dependency edge count. Leave out negative forms like "0 empty ones": one wrong field name yields 0 and reads as a pass (measured — writing `acceptance_criteria` as `acceptance` gives 0 on this ledger).
+- **Assert positively at the end** — child count · that every acceptance is filled · one `repo:` label · dependency edge count. Leave out negative forms like "0 empty ones": one wrong field name (`acceptance` for `acceptance_criteria`, say) yields 0 and reads as a pass.
 - **A failure leaves a partial registration — scripts like this are not idempotent.** Rerunning as-is piles up duplicates, and the child-count assertion fails **only after the cleanup target has grown**. Print the actual id to stdout at every creation, and make the failure path emit its own recovery instructions (`HARNESS_ROOT=<harness root> ledger.sh delete <id> … --force` — `delete` is `beads`-only; on `github`·`notion` close the partial issues with `ledger.sh close <id> --reason` instead).
 
 > Evidence: `harness-dg0.6.1`. `ledger.sh create --graph` went unused because its help does not state the format — that trades an unverified id prediction for an unverified format guess, which is the same class of failure.

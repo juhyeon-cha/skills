@@ -705,7 +705,7 @@ done
 # 표준 우회 — 본문을 **파일로 넘기면** 명령 문자열에 경로가 남지 않아 통과한다.
 # 이 세 줄이 위 오탐의 대가를 감당 가능하게 만드는 근거다. 여기가 깨지면 우회가 사라진
 # 것이므로 위 오탐 등재도 함께 재검토해야 한다 — 출구 없는 금지가 되기 때문이다
-# (agents/reviewer.md 절차 5 "새 제약이 출구를 막지 않는지 본다").
+# (agents/reviewer.md 절차 5 "Check that a new constraint does not close an exit").
 declare -a MC_SH_ESCAPE=(
   'bd create "제목" -d "$(cat /tmp/body.txt)"'
   'gh pr create --body-file /tmp/body.md'
@@ -1494,14 +1494,14 @@ CM_FLAT=$(tr -d '*' < "$ROOT/hooks/session-context.md" | tr -s ' ')
 AG_FLAT=$(tr -d '*' < "$ROOT/skills/develop/SKILL.md" | tr -s ' ')
 step "세션 블록 마크업 제거 사본이 비어 있지 않다" [ -n "$CM_FLAT" ]
 step "develop 스킬 마크업 제거 사본이 비어 있지 않다"  [ -n "$AG_FLAT" ]
-RM_Q1='원격 반영은 사용자 명시 지시 시에만'
-RM_Q2='서브에이전트는 범위 밖이다 — 로컬 커밋까지'
+RM_Q1='Remote reflection only on explicit user instruction'
+RM_Q2='Subagents are out of scope — up to the local commit'
 step "인용구 1 이 세션 블록에 실재한다 (역방향 단언)" has_text "$RM_Q1" "$CM_FLAT"
 step "인용구 2 가 develop 스킬에 실재한다 (역방향 단언)"  has_text "$RM_Q2" "$AG_FLAT"
 # 음성 대조 — 한 글자만 흔든 문자열은 안 잡혀야 한다. 없으면 위 두 줄이 "아무거나 통과"인지
 # 구분되지 않는다.
 step "음성 대조: 한 글자 바꾼 인용구는 develop 스킬에 없다" \
-  lacks_text '서브에이전트는 범위 밖이다 — 로컬 커밋까진' "$AG_FLAT"
+  lacks_text 'Subagents are out of scope — up to the local commits' "$AG_FLAT"
 # 세 자리 전부다. 하나만 보면 나머지 둘이 낡아도 통과한다.
 for c in 'git push origin master' 'gh pr create --title x' 'G=gh; $G pr create'; do
   runsub "$c"
@@ -1713,12 +1713,12 @@ step "통과(도구, 오케스트레이터): Write $GR_PATH" [ "$GUARD_RC" -eq 0
 GR_ROLES_SRC=$(grep -E '^GR_ROLES=' "$HOOK" | sed 's/^GR_ROLES="//; s/"$//')
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$GR_ROLES_SRC" ]
 echo "  GR_ROLES: $GR_ROLES_SRC"
-# 채점자의 표지는 역할 정의 자신의 문장이다 — reviewer.md "파일 수정·커밋은 금지다",
-# evaluator.md "파일 수정·커밋 금지". 손으로 고르지 않고 이 문장에서 파생한다.
+# 채점자의 표지는 역할 정의 자신의 문장이다 — reviewer.md·evaluator.md 의 "File edits and
+# commits are forbidden". 손으로 고르지 않고 이 문장에서 파생한다.
 # **파생한 이름에 접두 `harness:` 를 붙인다** — 플러그인 에이전트의 agent_type 은 그 형식이다(M0 실측).
 GR_AGENTS=$(ls agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-GR_DECLARED=$(grep -lE '파일 수정·커밋' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-echo "  역할 정의 $(printf '%s\n' "$GR_AGENTS" | grep -c .)종 · 그중 '파일 수정·커밋 금지'를 선언한 것: $(printf '%s' "$GR_DECLARED" | tr '\n' ' ')"
+GR_DECLARED=$(grep -lF 'File edits and commits are forbidden' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+echo "  역할 정의 $(printf '%s\n' "$GR_AGENTS" | grep -c .)종 · 그중 'File edits and commits are forbidden' 을 선언한 것: $(printf '%s' "$GR_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 채점자 집합을 파생했다 (비어 있지 않다)" [ -n "$GR_DECLARED" ]
 step "파생이 전부를 긁어 오지 않는다 (역할 정의 수 > 채점자 수)" \
   [ "$(printf '%s\n' "$GR_AGENTS" | grep -c .)" -gt "$(printf '%s\n' "$GR_DECLARED" | grep -c .)" ]
@@ -2072,10 +2072,10 @@ step "정상 대조군: implementer 의 note(append 통로)는 통과한다" [ "
 IMPL_ROLES_SRC=$(grep -E '^IMPL_ROLES=' "$HOOK" | sed 's/^IMPL_ROLES="//; s/"$//')
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$IMPL_ROLES_SRC" ]
 echo "  IMPL_ROLES: $IMPL_ROLES_SRC"
-# 표지는 역할 정의 자신의 문장이다 — implementer.md "**`ledger.sh note` 외의 원장 쓰기**".
+# 표지는 역할 정의 자신의 문장이다 — implementer.md "**Ledger writes other than `ledger.sh note`**".
 # 손으로 고르지 않고 이 문장에서 파생한다. 접두 `harness:` 는 ⑫ 와 같은 이유로 붙인다.
-IMPL_DECLARED=$(grep -lF 'ledger.sh note` 외의 원장 쓰기' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-echo "  'ledger.sh note 외의 원장 쓰기' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
+IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger.sh note`' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+echo "  'Ledger writes other than ledger.sh note' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 대상 집합을 파생했다 (비어 있지 않다)" [ -n "$IMPL_DECLARED" ]
 step "훅의 IMPL_ROLES 가 역할 정의에서 파생한 집합과 일치한다 (역방향 단언)" \
   [ "$(printf '%s\n' $IMPL_ROLES_SRC | sort | tr '\n' ' ')" = "$(printf '%s\n' "$IMPL_DECLARED" | tr '\n' ' ')" ]

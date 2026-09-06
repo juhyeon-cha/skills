@@ -18,8 +18,8 @@ There are two inputs — **the ledger (notes)** and **the subagent transcripts**
 ### 1-2. Subagent transcripts
 
 - **Path**: `~/.claude/projects/<project directory>/<session UUID>/subagents/agent-*.jsonl`. **This round's session UUID is the last UUID in the scratchpad path the system prompt gives** — pass that to the call below.
-- **`checks/transcript-check.sh` is the one place that reads them.** The retrospective **only calls it** — this skill parses no transcript itself. Two parsers make the aggregate diverge.
-- **Call**: `bash checks/transcript-check.sh --since <story start time> --session <session UUID> --json`. `--since` takes ISO8601 or `Nd` / `Nh` — cut the window at the Started of `ledger.sh show <story ID>`. rc is 0 no violations / 1 violations found / 2 judgment unreached.
+- **`${CLAUDE_PLUGIN_ROOT}/checks/transcript-check.sh` is the one place that reads them.** The retrospective **only calls it** — this skill parses no transcript itself. Two parsers make the aggregate diverge.
+- **Call**: `bash ${CLAUDE_PLUGIN_ROOT}/checks/transcript-check.sh --since <story start time> --session <session UUID> --json`. `--since` takes ISO8601 or `Nd` / `Nh` — cut the window at the Started of `ledger.sh show <story ID>`. rc is 0 no violations / 1 violations found / 2 judgment unreached.
 - **The two are independent axes, so pass both.** `--session` alone leaves a session that ran several stories undivided by round, and `--since` alone mixes in other sessions from the same window — their intersection is this story's this round. **When the session UUID is unknown** (an inherited session, someone else's story), drop `--session`, run it, write that fact into the aggregate quotation, and screen attribution with the fallback in section 3.
 - **Aggregate — quote the four JSON keys verbatim.**
   - `signals.<role>`: SIGNAL counts per role. The reviewer rejection rate is `CHANGES_REQUESTED / (CHANGES_REQUESTED + LGTM)`, the evaluator's is `VIOLATION / (MATCH + VIOLATION)`.
@@ -40,13 +40,12 @@ There are two inputs — **the ledger (notes)** and **the subagent transcripts**
 
 Skipping the sort promotes personal taste into a rule and turns the harness into a pile of documents.
 
-**In a derived harness, "edit the harness file directly" needs an explicit user instruction the moment it touches the core.** A `.harness-state` at the root marks this tree as a derivative built from a release, and the files whose paths it lists (rules · role definitions · skills · scripts · hooks) are the core. Even a typo fix **disappears quietly**: the next `scripts/install.sh update` reads it as drift, pushes it out to `.harness-bak`, and overwrites with the release copy. So an improvement to the core goes out as a **ledger** entry rather than a file edit **unless an instruction says otherwise**. This is a conditional rather than a flat ban — once you fix it under instruction, land the same fix upstream too.
+**"Edit the harness file directly" means the plugin's source, never the installed copy.** The skills, role definitions, hooks, checks, and scripts an agent runs come from the installed plugin (`${CLAUDE_PLUGIN_ROOT}`), and the next plugin update overwrites that copy — even a typo fix made there **disappears quietly**. The file to edit is in the skills repo `plugins/harness/`, and the edit reaches installs through a release (the `release` skill) and a plugin update (`setup` section 3). Landing it there is a PR to that repo, so it goes out **only on explicit user instruction**; until then the improvement goes out as a **ledger** entry rather than a file edit:
 
-- Leave it in your own ledger as backlog — make a `-t task -l harness` issue with `bd` and write the verbatim observation and the reproduction conditions into it. That is the only record that survives in this tree.
-- Report it to the origin named by the second line of `.harness-state`, `# upstream <owner>/<repo>`. Reporting is a remote push, so it waits for an explicit instruction from the user.
-- The fix happens upstream and the derivative takes it via `scripts/install.sh update`. Once taken, leave an "upstream 반영됨 → <버전>" note on the original bead.
+- Leave it in your own ledger as backlog — make a `-t task -l harness` issue with `ledger.sh create` and write the verbatim observation and the reproduction conditions into it. That is the only record that survives in this tree.
+- Once the fix has landed in the plugin's source, leave a "반영됨 → <커밋>" note on that bead.
 
-What is outside the core (`repos.json` · `rails.json` · `sprints.json` · `CLAUDE.md` · `.beads`) belongs to the derivative, so the table above applies as written. In the origin harness (no `.harness-state`) the table applies as written as well — fixing the core there is the normal work.
+What is outside the plugin (`repos.json` · `rails.json` · `sprints.json` · `CLAUDE.md` · `.beads`) belongs to the harness root, so the table above applies to it as written.
 
 ## 3. Promotion bar — 2 observations
 

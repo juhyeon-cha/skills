@@ -210,7 +210,7 @@ for path in sorted(glob.glob(os.path.join(root, "agents/*.md"))):
         unreach("역할 정의를 읽지 못했다: %s (%s)" % (path, e))
         continue
     for line in lines:
-        if "`<VALUE>`" in line and "중 하나" in line:
+        if "`<VALUE>`" in line and ("is one of" in line or "중 하나" in line):
             vals = set(re.findall(r"`([A-Z][A-Z_]+)`", line))
             if vals:
                 VOCAB[role] = vals

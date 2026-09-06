@@ -305,7 +305,7 @@ check_r18() {
 
 # ── S12: .gitignore 필수/금지 항목 + 실물 잔존 (세 대조) ─────────────
 # 검사 항목을 스크립트에 적지 않고 setup/SKILL.md 원문에서 파싱한다. 원문 형식:
-#   Add these to `.gitignore`: `A` · `B` · … . **Never gitignore `.harness-state`**
+#   Add these to `.gitignore`: `A` · `B` · … . **Never gitignore `ledger.json` · `repos.json` · …**
 #   (setup/SKILL.md 이 영어 문서라 앵커도 영어다. 파서가 보는 것은 이 앵커 문자열과
 #    ** 강조 경계뿐이고, 판정 구조는 언어와 무관하다.)
 # 파싱이 실패하면 폴백으로 덮지 않고 명확히 실패한다 — 조용한 통과가 최악이다.
@@ -602,13 +602,10 @@ function flush() { if (ln>0) printf "%s:%d:%s\n", fn, ln, buf; buf=""; ln=0; fn=
 '
 
 # 면제 — 경로 단위. 그 파일의 히트가 **전부** 남아야 하는 것일 때만 쓴다.
-# 영어 문서(retrospective·setup 등)는 s1·s2 가 한국어 낱말만 들어 후보에 오르지 않는다 — 그 파일에
+# 영어 문서(스킬·역할 정의·주입 블록 전부)는 s1·s2 가 한국어 낱말만 들어 후보에 오르지 않는다 — 그 파일에
 # 낡은 영어 문장이 새로 들어와도 R-REM 은 잡지 못한다(백로그 harness-53ro).
 RREM_KEEPF=(
-  "hooks/session-context.md"               # 예외 둘을 등재한 항목 본문. 개정 후 원문이다
-  "agents/implementer.md"                  # 서브에이전트 금지는 이 결정이 유지한다 (ADR D5)
   "hooks/guard.sh"                         # r_remote 의 deny 메시지. 판정 로직도 문면도 안 바뀐다 (ADR D5)
-  "checks/guard-check.sh"                  # 위 deny 문면에 대한 단언 문자열. guard.sh 와 짝이라 함께 남는다
   "checks/rules-check.sh"                  # 이 검사 자신. 무엇을 낡은 문장으로 보는지 서술하려면 그 문장을 인용해야 한다 — 자기 인용이 잔존으로 잡히는 것을 확인하고 등재했다
 )
 # 면제 — 앵커 문자열. 남는 줄과 고칠 줄을 함께 가진 파일에 쓴다(줄번호는 편집에 흔들린다).
@@ -1507,7 +1504,6 @@ rdup_norm() {  # stdin → 정규화된 줄. 원천과 대상에 **같은 함수
 
 check_rdup() {
   local p k c u line unit units corpus hits resid n_u n_h n_res scope f=0
-  # slist/n_skip 은 언어 축소 블록에서 선언한다 (선언 자리에 사유 주석이 붙어 있다).
   local -a tlist=()
 
   always_loaded_derive || return 1
@@ -1525,43 +1521,15 @@ check_rdup() {
     return 1
   fi
   # 대상 단언 — 글롭 파생(tlist)이 무엇을 물고 있는지 못박는다. 개수만으로는 대상 교체를
-  # 못 잡는다. 못박는 것은 **글롭 목록이지 아래 언어 축소를 거친 실제 스캔 집합(slist)이
-  # 아니다** — 그래야 이 셋 중 하나가 영어로 옮겨져 축소에 빠져도 단언이 안 깨진다.
-  # slist 쪽은 개수 하한(0건이면 실패)만 보고, 축소가 실제로 걸리는지는 부정 대조군이 본다.
+  # 못 잡는다. 원천(주입 블록)도 대상도 영어 문서이므로 언어로 스캔 집합을 줄이지 않는다 —
+  # 문자열 동일성 검사는 언어와 무관하게 글롭 전수를 본다.
   for k in "skills/develop/SKILL.md" "agents/implementer.md" "agents/evaluator.md"; do
     if ! printf '%s\n' "${tlist[@]}" | grep -qxF -- "$k"; then
       echo "✗ R-DUP — 스캔 대상에 '$k' 가 없다 (${#tlist[@]}건 파생). 파생이 좁아졌다"
       return 1
     fi
   done
-
-  # ── 언어 축소: 한글이 한 바이트도 없는 파일은 스캔에서 뺀다 ──────────
-  # 왜: 이 검사는 문자열 동일성만 본다(위 "한계"). 원천은 한국어 상시 로드 문서이므로
-  #   **한글이 없는 파일은 원천 단위를 그대로 옮길 수 없다** — 스캔해도 적중이 구조적으로
-  #   0이다. 커버리지 포기가 아니라 대상 집합의 정확한 축소다. 근거는 M0 의 실측
-  #   (harness-g88o.1.1): 같은 복제가 한국어면 rc 1, 영어로 옮기면 rc 0 이었다 — 번역된
-  #   복제는 축소 **전에도** 잡히지 않았다.
-  # 극성 반전은 지킨다 — 글롭은 위에서 그대로 판다. 제외가 파일 목록이 아니라 판정에서
-  #   파생하므로 새 스킬의 기본값은 "검사됨" 이고, 한국어가 한 줄이라도 들어오면 그 파일은
-  #   즉시 스캔 대상으로 돌아온다(번역본이 한국어 절 제목을 인용하는 자리가 그렇다).
-  # **제외 0건은 정상이다** — 영어 문서가 없는 트리에서는 아무것도 빠지지 않는다. 위
-  #   "0건 취급" 이 실패로 읽는 것은 *파생 집합*의 0건이지 이 제외 수가 아니다. 이 수는
-  #   판정이 아니라 관측값이고, 축소가 실제로 작동하는지는 부정 대조군이 단언한다
-  #   (checks/rdup-language-probe.sh).
-  # 한계(확인한 것): 판정은 UTF-8 선행 바이트 \xEA-\xED 의 존재다. 그 범위는 한글 음절·
-  #   자모 확장 말고도 U+A000–U+DFFF 의 희소 문자를 함께 포함한다 — **과잉 포함** 방향이라
-  #   안전하다(덜 빼고 더 스캔한다). 반대로 한글 자모(U+1100–, 선행 바이트 \xE1)만으로 쓴
-  #   파일은 한국어인데도 "한글 없음" 으로 갈린다. 실물에 그런 문서가 없어 수용한다.
-  local -a slist=()
-  local n_skip=0
-  for p in "${tlist[@]}"; do
-    if LC_ALL=C grep -q $'[\xea-\xed]' "$p" 2>/dev/null; then slist+=("$p"); else n_skip=$((n_skip+1)); fi
-  done
-  # 언어 판정이 죽어 전부 빠지면 적중 0줄이 "위반 없음" 으로 보고된다. 0건은 실패로 읽는다.
-  if [[ "${#slist[@]}" -lt 1 ]]; then
-    echo "✗ R-DUP 언어 축소 뒤 스캔 대상이 0건이다 (글롭 ${#tlist[@]}건 전부 제외). 언어 판정이 죽었으면 적중 0줄은 '위반 없음' 이 아니라 '안 봤음' 이다"
-    return 1
-  fi
+  local -a slist=("${tlist[@]}")
 
   # 원천 문장 단위. 길이는 **바이트**다(LC_ALL=C) — 로케일에 따라 임계값이 흔들리지 않게.
   # 헤딩 줄은 뺀다 — 절 제목은 이 검사가 권하는 *가리키기* 의 재료다(위 주석의 정정).
@@ -1605,7 +1573,7 @@ check_rdup() {
 
   resid=$(printf '%s\n' "$resid" | grep -v '^$')
   n_res=$(printf '%s' "$resid" | grep -c .)
-  scope="상시 로드 ${#ALWAYS_LOADED[@]}파일[${ALWAYS_LOADED_STR}] · 원천 ${n_u}단위(≥${RDUP_MIN}바이트) · 스캔 ${#slist[@]}파일(글롭 ${#tlist[@]} − 언어 제외 ${n_skip}) · 적중 ${n_h}줄 · 면제 ${#RDUP_KEEP[@]}앵커"
+  scope="상시 로드 ${#ALWAYS_LOADED[@]}파일[${ALWAYS_LOADED_STR}] · 원천 ${n_u}단위(≥${RDUP_MIN}바이트) · 스캔 ${#slist[@]}파일(글롭 전수) · 적중 ${n_h}줄 · 면제 ${#RDUP_KEEP[@]}앵커"
 
   if [[ "$n_res" -ne 0 ]]; then
     while IFS= read -r line; do

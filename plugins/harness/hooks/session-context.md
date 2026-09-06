@@ -1,66 +1,66 @@
-# 하네스 세션 컨텍스트
+# Harness session context
 
-harness 플러그인이 SessionStart 에 주입하는 상시 블록이다. 여기 없는 규율은 그것을 쓰는 스킬이 든다 — 맨 아래 표.
+The always-on block the harness plugin injects at SessionStart. A rule that is not here is held by the skill that uses it — the table at the bottom.
 
 ## 절대 금지
 
-게이트가 있어도 금지는 그대로다 — 게이트는 우회 가능하고, "못 막는 것"은 "해도 되는 것"이 아니다. 강제 장치의 전수 목록·한계는 `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`.
+A gate does not weaken a prohibition — every gate can be bypassed, and "cannot block" is not "allowed". The full list of enforcement mechanisms and their limits is `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`.
 
-- **원격 반영은 사용자 명시 지시 시에만** — 머지 · 태그 push · 릴리스 발행 · GitHub 이슈 조작 · 원격 구성 변경 · 기본 브랜치 직접 push · `repos.json` 에 등재되지 않은 원격 · `bd dolt push`. 예외 둘은 사용자 결정이다.
-  - 예외 하나 — 대상 레포 push 에 묶인 원장 반영은 자동이다. 손으로 치는 push 가 곧 명시 지시이고, 사이클 종결 2단계의 작업 브랜치 push 도 같은 승인이다 — 그 승인 안에서 오케스트레이터가 `bd dolt push` 를 명시 단계로 돈다(대상 레포에 git 훅을 심지 않으므로 pre-push 가 대신하지 않는다). 절차는 `harness:develop` "사이클 종결".
-  - 예외 둘 — 사이클 종결의 작업 브랜치 push·PR 생성은 **미해결 결정이 없을 때만** 자동이다. 범위는 `repos.json` 등재 레포 — 등재가 곧 승인 표면이다.
+- **Remote reflection only on explicit user instruction** — merge · tag push · release publication · GitHub issue changes · remote configuration changes · direct push to a default branch · a remote not registered in `repos.json` · `bd dolt push`. The two exceptions are user decisions.
+  - Exception one — ledger reflection tied to a target-repo push is automatic. A hand-typed push is itself the explicit instruction, and the working-branch push of cycle-close stage 2 is the same approval — inside that approval the orchestrator runs `bd dolt push` as an explicit stage (no harness git hook is planted in a target repo, so no pre-push does it instead). The procedure is `harness:develop` "사이클 종결".
+  - Exception two — the working-branch push and PR creation of a cycle close are automatic **only when no decision is unresolved**. Scope: repos registered in `repos.json` — registration is the approval surface.
 
-    | 사이클이 끝난 상태 | 작업 브랜치 push·PR 생성 |
+    | State at the end of the cycle | Working-branch push · PR creation |
     |---|---|
-    | 결정 필요 사항이 하나도 안 나왔다 | **한다** (지시 없이) |
-    | 나왔고 사용자가 지시·승인했다 | **한다** |
-    | 나왔는데 사용자 지시·승인이 없다 | **하지 않는다** |
+    | No decision-needed item came up | **Do it** (without instruction) |
+    | One came up and the user instructed or approved | **Do it** |
+    | One came up and there is no user instruction or approval | **Do not** |
 
-    표가 "한다" 로 나와도 **대상 레포가 자기 push·PR 규칙을 가지면 그 규칙이 앞선다.** 미해결 결정 = 사람 대기 신호가 나왔는데 사람이 아직 정하지 않은 태스크 + `status` 가 `blocked` 인 태스크. 신호 목록은 `harness:develop` "사람 대기", 단계와 실패 처리는 같은 스킬 "사이클 종결".
-- **대상 레포의 본 체크아웃(`~/.harness-workspace/<레포>` 자체)을 직접 수정하지 않는다** — 작업은 그 안의 `.claude/worktrees/<story-id>/` 워크트리에서만.
-- **플러그인 코어(스킬·역할·훅)의 개선을 사용자 명시 지시 없이 설치본에서 수행하지 않는다** — 고칠 곳은 skills 레포 `plugins/harness/` 이고, 설치본은 마켓플레이스 갱신으로 받는다. 프로젝트 맥락(`repos.json`·`rails.json`·`sprints.json`·`CLAUDE.md`·`.beads`)은 하네스 루트의 소유다.
-- **완료 판정을 소감으로 하지 않는다** — 근거는 게이트 종료 코드와 acceptance 대조뿐. 만든 주체가 채점하지 않는다.
+    Even when the table says "do it", **a target repo's own push·PR rules come first.** An unresolved decision = a task whose human-wait signal came up and which the human has not yet decided + a task whose `status` is `blocked`. The signal list is `harness:develop` "사람 대기"; the stages and failure handling are the same skill's "사이클 종결".
+- **Never modify a target repo's main checkout (`~/.harness-workspace/<repo>` itself) directly** — work only in its `.claude/worktrees/<story-id>/` worktree.
+- **Never improve the plugin core (skills · roles · hooks) in the installed copy without explicit user instruction** — the place to fix is the skills repo `plugins/harness/`, and the installed copy receives it through a marketplace update. The project context (`repos.json`·`rails.json`·`sprints.json`·`CLAUDE.md`·`.beads`) is owned by the harness root.
+- **Never judge completion by impression** — the only evidence is gate exit codes and the acceptance comparison. Whoever built it does not grade it.
 
-## 원장
+## Ledger
 
-- 원장은 어댑터 `${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh` 로만 부른다 — 이 블록과 스킬 본문의 `ledger.sh …` 는 전부 그 경로다. 하위 명령·인자·JSON 키는 `bd` 의 것과 같다(`ledger.sh --help`). 백엔드는 하네스 루트 `ledger.json` 의 `backend`(`github`·`beads`·`notion`) 하나가 정하고, 파일이 없거나 값이 셋 밖이면 rc≠0 이다 — 폴백 없음.
-- 하네스 루트 탐색은 `HARNESS_ROOT` → 워크트리의 `.beads/redirect`(beads 배선) → `~/.harness-workspace/` 의 루트 포인터(`scripts/repo.sh` 가 쓴다) 순서이고, 판별자는 그 자리의 `ledger.json` 이다. 탐색기는 플러그인 `lib/` 에 있다 — `harness:develop` 1절.
-- 서브에이전트에게 위임할 때는 하네스 루트 절대 경로를 첫 줄에 주고, 서브에이전트는 `HARNESS_ROOT=<하네스루트> ledger.sh …` 로만 부른다 — 변수 없는 호출은 루트 탐색이 다른 하네스의 원장에 닿을 수 있다.
-- 원장이 SSOT 다. `docs/sprints/`·`docs/backlog/`·`docs/adr/` 는 `scripts/board.sh all` 의 투영이라 손으로 고치지 않는다.
-- 본문(note·description·acceptance·close reason)은 셸 명령 문자열에 두지 않고 파일 옵션으로 넘긴다 — 형태는 `harness:develop` "원장에 본문을 넘기는 형태".
+- The ledger is reached only through the adapter `${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh` — every `ledger.sh …` in this block and in the skill bodies is that path. Subcommands, arguments, and JSON keys are `bd`'s (`ledger.sh --help`). One value picks the backend, `backend` in the harness root's `ledger.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
+- Harness root discovery goes `HARNESS_ROOT` → the worktree's `.beads/redirect` (beads wiring) → the root pointer under `~/.harness-workspace/` (written by `scripts/repo.sh`), and the discriminator is the `ledger.json` at that spot. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
+- When delegating to a subagent, give the harness root absolute path on the first line, and the subagent calls only `HARNESS_ROOT=<harness root> ledger.sh …` — a call without the variable can reach another harness's ledger through root discovery.
+- The ledger is the SSOT. `docs/sprints/`·`docs/backlog/`·`docs/adr/` are projections of `scripts/board.sh all`, so they are never edited by hand.
+- Bodies (note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".
 
-## 절차 스킬 10종
+## Procedure skills (10)
 
-`harness:plan-sprint`(스프린트 편성) → `harness:plan-story`(분해·acceptance) → `harness:develop`(구현 사이클 — 운영 규율의 소유자) → `harness:verify-code`(리뷰) → `harness:verify-implement`(판정·마감) → `harness:retrospective`(회고) + `harness:setup`(최초 세팅) · `harness:triage`(백로그 정리) · `harness:status`(현황, 읽기 전용) · `harness:release`(플러그인 릴리스).
+`harness:plan-sprint` (sprint composition) → `harness:plan-story` (breakdown · acceptance) → `harness:develop` (implementation cycle — owner of the operating rules) → `harness:verify-code` (review) → `harness:verify-implement` (judgment · close) → `harness:retrospective` (retrospective) + `harness:setup` (first-time setup) · `harness:triage` (backlog triage) · `harness:status` (status, read-only) · `harness:release` (plugin release).
 
-역할 정의 3종(서브에이전트, Agent 도구의 `subagent_type`): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
+Role definitions (3 — subagents, the Agent tool's `subagent_type`): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
 
-## 애자일 계층 ↔ 원장 매핑 규약
+## Agile hierarchy ↔ ledger mapping
 
-| 계층 | 원장 표현 | 규약 |
+| Level | Ledger form | Convention |
 |---|---|---|
-| 스프린트 | 라벨 `sprint:<ID>` | ID 형식은 `YYYY-SNN`. 기간은 각 스토리 bead 의 `--due` 로. **상태(`active`/`closed`)의 원본은 루트 `sprints.json`** — 종료 여부를 닫힌 이슈 개수로 판정하지 않는다. 등록부와 라벨의 양방향 일치는 `board-check` 이 본다 |
-| 레일 | 라벨 `rail:<ID>` | **사람이다.** 담당자 1명당 레일 1개, 한 레일이 여러 레포를 넘나든다. 레포 경계는 `repo:` 라벨. **루트 `rails.json` 에 등재된 ID 만** 쓰며 형식은 `r1`·`r2` 번호다. 하위 이슈가 상속 |
-| 스토리 | `--type epic` | 관련 레포를 라벨 `repo:<이름>` 으로 명시(복수 가능). 문서 디렉토리명이 될 슬러그를 라벨 `slug:<레일ID>-<이름>` 으로 필수 부여 — 레일 ID 접두사로 사람이 달라도 충돌하지 않는다. 유일성은 스프린트 안에서 요구되며 렌더가 단언한다 |
-| 마일스톤 | `--type feature --parent <스토리ID>` | 스토리 안의 단계. 순서는 `blocks` 의존성으로 |
-| 태스크 | `--type task --parent <마일스톤ID>` | 실행 단위. `--acceptance` 필수. **`repo:` 라벨은 정확히 1개** — 상속으로 여러 개를 받으면 plan-story 가 실제로 건드리는 하나만 남긴다(`ledger.sh label remove`). 여러 개면 develop 이 착수를 거부한다 |
+| Sprint | label `sprint:<ID>` | ID format `YYYY-SNN`. Dates go on each story bead's `--due`. **The source of the status (`active`/`closed`) is the root `sprints.json`** — closure is never judged from the count of closed issues. `board-check` sees that the registry and the labels match both ways |
+| Rail | label `rail:<ID>` | **A person.** One rail per assignee; one rail crosses several repos. Repo boundaries are `repo:` labels. **Only IDs registered in the root `rails.json`**, in the numbered form `r1`·`r2`. Child issues inherit it |
+| Story | `--type epic` | Names the repos involved with `repo:<name>` labels (several allowed). Carries a mandatory `slug:<rail ID>-<name>` label that becomes its documentation directory name — the rail-ID prefix keeps different people's slugs from colliding. Uniqueness is required within a sprint, and the renderer asserts it |
+| Milestone | `--type feature --parent <story ID>` | A stage inside a story. Order goes through `blocks` dependencies |
+| Task | `--type task --parent <milestone ID>` | The unit of execution. `--acceptance` is mandatory. **Exactly one `repo:` label** — when inheritance hands it several, plan-story keeps only the one it actually touches (`ledger.sh label remove`). With several, develop refuses to start |
 
-생성 형태:
+Creation forms:
 
 ```bash
-ledger.sh create "<스토리 제목>" -t epic -l sprint:<스프린트ID>,rail:<레일ID>,slug:<레일ID>-<슬러그>,repo:<레포>[,repo:<레포>]
-ledger.sh create "<마일스톤 제목>" -t feature --parent <스토리ID>
-ledger.sh create "<태스크 제목>" -t task --parent <마일스톤ID> --acceptance "<기계 판정 가능한 완료 조건>"
+ledger.sh create "<story title>" -t epic -l sprint:<sprint ID>,rail:<rail ID>,slug:<rail ID>-<slug>,repo:<repo>[,repo:<repo>]
+ledger.sh create "<milestone title>" -t feature --parent <story ID>
+ledger.sh create "<task title>" -t task --parent <milestone ID> --acceptance "<machine-judgeable completion criterion>"
 ```
 
-## 다른 곳이 소유하는 규율
+## Rules owned elsewhere
 
-상시 로드에서 내린 규율이다. 그 절차를 실행할 때만 필요하므로 소유자가 든다 — 여기에 문면을 다시 적지 않는다.
+Rules kept out of the always-on block. Each is needed only while running its procedure, so its owner holds it — the wording is not repeated here.
 
-| 규율 | 소유자 |
+| Rule | Owner |
 |---|---|
-| 운영 규율 · 원장에 본문을 넘기는 형태 · 상태 주장의 근거 · 결정 상태 · 진단 가설 규율 · 사람 대기 · 대상 레포의 관례 · 사이클 종결 · 멀티 레포 | `harness:develop` (같은 제목의 절) |
-| 위임 메시지의 환경 스냅샷 · 장기 실행 | `harness:develop` |
-| 여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다 | `harness:plan-story` |
-| 재시도 카운터 | `harness:verify-code` |
-| 검사가 죽었는지 검사한다 | `${CLAUDE_PLUGIN_ROOT}/docs/development.md` |
+| "운영 규율" · "원장에 본문을 넘기는 형태" · "상태 주장의 근거" · "결정 상태" · "진단 가설 규율" · "사람 대기" · "대상 레포의 관례" · "사이클 종결" · "멀티 레포" | `harness:develop` (sections of the same titles) |
+| "위임 메시지의 환경 스냅샷" · "장기 실행" | `harness:develop` |
+| "여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다" | `harness:plan-story` |
+| "재시도 카운터" | `harness:verify-code` |
+| "검사가 죽었는지 검사한다" | `${CLAUDE_PLUGIN_ROOT}/docs/development.md` |

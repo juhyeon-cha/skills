@@ -751,12 +751,12 @@ r_remote() {
   while IFS= read -r seg; do
     sub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
     if [ "$sub" = "push" ] || { [ "$sub" = "subtree" ] && has_token 'push' "$seg"; }; then
-      deny "원격 반영 금지 — git 이 push 를 실행한다. git push·ledger.sh dolt push 등 **원격 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만'). **그 항목에는 예외가 둘 붙어 있지만 둘 다 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다. 네가 막힌 이유는 지시가 없어서가 아니라 **액터가 다르기 때문**이고, 그래서 '사용자가 지시했다'는 전언으로는 풀리지 않는다. 서브에이전트는 로컬 커밋까지만 하고 멈춘다 — 구현이 끝났으면 첫 줄에 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 커밋 해시를 보고하라. 원격 반영이 필요하면 그 사실을 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라. 판정은 git·dolt·원장 도구(ledger.sh·bd)가 실행하는 하위 명령이라 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 진짜로 원격에 반영하므로 차단이 옳다 — 로컬까지만 하고('git subtree split --prefix <경로> -b <브랜치>') 멈춰 보고하라. 그래도 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+      deny "원격 반영 금지 — git 이 push 를 실행한다. git push·ledger.sh dolt push 등 **원격 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목에는 예외가 둘 붙어 있지만 둘 다 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 네가 막힌 이유는 지시가 없어서가 아니라 **액터가 다르기 때문**이고, 그래서 '사용자가 지시했다'는 전언으로는 풀리지 않는다. 서브에이전트는 로컬 커밋까지만 하고 멈춘다 — 구현이 끝났으면 첫 줄에 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 커밋 해시를 보고하라. 원격 반영이 필요하면 그 사실을 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라. 판정은 git·dolt·원장 도구(ledger.sh·bd)가 실행하는 하위 명령이라 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 진짜로 원격에 반영하므로 차단이 옳다 — 로컬까지만 하고('git subtree split --prefix <경로> -b <브랜치>') 멈춰 보고하라. 그래도 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
     fi
   done < <(exec_segments git)
   while IFS= read -r seg; do
     [ "$(subcmds_after dolt "" "$seg")" = "push" ] || continue
-    deny "원격 반영 금지 — dolt 가 push 를 실행한다. 원장 반영(ledger.sh dolt push·dolt push)은 **오케스트레이터·사람의 몫**이다(세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+    deny "원격 반영 금지 — dolt 가 push 를 실행한다. 원장 반영(ledger.sh dolt push·dolt push)은 **오케스트레이터·사람의 몫**이다(세션 블록 'Remote reflection only on explicit user instruction' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
   done < <(exec_segments dolt)
   local t
   for t in $LEDGER_TOOLS; do
@@ -764,18 +764,18 @@ r_remote() {
     # 원장을 원격에 반영하는 하위 명령은 둘이다 — `dolt push` 와, ledger-check 가 부르는 `sync-check --push`.
     sub="$(subcmds_after "$t" "$(ledger_vopts "$t")" "$seg")"
     { [ "$sub" = "dolt" ] && has_token 'push' "$seg"; } || { [ "$sub" = "sync-check" ] && has_token '[-][-]push' "$seg"; } || continue
-    deny "원격 반영 금지 — $t $sub 가 원장을 원격에 반영한다($t dolt push · $t sync-check --push). 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+    deny "원격 반영 금지 — $t $sub 가 원장을 원격에 반영한다($t dolt push · $t sync-check --push). 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
   done < <(exec_segments "$t")
   done
 
-  tool_aliased gh && deny "gh 를 변수에 담아 부르는 형태('G=gh; \$G …')는 하위 명령을 읽을 수 없어 차단한다 — gh 를 'gh <그룹> <하위명령>' 형태로 직접 불러라. **PR 생성·머지와 이슈 조작은 오케스트레이터·사람의 몫**이고(세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다), 서브에이전트는 구현 완료 신호를 내고 멈춘다."
+  tool_aliased gh && deny "gh 를 변수에 담아 부르는 형태('G=gh; \$G …')는 하위 명령을 읽을 수 없어 차단한다 — gh 를 'gh <그룹> <하위명령>' 형태로 직접 불러라. **PR 생성·머지와 이슈 조작은 오케스트레이터·사람의 몫**이고(세션 블록 'Remote reflection only on explicit user instruction' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다), 서브에이전트는 구현 완료 신호를 내고 멈춘다."
   local t1 t2 shown
   while IFS=' ' read -r t1 t2; do
     [ -n "$t1" ] || continue     # 옵션만 있는 호출(gh --version · gh --help) — 읽기다
     gh_is_read "$t1" && continue
     gh_is_read "$t2" && continue
     shown="gh${t1:+ $t1}${t2:+ $t2}"
-    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh run view · gh auth status). 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
+    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh run view · gh auth status). 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
   done < <(gh_next_pairs)
   return 0
 }
@@ -939,7 +939,7 @@ RULES+=("Bash:r_grader_shell")
 # 우회 시 빠지는 불변식: **원장 구조는 오케스트레이터가 소유한다.** implementer 가
 # create·update·label·close·dep 를 부르면 계층(스프린트→레일→스토리→마일스톤→태스크)·
 # 의존성·상태·재시도 카운터가 구현자의 손에서 바뀐다. "계획을 바꾸지 않는다"
-# (agents/implementer.md "역할")와 "evaluator 의 MATCH 기록 없이 태스크를 닫지 않는다"
+# (agents/implementer.md "Role")와 "No task is closed without the evaluator's MATCH record"
 # (harness:develop)가 함께 무너지는데, 실측상 그 실패는 조용하다 — r_bd_root 주석의
 # 임시 원장 실측에서 create·remember·label 이 rc=0 으로 끝났다.
 # `note` 만 예외인 이유는 절차 8 이 그것을 **요구**하기 때문이다(`알게 된 중요한 사실은

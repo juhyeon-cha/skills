@@ -22,7 +22,7 @@ description: Story (epic bead) development execution procedure. Use on a "스토
 
 ## 2. Create the workspace
 
-Enter the story worktree with the native **`EnterWorktree`** tool, `name` = `<story ID>`. Measured 2026-09-05 (`claude -p`, scratch clone): the worktree is `<clone>/.claude/worktrees/<story ID>` on branch **`worktree-<story ID>`**, cut from `origin/<default branch>` (the `worktree.baseRef` default, `fresh`); the tool does not take a branch name. When `git worktree list` already shows that path (picking up an interrupted cycle), enter it with `path` instead of `name`. Do not run `git worktree add` by hand — the tool and its hook own creation.
+Enter the story worktree with the native **`EnterWorktree`** tool, `name` = `<story ID>`. The worktree is `<clone>/.claude/worktrees/<story ID>` on branch **`worktree-<story ID>`**, cut from `origin/<default branch>` (the `worktree.baseRef` default, `fresh`); the tool does not take a branch name. When `git worktree list` already shows that path (picking up an interrupted cycle), enter it with `path` instead of `name`. Do not run `git worktree add` by hand — the tool and its hook own creation.
 
 The plugin's PostToolUse hook (`${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh`) wires the ledger (`ledger.sh wire-worktree` — for `beads` a `.beads/redirect` to the harness ledger — plus the clone's `.git/info/exclude`) and, when the target repo has no EnterWorktree hook of its own, runs the `bootstrap` of repos.json once (a sibling marker under `.claude/worktrees/` skips the rerun). **A hook failure does not block the tool** — it exits 2, so its stderr lands in your response (PostToolUse feeds only exit-2 stderr back to Claude): `원장 배선 실패` means the harness root (`ledger.json`) was not found. Before delegating, `${CLAUDE_PLUGIN_ROOT}/lib/harness-root.sh` run inside the worktree must print the harness root. Do not bootstrap (install dependencies) by hand.
 
@@ -32,8 +32,8 @@ The plugin's PostToolUse hook (`${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh`) 
 
 Start from the first task whose dependencies are clear and go **milestone by milestone**. The batch condition fixes the unit of verification:
 
-- **Batch mode is the default flow.** The condition is that **the milestone is single-repo** (every child task carries the same `repo:` label) and that **the task count is around 4**. Delegate every task of the milestone **to one implementer as a list**, implemented in dependency order (the implementer commits and leaves a `VERIFY_PENDING` note per task, then moves to the next — the discipline is `${CLAUDE_PLUGIN_ROOT}/agents/implementer.md` "목록을 받았을 때"), and at the end of the milestone run **verify-code once → verify-implement once → close the tasks together**. A task that is implemented but not yet closed stays `in_progress`, marked with a `VERIFY_PENDING` note.
-- **Outside the condition the former flow holds** — when the milestone crosses repos or the task count exceeds that width, delegate implementation → verify-code → verify-implement → close **per task**.
+- **Batch mode is the default flow.** The condition is that **the milestone is single-repo** (every child task carries the same `repo:` label) and that **the task count is around 4**. Delegate every task of the milestone **to one implementer as a list**, implemented in dependency order (the implementer commits and leaves a `VERIFY_PENDING` note per task, then moves to the next — the discipline is `${CLAUDE_PLUGIN_ROOT}/agents/implementer.md` "When the task ID is a list"), and at the end of the milestone run **verify-code once → verify-implement once → close the tasks together**. A task that is implemented but not yet closed stays `in_progress`, marked with a `VERIFY_PENDING` note.
+- **Outside the condition the per-task flow holds** — when the milestone crosses repos or the task count exceeds that width, delegate implementation → verify-code → verify-implement → close **per task**.
 - **This condition is written here.** Other documents (`verify-code`·`verify-implement`·`plan-story`·`implementer`·`${CLAUDE_PLUGIN_ROOT}/docs/operations.md`) point at this section and do not restate the condition.
 
 The steps below apply, **in batch mode, 0 once to the whole list and 1 once to the milestone**, with 2~5 applied whenever a signal arrives. Outside the condition, run 0~5 per task.
@@ -46,8 +46,8 @@ The steps below apply, **in batch mode, 0 once to the whole list and 1 once to t
      - **Inline the value as a literal in every ledger call.** Holding it in a shell variable (`$HARNESS_ACTOR`) and referencing that is forbidden — the Bash tool gets a new shell per call, so the variable evaporates, and an empty value falls back to the default actor (git user.name), which makes **two sessions on one machine the same actor and lets claim pass idempotently**.
      - **Judge claim state from the claim attempt's rc, or from `status` and `assignee` read together.** A rejection is rc=1 with its message on stderr — in full, `Error claiming <task ID>: issue already claimed by <value>`, and the `already claimed` called below is a substring of it. **Read that rc without a pipe**: `$?` after a pipe belongs to the last command, so a rejection reads as 0.
        - To look at the state again later, read **both together** with `ledger.sh show <task ID> --json | jq -r '.[0] | .status, .assignee'` (this query's pipe does not read an rc, so the prohibition above does not touch it). Held means `in_progress` + an `assignee` equal to that actor **on the `beads`·`notion` backends**; on `github` the `assignee` is the GitHub login of whoever ran the claim (an issue assignee has to be a real account — `ledger-github.sh` header), so there judge held by `status` plus the claim's own rc, never by comparing `assignee` with the actor value.
-       - **Do not judge from `assignee` alone.** `ledger.sh update --assignee` puts a value in without a claim — `plan-sprint` section 3 assigns story owners that way, so issues whose `status` is `open` while an `assignee` exists are common in the ledger (measured on the harness ledger 2026-08-31: 28 tasks). Reading those as "held" is the misjudgment this passage blocks.
-       - **Do not look at `owner`** — it is a git identity unrelated to claim (the measured value is an email), so it is the same value whoever holds it, and judging from it produced the misjudgment "isolation does not work" that this passage came from (`harness-dfd.1.1` proof).
+       - **Do not judge from `assignee` alone.** `ledger.sh update --assignee` puts a value in without a claim — `plan-sprint` section 3 assigns story owners that way, so issues whose `status` is `open` while an `assignee` exists are common in the ledger. Reading those as "held" is the misjudgment this passage blocks.
+       - **Do not look at `owner`** — it is a git identity unrelated to claim (the measured value is an email), so it is the same value whoever holds it — judging from it is the misjudgment this passage exists to block (`harness-dfd.1.1`).
        - `assignee` is omitempty, so **when the value is empty** the key itself is absent and it comes back `null` — do not generalize that into "this backend has no such field".
      - When rejected with `already claimed`, another actor's session is working on it — skip it and go to the next ready task. **When every ready task is claimed by another actor, break the loop and go to human wait** — an orphan claim from a dead session is the suspicion, and reclaiming (`ledger.sh update <ID> --status open`, then claim again) is what a human confirms and directs.
      - Never set `--status in_progress` directly. **Two sessions do not hold the same (story, repo) at once** — split parallelism by story, or by repo within a multi-repo story (the ACTOR-note reuse convention is for "picking up", not for concurrent work).
@@ -58,7 +58,7 @@ The steps below apply, **in batch mode, 0 once to the whole list and 1 once to t
    - **Outside the condition**: the orchestrator leaves the mark and goes to **the verify-code procedure** for that one task.
 3. `LGTM` → judge acceptance with **the verify-implement procedure** and close the tasks — in batch mode carry the same list and close the tasks that came back `MATCH` together.
 4. **Handling of the remaining defined signals** — every signal needs an action, or each session improvises its own:
-   - `IMPLEMENTATION_BLOCKED` → leave the reported root cause and attempt history as a `ledger.sh note`, then `ledger.sh update <task ID> --status blocked`. Move on to the next ready task (this does not stop the whole story). **`blocked` is not a human wait** — it is a state you walk past, not one you stop and wait in. **In batch mode**, only the report's "막힌 태스크 ID" goes `blocked`, the "그때까지 완료(커밋)된 태스크 목록" gets its `VERIFY_PENDING` checked per step 2, and the remaining tasks (minus those depending on the blocked one) go through step 1 again as a new list.
+   - `IMPLEMENTATION_BLOCKED` → leave the reported root cause and attempt history as a `ledger.sh note`, then `ledger.sh update <task ID> --status blocked`. Move on to the next ready task (this does not stop the whole story). **`blocked` is not a human wait** — it is a state you walk past, not one you stop and wait in. **In batch mode**, only the report's "the stuck task's ID" goes `blocked`, "the list of tasks completed (committed) so far" gets its `VERIFY_PENDING` checked per step 2, and the remaining tasks (minus those depending on the blocked one) go through step 1 again as a new list.
    - `DECISION_NEEDED` (from any role) → leave the question as a `ledger.sh note` and go to **human wait** — when a loop is running, break it per the discipline of the long-running section.
    - A value not in the list → safe exit: record the situation and report to the human.
 5. The orchestrator leaves each role's core result as a `ledger.sh note` — in batch mode, not on a task before it is closed but on the milestone bead (a task's last note has to be `VERIFY_PENDING`).
@@ -92,6 +92,7 @@ The steps below apply, **in batch mode, 0 once to the whole list and 1 once to t
 - This list is single-owned here. The other two procedures only point at this section.
 
 > Evidence: `harness-2a5.2.4` · `harness-dg0.6.42`.
+
 ## 장기 실행
 
 When there are enough tasks that unattended repetition is needed, propose `/loop` (built into Claude Code) to the user with 3~4 as the prompt. **Never start a loop on your own initiative.** The loop prompt carries pointers only — the procedure body is held by this file.
@@ -108,181 +109,180 @@ Loop-exit discipline. The stop guard (`${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.s
 
 # Always-on rules owned here
 
-The sections below came down from the always-on ruleset (the harness repo's agile.md rules file, before the plugin). This skill owns them; the other skills, the role definitions, and the session context block point at them by section title and do not restate them.
+This skill owns the sections below; the other skills, the role definitions, and the session context block point at them by section title and do not restate them.
 
 ## 운영 규율
 
-- **acceptance 는 기계 판정 가능해야 한다.** ①무엇이 존재하는가 ②어떤 입력에 어떤 출력인가 ③어떤 테스트가 통과하는가 — 셋 중 하나의 형태. "잘 동작한다"는 금지.
-- acceptance 없는 태스크는 `ledger.sh ready` 에 떠도 착수 금지. 먼저 acceptance 를 채운다.
-- 완료 흐름: implementer(구현) → reviewer(품질) → evaluator(acceptance 대조) → `ledger.sh close`. **verify 의 단위는 마일스톤이 기본이다** — 배치 조건을 채우면 마일스톤의 태스크 전부를 구현한 뒤 reviewer·evaluator 를 1회씩 돌리고 일괄로 닫는다. 조건과 조건 밖(태스크별 verify)의 원문은 `develop` 3절이다(`harness-2a5.4`). 만든 주체가 채점하지 않는다.
-- **evaluator 의 MATCH 기록 없이 태스크를 닫지 않는다.** `ledger.sh close --reason` 에 판정 근거(커밋, 게이트 종료 코드)를 남긴다.
-- **위임할 수 없는 세션이면 그 사실을 판정 근거에 적는다** — `close --reason` 에 "evaluator 미위임(사유)". 자기 판정은 위반이 아니라 **약한 근거**이고, 적지 않으면 위임한 판정과 구분되지 않는다.
-- **투영 트리는 셋이고 셋 다 git 밖이다.** epic 은 `sprint:` 라벨이 있으면 `docs/sprints/<ID>/`, 없으면서 `closed` 가 아니면 `docs/backlog/<슬러그>/` 다 — 라벨은 출력 경로만 가르고 렌더 여부를 가르지 않는다. `decision` 은 **전수**가 `docs/adr/<슬러그>.md` 다(status 로 좁히지 않는다 — 대체된 결정도 계보와 함께 남는다). 다시 그리는 것은 `scripts/board.sh all` 하나이고 `post-merge`·`post-checkout` 훅이 그것을 부른다. 백로그 스토리가 닫히면 그 디렉토리는 사라지는 것이 정답이다.
-- **`docs/sprints/`·`docs/backlog/`·`docs/adr/` 를 손으로 고치지 않는다.** 다음 렌더가 덮어쓴다 — 고칠 것은 원장이다.
-- **게이트의 판정은 종료 코드다.** 역할 응답은 기계가 아니라 **네가** 첫 줄 `SIGNAL:` 로 읽는다 — 강제 장치가 없고 `transcript-check` A9 이 사후에 셀 뿐이다. 목록에 없는 값은 안전 종료.
-- **정정 보존**: 원장에서 판단을 뒤집을 때 이전 결정을 지우지 않는다. `ledger.sh note <id>` 로 원문을 인용하고 무엇이 왜 틀렸는지 남긴다.
-- 스토리가 막히면 스토리만 기록하고 다음으로 진행한다. 스프린트 전체를 중단하지 않는다.
-- **게이트는 예외 목록 방식으로 쓴다 (극성 반전).** 검사 대상을 손으로 고르지 않는다 — 전체 집합에서 파생하고, 검사할 수 없는 항목만 사유와 함께 면제 목록에 등재한다. 새 항목의 기본값은 "검사됨"이고, 면제 키가 실제 집합에 존재하는지 역방향 단언을 함께 둔다. 허용 목록 검사는 목록에 없는 위반에 침묵하고 그 침묵이 통과로 읽힌다.
+- **Acceptance must be machine-judgeable.** ① what exists ② what output follows what input ③ which test passes — one of the three forms. "Works well" is forbidden.
+- A task without acceptance is not started even when it shows in `ledger.sh ready`. Fill the acceptance first.
+- Completion flow: implementer (implementation) → reviewer (quality) → evaluator (acceptance comparison) → `ledger.sh close`. **The unit of verify is the milestone by default** — when the batch condition holds, implement every task of the milestone, then run reviewer and evaluator once each and close together. The condition, and what happens outside it (per-task verify), is section 3 of this skill (`harness-2a5.4`). Whoever built it does not grade it.
+- **No task is closed without the evaluator's MATCH record.** Leave the grounds (commit, gate exit code) in `ledger.sh close --reason`.
+- **A session that cannot delegate writes that fact into the grounds** — "evaluator not delegated (reason)" in `close --reason`. Self-judgment is not a violation but **weak evidence**, and unwritten it cannot be told apart from a delegated judgment.
+- **There are three projection trees and all three are outside git.** An epic goes to `docs/sprints/<ID>/` when it has a `sprint:` label, and to `docs/backlog/<slug>/` when it has none and is not `closed` — the label splits the output path only, never whether it is rendered. `decision` beads go **in full** to `docs/adr/<slug>.md` (no narrowing by status — a superseded decision stays, with its lineage). The one thing that redraws them is `scripts/board.sh all`, and the `post-merge`·`post-checkout` hooks call it. When a backlog story closes, its directory disappearing is the correct result.
+- **`docs/sprints/`·`docs/backlog/`·`docs/adr/` are never edited by hand.** The next render overwrites them — what gets fixed is the ledger.
+- **A gate's verdict is its exit code.** A role's response is read by **you**, not by a machine, from its first line `SIGNAL:` — there is no enforcement, only `transcript-check` A9 counting afterwards. A value not in the list is a safe exit.
+- **Correction preservation**: when reversing a judgment in the ledger, do not delete the earlier decision. Quote the original with `ledger.sh note <id>` and leave what was wrong and why.
+- When a story is stuck, record the story alone and move on to the next. Do not halt the whole sprint.
+- **Gates are written in exemption-list form (inverted polarity).** Do not hand-pick what gets checked — derive it from the whole set, and register only what cannot be checked in an exemption list, with a reason. A new item's default is "checked", and a reverse assertion confirms that the exemption key exists in the real set. An allowlist check stays silent on a violation not in the list, and that silence reads as a pass.
 
 ## 원장에 본문을 넘기는 형태
 
-**원장(`ledger.sh`)에 넘기는 본문(note·description·acceptance·close reason)을 셸 명령 문자열 안에 두지 않는다.** 셸이 ledger.sh 보다 먼저 본문을 해석해 역따옴표·`$` 로 감싼 식별자를 빈 문자열로 지우는데 ledger.sh 의 종료 코드는 0 이다.
+**A body handed to the ledger (`ledger.sh`) — note·description·acceptance·close reason — never sits inside a shell command string.** The shell interprets the body before ledger.sh does and erases identifiers wrapped in backticks or `$` into empty strings, while ledger.sh exits 0.
 
-- **파일 옵션이 있으면 그것을 쓴다** — `note --file`·`--stdin`, `create`/`update --body-file`(`create` 는 `--stdin` 도), `close --reason-file`, `dep add --file -`. 이것이 어댑터가 모든 백엔드에서 받는 파일 옵션 전부다(`ledger.sh --help` · `harness-m8gg.4.1` acceptance 6 의 인자 규약 — `--design-file` 은 없다). 없는 값(`--acceptance`·`--title`)은 `"$(cat <경로>)"` 로 넘긴다 — 치환의 출력은 재스캔되지 않는다.
-- **역따옴표·`$` 가 없는 한 줄 고정 문자열은 인라인으로 넘겨도 된다** — `RETRY: <단계> <n>/<상한>`·`ACTOR: <레포> <값>`.
-- **본문 파일은 ledger.sh 호출과 다른 호출에서 만든다.** 파일 쓰기 도구(Write·Edit)가 가장 단순하다 — 본문이 명령 문자열을 떠나므로 명령 문자열을 보는 규칙 전부가 재료를 잃는다. 같은 호출의 heredoc 으로 만들면 본문이 다시 명령 문자열 안이다.
-- **ledger.sh 의 인자로는 heredoc 을 쓰지 않는다.** 손상은 없지만 본문 전체가 명령 문자열로 스캔되어 다른 규칙이 본문의 낱말에 발화하고, 통과시키려면 기록할 내용을 왜곡해야 한다.
-- **막힌 것을 본문 수정으로 푸는 것은 어느 단계에서도 금지다.** 손댈 것은 형태(호출 분리)와 도구(파일 쓰기)뿐이다. 두 수를 다 쓰고도 막히면 본문을 고치지 말고 **막혔다는 사실을 보고에 적는다.**
-- 게이트: **없다 — 규율뿐이다.** 종전에 역따옴표와 `bd` 뒤의 heredoc 을 막던 훅 규칙(`r_bd_body`)은 플러그인 재구조화에서 뺐다(가드는 앵커와 무관한 불변식 넷만 남긴다 — 이 규율은 그 넷 밖이다). `$VAR` 도 같다 — 본문 밖의 `$` 가 흔해 판정에 넣으면 오탐이 규율을 압도한다.
+- **When a file option exists, use it** — `note --file`·`--stdin`, `create`/`update --body-file` (`create` also takes `--stdin`), `close --reason-file`, `dep add --file -`. That is the whole set of file options the adapter takes on every backend (`ledger.sh --help` · the argument contract of `harness-m8gg.4.1` acceptance 6 — there is no `--design-file`). Values without one (`--acceptance`·`--title`) are passed as `"$(cat <path>)"` — the substitution's output is not rescanned.
+- **A one-line fixed string with no backtick and no `$` may go inline** — `RETRY: <단계> <n>/<상한>`·`ACTOR: <레포> <값>`.
+- **Make the body file in a call other than the ledger.sh call.** The file-writing tool (Write·Edit) is simplest — the body leaves the command string, so every rule that looks at command strings loses its material. Made with a heredoc in the same call, the body is inside the command string again.
+- **No heredoc as a ledger.sh argument.** Nothing gets damaged, but the whole body is scanned as a command string, other rules fire on the body's words, and passing them means distorting what gets recorded.
+- **Getting past a block by editing the body is forbidden at every stage.** What may change is the form (splitting the call) and the tool (file writing). When both are spent and it is still blocked, do not edit the body — **write into the report that it was blocked.**
+- Gate: **none — discipline only.** The guard keeps only invariants independent of any tree anchor, and this discipline is outside them. `$VAR` is the same — `$` outside bodies is so common that putting it in the verdict would let false positives drown the discipline.
 
-> 근거: `harness-xwd` · `harness-dg0.6.36` · `harness-dg0.6.19` · `harness-dg0.6.14`.
+> Evidence: `harness-xwd` · `harness-dg0.6.36` · `harness-dg0.6.19` · `harness-dg0.6.14`.
 
 ## 상태 주장의 근거
 
-**"게이트가 통과했다"와 "일이 됐다"는 다르다.** 자신이 일으킨 상태를 보고할 때는 **그 상태를 실제로 결정하는 것**을 같은 턴에 확인하고, 근거를 함께 남긴다.
+**"The gate passed" and "the work is done" are different.** When reporting a state you brought about, confirm **what actually decides that state** in the same turn, and leave the evidence with it.
 
-| 주장 | 근거로 쓰면 안 되는 것 | 실제로 확인할 것 |
+| Claim | Not evidence | What to actually confirm |
 |---|---|---|
-| 게이트 통과 | 부분 실행(단일 테스트·일부 모듈)의 rc | 그 범위 전체를 돌린 rc |
-| 문서 최신 | `board.sh` 의 rc | stdout 의 경로가 실재하고 그 `index.md` 의 상태 기호가 `ledger.sh show` 의 status 와 같다 |
-| 워크트리 생성됨 | `EnterWorktree` 의 성공 메시지 · 훅의 rc | 경로가 실재하고 브랜치가 `worktree-<id>` 이며 그 안에서 `${CLAUDE_PLUGIN_ROOT}/lib/harness-root.sh` 가 하네스 루트를 낸다 |
-| push 됐다 | push 명령의 rc | `git ls-remote` 의 tip 이 내 커밋 SHA |
-| 머지됐다 | PR 상태가 `MERGED` 인 것 · push 시점에 대조한 원격 tip (스쿼시 머지는 **새 커밋 객체**를 만들어 그 둘이 원본 커밋과 갈릴 수 있다) | 머지 커밋의 `--stat` 이 브랜치 전체 diff(`git diff --stat <기본브랜치>...<브랜치>`)의 것과 같다. 삭제·rename 이 든 커밋은 `git ls-tree --name-only origin/<기본브랜치> <경로>` 로 원격 트리에서 그 경로의 부재를 확인한다 |
-| 태스크 닫혔다 | `ledger.sh close` 를 호출한 것 | `ledger.sh show` 의 status·close_reason |
-| PR 이 열렸다 | `gh pr create` 의 rc | `gh pr view --json url,state` 의 url 과 state |
-| 파일로 남겼다 | 응답 본문에 내용을 출력한 것 | 그 턴의 쓰기 결과, 또는 경로 재확인 |
-| 계속 진행된다 | 다음에 할 일을 알고 있다는 것 | 지금 돌고 있는 작업이 실재하는가 (백그라운드 태스크·루프·예약) |
+| Gate passed | the rc of a partial run (a single test · some modules) | the rc of running that whole scope |
+| Documents current | `board.sh`'s rc | the paths on stdout exist and the status symbol in their `index.md` equals the status of `ledger.sh show` |
+| Worktree created | `EnterWorktree`'s success message · the hook's rc | the path exists, the branch is `worktree-<id>`, and inside it `${CLAUDE_PLUGIN_ROOT}/lib/harness-root.sh` prints the harness root |
+| Pushed | the push command's rc | the tip of `git ls-remote` is my commit SHA |
+| Merged | the PR state being `MERGED` · the remote tip compared at push time (a squash merge makes **a new commit object**, so both can diverge from the original commit) | the merge commit's `--stat` equals that of the whole branch diff (`git diff --stat <default branch>...<branch>`). For a commit with deletions or renames, confirm the path's absence in the remote tree with `git ls-tree --name-only origin/<default branch> <path>` |
+| Task closed | having called `ledger.sh close` | the status·close_reason of `ledger.sh show` |
+| PR opened | the rc of `gh pr create` | the url and state of `gh pr view --json url,state` |
+| Saved to a file | having printed the content in the response body | that turn's write result, or re-checking the path |
+| Work continues | knowing what to do next | whether a running piece of work actually exists (a background task · a loop · a schedule) |
 
-확인할 수 없으면 낙관적으로 쓰지 말고 **확인하지 못했다고 쓴다.**
+When it cannot be confirmed, do not write optimistically — **write that it was not confirmed.**
 
-**돌고 있는 것이 없는데 주체가 나라면 턴을 끝내면 안 된다.** 턴 종료는 그 자체로 사용자 대기 상태다. 예고할 거면 하지 말고 그냥 해라. 멈춰야 할 이유가 있으면(승인 필요·판단 요청) 그것을 이유로 적고 멈춘다.
+**When nothing is running and the actor is you, do not end the turn.** Ending the turn is itself waiting for the user. If you would announce, do not — just do it. When there is a reason to stop (approval needed · a judgment requested), write that reason and stop.
 
-**게이트의 rc 를 기록으로 갈음할 수 있는가는 그 게이트가 무엇으로 결정되는가에 달렸다.**
+**Whether a gate's rc can be taken from a record depends on what decides that gate.**
 
-| 부류 | 예 | 재실행 |
+| Class | Example | Rerun |
 |---|---|---|
-| **트리에서 결정된다** | `repos.json` 의 `check` | **하지 않는다.** rc 가 커밋에 묶여 있다. 작업자가 커밋 메시지에 남긴 명령과 rc 를 근거로 쓰되, **그 기록이 대상 커밋 자신의 것인지** 확인한다 — 부모 커밋(`<커밋>^`)의 게이트 기록과 문면이 글자 그대로 같으면 갈음하지 않고 직접 돌린다 |
-| **트리 밖과 대조한다** | `board-check`(원장) | **쓰는 자리에서 직접 돌린다.** 트리가 그대로여도 다른 세션이 원장을 바꾸면 뒤집힌다. 커밋 메시지·훅 통과·앞 단계 보고 어느 기록으로도 갈음하지 않는다 |
+| **Decided in the tree** | `repos.json`'s `check` | **No.** The rc is bound to the commit. Use the command and rc the worker left in the commit message, but confirm **that the record belongs to the target commit itself** — when its wording is letter for letter the same as the parent commit's (`<commit>^`) gate record, do not take it; run it directly |
+| **Compared against the world outside the tree** | `board-check` (the ledger) | **Run it where it is used.** With the tree unchanged, another session changing the ledger flips it. No record — commit message, hook pass, or the previous stage's report — stands in for it |
 
-이 구분은 여기가 단일 소유다. 역할 정의와 스킬은 *누가 언제 돌리는지*만 적고 이 절을 가리킨다.
+This distinction is single-owned here. Role definitions and skills write only *who runs it when* and point at this section.
 
-**게이트를 돌리는 것 자체가 부작용이면, 부작용을 opt-in 으로 둔다.** `checks/ledger-check.sh` 가 그 자리다 — 원격 반영은 `LEDGER_CHECK_PUSH=1` 이 켤 때만 일어나고 **켜는 자리는 `pre-push` 훅 블록 하나**다. 판정·대조·문서 확인으로 부르면 아무것도 반영되지 않으므로, 이 검사를 부르기 전에 외울 규율은 없다.
+**When running a gate is itself a side effect, make the side effect opt-in.** `checks/ledger-check.sh` is that spot — remote reflection happens only when `LEDGER_CHECK_PUSH=1` turns it on, and **the one place that turns it on is the `pre-push` hook block**. Called for a verdict, a comparison, or a document check, it reflects nothing, so there is no discipline to memorize before calling this check.
 
-- **앞서 있는데 반영하지 않은 상태는 통과 문구로 갈린다** — `원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)`. `확인됨`(원래 앞서 있지 않았다)과 글자가 다르다. rc 0 만 보고 "원장이 원격과 같다"로 읽지 마라.
-- **rc 를 얻는 대가로 상태가 바뀌는 검사가 또 생기면 여기 적는다.** 그런 검사는 안전한 쪽을 기본값으로 두고 부작용을 스위치 뒤에 둔다 — 위 "게이트는 예외 목록 방식으로 쓴다" 와 같은 요구다. 근거는 `harness-x0i.2`.
+- **Ahead-but-not-reflected is told apart by the pass phrase** — `원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)`. It differs letter by letter from `확인됨` (it was never ahead). Do not read rc 0 alone as "the ledger equals the remote".
+- **When another check that changes state in exchange for an rc appears, write it here.** Such a check defaults to the safe side and puts the side effect behind a switch — the same demand as "gates are written in exemption-list form" above. Evidence: `harness-x0i.2`.
 
-**측정 환경을 함께 적는다.** 실측을 근거로 쓸 때 셸과 버전, 환경 변수(`BEADS_DIR` 등), CWD, 도구 버전을 같이 적는다. 수를 근거로 쓸 때는 범위·모집단·집계 필터 조건·입력도 적는다. 하위 세션·에이전트의 응답 요약을 실측 전사로 쓰지 않는다 — 도구 결과 원문을 근거로 삼는다.
+**Write the measurement environment with it.** When using a measurement as evidence, write the shell and version, environment variables (`BEADS_DIR` and the like), CWD, and tool versions with it. When using a count, write the scope, population, aggregation filter, and input too. Do not use a child session's or agent's response summary as a measurement transcript — the raw tool result is the evidence.
 
-**"왜 그런가"도 근거를 요구한다.** 이유를 적을 때 그것을 확인했는지 함께 적고, 확인하지 않았으면 "가설"로 쓴다. 근거물(스크린샷·로그·해시)은 파일명과 만든 방법을 함께 적는다. 도구를 통과했다는 것은 그 도구가 보는 것만 통과했다는 뜻이다.
+**"Why" demands evidence too.** When giving a reason, write whether it was confirmed; when not, write it as a "hypothesis". Name evidence artifacts (screenshots · logs · hashes) with the file name and how they were made. Passing a tool means passing only what that tool sees.
 
-> 근거: `harness-fnv` · `harness-dg0.6.7` · `harness-1e7` · `harness-8xe`.
+> Evidence: `harness-fnv` · `harness-dg0.6.7` · `harness-1e7` · `harness-8xe`.
 
 ## 결정 상태 — 안 하기로 한 것은 남은 일이 아니다
 
-사용자가 "안 한다 / 지금 말자" 로 명시적으로 닫은 항목은 **완료도 미완도 아닌 제3의 상태**다. beads 에서는 `deferred` 다 — `ledger.sh update <ID> --status deferred`. 마감 조건에서 closed·blocked 와 동급이다.
+An item the user explicitly closed with "안 한다 / 지금 말자" is **a third state, neither done nor undone**. In beads it is `deferred` — `ledger.sh update <ID> --status deferred`. In closing conditions it ranks with closed·blocked.
 
-- 남은 작업·완료 조건·보고 목록에서 **제외**한다. 완료 판정을 막지 않는다.
-- 상황이 바뀌어 다시 필요해 보이면 **한 줄로 묻는다.** 설득하지 않는다.
-- 침묵으로 넘어간 것과 명시적으로 닫은 것을 구분한다. 애매하면 한 번 묻는다.
-- **beads 백엔드는 `deferred` 를 열린 하위·블로커로 계산한다.** 마감에는 우회가 필요하다: 부모는 `ledger.sh close <ID> --force`, 의존은 `ledger.sh dep remove`. 우회 사유를 close reason 이나 note 에 남긴다.
+- **Exclude** it from remaining work, completion criteria, and report lists. It does not block a completion verdict.
+- When circumstances change and it looks needed again, **ask in one line.** Do not persuade.
+- Keep what was passed over in silence apart from what was closed explicitly. When unclear, ask once.
+- **The beads backend counts `deferred` as an open child or blocker.** Closing needs a bypass: `ledger.sh close <ID> --force` for the parent, `ledger.sh dep remove` for the dependency. Leave the reason for the bypass in the close reason or a note.
 
 ## 진단 가설 규율
 
-원인을 진단하고 조치를 제안할 때 적용한다. 단순 관찰에는 적용하지 않는다.
+Applies when diagnosing a cause and proposing an action. Not to plain observations.
 
-- **검증 전에는 "가설"로 쓴다.** "원인은 X" 대신 "가설: X — <이렇게> 검증 가능".
-- **대조군을 쓰기 전에 동등성을 확인한다.** 조건(설정·캐시·경로·버전)이 같은지 확인하거나, 확인하지 못했음을 명시한다.
-- **진단 시도는 2회까지.** 초과하면 확인된 사실과 남은 불확실성을 정리해 사람에게 넘긴다. 아래 재시도 카운터(재작업 상한)와 별개로 센다.
+- **Before verification, write "hypothesis".** Not "the cause is X" but "hypothesis: X — verifiable by <this>".
+- **Confirm equivalence before using a control.** Confirm that the conditions (settings · cache · path · version) are the same, or state that they were not confirmed.
+- **Two diagnostic attempts at most.** Beyond that, summarize the confirmed facts and the remaining uncertainty and hand them to a human. Counted separately from the retry counter (the rework ceiling).
 
 ## 사람 대기 — 어떤 신호가 사람에게 가는가
 
-**사람 대기로 이어지는 신호의 목록은 여기가 단일 소유다.** 세션 컨텍스트 블록 "절대 금지" 의 "미해결 결정"과 `develop` 의 장기 실행은 이 절을 가리키기만 한다(`harness-dg0.6.39`). `verify-code`·`verify-implement` 의 신호 처리는 자기 역할의 SIGNAL 값을 분배하는 자리라 이 목록을 정의하지 않는다.
+**The list of signals that lead to human wait is single-owned here.** The "unresolved decision" of the session context block "절대 금지" and the long-running section of `develop` only point at this section (`harness-dg0.6.39`). The signal handling of `verify-code`·`verify-implement` distributes their own roles' SIGNAL values and does not define this list.
 
-| 신호 | 내는 자리 | 사람이 정할 것 |
+| Signal | Raised by | What the human decides |
 |---|---|---|
-| `DECISION_NEEDED` | 어느 역할에서든 | 물어 온 질문의 답 |
-| `DEVIATION` | evaluator | 계획이 현실과 어긋났을 때 무엇을 고칠지 |
-| `SCOPE_EXCESS` | evaluator | 초과분을 분리할지 그대로 받을지 |
-| 재시도 카운터 **상한 초과** | verify-code · verify-implement | 같은 지적으로 더 돌릴지 |
-| SIGNAL **목록에 없는 값** | 어느 역할에서든 | 안전 종료 뒤의 처분 |
-| 준비된 태스크 전부가 타 **actor claim** | develop 착수 | 고아 claim 을 회수할지 |
-| 사이클 **종결 미완** | "사이클 종결" 절의 실패표 | 재시도할지 손으로 마칠지 |
+| `DECISION_NEEDED` | any role | the answer to the question asked |
+| `DEVIATION` | evaluator | what to fix when the plan diverges from reality |
+| `SCOPE_EXCESS` | evaluator | whether to split the excess off or accept it |
+| retry counter **limit exceeded** | verify-code · verify-implement | whether to keep going on the same finding |
+| a SIGNAL value **not in the list** | any role | disposition after the safe exit |
+| every ready task under another **actor claim** | develop pickup | whether to reclaim the orphan claims |
+| **cycle close incomplete** | the failure table of "사이클 종결" | whether to retry or finish by hand |
 
-- **처리는 어느 신호든 같다**: 대기 사유를 `ledger.sh note` 로 남기고 멈춘다. 루프 중이면 루프를 끊는다 — 수단은 `develop` "장기 실행" 이 든다.
-- **여기 든 신호는 원장 조회로 안 보인다.** 전부 status 전이 없이 `ledger.sh note` 본문에만 남는다.
-- **`SCOPE_EXCESS` 는 카운터 대상이 아니지만 사람 대기다.** 카운터는 재작업을 몇 번 더 시킬지, 이 목록은 다음 행동을 누가 정하는지를 가른다.
-- **`blocked` 은 사람 대기가 아니다.** `develop` 은 `IMPLEMENTATION_BLOCKED` 를 받으면 태스크를 `blocked` 로 전이시키고 다음 준비된 태스크로 지나간다. "절대 금지" 가 `blocked` 를 "미해결 결정"에 드는 것은 원격 반영 자동 여부의 판정 대상이기 때문이다.
+- **Handling is the same for every signal**: leave the reason for waiting with `ledger.sh note` and stop. In a loop, break the loop — the means is `develop` "장기 실행".
+- **None of these signals shows in a ledger query.** All of them stay only in `ledger.sh note` bodies, with no status transition.
+- **`SCOPE_EXCESS` is not counted by the counter, but it is a human wait.** The counter decides how many more reworks to order; this list decides who chooses the next action.
+- **`blocked` is not a human wait.** On `IMPLEMENTATION_BLOCKED`, `develop` moves the task to `blocked` and walks past it to the next ready task. "절대 금지" counts `blocked` as an "unresolved decision" because it is a criterion for whether remote reflection is automatic.
 
 ## 대상 레포의 관례 — 어디에 적혀 있는가
 
-**대상 레포의 규칙이 적힌 자리 목록은 여기가 단일 소유다.** 세션은 하네스 루트에 서고 서브에이전트도 그 CWD 를 물려받으므로, 대상 레포의 `CLAUDE.md`·규칙·스킬은 **어느 것도 자동으로 로드되지 않는다.** 필요한 자리에서 직접 읽는 수밖에 없다.
+**The list of places where a target repo's rules are written is single-owned here.** The session stands at the harness root and subagents inherit that CWD, so the target repo's `CLAUDE.md`, rules, and skills are **never loaded automatically.** The only way is to read them directly where they are needed.
 
-**네 자리다.** 그 레포의 워크트리 기준:
+**Four places**, relative to that repo's worktree:
 
-| 자리 | 무엇이 있나 |
+| Place | What is there |
 |---|---|
-| 루트 `CLAUDE.md` | 레포 전체에 걸리는 규율 |
-| `.claude/CLAUDE.md` | 같음 — 레포마다 둘 중 어느 쪽에 두는지 다르다 |
-| `.claude/rules` 디렉토리 아래의 `.md` **전부** (하위 디렉토리까지 재귀로) | 주제별 규칙 — 코드 스타일 · PR 절차 · 도메인 관례 |
-| `.claude/skills` 디렉토리 아래의 `SKILL.md` **전부** | 그 레포의 절차. 설계·구현에 걸리는 관례가 규칙이 아니라 여기 적혀 있을 수 있다 |
+| root `CLAUDE.md` | rules that apply to the whole repo |
+| `CLAUDE.md` inside the `.claude` directory | the same — which of the two a repo uses varies |
+| **every** `.md` under the `.claude/rules` directory (recursively, subdirectories included) | rules by topic — code style · PR procedure · domain conventions |
+| **every** `SKILL.md` under the `.claude/skills` directory | that repo's procedures. A convention that applies to design or implementation may be written here rather than in a rule |
 
-- **파일 이름을 지목하지 않는다** — 레포마다 다르다. 자리만 정하고 이름은 읽어서 안다.
-- **그 밖에 적힌 규칙은 없는 것으로 본다.** 목록을 닫지 않으면 탐색이 끝나지 않는다.
-- **회상으로 대신하지 않는다.** 같은 레포를 앞 세션에서 읽었어도 다시 읽는다.
-- **자리가 하나도 실재하지 않으면 관례가 없는 것이다.** 침묵은 금지가 아니다.
-- **레포마다 따로 읽는다.** 스토리가 여러 레포를 물면 각각이다.
-- **게이트 없음 — 설득뿐이다.** 읽었는지도, 읽고 따랐는지도 기계가 볼 수 없다.
+- **Do not name file names** — they differ per repo. Fix the places only; learn the names by reading.
+- **Rules written anywhere else are treated as absent.** An open list never finishes the search.
+- **Do not substitute recall.** Even when the same repo was read in an earlier session, read it again.
+- **When none of the places exists, there is no convention.** Silence is not a prohibition.
+- **Read per repo.** When a story involves several repos, each one.
+- **No gate — persuasion only.** Neither whether it was read nor whether it was followed can be seen by a machine.
 
-**누가 언제 읽는지는 여기가 정하지 않는다.** 소유자가 든다 — `plan-story`(분해 전) · `implementer`·`reviewer`(작업·검토 전) · 아래 "사이클 종결"(push 전, 그중 push·PR 을 다루는 문장에 한해).
+**Who reads it when is not decided here.** The owners hold it — `plan-story` (before breakdown) · `implementer`·`reviewer` (before work and review) · "사이클 종결" below (before push, limited to the sentences that deal with push·PR).
 
 ## 사이클 종결 — PR 이 종점이다
 
-**사이클의 종점은 PR 생성이다.** 여기까지는 **그 사이클에 미해결 결정이 남지 않았을 때** 스스로 진행한다 — 남았는데 사용자 지시·승인이 없으면 1 까지만 하고 멈춘다(세션 컨텍스트 블록 "절대 금지" 의 예외 둘). 되돌릴 수 없는 것의 목록은 **세션 컨텍스트 블록 "절대 금지" 첫 항목이 단일 소유한다** — 전부 명시 지시 대상이다. 근거는 `harness-dmy`.
+**The end point of a cycle is PR creation.** Up to there, proceed on your own **when no decision is left unresolved in that cycle** — when one is, and there is no user instruction or approval, do stage 1 only and stop (exception two of the session context block "절대 금지"). The list of irreversible things is **single-owned by the first item of the session context block "절대 금지"** — all of it is subject to explicit instruction. Evidence: `harness-dmy`.
 
-**세 단계이고 순서가 규율이다.** 대상 레포에는 하네스 git 훅을 심지 않으므로(스토리 `harness-lzs3` 결정) 커밋도 push 도 원장 검사를 대신 돌려 주지 않는다 — **원장 검사와 원장 반영은 오케스트레이터가 명시 단계로 돈다.**
+**Three stages, and the order is the discipline.** No harness git hook is planted in a target repo (story `harness-lzs3` decision), so neither commit nor push runs the ledger checks for you — **the orchestrator runs the ledger check and the ledger reflection as explicit stages.**
 
-1. **커밋, 그리고 원장 검사.** 그 브랜치의 작업을 커밋한다 — 커밋 게이트는 대상 레포의 것이다. 투영은 커밋 대상이 아니다: `scripts/board.sh all` 로 로컬만 맞춘다. 커밋 뒤 오케스트레이터가 워크트리에서 두 검사를 돌린다: `bash "${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh"`(원장 구조) 와 `bash "${CLAUDE_PLUGIN_ROOT}/checks/ledger-check.sh"`(원장 반영 — **읽기 모드**, `LEDGER_CHECK_PUSH` 를 켜지 않는다. 통과 문구가 `앞서 있음(반영하지 않음 — 쓰기 모드 아님)` 이면 2 에서 올릴 것이 있다는 뜻이고 `확인됨` 이면 없다). 둘 중 하나라도 rc≠0 이면 종결 미완이다(실패표).
-2. **원격 반영 — 둘이다. 작업 브랜치 push, 그 다음 `bd dolt push`.** 1 의 `board-check`·`ledger-check` 가 통과한 뒤에만 온다. 먼저 작업 브랜치를 push 하고(`git push -u origin worktree-<스토리ID>`, 근거는 `git ls-remote` 의 tip), 이어서 **`HARNESS_ROOT=<하네스루트> ledger.sh dolt push` 를 명시 실행한다** — 세션 컨텍스트 블록 "절대 금지" 의 예외 하나가 승인한 범위가 정확히 이 자리다: 대상 레포 push 가 지시인 순간, 그 승인 안에서 원장을 함께 올린다. 대상 레포에 pre-push 훅이 없으므로 이 명령을 빼면 원장은 로컬 유일본으로 남는다. 반영 뒤 `ledger-check` 를 읽기 모드로 한 번 더 돌려 `확인됨` 을 본다. **어느 쪽이 실패해도 3 으로 가지 않는다.**
-3. **PR 생성과 상태 확인.** `gh pr create` 뒤에 `gh pr view --json url,state` 로 상태를 확인하고, url 을 스토리 bead 에 `ledger.sh note` 로 남긴다.
+1. **Commit, then the ledger check.** Commit that branch's work — the commit gate is the target repo's. Projections are not commit targets: align the local ones with `scripts/board.sh all` only. After the commit the orchestrator runs two checks in the worktree: `bash "${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh"` (ledger structure) and `bash "${CLAUDE_PLUGIN_ROOT}/checks/ledger-check.sh"` (ledger reflection — **read mode**; do not turn on `LEDGER_CHECK_PUSH`. A pass phrase of `앞서 있음(반영하지 않음 — 쓰기 모드 아님)` means stage 2 has something to raise; `확인됨` means nothing). Either one rc≠0 is close incomplete (the failure table).
+2. **Remote reflection — two of them. The working-branch push, then `bd dolt push`.** Only after stage 1's `board-check`·`ledger-check` passed. Push the working branch first (`git push -u origin worktree-<story ID>`; the evidence is the tip of `git ls-remote`), then **run `HARNESS_ROOT=<harness root> ledger.sh dolt push` explicitly** — this is exactly the scope that exception one of the session context block "절대 금지" approves: the moment the target-repo push is the instruction, the ledger goes up inside that approval. With no pre-push hook in the target repo, leaving this command out leaves the ledger as the sole local copy. After reflecting, run `ledger-check` once more in read mode and see `확인됨`. **When either fails, do not go to 3.**
+3. **PR creation and state check.** After `gh pr create`, confirm the state with `gh pr view --json url,state` and leave the url on the story bead with `ledger.sh note`.
 
-**대상 레포가 자기 push·PR 규칙을 가지면 그 규칙이 이 절의 자동 진행보다 앞선다.** 그래서 **1 을 마치고 2 로 가기 전에, 그 레포 워크트리의 관례를 직접 읽는다** — 자리 목록은 위 "대상 레포의 관례" 가 단일 소유하고, 이 절이 찾는 것은 그중 **push·PR 을 다루는 문장**뿐이다.
+**When a target repo has its own push·PR rules, they come before this section's automatic progression.** So **after finishing 1 and before going to 2, read that repo worktree's conventions directly** — the list of places is single-owned by "대상 레포의 관례" above, and what this section looks for is only **the sentences that deal with push·PR**.
 
-- 읽은 것이 push 나 PR 을 사람에게 묻게 하면 **1 까지만 하고 멈춘다** — 아래 실패표의 `1→2 관문` 행이다.
-- **자리가 하나도 실재하지 않거나** 읽었는데 push·PR 을 다루는 문장이 없으면 **자동 종결을 그대로 진행한다.** 침묵은 금지가 아니다 — 이것이 기본값이다.
-- **레포마다 따로 판정한다.** 한 레포가 묻게 해도 다른 레포의 종결은 간다(아래 "멀티 레포는 레포마다 PR 하나다" 와 같은 단위다).
-- **게이트 없음 — 설득뿐이다.** 판정이 자연어 독해라 기계가 볼 수 없고, 오케스트레이터 세션에는 `guard.sh` 의 서브에이전트 규칙도 닿지 않는다. 근거는 `harness-wym.1`.
+- When what was read makes push or PR something to ask a human about, **do 1 only and stop** — the `1→2 gate` row of the failure table below.
+- **When none of the places exists**, or they were read and hold no sentence about push·PR, **proceed with the automatic close as it stands.** Silence is not a prohibition — this is the default.
+- **Judge per repo.** One repo asking does not stop another repo's close (the same unit as "a multi-repo story is one PR per repo" below).
+- **No gate — persuasion only.** The judgment is natural-language reading, so no machine sees it, and the orchestrator session is not reached by `guard.sh`'s subagent rules either. Evidence: `harness-wym.1`.
 
-| 채널 | 커밋에 담는 것 |
+| Channel | What the commit carries |
 |---|---|
-| **계획** (`plan-sprint` 6 · `plan-story` 7) | 등록부(`sprints.json`·`rails.json`)의 변경만. 계획의 본체는 원장이라 커밋할 것이 없을 때가 정상이고, 그때 이 채널의 원격 반영은 `bd dolt push` 하나다 — `git push` 에 묶이지 않으므로 예외 하나 밖이고 명시 지시 대상이다 |
-| **개발** (`develop` 4) | 그 브랜치의 작업 전부 |
+| **Planning** (`plan-sprint` 6 · `plan-story` 7) | registry changes (`sprints.json`·`rails.json`) only. The body of a plan is the ledger, so having nothing to commit is normal, and then this channel's remote reflection is `bd dolt push` alone — it is not tied to `git push`, so it is outside exception one and subject to explicit instruction |
+| **Development** (`develop` 4) | everything that branch did |
 
-**범위는 `repos.json` 등재 레포 전부다 — 등재가 곧 승인 표면이다.** 범위 밖: 워크트리의 `origin` 이 등재부의 `url` 과 다르면 멈추고 보고한다 · 명시 지시 대상 전부(위 문단이 가리킨 자리). **서브에이전트는 범위 밖이다** — 로컬 커밋까지이고, 종결은 오케스트레이터가 한다.
+**The scope is every repo registered in `repos.json` — registration is the approval surface.** Out of scope: when the worktree's `origin` differs from the registry's `url`, stop and report · everything subject to explicit instruction (the place the paragraph above points at). **Subagents are out of scope — up to the local commit**; the close is the orchestrator's.
 
-**PR 본문은 최소형이다.** 제목은 스토리 제목, 본문은 스토리 id 와 닫힌 태스크 목록. 대상 레포의 PR 규칙은 흉내 내지 않는다.
+**The PR body is minimal.** The title is the story title, the body is the story id and the list of closed tasks. Do not imitate the target repo's PR rules.
 
-**실패는 rc 가 아니라 상태로 판정한다.**
+**Failure is judged by state, not by rc.**
 
-| 단계 | 실패 | 판정 | 행동 |
+| Stage | Failure | Verdict | Action |
 |---|---|---|---|
-| 1 커밋 | 커밋 게이트 rc≠0 | 종결 **미완** | 게이트 출력 전문을 `ledger.sh note`. 루프면 끊고 사람 대기 |
-| 1 원장 검사 | `board-check`·`ledger-check`(읽기 모드) rc≠0 | 종결 **미완** | 검사 출력 전문을 스토리 bead 에 `ledger.sh note`. 2 로 가지 않는다 — 원장이 원격과 갈라진 채(계보 분기·한 번도 반영 안 됨) 올리면 자동 반영도 실패한다 |
-| 1→2 관문 | 대상 레포의 규칙이 push·PR 을 사람에게 묻게 한다 | 종결 **미완** | 어느 레포의 어느 파일이 그렇게 적었는지를 스토리 bead 에 `ledger.sh note`. 2 로 가지 않는다 |
-| 2 작업 브랜치 push | rc≠0 (인증 없음·원격 없음·대상 레포의 훅) | 종결 **미완** | 명령·rc·stderr 요지를 note. `bd dolt push` 로도 3 으로도 가지 않는다 — 원장은 아직 로컬이다 |
-| 2 원장 push | `bd dolt push` rc≠0, 또는 rc=0 인데 `ledger-check` 가 `확인됨` 이 아니다 | 종결 **미완**. **작업 브랜치는 이미 나갔다** | 명령·rc·stderr 요지를 스토리 bead 에 `ledger.sh note`. 3 으로 가지 않는다 — PR 이 열리면 원장 없는 PR 이 되고, 이 머신이 죽으면 판정 근거가 사라진다. 사람 대기 |
-| 3 PR | `create` rc≠0 **이지만** `view` 가 url 을 냄 | **완료** | url 을 note 에 남긴다 |
-| 3 PR | `create` rc≠0 **이고** `view` 도 url 없음 | 종결 **미완** | 명령·rc·stderr 요지를 note. 사람 대기 |
+| 1 commit | commit gate rc≠0 | close **incomplete** | `ledger.sh note` the gate output in full. In a loop, break it and wait for the human |
+| 1 ledger check | `board-check`·`ledger-check` (read mode) rc≠0 | close **incomplete** | `ledger.sh note` the check output in full on the story bead. Do not go to 2 — raising a ledger that has diverged from the remote (a forked lineage · never reflected) fails the automatic reflection too |
+| 1→2 gate | the target repo's rules make push·PR something to ask a human about | close **incomplete** | `ledger.sh note` on the story bead which repo's which file says so. Do not go to 2 |
+| 2 working-branch push | rc≠0 (no auth · no remote · the target repo's hook) | close **incomplete** | note the command, rc, and the gist of stderr. Go neither to `bd dolt push` nor to 3 — the ledger is still local |
+| 2 ledger push | `bd dolt push` rc≠0, or rc=0 while `ledger-check` is not `확인됨` | close **incomplete**. **The working branch is already out** | `ledger.sh note` the command, rc, and the gist of stderr on the story bead. Do not go to 3 — a PR opened now is a PR without its ledger, and if this machine dies the judgment evidence goes with it. Wait for the human |
+| 3 PR | `create` rc≠0 **but** `view` prints a url | **complete** | leave the url in a note |
+| 3 PR | `create` rc≠0 **and** `view` prints no url | close **incomplete** | note the command, rc, and the gist of stderr. Wait for the human |
 
-- **닫힌 태스크를 다시 열지 않는다.** PR 은 스토리 종결의 산출물이다. 대신 **스토리를 닫지 않는다** — 종결 미완이 스토리 상태로 남아 다음 세션이 이어받는다.
-- **멀티 레포는 레포마다 PR 하나다.** 일부 레포가 실패하면 그 레포만 미완으로 적는다.
-- **새 신호를 만들지 않는다.** 종결 미완은 `develop` "장기 실행" 의 사람 대기 신호로 취급해 루프를 끊는다.
-- **이 절이 종결 절차의 단일 소유다.** 세 스킬과 `${CLAUDE_PLUGIN_ROOT}/docs/operations.md` 는 채널 고유 제약만 두고 이 절을 가리킨다.
+- **Do not reopen closed tasks.** The PR is the output of the story close. Instead, **do not close the story** — the incomplete close stays as story state and the next session picks it up.
+- **A multi-repo story is one PR per repo.** When some repos fail, write only those as incomplete.
+- **Invent no new signal.** An incomplete close is treated as a human-wait signal of `develop` "장기 실행" and breaks the loop.
+- **This section is the single owner of the close procedure.** The three skills and `${CLAUDE_PLUGIN_ROOT}/docs/operations.md` put only channel-specific constraints and point here.
 
 ## 멀티 레포
 
-- 레포 목록과 각 레포의 게이트 명령은 루트 `repos.json` 이 원본이다. 언어·빌드 도구 정보는 이 파일 밖에 두지 않는다.
-- **레포 등록과 클론은 `scripts/repo.sh add <url>` 이 함께 한다.** 클론 위치는 `~/.harness-workspace/<이름>` 으로 고정이며 `repos.json` 에 경로를 적지 않는다.
-- 스토리 착수 시 그 레포의 클론에서 연 세션이 `EnterWorktree`(name=`<story-id>`)로 워크트리를 만든다: `~/.harness-workspace/<레포이름>/.claude/worktrees/<story-id>/`. 브랜치는 `worktree-<story-id>`(도구가 정한다 — 2절). 세션 단위는 (스토리, 레포)이므로 멀티 레포 스토리는 레포마다 세션 하나가 자기 클론에서 같은 절차를 돈다.
-- **워크트리는 하네스 밖에 있다.** 위임 메시지에 하네스 루트 절대 경로를 명시한다 — `HARNESS_ROOT=<하네스루트>` 의 유일한 출처다.
-- 워크트리 안의 에이전트는 매 턴 첫 행동으로 현재 경로를 확인한다. 본 체크아웃 경로인데 쓰기를 요구받으면 정지하고 사람에게 확인한다.
-
+- The repo list and each repo's gate command have their source in the root `repos.json`. Language and build-tool knowledge lives nowhere outside this file.
+- **Registering and cloning a repo happen together in `scripts/repo.sh add <url>`.** The clone location is fixed at `~/.harness-workspace/<name>` and no path is written into `repos.json`.
+- At story pickup, the session opened in that repo's clone makes the worktree with `EnterWorktree` (name=`<story-id>`): `~/.harness-workspace/<repo name>/.claude/worktrees/<story-id>/`. The branch is `worktree-<story-id>` (the tool decides it — section 2). The session unit is (story, repo), so in a multi-repo story one session per repo runs the same procedure in its own clone.
+- **The worktree is outside the harness.** State the harness root absolute path in the delegation message — it is the only source of `HARNESS_ROOT=<harness root>`.
+- An agent inside a worktree confirms the current path as the first action of every turn. When asked to write while on a main-checkout path, it stops and checks with a human.
