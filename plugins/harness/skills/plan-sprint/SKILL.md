@@ -36,8 +36,10 @@ Sprint composition is complete when both hold:
 
 The body of a plan lives in the ledger and the projection sits outside git. What this channel puts in a
 commit is **registry changes only** — `sprints.json` (open/close) and `rails.json` (rails). When the
-registry is unchanged there is no commit and no PR, and what remains is the ledger push
-(`bd dolt push`) — it rides outside `git push`, so it needs an explicit instruction from the user.
+registry is unchanged there is no commit and no PR, and what remains is the ledger's own remote
+reflection — which is backend-shaped: on `beads` it is `ledger.sh sync-check --push`, and on
+`github`·`notion` there is nothing to reflect (the ledger is already remote). Where it exists it rides
+outside `git push`, so it needs an explicit instruction from the user.
 
 The body of the close procedure is owned by `harness:develop` "사이클 종결 — PR 이 종점이다"
 — commit → push the work branch → open the PR. **Restate none of those steps here.** This channel has

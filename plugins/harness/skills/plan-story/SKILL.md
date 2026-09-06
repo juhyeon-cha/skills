@@ -99,7 +99,7 @@ Check the finished tree with `ledger.sh children <story ID>`: 0 tasks without ac
 
 Redraw the local projection with `scripts/board.sh all`. **A backlog breakdown gets redrawn too** — the `sprint:` label splits the output path (`docs/backlog/<slug>/`) and nothing else. The projection sits outside git — leave it unedited and out of the commit.
 
-When the breakdown changed a registry (`sprints.json` · `rails.json`), ship it through the channel in plan-sprint 6. When it did not, this procedure has no commit, and the ledger push (`bd dolt push`) waits for an explicit instruction from the user.
+When the breakdown changed a registry (`sprints.json` · `rails.json`), ship it through the channel in plan-sprint 6. When it did not, this procedure has no commit, and what is left is the ledger's own remote reflection — `beads` alone has one (`ledger.sh sync-check --push`, waiting for an explicit instruction from the user); on `github`·`notion` the ledger is already remote and there is nothing to reflect.
 
 ## 여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다
 
