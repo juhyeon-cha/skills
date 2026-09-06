@@ -42,7 +42,7 @@ This document is in English; what it produces is not.
    python3 finalize.py <draft>-font.html > <YYYY-MM-DD>-<slug>.html
    ```
 
-   **Write it where you were told to**, otherwise under `reports/` if the project has one, otherwise
+   **Write it where you were told to**, otherwise in the project's `reports` directory if it has one, otherwise
    in the current working directory. The slug is letters, digits and hyphens taken from the title.
 
 7. **Attach the §6-3 font notice to the completion report verbatim.** Every time.
@@ -433,7 +433,7 @@ A new preset takes the same bar. Once you have built the same kind of report thr
 | Installed as | Where you change it |
 | :-------- | :-------- |
 | A plugin (`/plugin install toolkit@skills`) | Do not edit files in the cache — **the next update overwrites them.** Edit `plugins/toolkit/` in the source repo (`juhyeon-cha/skills`) and commit |
-| Copied into a project (`.claude/skills/html-report/`) | Edit that file directly |
+| Copied into a project (`.claude/skills/html-report`) | Edit that file directly |
 
 **A value that differs per project, like a company brand colour, does not get baked into the
 template.** Write it in the project instructions (`CLAUDE.md` and the like) — "reports in this project
