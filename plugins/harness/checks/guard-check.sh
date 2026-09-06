@@ -1356,19 +1356,16 @@ step "면제 키가 전부 실제 gh 하위 명령이다 (역방향 단언)" [ -
 # 전수 시험. 최상위는 `gh <명령>`, 그룹은 `gh pr <동사>`·`gh issue <동사>` 로 돌린다.
 # 면제어면 rc=0, 아니면 rc=2 — 목록을 손으로 적지 않으므로 새 명령의 기본값이 "차단됨"이다.
 gh_is_exempt() { case " $GH_EXEMPT_SRC " in *" $1 "*) return 0 ;; esac; return 1; }
-# `api` 하나는 낱말로 갈리지 않는다(훅의 gh_api_is_read — 같은 `gh api` 가 GET 도 POST 도 한다).
-# 전수 시험은 동사만 붙인 형태라 이 낱말에 옳은 기대값이 없다 — 여기서 빼고, 아래 GH_API_* 가
-# 메서드·필드 옵션별로 따로 판정한다. **빼는 것을 조용히 하지 않는다**: 뺀 낱말이 실제로 그
-# 전용 절의 판정 대상인지 아래에서 단언한다.
-GH_SWEEP_SKIP="api"
-gh_leaked=""; gh_blocked_read=""; gh_checked=0; gh_skipped=""
+# **`api` 도 빼지 않는다** (2026-09-06, harness-kw0l.3.4 재작성). 종전에는 이 낱말만 전수에서
+# 빼고 메서드·필드 옵션으로 따로 갈랐는데, 그 판정이 세 회차 연속 우회로 샜다. 이제 `gh api` 는
+# 면제 목록에 없는 다른 낱말과 똑같이 차단이라 전수 시험이 그대로 판정한다.
+gh_leaked=""; gh_blocked_read=""; gh_checked=0
 # 파이프로 먹이면 함수가 서브셸에서 돌아 아래 카운터가 전부 버려진다(빈 문자열 = 통과).
 # here-string 으로 먹여 현재 셸에서 돌린다 (../docs/development.md "Shell traps").
 gh_sweep() {  # gh_sweep <접두>  — stdin 으로 하위 명령 목록을 받는다
   local prefix="$1" s
   while read -r s; do
     [ -n "$s" ] || continue
-    case " $GH_SWEEP_SKIP " in *" $s "*) gh_skipped="$gh_skipped $prefix-$s"; continue ;; esac
     gh_checked=$((gh_checked + 1))
     runsub "$prefix $s"
     if gh_is_exempt "$s"; then
@@ -1384,8 +1381,7 @@ gh_sweep 'gh issue'   <<< "$GH_ISSUE"
 gh_sweep 'gh release' <<< "$GH_RELEASE"
 gh_sweep 'gh run'     <<< "$GH_RUN"
 gh_sweep 'gh project' <<< "$GH_PROJECT"
-echo "  gh 하위 명령 ${gh_checked}개를 전수 시험했다 (전용 절로 넘긴 것:${gh_skipped:- 없음})"
-step "전수 시험에서 뺀 낱말이 GH_SWEEP_SKIP 그대로다" [ "$gh_skipped" = " gh-api" ]
+echo "  gh 하위 명령 ${gh_checked}개를 전수 시험했다 (뺀 것 없음)"
 step "비면제 gh 하위 명령이 전부 차단된다 (새 명령의 기본값 = 차단)" [ -z "$gh_leaked" ]
 [ -n "$gh_leaked" ] && echo "    샌 하위 명령:$gh_leaked"
 step "면제된 읽기 하위 명령이 전부 통과한다" [ -z "$gh_blocked_read" ]
@@ -1435,78 +1431,89 @@ step "download 동사를 가진 그룹이 정확히 [$GH_DL_EXPECT] 이다 (상�
   [ "$GH_DL_NORM" = "$GH_DL_EXPECT" ]
 [ "$GH_DL_NORM" = "$GH_DL_EXPECT" ] || echo "    실제: [${GH_DL_NORM:-(없음)}] — 기대와 다르다"
 
-# ── github 백엔드의 원장 읽기 (harness-kw0l.3.4). 원장이 github 면 서브에이전트의 **원장 읽기
-#    전부**가 gh 를 타므로, 아래 열 형태가 막히면 implementer·reviewer·evaluator 가 통째로
-#    원장을 못 읽는다. 고치기 전 실측(2026-09-06, 당시 여섯): 넷이 rc=2 였다 — item-list ·
-#    field-list · api graphql · api REST GET. `download` 절과 같은 이유로 **양쪽**을 시험한다.
-#    뒤 넷은 합성이 아니라 **실물에서 뽑은 전수**다: scripts/ledger-github.sh·ledger-migrate.sh 를
-#    `grep 'gh api graphql'` 해 나온 여섯 중 읽기 넷을 변수만 전개해 그대로 옮겼다(나머지 둘은
-#    addSubIssue mutation 이라 아래 쓰기 절이 든다). graphql 분기가 "질의문이 안 보이면 차단"
-#    극성이므로, 과차단의 방어선은 이 넷뿐이다 — 어댑터의 질의 형태를 바꾸면 여기도 함께 고친다.
+# ── `gh api` 는 통째로 차단이다 (harness-kw0l.3.4, 사용자 결정 2026-09-06).
+#    `gh api` 는 하위 명령이 아니라 임의 요청이라 명령 문자열로 읽기·쓰기를 가를 수 없다.
+#    가르려던 세 회차가 전부 우회로 샜다 — ① 파일 경유(`--input`·`-F query=@파일`) ② 치환
+#    경유(`-f query="$(cat …)"`) ③ 평문 미끼 얹기(질의문은 숨긴 채 읽기처럼 보이는 `query=` 를
+#    하나 더). 그래서 열거를 그만두고 극성을 되돌렸다: **읽기처럼 보여도 막는다.**
+#    이 절이 그 단언 자리다 — 종전에 rc 0 이던 형태(평문 graphql 질의 · 옵션 없는 REST GET ·
+#    미끼를 얹은 `--input`)를 여기에 그대로 두어 되돌림이 실측으로 남는다.
+declare -a GH_API_DENY=(
+  "gh api graphql -f query='query{ viewer{ login } }'"   # 평문 읽기 질의 — 종전 rc 0
+  'gh api repos/o/r/issues/1'                            # 옵션 없는 REST GET — 종전 rc 0
+  'gh api graphql --input mut.json'
+  'gh api graphql -F query=@mut.graphql'
+  'gh api graphql -f query="$(cat mut.json)"'
+  'gh api graphql -f query="`cat mut.json`"'
+  # 미끼 — 질의문은 `--input` 이 숨기고 평문 `query=` 는 훅에게 보이라고 얹은 것이다.
+  'gh api graphql --input mut.json -f query="query{ viewer{ login } }"'
+)
+for c in "${GH_API_DENY[@]}"; do
+  runsub "$c"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "gh api 는 형태를 가리지 않고 차단: $c" [ "$GUARD_RC" -eq 2 ]
+done
+
+# ── 하위 명령으로 연산이 갈리는 형태는 종전대로 통과한다. `download` 절과 같은 이유로
+#    **양쪽**을 시험한다 — 넓힌 쪽만 두면 면제 목록에 아무 낱말이나 넣어도 이 절이 녹색이다.
+#    `item-list`·`field-list` 는 3.4 가 넣은 Projects v2 조회 동사다(고치기 전 실측 rc=2).
 declare -a GH_LEDGER_READ=(
-  'gh project item-list 4 --owner o'
-  'gh project view 4 --owner o'
-  'gh project field-list 4 --owner o'
+  'gh pr view 12 -R o/r'
+  'gh pr list -R o/r --json number'
   'gh issue view 12 -R o/r --json projectItems'
-  "gh api graphql -f query='query{ viewer{ login } }'"   # 읽기 질의는 POST 로 나가도 읽기다
-  'gh api repos/o/r/issues/12'                           # 옵션 없는 REST 는 GET 이다
-  # ledger-github.sh:108 show — Int! 변수를 `-F n=<번호>` 로 넘긴다. `-F` 를 통째로 막으면 이 읽기가
-  # 죽어 3.4 가 고친 구멍이 되돌아온다(verify-code 1차의 최소 수정 제안이 그것이었다).
-  'gh api graphql -f query="query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r){ issue(number:$n){ id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body}} parent{number repository{name}} } } }" -f o=owner -f r=repo -F n=12'
-  # ledger-github.sh:166 list — `--paginate --slurp` 가 붙는 유일한 형태다.
-  'gh api graphql --paginate --slurp -f query="query($o:String!,$r:String!,$endCursor:String){ repository(owner:$o,name:$r){ issues(first:100, after:$endCursor, states:[OPEN]){ nodes{ number title projectItems(first:20){nodes{project{number}}} } pageInfo{hasNextPage endCursor} } } }" -f o=owner -f r=repo'
-  # ledger-github.sh:266 children — show 와 같은 `-F n=` 형태다.
-  'gh api graphql -f query="query($o:String!,$r:String!,$n:Int!){ repository(owner:$o,name:$r){ issue(number:$n){ subIssues(first:100){ nodes{ number title } } } } }" -f o=owner -f r=repo -F n=12'
-  # ledger-migrate.sh:305 verify — 질의문을 홑따옴표로 두는 유일한 실물 읽기다.
-  "gh api graphql -f query='query(\$o:String!,\$r:String!,\$n:Int!){ repository(owner:\$o,name:\$r){ issue(number:\$n){ title body labels(first:100){nodes{name}} comments{totalCount} parent{number repository{name}} projectItems(first:10){nodes{project{number}}} } } }' -f o=owner -f r=repo -F n=12"
+  'gh issue list -R o/r --json number'
+  'gh project view 4 --owner o'
+  'gh project item-list 4 --owner o'
+  'gh project field-list 4 --owner o'
 )
 for c in "${GH_LEDGER_READ[@]}"; do
   runsub "$c"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
-  step "원장 읽기는 통과: $c" [ "$GUARD_RC" -eq 0 ]
+  step "하위 명령 읽기는 통과: $c" [ "$GUARD_RC" -eq 0 ]
 done
-# 짝인 쓰기. 이 16건이 깨지면 면제가 그룹 전체를(또는 gh api 를 통째로) 열어젖힌 것이다.
+# 짝인 쓰기 동사. 이 9건이 깨지면 면제가 그룹 전체를 열어젖힌 것이다.
 declare -a GH_LEDGER_WRITE=(
-  'gh project item-add 4 --owner o --url https://github.com/o/r/issues/1'
-  'gh project item-edit --id X --field-id F --project-id P --text v'
-  'gh project create --owner o --title T'
   'gh issue create --title x'
   'gh issue close 3'
-  'gh api -X POST repos/o/r/issues'
-  'gh api --method POST repos/o/r/issues'
-  'gh api repos/o/r/issues -f title=x'                   # 필드 옵션이 붙으면 gh 가 POST 로 보낸다
-  "gh api graphql -f query='mutation{ addProjectV2ItemById(input:{}) { clientMutationId } }'"
-  # 질의문을 파일·표준입력에서 받는 형태 — 훅이 질의문을 못 보므로 `mutation` 검사가 공허하다.
-  # verify-code 1차 실측(2026-09-06): 3.4 의 graphql 분기가 이 셋을 rc 0 으로 열었다(그 전엔 rc 2).
-  # 단언이 없어 지나갔던 자리라 세 형태를 전부 박는다.
-  'gh api graphql --input mut.json'
-  'gh api graphql -F query=@mut.graphql'
-  'gh api graphql --raw-field query=@mut.graphql'
-  # verify-code 2차 실측(2026-09-06): 옵션 이름만 바꾼 같은 부류가 `-f` 로 남아 rc 0 이었다 —
-  # `$(` 가 조각 경계라 gh 조각이 `gh api graphql -f query=` 로 잘려 셋 다 안 걸렸다. 그래서
-  # 분기를 "질의문이 평문으로 보일 때만 읽기" 로 되돌렸고, 아래 셋이 그 극성을 문다.
-  'gh api graphql -f query="$(cat mut.json)"'
-  'gh api graphql -f query="`cat mut.json`"'
-  'gh api graphql -f query="$Q"'
-  # 실물의 쓰기 — ledger-github.sh:124 · ledger-migrate.sh:236 의 addSubIssue.
-  "gh api graphql -f query='mutation(\$p:ID!,\$c:ID!){ addSubIssue(input:{issueId:\$p, subIssueId:\$c}) { issue { number } subIssue { number } } }' -f p=P -f c=C"
+  'gh issue edit 3 --add-label x'
+  'gh project item-add 4 --owner o --url https://github.com/o/r/issues/1'
+  'gh project item-edit --id X --field-id F --project-id P --text v'
+  'gh project item-delete 4 --owner o --id X'
+  'gh project create --owner o --title T'
+  'gh pr create --title x'
+  'gh pr merge 12'
 )
 for c in "${GH_LEDGER_WRITE[@]}"; do
   runsub "$c"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "짝인 쓰기는 차단: $c" [ "$GUARD_RC" -eq 2 ]
 done
-# 오케스트레이터는 판정 대상이 아니다 — 읽기·쓰기 26건 전부 통과한다.
-for c in "${GH_LEDGER_READ[@]}" "${GH_LEDGER_WRITE[@]}"; do
+# 오케스트레이터는 판정 대상이 아니다 — 위 23건 전부 통과한다.
+for c in "${GH_API_DENY[@]}" "${GH_LEDGER_READ[@]}" "${GH_LEDGER_WRITE[@]}"; do
   run "$(j_bash "$c")"
   step "통과(오케스트레이터): $c" [ "$GUARD_RC" -eq 0 ]
 done
+
+# ── 원장 접근 경로 (harness-kw0l.3.4). `gh api` 를 통째로 막는 설계는 **서브에이전트가
+#    ledger.sh 로 원장을 읽을 수 있다**는 전제 위에 선다. 그 전제가 깨지면 서브에이전트는
+#    원장에 닿을 길이 없으므로, 여기서 단언으로 못박는다. 훅은 Bash 도구 호출 문자열만 보므로
+#    어댑터가 ledger.sh **안에서** 부르는 gh 는 이 훅을 타지 않는다 — 그것이 이 경로가 사는 이유다.
+declare -a LEDGER_READ_CMDS=(
+  "HARNESS_ROOT=$FX_ROOT $FX_LS list --status open --json"
+  "HARNESS_ROOT=$FX_ROOT $FX_LS show $FX_TASK --json"
+  "HARNESS_ROOT=$FX_ROOT $FX_LS ready"
+  "HARNESS_ROOT=$FX_ROOT $FX_LS children $FX_TASK"
+)
+for c in "${LEDGER_READ_CMDS[@]}"; do
+  runsub "$c"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "서브에이전트의 원장 읽기는 통과: $c" [ "$GUARD_RC" -eq 0 ]
+done
 # 면제 목록의 낱말에 시험이 없으면 그 낱말은 아무도 안 본 채 난간을 넓힌다. 위 전수 시험이
 # GH_ALL 을 빠짐없이 돌므로 "목록 ⊆ 파생 집합"(위 역방향 단언)이 곧 "시험 없는 낱말 0개"다.
-# 그 연결고리를 여기서 명시한다 — 전수 시험에서 뺀 `api` 만 전용 절이 든다.
+# 그 연결고리를 여기서 명시한다 — 전수 시험에서 빼는 낱말은 이제 하나도 없다.
 gh_untested=""
 for e in $GH_EXEMPT_SRC; do
-  case " $GH_SWEEP_SKIP " in *" $e "*) continue ;; esac
   gh_in_all "$e" || gh_untested="$gh_untested $e"
 done
 step "면제 목록에 있는데 시험이 없는 낱말이 0개다" [ -z "$gh_untested" ]
