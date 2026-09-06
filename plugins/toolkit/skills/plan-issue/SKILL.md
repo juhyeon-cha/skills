@@ -1,6 +1,6 @@
 ---
 name: plan-issue
-description: File a discovered defect or open decision as a GitHub issue — what does and does not become an issue, the five-section skeleton for the body, and the standard label assignment. Use for requests like "이슈 등록해줘", "이슈로 남겨줘", "백로그에 넣어줘", "이거 이슈감이야". For fixing and closing an issue that already exists, use the `issue-resolution` skill.
+description: File a discovered defect or open decision as a GitHub issue — what does and does not become an issue, the six-section skeleton for the body, and the standard label assignment. Use for requests like "이슈 등록해줘", "이슈로 남겨줘", "백로그에 넣어줘", "이거 이슈감이야". For fixing and closing an issue that already exists, use the `issue-resolution` skill.
 ---
 
 # Filing what you found as an issue
@@ -27,7 +27,7 @@ gh issue list --search '<keyword>'              # searches titles and bodies
 gh issue list --state all --search '<keyword>'  # including closed ones
 ```
 
-## 1. The body — five sections
+## 1. The body — six sections
 
 The `template.md` in this skill folder is the skeleton. A section you cannot fill is **deleted**;
 filled with `N/A` it reads as reviewed.
@@ -37,13 +37,14 @@ cp <this skill folder>/template.md /tmp/issue.md   # fill it in
 gh issue create --title "<title>" --body-file /tmp/issue.md --label bug
 ```
 
-| Section, in the order `template.md` holds them | What that section answers                                      |
+| Section (its `##` heading in `template.md`)      | What that section answers                                      |
 | :---------------------------------------------- | :------------------------------------------------------------------ |
-| **What is true**                                 | One refutable fact. Cite it by path and **symbol name**              |
-| **Why it is so**                                 | The mechanism — which judgement produces this result                 |
-| **Observed result**                              | What you saw, not what you inferred. As the user meets it            |
-| **How it closes**                                | What finishes it + a plan to prove it by reverting + a negative control |
-| **What it is not**                               | The difference from a neighbouring issue. Only when it applies       |
+| **What is true** (`무엇이 참인가`)                | One refutable fact. Cite it by path and **symbol name**              |
+| **Why it is so** (`왜 그런가`)                    | The mechanism — which judgement produces this result                 |
+| **Observed result** (`관측된 결과`)               | What you saw, not what you inferred. As the user meets it            |
+| **How it closes** (`닫는 방법`)                   | What finishes it + a plan to prove it by reverting + a negative control |
+| **What it is not** (`무엇이 아닌가`)              | The difference from a neighbouring issue. Only when it applies       |
+| **Regression check** (`회귀 검사`)                | One line that finds the defect's trace in code — `present`/`absent` a pattern in a path. When no fingerprint can be written, keep the section and say why |
 
 Two things to hold to.
 

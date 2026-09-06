@@ -114,9 +114,8 @@ not ship that way.
 - **Leave it wide when you cannot narrow it.** A wide range carries the fact that little is known;
   a value narrowed by estimation invents a precision nobody has.
 
-A place this shape was actually used — 8 of 9 timeline events were reconciled to the second against
-the ledger and the audit record, and only the moment of the incident itself had no time in the
-ledger:
+An event in that shape — its exact time was not in the ledger, so the bounds are the last healthy
+commit and the first audit record that saw the absence:
 
 ```json
 {

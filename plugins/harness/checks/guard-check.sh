@@ -37,7 +37,7 @@
 #      (⑫ 와 같은 판정 지점에 다른 허용 목록이 붙는다 — 겹침은 등재 순서로 메시지를 고른다).
 #      전수 시험 위에 **대상 단언**이 하나 더 붙는다 — 정정 보존이 기대는 하위 명령들을
 #      이름으로 못박는다. 전수 시험은 개수의 하한만 지키므로 파생이 얇아지면 그 경로만
-#      조용히 빠지는데 rc 는 그대로 0 이다 (근거는 docs/guardrails.md 1-2 절)
+#      조용히 빠지는데 rc 는 그대로 0 이다 (근거는 ../docs/guardrails.md 1-2 절)
 #   (⑭ A6·⑭-2 R23·⑮ A7·⑰ A8 은 그 규칙들 — r_bd_body·r_core_write·r_bead_leak — 과 함께 뺐다.
 #    플러그인 재구조화가 남긴 규칙은 앵커와 무관한 불변식 넷뿐이다. 근거는 훅 머리주석.)
 #   ⑯ S16 — 규칙 발화가 **규칙 이름과 함께** 로그에 남고, 통과도 한 줄 남아 "발화 0" 과
@@ -151,7 +151,7 @@ FX_Q_BDCLOSE="${qfx_cmd[3]}"
 FX_Q_BDCREATE="${qfx_cmd[4]}"
 FX_Q_BDUPDATE="${qfx_cmd[5]}"
 
-# rc 는 파이프 밖에서 채집한다 (docs/development.md "셸 함정").
+# rc 는 파이프 밖에서 채집한다 (../docs/development.md "Shell traps").
 GUARD_RC=0
 GUARD_OUT=""
 runh() {  # runh <훅경로> <json> [env...]
@@ -568,12 +568,61 @@ declare -a MC_SH_READ_PASS=(
   "R=$MCROOT/repo; cat \$R/README.md"
   "R=$MCROOT/repo cat \$R/README.md"
   "R=$MCROOT/repo; git -C \$R log --oneline -1; echo done"
+  # harness-m8gg.8.5 — 조회 형태 16개 (harness-c2bo 의 13개 + 이 스토리에서 관측된 3개). 고치기 전에는
+  # wc·rev-parse 를 뺀 14개가 rc=2 였다(재현은 그 태스크의 note).
+  "sed -n 1,5p $MCROOT/repo/README.md"
+  "jq .name $MCROOT/repo/package.json"
+  "awk '{print \$1}' $MCROOT/repo/README.md"
+  "sort $MCROOT/repo/README.md"
+  "wc -l $MCROOT/repo/README.md"
+  "find $MCROOT/repo -name '*.sh'"
+  "ls $MCROOT/repo | sort"
+  "for f in $MCROOT/repo/*.md; do cat \$f; done"
+  "git -C $MCROOT/repo worktree list"
+  "git -C $MCROOT/repo config --get remote.origin.url"
+  "git -C $MCROOT/repo branch --show-current"
+  "git -C $MCROOT/repo rev-parse HEAD"
+  "git -C $MCROOT/repo archive HEAD"
+  "cd $MCROOT/repo && gh pr view"
+  "echo \"a (b)\"; cat $MCROOT/repo/README.md"       # 인용 안의 괄호 — 조각 경계가 아니다
+  "grep 'a|b' $MCROOT/repo/README.md"                # 인용 안의 파이프 — 조각 경계가 아니다
+  "[ -f $MCROOT/repo/README.md ] && echo y"          # `[` 는 tr 이 지우던 낱말 — 첫 실행 낱말이 경로 basename 이었다
+  "if [ -f $MCROOT/repo/f ]; then cat $MCROOT/repo/f; fi"
+  "echo \"\$(cat $MCROOT/repo/f)\""                  # 큰따옴표 안의 명령 치환은 경계로 남는다 — 아래 MIX 의 rm 대조군과 쌍
+  "sed -n 1,5p \"$MCROOT/repo/f\""                   # 인용된 피연산자 — 스크립트 인자(1,5p)에 w 가 없다(아래 sed w 대조군과 쌍)
+  "ls $MCROOT/repo | awk '{print \$1}'"             # 인용 밖 파이프는 경계 — awk 조각에 `|` 가 남지 않는다
+  "sed 's/a/b/' $MCROOT/repo/f"                      # 경로 없는 스크립트 + 인용 밖 피연산자
 )
 for c in "${MC_SH_READ_PASS[@]}"; do
   runm "$(j_bash "$c")"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "통과(읽기 전용 명령만): $c" [ "$GUARD_RC" -eq 0 ]
 done
+# ── 읽기 낱말 목록의 **전수** — 훅 소스의 한 자리(MC_READ_CMDS·MC_GIT_READ·MC_GIT_READ_OPT)에서 파생해
+#    낱말마다 통과를 단언한다. 위 손목록은 형태를, 이 파생은 목록의 신선도를 든다 — 목록에 있는데 시험이
+#    없는 낱말은 구조상 없다. `[` 가 목록에 있으면서 죽어 있던 것이 이 단언이 없어서였다(harness-m8gg.8.5).
+MC_WORDS=$(hook_vopts MC_READ_CMDS); MC_GITSUBS=$(hook_vopts MC_GIT_READ); MC_GITOPTS=$(hook_vopts MC_GIT_READ_OPT)
+step "읽기 낱말 목록이 훅 소스에서 파생됐다 (20개 이상)" [ "$(printf '%s\n' "$MC_WORDS" | grep -c .)" -ge 20 ]
+step "git 읽기 하위 명령 목록이 훅 소스에서 파생됐다 (10개 이상)" [ "$(printf '%s\n' "$MC_GITSUBS" | grep -c .)" -ge 10 ]
+step "git 읽기 옵션 쌍 목록이 훅 소스에서 파생됐다 (3개 이상)" [ "$(printf '%s\n' "$MC_GITOPTS" | grep -c .)" -ge 3 ]
+mc_fails=""
+while IFS= read -r w; do
+  [ -n "$w" ] || continue
+  # sed 만 스크립트 인자를 앞에 둔다 — `sed <경로>` 는 경로가 스크립트 자리라 읽기 명령이 아니고, 훅도 그 토큰의
+  # `w`(임시 디렉토리 이름의 글자)를 쓰기로 센다. 낱말의 실제 읽기 형태로 시험한다.
+  a=""; [ "$w" = sed ] && a="-n 1p "
+  runm "$(j_bash "$w $a$MCROOT/repo/f")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails $w"
+done <<< "$MC_WORDS"
+while IFS= read -r w; do
+  [ -n "$w" ] || continue
+  runm "$(j_bash "git -C $MCROOT/repo $w")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails git:$w"
+done <<< "$MC_GITSUBS"
+while IFS= read -r w; do
+  [ -n "$w" ] || continue
+  runm "$(j_bash "git -C $MCROOT/repo ${w%%:*} ${w#*:}")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails git:$w"
+done <<< "$MC_GITOPTS"
+[ -z "$mc_fails" ] || say_fail "목록에 있는데 본 체크아웃 경로와 함께 막히는 낱말:$mc_fails"
+step "읽기 목록의 모든 낱말이 본 체크아웃 경로와 함께 통과한다 (목록 ⊆ 시험)" [ -z "$mc_fails" ]
 # 읽기 명령에 쓰기 조각이나 파일 리다이렉션이 하나라도 섞이면 종전대로 막힌다.
 declare -a MC_SH_READ_MIX=(
   "cat $MCROOT/repo/a > /tmp/b"
@@ -589,6 +638,39 @@ declare -a MC_SH_READ_MIX=(
   "git -C $MCROOT/repo tag -d v1"
   "git -C $MCROOT/repo config user.name x"
   "git -C $MCROOT/repo remote add o u"
+  # harness-m8gg.8.5 — 목록이 넓어져도 쓰기는 그대로 막힌다. 읽기 낱말의 쓰기 옵션(MC_WRITE_OPTS)과
+  # 옵션 쌍 밖의 git 하위 명령, 인용 안이 스크립트인 `bash -c`, 큰따옴표 안의 명령 치환이 여기다.
+  "find $MCROOT/repo -exec rm {} \\;"
+  "find $MCROOT/repo -name x -execdir rm {} \\;"
+  "sed -ni.bak 1p $MCROOT/repo/f"
+  "sort -o $MCROOT/repo/f $MCROOT/repo/f"
+  "git -C $MCROOT/repo pull"
+  "git -C $MCROOT/repo worktree add /tmp/x"
+  "bash scripts/install.sh sync $MCROOT"
+  "bash -c \"cd $MCROOT/repo && rm -rf src\""
+  "echo \"\$(rm -rf $MCROOT/repo/src)\""
+  "cd $MCROOT/repo && gh pr checkout 5"
+  "for f in $MCROOT/repo/*; do rm \$f; done"
+  # verify-code 1차(harness-m8gg.8.5)가 f00b729 에서 rc=0 으로 실측한 우회 — 실행 낱말 앞의 셸 래퍼(문자열
+  # `sh -c` 판정이 놓치던 `-lc`·`-ec`), sed·awk 스크립트 본문의 쓰기, 결합 짧은 옵션·BSD `-I`·`--out=` 접두.
+  "bash -lc \"cat $MCROOT/repo/f; rm -rf $MCROOT/repo/src\""
+  "sh -ec \"cat $MCROOT/repo/f; rm -rf $MCROOT/repo/src\""
+  "awk 'BEGIN{system(\"rm -rf $MCROOT/repo/src\")}'"
+  "awk '{print \"rm -rf $MCROOT/repo/src\" | \"sh\"}' /etc/hosts"
+  "sed 's/a/b/w $MCROOT/repo/f' /etc/hosts"
+  "sed -I 1d $MCROOT/repo/f"
+  "sort -ro $MCROOT/repo/f $MCROOT/repo/f"
+  "sort --out=$MCROOT/repo/f $MCROOT/repo/f"
+  # verify-code 2차(harness-m8gg.8.5)가 62b1c94 에서 rc=0 으로 실측한 변형 — 인용 안 공백을 이스케이프로 대신하거나
+  # 경로를 인용에 붙이거나 ARGV·-v 로 넘기면 "인용 안에 경로가 있나" 판정이 놓쳤다. 지금은 스크립트 본문의
+  # 쓰기 기능(sed 의 w·W, awk 의 system·|·getline)을 보므로 경로가 어디 있든 막힌다.
+  "sed \$'s/a/b/w\\x20$MCROOT/repo/f' /etc/hosts"
+  "awk 'BEGIN{system(\"rm\\t-rf\\t$MCROOT/repo/src\")}'"
+  "sed 's/a/b/w'$MCROOT/repo/f /etc/hosts"
+  "sed 'w$MCROOT/repo/f' /etc/hosts"
+  "sed -n 'w '$MCROOT/repo/f /etc/hosts"
+  "awk 'BEGIN{system(\"rm -rf \" ARGV[1])}' $MCROOT/repo/src"
+  "awk -v p=$MCROOT/repo/src 'BEGIN{system(\"rm -rf \" p)}'"
 )
 for c in "${MC_SH_READ_MIX[@]}"; do
   runm "$(j_bash "$c")"
@@ -623,7 +705,7 @@ done
 # 표준 우회 — 본문을 **파일로 넘기면** 명령 문자열에 경로가 남지 않아 통과한다.
 # 이 세 줄이 위 오탐의 대가를 감당 가능하게 만드는 근거다. 여기가 깨지면 우회가 사라진
 # 것이므로 위 오탐 등재도 함께 재검토해야 한다 — 출구 없는 금지가 되기 때문이다
-# (agents/reviewer.md 절차 5 "새 제약이 출구를 막지 않는지 본다").
+# (agents/reviewer.md 절차 5 "Check that a new constraint does not close an exit").
 declare -a MC_SH_ESCAPE=(
   'bd create "제목" -d "$(cat /tmp/body.txt)"'
   'gh pr create --body-file /tmp/body.md'
@@ -739,6 +821,15 @@ runm "$(j_write_cwd '../../../f' "$MC_CWD_WT")"
 step "Write 도구의 상대 경로도 cwd 로 접는다 → rc=2" [ "$GUARD_RC" -eq 2 ]
 runm "$(j_write_cwd 'src/a.js' "$MC_CWD_WT")"
 step "Write 도구의 워크트리 안 상대 경로는 통과 → rc=0" [ "$GUARD_RC" -eq 0 ]
+# cwd 가 클론 루트 **밖**이면 상위 디렉토리 상대 경로는 클론 루트 직속으로 접히지 않는다 (harness-m8gg.8.5
+# acceptance 2). 접힌 결과가 실제로 밖이라 읽기도 쓰기도 rc=0 이다 — 클론 루트와 접두만 같은 형제도 같다.
+MC_CWD_OUT="$TMP/elsewhere/deep"
+runm "$(j_bash_cwd 'cat ../f' "$MC_CWD_OUT")"
+step "상대 읽기(cwd 클론 밖): ../f 는 클론 루트 직속이 아니다 → rc=0" [ "$GUARD_RC" -eq 0 ]
+runm "$(j_bash_cwd 'echo 1 > ../f' "$MC_CWD_OUT")"
+step "상대 쓰기(cwd 클론 밖): ../f 는 클론 루트 직속이 아니다 → rc=0" [ "$GUARD_RC" -eq 0 ]
+runm "$(j_bash_cwd 'ls ../; for d in ../*/; do ls $d; done' "${MCROOT}-sibling/deep")"
+step "상대 읽기(cwd 가 클론 루트의 형제): ../ 는 클론 루트가 아니다 → rc=0" [ "$GUARD_RC" -eq 0 ]
 # A/B 귀속 — cwd 를 접는 한 줄(mc_norm 의 상대 분기)을 옛 형태로 되돌린 사본은 같은 입력을 통과시킨다.
 NEG_CWD="$TMP/guard-no-cwd.sh"
 step "부정 대조군 전제: 상대 분기가 훅에 1줄 실재한다" \
@@ -784,7 +875,7 @@ for c in "${HOME_FORMS[@]}"; do
 done
 
 # ── 부정 대조군. 통과(rc=0)는 "검사했고 문제없음"과 "검사가 실행되지 않음"을 구분하지
-# 못한다 (docs/development.md "검사가 죽었는지 검사한다"). 각 수정만 뺀 사본에서 같은 입력이
+# 못한다 (../docs/development.md "Checking that a check is alive"). 각 수정만 뺀 사본에서 같은 입력이
 # 통과하는지 본다. 제거 전에 대상 줄이 실재하는지 먼저 단언한다 — 오타로 0줄을 지우면
 # 사본이 원본과 같아져 대조군이 조용히 무의미해진다.
 NEG_ROOT="$TMP/guard-no-rootself.sh"
@@ -1261,7 +1352,7 @@ step "면제 키가 전부 실제 gh 하위 명령이다 (역방향 단언)" [ -
 gh_is_exempt() { case " $GH_EXEMPT_SRC " in *" $1 "*) return 0 ;; esac; return 1; }
 gh_leaked=""; gh_blocked_read=""; gh_checked=0
 # 파이프로 먹이면 함수가 서브셸에서 돌아 아래 카운터가 전부 버려진다(빈 문자열 = 통과).
-# here-string 으로 먹여 현재 셸에서 돌린다 (docs/development.md "셸 함정").
+# here-string 으로 먹여 현재 셸에서 돌린다 (../docs/development.md "Shell traps").
 gh_sweep() {  # gh_sweep <접두>  — stdin 으로 하위 명령 목록을 받는다
   local prefix="$1" s
   while read -r s; do
@@ -1321,7 +1412,7 @@ GH_DL_GROUPS=$(for g in $GH_TOP; do gh_cmds "$g" | grep -x download >/dev/null &
 GH_DL_NORM=$(printf '%s\n' $GH_DL_GROUPS | grep -v '^$' | sort -u | tr '\n' ' '); GH_DL_NORM="${GH_DL_NORM% }"
 echo "  download 동사를 가진 그룹: ${GH_DL_NORM:-(없음)}"
 # **정확 집합**으로 단언한다. 하한(release·run 이 들어 있는가)만 보면 gh 에 `download` 를 가진
-# 그룹이 하나 더 생겨도 rc=0 이라, 면제가 조용히 넓어지고 docs/guardrails.md 의 "셋뿐이고 전부
+# 그룹이 하나 더 생겨도 rc=0 이라, 면제가 조용히 넓어지고 hooks/guard.sh r_remote 의 면제 주석 "셋뿐이고 전부
 # 받기만 한다"가 거짓이 된 채로 남는다. 이 변경의 안전 논거 전체가 그 "셋뿐" 위에 서 있으므로
 # 늘어나면 **시끄럽게 깨지는** 쪽이 맞다 — 깨지면 새 그룹이 정말 받기만 하는지 확인하고
 # 이 기대값과 문서를 함께 고쳐라. (빈 집합도 이 단언에 걸리므로 공허한 통과가 없다.)
@@ -1403,14 +1494,14 @@ CM_FLAT=$(tr -d '*' < "$ROOT/hooks/session-context.md" | tr -s ' ')
 AG_FLAT=$(tr -d '*' < "$ROOT/skills/develop/SKILL.md" | tr -s ' ')
 step "세션 블록 마크업 제거 사본이 비어 있지 않다" [ -n "$CM_FLAT" ]
 step "develop 스킬 마크업 제거 사본이 비어 있지 않다"  [ -n "$AG_FLAT" ]
-RM_Q1='원격 반영은 사용자 명시 지시 시에만'
-RM_Q2='서브에이전트는 범위 밖이다 — 로컬 커밋까지'
+RM_Q1='Remote reflection only on explicit user instruction'
+RM_Q2='Subagents are out of scope — up to the local commit'
 step "인용구 1 이 세션 블록에 실재한다 (역방향 단언)" has_text "$RM_Q1" "$CM_FLAT"
 step "인용구 2 가 develop 스킬에 실재한다 (역방향 단언)"  has_text "$RM_Q2" "$AG_FLAT"
 # 음성 대조 — 한 글자만 흔든 문자열은 안 잡혀야 한다. 없으면 위 두 줄이 "아무거나 통과"인지
 # 구분되지 않는다.
 step "음성 대조: 한 글자 바꾼 인용구는 develop 스킬에 없다" \
-  lacks_text '서브에이전트는 범위 밖이다 — 로컬 커밋까진' "$AG_FLAT"
+  lacks_text 'Subagents are out of scope — up to the local commits' "$AG_FLAT"
 # 세 자리 전부다. 하나만 보면 나머지 둘이 낡아도 통과한다.
 for c in 'git push origin master' 'gh pr create --title x' 'G=gh; $G pr create'; do
   runsub "$c"
@@ -1622,12 +1713,12 @@ step "통과(도구, 오케스트레이터): Write $GR_PATH" [ "$GUARD_RC" -eq 0
 GR_ROLES_SRC=$(grep -E '^GR_ROLES=' "$HOOK" | sed 's/^GR_ROLES="//; s/"$//')
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$GR_ROLES_SRC" ]
 echo "  GR_ROLES: $GR_ROLES_SRC"
-# 채점자의 표지는 역할 정의 자신의 문장이다 — reviewer.md "파일 수정·커밋은 금지다",
-# evaluator.md "파일 수정·커밋 금지". 손으로 고르지 않고 이 문장에서 파생한다.
+# 채점자의 표지는 역할 정의 자신의 문장이다 — reviewer.md·evaluator.md 의 "File edits and
+# commits are forbidden". 손으로 고르지 않고 이 문장에서 파생한다.
 # **파생한 이름에 접두 `harness:` 를 붙인다** — 플러그인 에이전트의 agent_type 은 그 형식이다(M0 실측).
 GR_AGENTS=$(ls agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-GR_DECLARED=$(grep -lE '파일 수정·커밋' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-echo "  역할 정의 $(printf '%s\n' "$GR_AGENTS" | grep -c .)종 · 그중 '파일 수정·커밋 금지'를 선언한 것: $(printf '%s' "$GR_DECLARED" | tr '\n' ' ')"
+GR_DECLARED=$(grep -lF 'File edits and commits are forbidden' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+echo "  역할 정의 $(printf '%s\n' "$GR_AGENTS" | grep -c .)종 · 그중 'File edits and commits are forbidden' 을 선언한 것: $(printf '%s' "$GR_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 채점자 집합을 파생했다 (비어 있지 않다)" [ -n "$GR_DECLARED" ]
 step "파생이 전부를 긁어 오지 않는다 (역할 정의 수 > 채점자 수)" \
   [ "$(printf '%s\n' "$GR_AGENTS" | grep -c .)" -gt "$(printf '%s\n' "$GR_DECLARED" | grep -c .)" ]
@@ -1931,7 +2022,7 @@ step "전수 시험이 공허하지 않다 (차단 기대가 20개 이상)" [ "$
 #    `.claude/rules/agile.md` 의 정정 보존은 원장의 note 가 덮이지 않는다를 전제하는데,
 #    실측상 그것은 원장 도구의 성질이 아니라 이 규칙의 결과다 — bd 에는 notes 를 고치고
 #    지우는 하위 명령이 여럿 있고 append 전용인 것은 `note` 뿐이다 (근거 명령과 측정
-#    환경은 docs/guardrails.md 1-2 절).
+#    환경은 ../docs/guardrails.md 1-2 절).
 #
 #    위 전수 시험만으로는 부족하다. 그것은 BD_ALL(= `bd --help` 파생)을 돌며 **개수**의
 #    하한만 지키므로, bd 가 이름을 바꾸거나 도움말 서식이 달라져 아래 이름들이 파생
@@ -1981,10 +2072,10 @@ step "정상 대조군: implementer 의 note(append 통로)는 통과한다" [ "
 IMPL_ROLES_SRC=$(grep -E '^IMPL_ROLES=' "$HOOK" | sed 's/^IMPL_ROLES="//; s/"$//')
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$IMPL_ROLES_SRC" ]
 echo "  IMPL_ROLES: $IMPL_ROLES_SRC"
-# 표지는 역할 정의 자신의 문장이다 — implementer.md "**`ledger.sh note` 외의 원장 쓰기**".
+# 표지는 역할 정의 자신의 문장이다 — implementer.md "**Ledger writes other than `ledger.sh note`**".
 # 손으로 고르지 않고 이 문장에서 파생한다. 접두 `harness:` 는 ⑫ 와 같은 이유로 붙인다.
-IMPL_DECLARED=$(grep -lF 'ledger.sh note` 외의 원장 쓰기' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-echo "  'ledger.sh note 외의 원장 쓰기' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
+IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger.sh note`' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+echo "  'Ledger writes other than ledger.sh note' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 대상 집합을 파생했다 (비어 있지 않다)" [ -n "$IMPL_DECLARED" ]
 step "훅의 IMPL_ROLES 가 역할 정의에서 파생한 집합과 일치한다 (역방향 단언)" \
   [ "$(printf '%s\n' $IMPL_ROLES_SRC | sort | tr '\n' ' ')" = "$(printf '%s\n' "$IMPL_DECLARED" | tr '\n' ' ')" ]
@@ -2385,7 +2476,7 @@ step "A/B 대조: 원본은 같은 입력에서 로그를 남긴다" [ -s "$LG" 
 # 났다 — 로깅이 story 브랜치에만 있어 배선된 다른 트리의 훅이 아무것도 안 남겼고,
 # 계수 명령은 그것을 "훅이 한 번도 돌지 않았다" 로 냈다 (harness-dg0.6.33). 전역 원장과
 # 달리 **훅 코드는 트리 안에 있어 브랜치를 탄다.** 두 상태를 각각 재현해 문구로 가른다.
-# 계수를 근거로 쓸 수 있는 조건은 docs/guardrail-verification.md 11절이 든다.
+# 계수를 근거로 쓸 수 있는 조건은 ../docs/guardrail-verification.md 11절이 든다.
 echo "── ⑱ 계수 명령의 부재 판정 — 훅 미실행 vs 로깅 없는 판 발화 ──"
 S17="$TMP/s17"
 mkdir -p "$S17/withlog/hooks" "$S17/nolog/hooks"

@@ -15,7 +15,7 @@
 #   S2 훅 배선   hooks/hooks.json ↔ hooks/*.sh (양방향). 배선된 명령이 실재하는 파일을
 #                ${CLAUDE_PLUGIN_ROOT} 로 가리키는가 · 훅 파일 전부가 어느 이벤트에든 배선됐는가 ·
 #                PreToolUse 가 S1 이 시험한 그 파일을 모든 도구에 대해(matcher 없음) 부르는가 ·
-#                Stop 이 정지 가드와 루프 취소를 부르는가
+#                Stop 이 정지 가드를 부르는가
 #   S5 스크립트  scripts·checks·hooks·lib 의 *.sh 실물 전수(실행 비트·문법)
 #   S6 원장 게이트 checks/ledger-check.sh 의 원장 탐색·자동 반영 — bd·dolt 를
 #                스텁으로 갈아끼운 픽스처에서 실제로 돌린다
@@ -27,7 +27,7 @@
 #                파일이 데이터 디렉토리(HARNESS_DATA_DIR)에만 떨어지는가
 #
 # 종전(하네스 루트의 같은 검사)에 있던 표면 S3(권한 deny)·S4(플러그인 등재)와 install.sh
-# 미러링·pre-commit/pre-push/render 블록 대조·docs/guardrails.md 계수 대조·"못 막는 것" rc=0
+# 미러링·pre-commit/pre-push/render 블록 대조·../docs/guardrails.md 계수 대조·"못 막는 것" rc=0
 # 실측은 뺐다 — 그 원본(settings.json·install.sh·.beads/hooks·docs/)이 플러그인에 없다. 문서
 # 계수 대조는 하네스 루트 문서가 새 구조로 고쳐진 뒤(M4) 그 문서가 소유할 자리다.
 #
@@ -430,10 +430,9 @@ step "PreToolUse 배선이 S1 이 시험한 파일($HOOK)을 가리킨다 (${pre
 [[ ${#pre_matcher_bad[@]} -gt 0 ]] && say_fail "PreToolUse 훅의 matcher 가 비어 있지 않다: '${pre_matcher_bad[*]}' — 그 도구에만 발화하므로 나머지 도구에서는 규칙 ${#RULE_SET[@]}개가 전부 무력이다. matcher 를 지우거나 \"\" 로 두라"
 step "PreToolUse 배선의 matcher 가 없거나 \"\" 다 (모든 도구에 발화)" [ "${#pre_matcher_bad[@]}" -eq 0 ]
 
-# Stop: 정지 가드와 루프 취소가 둘 다 배선됐다. 정지 가드의 발화 자체는 S7 이 본다.
+# Stop: 정지 가드가 배선됐다. 정지 가드의 발화 자체는 S7 이 본다.
 stop_files="$(printf '%s\n' ${wired_arr[@]+"${wired_arr[@]}"} | awk -F'\t' '$1 == "Stop" { print $3 }' | grep -oE 'hooks/[A-Za-z0-9_.-]+\.sh' | sort -u)"
 step "Stop 이 정지 가드($STOPHOOK)를 부른다" bash -c 'printf "%s\n" "$1" | grep -qx -- "$2"' _ "$stop_files" "$STOPHOOK"
-step "Stop 이 루프 취소(hooks/ralph-cancel.sh)를 부른다" bash -c 'printf "%s\n" "$1" | grep -qx -- "$2"' _ "$stop_files" "hooks/ralph-cancel.sh"
 step "SessionStart 가 주입 블록 훅(hooks/session-context.sh)을 부른다" \
   bash -c 'printf "%s\n" "$1" | awk -F"\t" "\$1 == \"SessionStart\" { print \$3 }" | grep -q "hooks/session-context.sh"' _ "$wired"
 
@@ -649,7 +648,7 @@ fi
 
 # ── S7: 정지 가드 — 등재가 아니라 발화를 본다 ──────────────────────────
 # Stop 훅은 런타임이 부르는 것이라 세션 없이는 재현할 수 없다. 그래서 이 게이트가 가진
-# 유일한 커버가 S2 의 문자열 배선 대조였고, docs/guardrail-verification.md 8절 천장 2 가 "발화는
+# 유일한 커버가 S2 의 문자열 배선 대조였고, ../docs/guardrail-verification.md 8절 천장 2 가 "발화는
 # 아무도 검사하지 않는다"로 그 상태를 못박았다. 여기서는 런타임을 기다리지 않고 **훅을
 # 직접 실행**한다 — Stop 페이로드를 stdin 으로 먹이고, 가짜 오라클을 PATH 앞에 두고,
 # 로그와 stdout 을 본다. 등재 통과를 동작 보증으로 읽는 자리를 하나 지운다.
@@ -749,7 +748,7 @@ STUB
   # ① 판정 도달 단언 — **모든 실행 경로가 로그를 한 줄 남긴다.**
   # 이것이 "가드가 안 돌았다"와 "돌았는데 개입할 일이 없었다"를 가르는 유일한 값이다.
   # 조용한 통과 경로가 하나라도 생기면 무기록이 통과와 같은 모습이 되고, 그 순간 이 절의
-  # 나머지가 전부 공허해진다 (하네스 루트 docs/guardrail-verification.md 8절이 일곱 경로 전부에 한 줄씩을
+  # 나머지가 전부 공허해진다 (../docs/guardrail-verification.md 8절이 일곱 경로 전부에 한 줄씩을
   # 요구한 이유가 그것이다). 그래서 경로별 판정과 **합계**를 함께 단언한다.
   # **기대 줄 수를 받는다.** 대부분의 경로는 판정을 끝내며 한 줄을 남기지만 SCOPE_FAIL 은
   # 아니다 — 사거리를 좁히지 못했다는 사실을 남기고 **원장 전체로 판정을 계속**하므로 그
@@ -909,12 +908,6 @@ STUB
   step "데이터 디렉토리를 만들 수 없으면 막지 않는다 (rc=0, 실제 ${DRC})" [ "$DRC" -eq 0 ]
   step "그때 stdout 은 비어 있다 (판정하지 않는다)" [ -z "$DOUT" ]
   step "그 사실이 stderr 한 줄로 남는다" grep -q '데이터 디렉토리' "$PTMP/derr"
-  # 기존 루프 마커는 **읽지 않는다.** 한 마커로 두 장치를 끄면 무엇을 껐는지 기록이
-  # 구분하지 못한다 — 그 마커만 있으면 그대로 막혀야 한다.
-  : > "$SDATA/ralph-cancel"
-  stop_case BLOCK       s-notralph false 2
-  step "경로 CANCEL: 루프 취소 마커를 읽지도 소비하지도 않는다" \
-    [ -f "$SDATA/ralph-cancel" ]
 
   # GAVE_UP — 같은 세션이 상한만큼 막힌 뒤에는 막지 않는다. 상한 계산의 출처가 로그
   # 자신이므로, 이 시험은 위 BLOCK 줄들이 실제로 쌓였다는 것까지 함께 확인한다.
@@ -926,7 +919,7 @@ STUB
 
   # ── 사거리 — 오라클이 세는 것이 **이 세션이 잡은 일**인가 ───────────────
   # 좁히기 전에는 남의 세션이 잡은 in_progress 로도 막혔다(그것이 이 훅이 실효보다
-  # 꺼져 있는 턴이 훨씬 많았던 이유다 — docs/guardrail-verification.md 8절 천장 1). 픽스처는 **폴백의
+  # 꺼져 있는 턴이 훨씬 많았던 이유다 — ../docs/guardrail-verification.md 8절 천장 1). 픽스처는 **폴백의
   # 두 방향**을 각각 밟는다: 매핑을 읽지 못하면 종전대로 원장 전체(SCOPE_FAIL), 읽었는데
   # 이 세션의 actor 가 없으면 통과(NO_CLAIM). 하나로 합치면 가드가 조용히 꺼지거나
   # 아무것도 안 고쳐지므로, 둘이 서로 다른 경로를 낸다는 것 자체가 판정 대상이다.
@@ -959,7 +952,7 @@ STUB
   step "사거리 ④: 매핑이 없으면 남의 actor 로도 막는다 (통과로 폴백하지 않는다)" is_block "$PTMP/sc-nomap.json"
   step "사거리 ④: 그 두 줄의 앞 줄이 SCOPE_FAIL 이다" \
     [ "$(tail -2 "$SLOG" | head -1 | cut -f3)" = "SCOPE_FAIL" ]
-  # 집합이 빈 채로 참이 되는 것을 막는다 (docs/development.md "검사가 죽었는지 검사한다").
+  # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/development.md "Checking that a check is alive").
   step "사거리 픽스처 집합이 비지 않았다 (${#SCOPE_FX[@]}종: ${SCOPE_FX[*]:-없음})" \
     [ "${#SCOPE_FX[@]}" -ge 4 ]
 
@@ -1047,9 +1040,9 @@ STUB
     step "Stop 에 배선된 훅을 파생했다 (${#WIRED[@]}개: ${WIRED[*]:-없음})" [ "${#WIRED[@]}" -gt 0 ]
 
     # ④ 대상 단언 — 위에서 **먹인 파일**이 그 배선이 가리키는 경로인가.
-    # rc 만 보면 무엇을 시험했는지 드러나지 않는다: Stop 에는 훅이 둘 배선돼 있어
-    # ("이 가드"와 ralph-cancel.sh), "Stop 훅이 배선돼 있다"는 단언은 다른 하나만으로도
-    # 참이 된다. 이 절이 먹인 것은 $STOPABS 이고 그것이 이 경로에서 나왔음을 못박는다.
+    # rc 만 보면 무엇을 시험했는지 드러나지 않는다: "Stop 훅이 배선돼 있다"는 단언은 Stop 에
+    # 다른 훅이 하나라도 등재되면 그것만으로도 참이 된다. 이 절이 먹인 것은 $STOPABS 이고
+    # 그것이 이 경로에서 나왔음을 못박는다.
     hits=0
     for p in ${WIRED[@]+"${WIRED[@]}"}; do [[ "$p" == "$STOPHOOK" ]] && hits=$((hits + 1)); done
     [[ "$hits" -eq 1 ]] || say_fail "시험한 파일이 Stop 배선과 맞지 않는다: ${STOPHOOK} 을 가리키는 배선 ${hits}건 (배선된 것: ${WIRED[*]:-없음}) — 배선되지 않은 파일을 시험하면 통과가 아무것도 뜻하지 않는다"

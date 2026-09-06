@@ -35,7 +35,7 @@ step() {
 has_text() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
 
 # run <루트> <인자…> — HARNESS_ROOT 를 픽스처로 물려 ledger.sh 를 돌리고 OUT·ERR·RC 에 채집한다.
-# rc 는 파이프 밖에서 잡는다 (docs/development.md "셸 함정").
+# rc 는 파이프 밖에서 잡는다 (../docs/development.md "Shell traps").
 OUT=""; ERR=""; RC=0
 run() {
   local root="$1"; shift
@@ -61,8 +61,11 @@ step "backend 허용값 밖 → stderr 가 허용값 셋을 든다" \
 HELP=$(bash "$LEDGER" --help 2>&1); help_rc=$?
 step "--help rc 0" [ "$help_rc" -eq 0 ]
 # 하위 명령 집합은 플러그인 트리에서 파생한다 (harness-m8gg.4.1 acceptance 2 의 측정 명령 그대로).
-# CHANGELOG.md 는 뺀다 — 릴리스 이력은 호출 자리가 아니라 사람이 읽는 기록이고, 걷어낸 명령의 이름을 든다.
-MEASURED=$(grep -rhoE --exclude=CHANGELOG.md '\bbd (-C [^ ]+ )?[a-z-]+' "$PLUGIN_ROOT" | awk '{print $NF}' | sort -u)
+# CHANGELOG.md 와 docs/ 는 뺀다 — 둘 다 호출 자리가 아니라 사람이 읽는 기록·설명이다. CHANGELOG 는 걷어낸 명령의
+# 이름을 들고, docs/(harness-m8gg.8.11 로 옮겨온 다섯 문서)는 산문 안의 명령 인용(prime·doctor·pick)과 "-C <root>`) are" 같은
+# 문장 조각이 하위 명령으로 잡힌다(실측: 옮긴 직후 빠짐 6개 — are block byte doctor pick prime. 이 주석 자신이 그 형태를
+# 인용해도 잡히므로 여기서는 명령 이름 앞에 실행 파일 이름을 붙이지 않는다).
+MEASURED=$(grep -rhoE --exclude=CHANGELOG.md --exclude-dir=docs '\bbd (-C [^ ]+ )?[a-z-]+' "$PLUGIN_ROOT" | awk '{print $NF}' | sort -u)
 missing=""
 for tok in $MEASURED; do
   printf '%s\n' "$HELP" | grep -qw -- "$tok" || missing="$missing $tok"

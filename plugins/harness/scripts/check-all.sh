@@ -13,12 +13,21 @@
 # 원장 절 · workspace-check)는 lib/harness-root.sh 로 찾고 못 찾으면 rc≠0 이다 — 여기서 그
 # 값을 먼저 찍어 실패의 원인이 코드인지 자리인지 읽는 사람이 가를 수 있게 한다.
 #
+# 호출자 CWD 를 보존한다: 검사는 저마다 **호출자의 CWD 에서** 절대 경로로 부른다(위 하네스 루트
+# 진단 줄도 같다). 이 스크립트가 플러그인 루트로 cd 한 채 부르면 CWD 정보가 사라져, 하네스
+# 워크트리에서 돌린 게이트가 그 트리가 아니라 플러그인이 사는 트리의 redirect 가 가리키는
+# 루트(master)를 판정한다 — rules-check 의 트리 검사(S12·R18·R40)가 그 CWD 를 본다(harness-ofwp ·
+# harness-m8gg.8.14). checks/*.sh 는 전부 자기 위치(BASH_SOURCE)에서 플러그인 루트를 파생하므로
+# 호출자 CWD 에 기대지 않는다 — 플러그인 루트로 cd 하는 것은 이 스크립트 자신의 find·bash -n·jq 뿐이다.
+#
 # set -e 를 쓰지 않는다 — 첫 실패에서 죽으면 나머지 검사의 결과가 보고되지 않는다. 실패는
 # 모아서 전부 보고하고 마지막에 비-0 으로 끝난다.
 set -uo pipefail
 
+CALLER_PWD="$PWD"   # 호출자 CWD — 검사는 여기서 부른다(아래 cd 뒤에는 잃는다)
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$PLUGIN_ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $PLUGIN_ROOT" >&2; exit 1; }
+PLUGIN_ROOT="$PWD"   # 절대 경로로 못박는다 — 호출자 CWD 로 돌아가 부를 때 상대 경로면 깨진다
 
 # ── 면제 ─────────────────────────────────────────────────────────────
 # 형식: "<파일명>|<사유>". **사유 없는 면제는 등재로 치지 않는다.**
@@ -62,7 +71,7 @@ echo "── 플러그인 트리 검사 ($PLUGIN_ROOT) ──"
 # 저마다의 문구로 죽기 전에, 원인(판별자 ledger.json 이 없는 자리)이 첫 줄에 오게 한다. 나머지 검사는
 # 그래도 돌린다(set -e 를 쓰지 않는 이유와 같다 — 실패를 모아 전부 보고한다).
 hroot_err=$(mktemp)
-if hroot=$(bash lib/harness-root.sh 2>"$hroot_err"); then
+if hroot=$(cd "$CALLER_PWD" && bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>"$hroot_err"); then
   echo "  · 하네스 루트: $hroot"
 else
   echo "✗ 하네스 루트를 찾지 못했다 — $(head -1 "$hroot_err") (스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라; 원장을 보는 검사는 아래에서도 실패한다)"
@@ -95,7 +104,7 @@ for f in $FILES; do
       ;;
   esac
   ran=$((ran + 1))
-  if bash "$f"; then
+  if (cd "$CALLER_PWD" && bash "$PLUGIN_ROOT/$f"); then
     :
   else
     echo "✗ $base 실패 (rc=$?)"

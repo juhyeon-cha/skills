@@ -1,26 +1,35 @@
 #!/usr/bin/env bash
 # 게이트: 규약이 선언만 되고 강제되지 않던 단언들 (원장·설정·문서의 정적 검사).
-# **대상은 둘이다** — 플러그인 트리(스킬·역할·훅·주입 블록)와 하네스 루트(원장·등록부·.gitignore).
-# 하네스 루트는 lib/harness-root.sh 가 낸다. 못 찾으면 원장을 보는 검사는 **조용히 건너뛰지 않고
-# 실패한다**(rc≠0) — 원장 없이 통과한 원장 검사는 검사가 아니다. 문서만 보는 검사는 그대로 돈다.
-#   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [원장]
-#   R18 (harness:develop 멀티 레포) repos.json 에 경로를 적지 않는다 — 키 집합 화이트리스트  [하네스 루트]
-#   S12 (skills/setup/SKILL.md) 하네스 루트 .gitignore 의 필수 항목·금지 항목, 그리고 실물에만
-#         있고 규약 문장이 안 드는 잔존 (세 대조)                                          [하네스 루트]
-#   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [원장]
-#   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 — "PR 생성·
-#         원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가 (양방향)  [플러그인]
-#   C6  (세션 블록 「절대 금지」) 절이 살아 있고 강제 장치의 자리(docs/guardrails.md)를 가리킨다 [플러그인]
-#   R40 (harness:develop 멀티 레포) repos.json 등재 이름 ↔ 클론 디렉토리 실재 (양방향)      [하네스 루트]
-#   S22 (harness:develop 3-0) 한 워크트리에 두 태스크를 동시에 위임하지 않는다               [원장]
-#   S24 (harness:develop 4-2) 하위가 전부 종료 상태인데 열려 있는 스토리                    [원장]
-#   R-DATE (harness-dg0.6.30) 주입 블록에 YYYY-MM-DD 날짜가 없다                             [플러그인]
-#   R-BEAD (harness-dg0.6.30) 주입 블록이 가리키는 bead ID 가 원장에 실재한다                [플러그인+원장]
-#   R-WAIT (harness-dg0.6.39) 사람 대기 신호의 목록은 한 곳이 단일 소유하고, 그 절이
-#         신호를 전부 들고 있으며, 절 밖에서 목록을 다시 적은 줄이 없다                     [플러그인]
-#   R-DUP (harness-dg0.6.42) 스킬·역할 문서가 주입 블록의 문장을 그대로 복제하지
-#         않는다 — 옮기지 말고 자리(파일·절 제목)를 가리킨다                                [플러그인]
-#   R-BUDGET 주입 블록의 바이트 상한 — 상시 비용은 SessionStart 마다 실린다                 [플러그인]
+# **읽는 자리는 둘이고 검사 이름 줄마다 표지 하나가 붙는다** — 트리 · 하네스 루트 (harness-m8gg.8.4 ·
+# 관측 harness-ofwp):
+#   트리 표지 — 파일을 읽는 검사. 하네스 파일(repos.json · .gitignore)은 **검토 대상 트리** TREE — 호출
+#     CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리 — 에서, 플러그인 문서(스킬·역할·훅·주입 블록)는
+#     플러그인 트리 자신에서 읽는다. CWD 위에 ledger.json 이 없으면 TREE 는 하네스 루트다(플러그인
+#     디렉토리나 대상 레포 워크트리에서 부르는 종전 형태).
+#   하네스 루트 표지 — 원장을 ledger.sh 로 읽는 검사. 원장은 언제나 lib/harness-root.sh 가 낸 루트 HROOT
+#     의 것이다 — 하네스 클론의 워크트리에서 부르면 redirect 가 가리키는 본 루트다.
+#   둘을 가르지 않으면 워크트리에서 돌린 rc 0 이 검토 대상 트리가 아니라 본 루트의 .gitignore·repos.json
+#   에 대한 판정이 된다. 시작할 때 "트리: … · 원장 루트: …" 한 줄로 두 자리를 stdout 에 낸다.
+# 하네스 루트를 못 찾으면 원장을 보는 검사는 **조용히 건너뛰지 않고 실패한다**(rc≠0) — 원장 없이
+# 통과한 원장 검사는 검사가 아니다. 플러그인 문서만 보는 검사는 그대로 돈다.
+#   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [하네스 루트]
+#   R18 (harness:develop 멀티 레포) repos.json 에 경로를 적지 않는다 — 키 집합 화이트리스트  [트리]
+#   S12 (skills/setup/SKILL.md) 검토 대상 트리 .gitignore 의 필수·금지 항목과 실물 잔존 (세 대조) [트리]
+#   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [하네스 루트]
+#   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 (양방향)  [트리]
+#         — "PR 생성·원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가
+#   C6  (세션 블록 「절대 금지」) 절이 살아 있고 강제 장치의 자리(${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md)를 가리킨다 [트리]
+#   R40 (harness:develop 멀티 레포) repos.json 등재 이름 ↔ 클론 디렉토리 실재 (양방향)      [트리]
+#   S22 (harness:develop 3-0) 한 워크트리에 두 태스크를 동시에 위임하지 않는다               [하네스 루트]
+#   S24 (harness:develop 4-2) 하위가 전부 종료 상태인데 열려 있는 스토리                    [하네스 루트]
+#   R-DATE (harness-dg0.6.30) 주입 블록에 YYYY-MM-DD 날짜가 없다                             [트리]
+#   R-BEAD (harness-dg0.6.30) 주입 블록이 가리키는 bead ID 가 원장에 실재한다                [하네스 루트]
+#         — ID 의 출처는 플러그인 주입 블록이고 판정은 원장이다
+#   R-WAIT (harness-dg0.6.39) 사람 대기 신호의 목록은 한 곳이 단일 소유한다                  [트리]
+#         — 그 절이 신호를 전부 들고 있으며, 절 밖에서 목록을 다시 적은 줄이 없다
+#   R-DUP (harness-dg0.6.42) 스킬·역할 문서가 주입 블록의 문장을 그대로 복제하지 않는다      [트리]
+#         — 옮기지 말고 자리(파일·절 제목)를 가리킨다
+#   R-BUDGET 주입 블록의 바이트 상한 — 상시 비용은 SessionStart 마다 실린다                 [트리]
 #
 # 극성 반전(harness:develop 운영 규율): 검사 대상을 손으로 나열하지 않는다.
 #   R5  대상은 bd 원장의 태스크 전수에서 파생한다 (면제는 아래 사유 참조).
@@ -31,14 +40,14 @@
 #         태스크 전수이며, 손으로 고른 id 목록이 없다.
 #   S12 검사할 항목을 스크립트에 적지 않고 **setup/SKILL.md 원문에서 파싱한다.**
 #       규약 문서에 항목을 더하면 검사가 자동으로 그것을 요구한다. 반대 방향의 대조는
-#       하네스 루트 .gitignore 실물의 유효 줄 전수에서 파생하고, **하네스 소유가 아닌 줄만** 사유와
+#       검토 대상 트리 .gitignore 실물의 유효 줄 전수에서 파생하고, **하네스 소유가 아닌 줄만** 사유와
 #       함께 면제표(S12_KEEP/S12_KEEP_WHY)에 등재한다 — 이것이 S12 의 유일한 손목록이다.
 #       면제 키가 실물에 존재하는지 역방향으로 단언한다 (0건 면제 = 낡은 면제).
 #   R-REM 후보는 스캔 경로 전체에서 패턴으로 파생하고, **남아야 하는 것만** 사유와 함께
 #       면제표에 등재한다. 면제 키가 실제 후보에 존재하는지 역방향으로 단언한다.
 #   C6  대상은 세션 블록 「절대 금지」 절의 **최상위 불릿 전수**를 원문에서 파싱한다 —
 #       0건이면 실패다. 항목별 게이트 표기는 M1 이 블록에서 뺐다(harness-lzs3.2.3 — 강제 장치의
-#       목록·한계는 하네스 루트 docs/guardrails.md 가 단일 소유한다) — 그래서 이 검사가 보는 것은
+#       목록·한계는 ../docs/guardrails.md 가 단일 소유한다) — 그래서 이 검사가 보는 것은
 #       그 포인터가 절에 살아 있는가다. 면제 칸을 두지 않는다.
 #   R40 두 집합을 **각각의 출처에서** 파생한다(등재부 = repos.json · 클론 루트 = 파일시스템)
 #       — 한쪽에서만 파생하면 그 방향의 어긋남만 보인다. 클론 루트 쪽에서 레포가 아닌
@@ -79,15 +88,19 @@
 # 종료 코드는 파이프 밖에서 채집한다.
 set -uo pipefail
 
+CALLER_PWD="$PWD"   # 호출 CWD — 검토 대상 트리와 원장 루트를 여기서 파생한다(아래 cd 뒤에는 잃는다)
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$PLUGIN_ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $PLUGIN_ROOT" >&2; exit 1; }
+PLUGIN_ROOT="$PWD"   # 절대 경로로 못박는다 — 아래에서 호출 CWD 로 돌아가 부른다
 
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 게이트는 jq 없이는 판정할 수 없다 (없으면 빈 질의 결과가 '위반 없음' 오진이 된다)" >&2; exit 1; }
 
-# 하네스 루트 — 원장·등록부·.gitignore 의 자리. 한 번 찾고, 못 찾으면 그것을 쓰는 검사마다 실패한다.
-HROOT="$(bash lib/harness-root.sh 2>/dev/null)" || HROOT=""
+# 원장 루트 HROOT — lib/harness-root.sh 가 **호출 CWD 에서** 낸다(플러그인 루트에서 부르면 플러그인이
+# 사는 트리의 redirect 를 따라가 검토 대상과 무관한 루트가 나온다). 한 번 찾고, 못 찾으면 그것을 쓰는
+# 검사마다 실패한다.
+HROOT="$(cd "$CALLER_PWD" && bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" || HROOT=""
 HROOT_ERR=""
-[[ -n "$HROOT" ]] || HROOT_ERR="$(bash lib/harness-root.sh 2>&1 >/dev/null | head -1)"
+[[ -n "$HROOT" ]] || HROOT_ERR="$(cd "$CALLER_PWD" && bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>&1 >/dev/null | head -1)"
 need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 ✗ 를 내고 1
   [[ -n "$HROOT" ]] && return 0
   echo "✗ $1 — 하네스 루트를 찾지 못했다 (${HROOT_ERR:-lib/harness-root.sh rc≠0}). 원장·등록부를 보는 검사라 건너뛰지 않고 실패한다 — 스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
@@ -95,9 +108,27 @@ need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 �
 }
 bdl() { HARNESS_ROOT="$HROOT" bash scripts/ledger.sh "$@"; }   # 원장은 언제나 하네스 루트의 것이다 — 어댑터로 읽는다(CWD 는 플러그인 루트)
 
-MANIFEST="${REPOS_MANIFEST:-$HROOT/repos.json}"   # 재정의는 검사 스크립트용 (hooks/enter-worktree.sh 와 같은 규약)
+# 검토 대상 트리 TREE — 호출 CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리(판별자는 harness-root.sh 와
+# 같다). 없으면 HROOT 다 — 플러그인 디렉토리·대상 레포 워크트리에서 부르는 종전 형태가 그 자리다.
+tree_of() {  # tree_of <디렉토리> — 위로 올라가며 ledger.json 을 찾는다. 없으면 rc 1
+  local d="$1"
+  while :; do
+    [[ -f "$d/ledger.json" ]] && { printf '%s\n' "$d"; return 0; }
+    [[ "$d" == / ]] && return 1
+    d="$(dirname "$d")"
+  done
+}
+TREE="$(tree_of "$CALLER_PWD")" || TREE="$HROOT"
+need_tree() {  # need_tree <검사이름> — 검토 대상 트리가 없으면(CWD 위에 ledger.json 이 없고 하네스 루트도 못 찾음) ✗ 를 내고 1
+  [[ -n "$TREE" ]] && return 0
+  echo "✗ $1 — 검토 대상 트리를 찾지 못했다 (CWD $CALLER_PWD 위에 ledger.json 이 없고 ${HROOT_ERR:-하네스 루트도 없다}). 등록부·.gitignore 를 보는 검사라 건너뛰지 않고 실패한다 — 하네스 트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
+  return 1
+}
+echo "트리: ${TREE:-(없음)} · 원장 루트: ${HROOT:-(없음)}"
+
+MANIFEST="${REPOS_MANIFEST:-$TREE/repos.json}"   # 재정의는 검사 스크립트용 (hooks/enter-worktree.sh 와 같은 규약)
 SETUP_SKILL="skills/setup/SKILL.md"
-GITIGNORE="$HROOT/.gitignore"
+GITIGNORE="$TREE/.gitignore"
 BLOCK="hooks/session-context.md"                   # SessionStart 주입 블록 — 플러그인의 유일한 상시 로드 문서
 
 fail=0
@@ -207,7 +238,7 @@ R18_TOP_REQUIRED=(repos)
 R18_TOP_OPTIONAL=(doc)
 check_r18() {
   local f=0 allowed top_allowed extra missing entry_fail
-  need_hroot R18 || return 1
+  need_tree R18 || return 1
   if [[ ! -f "$MANIFEST" ]]; then
     echo "✗ R18 — $MANIFEST 이 없다"
     return 1
@@ -274,7 +305,7 @@ check_r18() {
 
 # ── S12: .gitignore 필수/금지 항목 + 실물 잔존 (세 대조) ─────────────
 # 검사 항목을 스크립트에 적지 않고 setup/SKILL.md 원문에서 파싱한다. 원문 형식:
-#   Add these to `.gitignore`: `A` · `B` · … . **Never gitignore `.harness-state`**
+#   Add these to `.gitignore`: `A` · `B` · … . **Never gitignore `ledger.json` · `repos.json` · …**
 #   (setup/SKILL.md 이 영어 문서라 앵커도 영어다. 파서가 보는 것은 이 앵커 문자열과
 #    ** 강조 경계뿐이고, 판정 구조는 언어와 무관하다.)
 # 파싱이 실패하면 폴백으로 덮지 않고 명확히 실패한다 — 조용한 통과가 최악이다.
@@ -302,7 +333,7 @@ check_r18() {
 #   guardrail-check 에 뒀다면 커밋마다 돌았을 것이다. 즉 이 검사는 **손으로 돌릴 때만**
 #   잡으며, 두 목록이 다시 갈라진 채로 커밋·push 되는 것을 막지 못한다. 그래도 겹침을
 #   택한 이유는 배선이 이 검사 하나 때문에 바뀔 문제가 아니기 때문이다 — 배선은
-#   rules-check 전체의 결정이고 docs/guardrails.md 3절이 소유한다.
+#   rules-check 전체의 결정이고 ../docs/guardrails.md 3절이 소유한다.
 #
 # 한계: 이것은 **두 등재의 대조**다. .gitignore 가 실제로 그 경로를 무시하는지(git 이
 #   그렇게 동작하는지)는 보지 않는다.
@@ -324,7 +355,7 @@ S12_KEEP_WHY=(
 )
 check_s12() {
   local line req_part forbid_part required forbidden f=0 item
-  need_hroot S12 || return 1
+  need_tree S12 || return 1
   [[ -f "$SETUP_SKILL" ]] || { echo "✗ S12 — $SETUP_SKILL 이 없다 (검사 항목의 출처)"; return 1; }
   [[ -f "$GITIGNORE" ]]   || { echo "✗ S12 — $GITIGNORE 이 없다"; return 1; }
 
@@ -488,7 +519,7 @@ check_racc() {
 #     들여쓰지 않으면 잔존 1, rc=1 (verify-code 1회차 reviewer 의 A/B).
 #   그래서 **접기는 "과검출 방향이라 안전" 하지 않다** — 이 주석의 초판이 그렇게 적었고
 #   거짓이었다. 흡수 경로는 앵커 면제가 걸린 자리에서만 열리는데, 지금 그 자리가 하필
-#   편집이 잦은 docs/usecases.md:262·:263·:298 과 docs/operations.md:53 이다.
+#   편집이 잦은 ../docs/usecases.md:262·:263·:298 과 ../docs/operations.md:53 이다.
 #   물리 줄 훑기가 그것을 막는다 — 심은 줄은 그 자신이 앵커를 갖지 않으므로 물리 훑기의
 #   잔존으로 남는다.
 #
@@ -529,7 +560,7 @@ check_racc() {
 #     여덟을 고치는 동안 새 문장(setup:179·212·359·367 · retrospective:27 ·
 #     guard-check:1373 · usecases:263·298·299)과 bd 투영(docs/backlog)이 들어왔다.
 #   - **이 검사**(접기 + 아래 면제표 + docs/backlog 제외)를 0ae4895 에 돌리면 잔존
-#     **1줄** — docs/operations.md:47 뿐이었다. 그 절이 CLAUDE.md 가 소유한 목록을
+#     **1줄** — ../docs/operations.md:47 뿐이었다. 그 절이 CLAUDE.md 가 소유한 목록을
 #     복제해, 같은 파일이 여섯 줄 위에서 "종점은 PR" 이라고 적고 아래에서 그 반대를
 #     적고 있었다. 이 커밋이 그 절을 포인터로 바꿔 **0줄**로 만든다.
 #     [측정: 2026-08-27, bash 3.2.57(1) / macOS Darwin 25.6.0, CWD = 이 레포 루트]
@@ -571,13 +602,10 @@ function flush() { if (ln>0) printf "%s:%d:%s\n", fn, ln, buf; buf=""; ln=0; fn=
 '
 
 # 면제 — 경로 단위. 그 파일의 히트가 **전부** 남아야 하는 것일 때만 쓴다.
-# 영어 문서(retrospective·setup 등)는 s1·s2 가 한국어 낱말만 들어 후보에 오르지 않는다 — 그 파일에
+# 영어 문서(스킬·역할 정의·주입 블록 전부)는 s1·s2 가 한국어 낱말만 들어 후보에 오르지 않는다 — 그 파일에
 # 낡은 영어 문장이 새로 들어와도 R-REM 은 잡지 못한다(백로그 harness-53ro).
 RREM_KEEPF=(
-  "hooks/session-context.md"               # 예외 둘을 등재한 항목 본문. 개정 후 원문이다
-  "agents/implementer.md"                  # 서브에이전트 금지는 이 결정이 유지한다 (ADR D5)
   "hooks/guard.sh"                         # r_remote 의 deny 메시지. 판정 로직도 문면도 안 바뀐다 (ADR D5)
-  "checks/guard-check.sh"                  # 위 deny 문면에 대한 단언 문자열. guard.sh 와 짝이라 함께 남는다
   "checks/rules-check.sh"                  # 이 검사 자신. 무엇을 낡은 문장으로 보는지 서술하려면 그 문장을 인용해야 한다 — 자기 인용이 잔존으로 잡히는 것을 확인하고 등재했다
 )
 # 면제 — 앵커 문자열. 남는 줄과 고칠 줄을 함께 가진 파일에 쓴다(줄번호는 편집에 흔들린다).
@@ -599,15 +627,19 @@ check_rrem() {
   s1='(PR|풀 리퀘스트)[^|]{0,60}(명시 지시|명시적 지시|사용자 승인|사람의 몫)|(명시 지시|명시적 지시|사용자 승인)[^|]{0,60}PR'
   s2='(원격 반영|GitHub 반영)[^|]{0,40}(명시 지시|명시적 지시|사용자 승인)|(명시 지시|명시적 지시)[^|]{0,40}(원격 반영|GitHub 반영)'
 
-  # 스캔 대상은 플러그인 트리에서 파생한다 — git 이 보는 .md·.sh 전부(-co 는 추적 + 미추적, 무시 제외).
-  # 플러그인 루트에서 부르므로 경로는 플러그인 상대다.
-  files=$(git ls-files -co --exclude-standard -- . 2>/dev/null \
-          | grep -E '\.(md|sh)$' | sort)
+  # 스캔 대상은 플러그인 트리에서 파생한다 — 트리 아래 .md·.sh 전부. git 으로 파생하지 않는다:
+  # 설치 캐시(~/.claude/plugins/cache/…)는 git 트리가 아니라 ls-files 가 0건을 내고, 그러면 아래
+  # 대상 단언이 실패한다(harness-m8gg.8.1). 플러그인 루트에서 부르므로 경로는 플러그인 상대다.
+  files=$(find . -type f \( -name '*.md' -o -name '*.sh' \) 2>/dev/null | sed 's|^\./||' | sort)
   while IFS= read -r p; do [[ -n "$p" ]] && flist+=("$p"); done <<< "$files"
   [[ -n "${R_REM_SCAN_EXTRA:-}" ]] && flist+=("$R_REM_SCAN_EXTRA")
 
   # 대상 단언 — 검사가 **무엇을 보는지** 못박는다. 파생이 조용히 좁아지면(경로 오타,
   # find 실패) 잔존 0 이 "위반 없음" 이 아니라 "안 봤음" 이 된다.
+  if [[ "${#flist[@]}" -eq 0 ]]; then   # 개수 가드: bash 3.2 + set -u 에서 빈 배열의 "${flist[@]}" 는 unbound 로 죽는다
+    echo "✗ R-REM — 스캔 대상 파생이 0건이다 (플러그인 루트 $PLUGIN_ROOT). find 가 죽었으면 잔존 0 은 '위반 없음' 이 아니라 '안 봤음' 이다" >&2
+    return 1
+  fi
   for k in "hooks/session-context.md" "skills/develop/SKILL.md" "skills/plan-story/SKILL.md"; do
     if ! printf '%s\n' "${flist[@]}" | grep -qxF -- "$k"; then
       echo "✗ R-REM — 스캔 대상에 '$k' 가 없다 (${#flist[@]}건 파생). 파생이 좁아졌으면 잔존 0 은 '위반 없음' 이 아니라 '안 봤음' 이다"
@@ -664,11 +696,11 @@ check_rrem() {
 # ── C6: 세션 블록 「절대 금지」 절 — 살아 있고, 강제 장치의 자리를 가리킨다 ────────
 # 종전 규칙(CLAUDE.md :30 "각 항목에 그것을 강제하는 게이트가 있는지를 함께 적는다")의 항목별
 # 표기는 M1 이 주입 블록에서 뺐다(harness-lzs3.2.3) — 강제 장치의 전수 목록·한계는 하네스 루트
-# docs/guardrails.md 가 단일 소유하고, 블록은 그 자리를 **가리키기만** 한다. 상시 비용(바이트)이
+# ../docs/guardrails.md 가 단일 소유하고, 블록은 그 자리를 **가리키기만** 한다. 상시 비용(바이트)이
 # 그 결정의 표적이었다. 그래서 이 검사가 보는 것은 둘이다:
 #   ① `## 절대 금지` 절의 **최상위 불릿 전수**가 0건이 아니다 — 절이 옮겨가거나 파서가 낡으면
 #      0건 파생이 '위반 없음' 이 아니라 '안 봤음' 이므로 실패로 읽는다.
-#   ② 절이 강제 장치의 자리(`docs/guardrails.md`)를 가리킨다 — 항목별 표기를 뺀 대가가 이 포인터다.
+#   ② 절이 강제 장치의 자리(`${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`)를 가리킨다 — 항목별 표기를 뺀 대가가 이 포인터다.
 #      포인터가 사라지면 "게이트가 있는가" 를 알 자리가 블록에서 통째로 사라진다.
 # 극성 반전: 항목을 손으로 나열하지 않는다. 면제 칸은 두지 않는다.
 #
@@ -679,7 +711,7 @@ check_rrem() {
 #   플러그인 트리를 본다. 종전의 "표기의 참·거짓은 보지 않는다" 와 같은 폭이다.
 C6_DOC="${C6_BLOCK:-$BLOCK}"
 C6_SECTION="## 절대 금지"
-C6_POINTER="docs/guardrails.md"
+C6_POINTER='${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md'
 check_c6() {
   local sec rows n f=0
   [[ -f "$C6_DOC" ]] || { echo "✗ C6 — $C6_DOC 이 없다 (검사 대상의 출처)"; return 1; }
@@ -730,7 +762,7 @@ R40_KEEP=()   # 클론 루트 안의 **레포가 아닌** 디렉토리. 등재�
 check_r40() {
   local names dirs missing extra n_names n_dirs k f=0
 
-  need_hroot R40 || return 1
+  need_tree R40 || return 1
   [[ -f "$MANIFEST" ]] || { echo "✗ R40 — $MANIFEST 이 없다 (등재부의 출처)"; return 1; }
   names=$(jq -r '.repos[]?.name // empty' "$MANIFEST" | sort)
   n_names=$(printf '%s' "$names" | grep -c . )
@@ -1472,7 +1504,6 @@ rdup_norm() {  # stdin → 정규화된 줄. 원천과 대상에 **같은 함수
 
 check_rdup() {
   local p k c u line unit units corpus hits resid n_u n_h n_res scope f=0
-  # slist/n_skip 은 언어 축소 블록에서 선언한다 (선언 자리에 사유 주석이 붙어 있다).
   local -a tlist=()
 
   always_loaded_derive || return 1
@@ -1490,43 +1521,15 @@ check_rdup() {
     return 1
   fi
   # 대상 단언 — 글롭 파생(tlist)이 무엇을 물고 있는지 못박는다. 개수만으로는 대상 교체를
-  # 못 잡는다. 못박는 것은 **글롭 목록이지 아래 언어 축소를 거친 실제 스캔 집합(slist)이
-  # 아니다** — 그래야 이 셋 중 하나가 영어로 옮겨져 축소에 빠져도 단언이 안 깨진다.
-  # slist 쪽은 개수 하한(0건이면 실패)만 보고, 축소가 실제로 걸리는지는 부정 대조군이 본다.
+  # 못 잡는다. 원천(주입 블록)도 대상도 영어 문서이므로 언어로 스캔 집합을 줄이지 않는다 —
+  # 문자열 동일성 검사는 언어와 무관하게 글롭 전수를 본다.
   for k in "skills/develop/SKILL.md" "agents/implementer.md" "agents/evaluator.md"; do
     if ! printf '%s\n' "${tlist[@]}" | grep -qxF -- "$k"; then
       echo "✗ R-DUP — 스캔 대상에 '$k' 가 없다 (${#tlist[@]}건 파생). 파생이 좁아졌다"
       return 1
     fi
   done
-
-  # ── 언어 축소: 한글이 한 바이트도 없는 파일은 스캔에서 뺀다 ──────────
-  # 왜: 이 검사는 문자열 동일성만 본다(위 "한계"). 원천은 한국어 상시 로드 문서이므로
-  #   **한글이 없는 파일은 원천 단위를 그대로 옮길 수 없다** — 스캔해도 적중이 구조적으로
-  #   0이다. 커버리지 포기가 아니라 대상 집합의 정확한 축소다. 근거는 M0 의 실측
-  #   (harness-g88o.1.1): 같은 복제가 한국어면 rc 1, 영어로 옮기면 rc 0 이었다 — 번역된
-  #   복제는 축소 **전에도** 잡히지 않았다.
-  # 극성 반전은 지킨다 — 글롭은 위에서 그대로 판다. 제외가 파일 목록이 아니라 판정에서
-  #   파생하므로 새 스킬의 기본값은 "검사됨" 이고, 한국어가 한 줄이라도 들어오면 그 파일은
-  #   즉시 스캔 대상으로 돌아온다(번역본이 한국어 절 제목을 인용하는 자리가 그렇다).
-  # **제외 0건은 정상이다** — 영어 문서가 없는 트리에서는 아무것도 빠지지 않는다. 위
-  #   "0건 취급" 이 실패로 읽는 것은 *파생 집합*의 0건이지 이 제외 수가 아니다. 이 수는
-  #   판정이 아니라 관측값이고, 축소가 실제로 작동하는지는 부정 대조군이 단언한다
-  #   (checks/rdup-language-probe.sh).
-  # 한계(확인한 것): 판정은 UTF-8 선행 바이트 \xEA-\xED 의 존재다. 그 범위는 한글 음절·
-  #   자모 확장 말고도 U+A000–U+DFFF 의 희소 문자를 함께 포함한다 — **과잉 포함** 방향이라
-  #   안전하다(덜 빼고 더 스캔한다). 반대로 한글 자모(U+1100–, 선행 바이트 \xE1)만으로 쓴
-  #   파일은 한국어인데도 "한글 없음" 으로 갈린다. 실물에 그런 문서가 없어 수용한다.
-  local -a slist=()
-  local n_skip=0
-  for p in "${tlist[@]}"; do
-    if LC_ALL=C grep -q $'[\xea-\xed]' "$p" 2>/dev/null; then slist+=("$p"); else n_skip=$((n_skip+1)); fi
-  done
-  # 언어 판정이 죽어 전부 빠지면 적중 0줄이 "위반 없음" 으로 보고된다. 0건은 실패로 읽는다.
-  if [[ "${#slist[@]}" -lt 1 ]]; then
-    echo "✗ R-DUP 언어 축소 뒤 스캔 대상이 0건이다 (글롭 ${#tlist[@]}건 전부 제외). 언어 판정이 죽었으면 적중 0줄은 '위반 없음' 이 아니라 '안 봤음' 이다"
-    return 1
-  fi
+  local -a slist=("${tlist[@]}")
 
   # 원천 문장 단위. 길이는 **바이트**다(LC_ALL=C) — 로케일에 따라 임계값이 흔들리지 않게.
   # 헤딩 줄은 뺀다 — 절 제목은 이 검사가 권하는 *가리키기* 의 재료다(위 주석의 정정).
@@ -1570,7 +1573,7 @@ check_rdup() {
 
   resid=$(printf '%s\n' "$resid" | grep -v '^$')
   n_res=$(printf '%s' "$resid" | grep -c .)
-  scope="상시 로드 ${#ALWAYS_LOADED[@]}파일[${ALWAYS_LOADED_STR}] · 원천 ${n_u}단위(≥${RDUP_MIN}바이트) · 스캔 ${#slist[@]}파일(글롭 ${#tlist[@]} − 언어 제외 ${n_skip}) · 적중 ${n_h}줄 · 면제 ${#RDUP_KEEP[@]}앵커"
+  scope="상시 로드 ${#ALWAYS_LOADED[@]}파일[${ALWAYS_LOADED_STR}] · 원천 ${n_u}단위(≥${RDUP_MIN}바이트) · 스캔 ${#slist[@]}파일(글롭 전수) · 적중 ${n_h}줄 · 면제 ${#RDUP_KEEP[@]}앵커"
 
   if [[ "$n_res" -ne 0 ]]; then
     while IFS= read -r line; do

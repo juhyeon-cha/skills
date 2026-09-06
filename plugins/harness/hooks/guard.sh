@@ -153,7 +153,7 @@ if ! printf '%s' "$INPUT" | jq -e 'type == "object"' >/dev/null 2>&1; then
 fi
 
 # JSON 은 printf 로 먹인다 — echo 는 backslash 확장 셸에서 필드 안의 이스케이프를
-# 망가뜨려 jq 를 rc=5 로 죽인다 (docs/development.md "셸 함정").
+# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/development.md "Shell traps").
 field() { printf '%s' "$INPUT" | jq -r "$1 // \"\"" 2>/dev/null; }
 
 TOOL_NAME="$(field '.tool_name')"
@@ -164,13 +164,14 @@ AGENT_TYPE="$(field '.agent_type')"   # 역할별 차등 규칙의 근거 (imple
 # 판정하지 않는다(한계). 명령 안의 `cd` 는 못 따라간다 — 서브에이전트는 호출마다 cd 한다(한계).
 CWD="$(field '.cwd')"
 SESSION_ID="$(field '.session_id')"   # 발화 로그의 회차 열. 판정에는 쓰지 않는다
-COMMAND="$(field '.tool_input.command')"    # Bash
+COMMAND_RAW="$(field '.tool_input.command')"    # Bash — 인용부호를 걷기 전 원문 (mc_all_readonly 가 조각 경계를 인용 안팎으로 가를 때 쓴다)
 # 판정용 정규화 — 인용부호와 백슬래시를 걷어낸다. 셸은 `git pu\sh`·`git p""ush` 를 push 로
 # 실행하는데 낱말 판정(has_token 의 -w)은 그 글자에 막혀 **미탐**이었다 [실측 2026-08-28,
 # implementer: 둘 다 rc=0 — 리뷰 #6]. 리터럴 `\n`·`\t` 는 먼저
 # 공백으로 되돌린다(걷어내면 `\n/path` 가 `n/path` 로 붙어 경로 추출이 어긋난다).
 # 역따옴표는 남긴다(판정 재료로 쓰는 규칙은 지금 없다 — 걷어내면 뒤의 경로 추출이 어긋난다).
-COMMAND="$(printf '%s' "$COMMAND" | sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g")"
+strip_quotes() { sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g"; }
+COMMAND="$(printf '%s' "$COMMAND_RAW" | strip_quotes)"
 FILE_PATH="$(field '.tool_input.file_path')" # Write·Edit·Read 계열
 NOTEBOOK_PATH="$(field '.tool_input.notebook_path')" # NotebookEdit 은 file_path 를 쓰지 않는다
 
@@ -246,16 +247,19 @@ subcmds_after() {  # subcmds_after <도구> <값-받는 옵션 목록> [건초�
 # 규칙은 낱말의 **존재**가 아니라 **실행되는 자리**를 본다. 명령 문자열을 조각으로 나누고
 # (경계: `;` `&&` `||` `|` `(` `$(` 개행) 조각의 **첫 실행 낱말**을 그 조각이 실행하는 명령으로
 # 읽는다. 앞에 붙는 것은 건너뛴다 — `VAR=값` · 옵션(`-x`) · 숫자(`timeout 5` 의 5) · 래퍼
-# (timeout env nice sudo bash sh zsh — `bash -c "bd …"` 의 실행은 bd 다). 산문·경로·인용문
-# 속 낱말은 조각의 첫 실행 낱말이 아니므로 판정에 들지 않는다 (`git log --grep push` ·
+# (timeout env nice sudo bash sh zsh — `bash -c "bd …"` 의 실행은 bd 다) · 명령 앞에 서는 셸
+# 키워드(if then else elif while until do — `if git push; then` 의 실행은 git 이고 `do cat f` 는 cat 이다).
+# 산문·경로·인용문 속 낱말은 조각의 첫 실행 낱말이 아니므로 판정에 들지 않는다 (`git log --grep push` ·
 # 커밋 메시지 본문의 `bd create` · 파이썬 문자열 속 `git push`).
 # 못 보는 것: 변수 치환(`B=bd; $B …`) · `eval` · 스크립트 파일 경유 — 종전과 같다.
 # 첫 실행 낱말은 basename 으로 비교한다 — 경로 **끝**의 도구 이름은 인자 자리라 걸리지 않고
 # (`chmod +x /tmp/x/gh` · `bash /tmp/gh-runner.sh`), `/opt/homebrew/bin/gh pr create` 는 걸린다.
-EXEC_WRAPPERS="timeout env nice sudo bash sh zsh"
+# `[` 는 낱말로 남긴다 — tr 이 지우면 `[ -f <경로> ]` 의 첫 실행 낱말이 경로의 basename 이 된다
+# (MC_READ_CMDS 의 `[` 가 그래서 죽어 있었다 — harness-m8gg.8.5 note).
+EXEC_WRAPPERS="timeout env nice sudo bash sh zsh if then else elif while until do"
 cmd_segments() { printf '%s\n' "${1-$COMMAND}" | sed -E 's/\|\||&&|[;|(]|\$\(/\n/g'; }
 seg_exec_word() {  # seg_exec_word <조각> → 첫 실행 낱말 (없으면 빈 줄)
-  printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=-' '\n' \
+  printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=[-' '\n' \
     | awk -v w="$EXEC_WRAPPERS" '
         BEGIN { split(w, a, " "); for (k in a) wrap[a[k]] = 1 }
         $0 == "" { next }
@@ -264,6 +268,22 @@ seg_exec_word() {  # seg_exec_word <조각> → 첫 실행 낱말 (없으면 빈
         /^[0-9]+[smhd]?$/ { next }
         /=/ { next }
         { sub(".*/", ""); print; exit }'
+}
+# 조각의 실행 낱말 **앞에** 셸 래퍼(bash·sh·zsh)가 서면 0 — `bash -lc "cat f; rm -rf …"` 의 실행 낱말은
+# cat 이지만 인용 안이 스크립트라 그 뒤의 rm 이 가려진다. 토큰을 보지 문자열 `-c` 를 세지 않는다
+# (`bash -lc`·`sh -ec`·`bash -o pipefail -c` 가 전부 같은 형태다 — harness-m8gg.8.5 리뷰 MUST FIX 1).
+seg_shell_wrapped() {  # seg_shell_wrapped <조각>
+  printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=[-' '\n' \
+    | awk -v w="$EXEC_WRAPPERS" '
+        BEGIN { split(w, a, " "); for (k in a) wrap[a[k]] = 1 }
+        $0 == "" { next }
+        /^-/ { next }
+        /^[0-9]+[smhd]?$/ { next }
+        /=/ { next }
+        { sub(".*/", "") }
+        wrap[$0] { if ($0 == "bash" || $0 == "sh" || $0 == "zsh") found = 1; next }
+        { exit }
+        END { exit !found }'
 }
 exec_segments() {  # exec_segments <명령이름> → 그 명령을 실행하는 조각들 (한 줄에 하나)
   local seg
@@ -306,7 +326,7 @@ ledger_exec_present() { local t; for t in $LEDGER_TOOLS; do [ -n "$(exec_segment
 # **관측이지 판정이 아니다.** 여기서는 아무것도 막지 않는다 — 하는 일은 claim 명령이
 # 지나갈 때 (session_id, actor) 쌍을 파일에 한 줄 적는 것뿐이고, 그 파일을 읽는 것은 정지
 # 가드(hooks/stop-resume.sh)다. 그쪽 오라클이 원장 단위라 **자기가 잡지 않은**
-# in_progress 로도 막히던 것을, 이 매핑이 세션 사거리로 좁힌다 (docs/guardrail-verification.md 8절).
+# in_progress 로도 막히던 것을, 이 매핑이 세션 사거리로 좁힌다 (../docs/guardrail-verification.md 8절).
 #
 # **파생이 아니라 관측인 이유.** actor 는 `sess-` + 무작위 6자라 session_id 에서 계산될 수
 # 없고, 한 actor 가 세션을 넘어 재사용되는 것이 이어받기 규약이다
@@ -458,7 +478,7 @@ mc_deny_root() {
 # 드러나고 반대 방향은 침묵한다. 드러나는 쪽을 고른다.
 #
 # 한계: 경로를 `file_path`·`notebook_path` 가 아닌 키로 받는 도구는 여전히 안 걸린다.
-# 그것은 이름 목록이 아니라 **입력 스키마**의 문제라 여기서 풀 수 없다 — docs/guardrails.md
+# 그것은 이름 목록이 아니라 **입력 스키마**의 문제라 여기서 풀 수 없다 — ../docs/guardrails.md
 # "못 막는 것"에 등재돼 있고 guard-check 가 그 rc=0 을 한계로 못박는다.
 w_readonly() { case "$TOOL_NAME" in Read|NotebookRead|Glob|Grep) return 0 ;; *) return 1 ;; esac; }
 w_path() {
@@ -500,35 +520,137 @@ RULES+=("*:r_main_write")
 # **상대 경로**는 payload 의 cwd 로 접어 후보에 넣는다(`./`·`../` 로 시작하는 토큰) — 워크트리에서
 # `echo x > ../../../f` 가 본 체크아웃 쓰기인 자리다. cwd 가 없으면 mc_norm 이 판정하지 않는다.
 # 읽기 전용 명령만으로 된 명령은 본 체크아웃 경로가 있어도 통과한다. 조각(`;` `&&` `||` `|`)
-# **전부**의 첫 실행 낱말이 아래 목록이거나 git 의 읽기 하위 명령이고, 어느 조각에도 파일
-# 리다이렉션(`>` — `2>&1`·`>/dev/null` 은 제외)이 없을 때다. 하나라도 어긋나면 종전대로 막는다.
-# find 는 면제하지 않는다 — -delete·-exec 가 쓰기다.
-MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath test [ cd pwd echo printf"
+# **전부**의 첫 실행 낱말이 아래 목록이거나 git 의 읽기 하위 명령(또는 읽기 옵션이 붙은 하위 명령)이거나
+# gh 의 읽기 하위 명령이고, 어느 조각에도 파일 리다이렉션(`>` — `2>&1`·`>/dev/null` 은 제외)이 없을
+# 때다. 하나라도 어긋나면 종전대로 막는다.
+# 조각 경계는 **인용 밖**에서만 센다 — `echo "a (b)"; cat f` 의 `(`, `grep 'a|b' f` 의 `|` 는 텍스트다.
+# 위의 COMMAND 는 인용부호를 먼저 걷어내므로 그 구분이 사라진다 — 그래서 이 판정만 COMMAND_RAW 에서
+# 인용 안의 `; | & ( )` 를 공백으로 바꾼 뒤 걷어낸다(harness-c2bo 의 괄호 결함이 이 자리다).
+# 큰따옴표 안의 `$(` 는 명령 치환이라 경계로 남긴다 — `echo "$(rm -rf …)"` 의 rm 을 봐야 한다.
+# `bash -c "…"` 는 인용 안이 스크립트라 경계를 지우면 그 안의 쓰기가 가려진다 — 조각의 실행 낱말 앞에
+# 셸 래퍼가 서면(seg_shell_wrapped) 읽기로 보지 않는다.
+# 읽기 낱말 목록 — 여기 한 자리뿐이다. 게이트(checks/guard-check.sh ⑨)가 이 줄에서 파생해 낱말마다
+# 통과를 단언하므로 시험 없는 낱말은 없다. 옵션에 따라 쓰기가 되는 낱말은 MC_WRITE_OPTS 에 그 옵션을 둔다.
+MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find"
+# 읽기 낱말이 쓰기가 되는 옵션 — `<낱말>:<정규식>`. 조각에 그 토큰이 있으면 읽기가 아니다.
+# 결합 짧은 옵션(`sed -ni`·`sort -ro`)·BSD 의 `-I`·getopt_long 접두(`--out=`)까지 한 형태로 잡는다 —
+# 낱개 `-i`·`-o`·`--output` 만 적으면 그 셋이 샌다(harness-m8gg.8.5 리뷰 MUST FIX 4, macOS sort 로 파일 생성 실측).
+MC_WRITE_OPTS="sed:-[A-Za-z]*[iI][^[:space:]]*|--i[^[:space:]]* sort:-[A-Za-z]*o[^[:space:]]*|--o[^[:space:]]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)"
+# sed·awk 의 쓰기는 옵션이 아니라 **스크립트 본문**에도 있다 — sed 의 `w`·`W` 명령(`s///w` 플래그 포함),
+# awk 의 system()·`print … | "sh"`·`"cmd" | getline`. 판정은 "경로가 인용 안에 있나" 가 아니라 **본문에 쓰기
+# 기능이 있나** 다 — 경로는 `$'…\x20…'`·`'w '<경로>`(인용에 붙은 인자)·ARGV·`-v` 로 얼마든지 인용 밖에 둘 수
+# 있다(harness-m8gg.8.5 2차 리뷰, 7 형태 전부 rc 0 실측). 그래서:
+#   awk 조각 — 조각 문자열 **전체**(인용 안팎 무관)에 `system`·`|`·`getline` 이 있으면 읽기가 아니다
+#     (`>` 는 조각 공통의 리다이렉션 판정이 먼저 잡는다). 인용 안의 `(`·`|` 는 mc_segcmd 가 경계로 쪼개지 않으려고
+#     공백·\001 로 바꿔 두므로 `system(` 의 괄호는 세지 않고 `|` 는 그 문자를 본다.
+#   sed 조각 — **스크립트 인자**(`-e`·`--expression` 의 값, 없으면 첫 비옵션 토큰)에 `w`·`W` 글자가 있으면
+#     읽기가 아니다. 인용을 존중해 토큰을 가르므로 파일 피연산자의 `w`(`.harness-workspace`)는 세지 않는다.
+# 감수하는 오탐(차단 쪽): `sed 's/new/old/'`·`awk '{print a || b}'` 처럼 쓰기가 아닌 `w`·`|` 도 막힌다 —
+# 그 명령은 워크트리 경로로 돌리거나 스크래치에 복사해 돌린다. 못 보는 것: `-f <스크립트파일>`(본문이 명령
+# 문자열에 없다) · GNU sed 의 `e` 명령(이 머신의 BSD sed 에는 없다 — `e` 글자를 세면 거의 모든 스크립트가 막힌다).
+mc_script_writes() {  # mc_script_writes <낱말> <원본 조각(인용 유지)> → 스크립트 본문에 쓰기 기능이 있으면 0
+  case "$1" in
+    awk) case "$2" in *system*|*$'\001'*|*getline*) return 0 ;; esac; return 1 ;;
+    sed) ;;
+    *) return 1 ;;
+  esac
+  printf '%s\n' "$2" | awk '
+    {
+      n = 0; tok = ""; q = ""; has = 0
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (q != "") { if (c == q) q = ""; else tok = tok c; continue }
+        if (c == "\"" || c == "\047") { q = c; has = 1; continue }
+        if (c == "\\") { i++; tok = tok substr($0, i, 1); continue }
+        if (c ~ /[[:space:]]/) { if (tok != "" || has) t[++n] = tok; tok = ""; has = 0; continue }
+        tok = tok c
+      }
+      if (tok != "" || has) t[++n] = tok
+      s = 0; for (i = 1; i <= n; i++) { x = t[i]; sub(".*/", "", x); if (x == "sed") { s = i; break } }
+      if (!s) exit 1
+      ne = 0; first = ""; seen = 0
+      for (i = s + 1; i <= n; i++) {
+        x = t[i]
+        if (x == "--") continue
+        if (x ~ /^--expression=/) { e[++ne] = substr(x, 14); continue }
+        if (x == "--expression") { if (i < n) e[++ne] = t[++i]; continue }
+        if (x ~ /^--(file|line-length)=/) continue
+        if (x == "--file" || x == "--line-length") { i++; continue }
+        if (x ~ /^-[^-]/) {
+          if (x ~ /^-[A-Za-z]*e$/) { if (i < n) e[++ne] = t[++i]; continue }
+          if (x ~ /^-[A-Za-z]*e./) { e[++ne] = x; sub(/^-[A-Za-z]*e/, "", e[ne]); continue }
+          if (x ~ /^-[A-Za-z]*[fl]$/) { i++; continue }
+          continue
+        }
+        if (!seen) { first = x; seen = 1 }
+      }
+      if (ne == 0 && seen) e[++ne] = first
+      for (i = 1; i <= ne; i++) if (e[i] ~ /[wW]/) exit 0
+      exit 1
+    }'
+}
 # **모든 형태가 읽기인 하위 명령만 든다.** `branch`(-D)·`tag`(-d)·`config`(값 쓰기)·
 # `remote`(add·remove)·`stash`(bare 형태)는 읽기 형태가 있어도 쓰기 형태가 있어 뺀다 —
 # 목록은 옵션을 보지 않으므로 등재하면 그 쓰기까지 함께 통과한다. 채점자 쪽 목록
 # (GR_GIT_READ)이 `branch` 를 들고 있는 것과 갈리는 지점이고, 그쪽을 따라가지 않는다.
-MC_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-remote grep for-each-ref merge-base ls-tree rev-list shortlog diff-tree name-rev check-ignore var count-objects whatchanged"
+# `archive` 는 stdout 으로 내는 것이 기본이라 읽기로 둔다 — `-o <본 체크아웃>/x.tar` 는 추적되지
+# 않는 파일 하나를 떨구는 것이라 감수한다.
+MC_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-remote grep for-each-ref merge-base ls-tree rev-list shortlog diff-tree name-rev check-ignore var count-objects whatchanged archive"
+# 위에서 뺀 하위 명령의 읽기 형태 — `<하위명령>:<바로 다음 토큰>`. 바로 다음 토큰이 그것일 때만 읽기다
+# (`git worktree list` · `git config --get x` · `git branch --show-current`). 게이트가 쌍마다 통과를 단언한다.
+MC_GIT_READ_OPT="worktree:list config:--get config:--get-regexp config:--list config:-l branch:--show-current branch:--list branch:-a branch:-r branch:-v branch:-vv remote:-v remote:show remote:get-url stash:list stash:show tag:-l tag:--list"
+mc_segcmd() {  # COMMAND_RAW 의 인용 안 경계 문자를 공백으로(`|` 는 \001 — mc_script_writes 가 본다). 인용은 남긴다.
+  printf '%s\n' "$COMMAND_RAW" | awk '
+    {
+      q = ""; out = ""; prev = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (q == "") { if (c == "\"" || c == "\047") q = c }
+        else if (c == q) q = ""
+        else if (index(";|&()", c) && !(c == "(" && q == "\"" && prev == "$")) c = (c == "|") ? "\001" : " "
+        prev = substr($0, i, 1); out = out c
+      }
+      print out
+    }'
+}
 mc_all_readonly() {
-  local seg w sub any=0
-  while IFS= read -r seg; do
+  local raw seg w sub nxt re e any=0
+  while IFS= read -r raw; do
+    seg="$(printf '%s' "$raw" | strip_quotes)"   # 조각마다 걷어내도 결과는 같다 — strip_quotes 는 문자 단위 치환이다
     [ -n "$(printf '%s' "$seg" | tr -d '[:space:]')" ] || continue
     any=1
     case "$(printf '%s' "$seg" | sed -E 's#[0-9]?>&[0-9]##g; s#[0-9]?>/dev/null##g')" in *'>'*) return 1 ;; esac
+    seg_shell_wrapped "$seg" && return 1
     w="$(seg_exec_word "$seg")"
     # 실행 낱말이 없는 조각은 **명령이 아니므로** 읽기·쓰기를 가를 대상이 아니다 —
     # 변수 대입만 있는 조각(`P=<경로>; …`)이 그렇다. 판정은 명령을 실행하는 조각이 든다.
     # 대입 접두형(`P=<경로> cat …`)과 같은 결론이 되는 것이 옳다 — 그쪽은 seg_exec_word 가
     # `=` 토큰을 건너뛰어 뒤의 `cat` 을 낸다. 쓰기는 그대로 막힌다: 그 조각의 실행 낱말은
     # 쓰기 명령이지 빈 문자열이 아니다 (게이트 ⑨ 의 MC_SH_READ_MIX 가 못박는다).
+    # 명령을 실행하지 않는 셸 키워드 조각(`for f in …` · `done` · `fi`)도 같다.
     [ -n "$w" ] || continue
-    case " $MC_READ_CMDS " in *" $w "*) continue ;; esac
+    case "$w" in for|done|fi|'esac') continue ;; esac
+    case " $MC_READ_CMDS " in *" $w "*)
+      re=""; for e in $MC_WRITE_OPTS; do [ "${e%%:*}" = "$w" ] && re="${e#*:}"; done
+      [ -n "$re" ] && printf '%s' "$seg" | grep -Eq "(^|[[:space:]])($re)([[:space:]]|$)" && return 1
+      mc_script_writes "$w" "$raw" && return 1
+      continue ;;
+    esac
     if [ "$w" = "git" ]; then
       sub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
       case " $MC_GIT_READ " in *" $sub "*) continue ;; esac
+      nxt="$(printf '%s' "$seg" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk -v s="$sub" 'f && $0 != "" { print; exit } $0 == s { f = 1 }')"
+      case " $MC_GIT_READ_OPT " in *" $sub:$nxt "*) continue ;; esac
+    fi
+    if [ "$w" = "gh" ]; then
+      # r_remote 와 같은 면제 — gh 다음 두 토큰 중 하나가 GH_READ_EXEMPT 면 읽기다. 그 목록의 `download` 는
+      # 원격 읽기지만 로컬 쓰기라(`gh release download -D <본 체크아웃>` 이 통과한다) 면제 재사용의 대가로 감수한다.
+      nxt="$(subcmds_after gh "" "$seg")"; nxt="${nxt%%$'\n'*}"
+      sub=""; [ -n "$nxt" ] && { sub="$(subcmds_after "$nxt" "" "$seg")"; sub="${sub%%$'\n'*}"; }
+      { gh_is_read "$nxt" || gh_is_read "$sub"; } && continue
     fi
     return 1
-  done < <(cmd_segments)
+  done < <(cmd_segments "$(mc_segcmd)")
   [ "$any" -eq 1 ]
 }
 
@@ -543,7 +665,12 @@ r_main_shell() {
   cmd="${cmd//\$HOME/$HOME}"
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
-    mc_locate "$cand" || continue
+    # 클론 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<클론>/f` 는 인용을 걷으면 `s/a/b/w<클론>/f`
+    # 한 토큰이라 후보 grep 이 `/a/b/w<클론>/f` 를 내고 mc_locate 가 놓친다(harness-m8gg.8.5 2차 리뷰의 형태 3).
+    # 토큰 안에 클론 루트가 있으면 거기서부터 다시 본다.
+    if ! mc_locate "$cand"; then
+      case "$cand" in ?*"$CLONE_ROOT"/*) cand="$CLONE_ROOT/${cand#*"$CLONE_ROOT"/}"; mc_locate "$cand" || continue ;; *) continue ;; esac
+    fi
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0
     mc_deny_root "$cand"
@@ -559,7 +686,7 @@ RULES+=("Bash:r_main_shell")
 # 흔적이 거의 남지 않고 원격만 조용히 바뀐다. 되돌리기 비용이 이 훅이 다루는 것 중
 # 가장 크고, 되돌림 자체가 또 한 번의 원격 반영이라 승인 없이 시작할 수 없다.
 # 근거 문서(전부 설득이고 강제는 없었다): agents/implementer.md:27(=A3) ·
-# 세션 블록 "절대 금지"(=C2) · docs/operations.md:36 · docs/development.md "원격".
+# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36 · ../docs/development.md "Remote".
 #
 # **적용 대상은 서브에이전트 호출뿐이다.** 오케스트레이터는 사용자 지시를 받으면 실제로
 # push·PR 을 해야 한다. 판정 근거는 r_bd_root 와 같은 `agent_id`·`agent_type` 의 존재이고
@@ -624,12 +751,12 @@ r_remote() {
   while IFS= read -r seg; do
     sub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
     if [ "$sub" = "push" ] || { [ "$sub" = "subtree" ] && has_token 'push' "$seg"; }; then
-      deny "원격 반영 금지 — git 이 push 를 실행한다. git push·ledger.sh dolt push 등 **원격 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만'). **그 항목에는 예외가 둘 붙어 있지만 둘 다 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다. 네가 막힌 이유는 지시가 없어서가 아니라 **액터가 다르기 때문**이고, 그래서 '사용자가 지시했다'는 전언으로는 풀리지 않는다. 서브에이전트는 로컬 커밋까지만 하고 멈춘다 — 구현이 끝났으면 첫 줄에 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 커밋 해시를 보고하라. 원격 반영이 필요하면 그 사실을 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라. 판정은 git·dolt·원장 도구(ledger.sh·bd)가 실행하는 하위 명령이라 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 진짜로 원격에 반영하므로 차단이 옳다 — 로컬까지만 하고('git subtree split --prefix <경로> -b <브랜치>') 멈춰 보고하라. 그래도 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+      deny "원격 반영 금지 — git 이 push 를 실행한다. git push·ledger.sh dolt push 등 **원격 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목에는 예외가 둘 붙어 있지만 둘 다 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 네가 막힌 이유는 지시가 없어서가 아니라 **액터가 다르기 때문**이고, 그래서 '사용자가 지시했다'는 전언으로는 풀리지 않는다. 서브에이전트는 로컬 커밋까지만 하고 멈춘다 — 구현이 끝났으면 첫 줄에 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 커밋 해시를 보고하라. 원격 반영이 필요하면 그 사실을 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라. 판정은 git·dolt·원장 도구(ledger.sh·bd)가 실행하는 하위 명령이라 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 진짜로 원격에 반영하므로 차단이 옳다 — 로컬까지만 하고('git subtree split --prefix <경로> -b <브랜치>') 멈춰 보고하라. 그래도 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
     fi
   done < <(exec_segments git)
   while IFS= read -r seg; do
     [ "$(subcmds_after dolt "" "$seg")" = "push" ] || continue
-    deny "원격 반영 금지 — dolt 가 push 를 실행한다. 원장 반영(ledger.sh dolt push·dolt push)은 **오케스트레이터·사람의 몫**이다(세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+    deny "원격 반영 금지 — dolt 가 push 를 실행한다. 원장 반영(ledger.sh dolt push·dolt push)은 **오케스트레이터·사람의 몫**이다(세션 블록 'Remote reflection only on explicit user instruction' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
   done < <(exec_segments dolt)
   local t
   for t in $LEDGER_TOOLS; do
@@ -637,18 +764,18 @@ r_remote() {
     # 원장을 원격에 반영하는 하위 명령은 둘이다 — `dolt push` 와, ledger-check 가 부르는 `sync-check --push`.
     sub="$(subcmds_after "$t" "$(ledger_vopts "$t")" "$seg")"
     { [ "$sub" = "dolt" ] && has_token 'push' "$seg"; } || { [ "$sub" = "sync-check" ] && has_token '[-][-]push' "$seg"; } || continue
-    deny "원격 반영 금지 — $t $sub 가 원장을 원격에 반영한다($t dolt push · $t sync-check --push). 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
+    deny "원격 반영 금지 — $t $sub 가 원장을 원격에 반영한다($t dolt push · $t sync-check --push). 그것은 **오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다). 서브에이전트는 'SIGNAL: IMPLEMENTATION_COMPLETE' 를 내고 멈춘다. 원격 반영이 아닌데 막혔으면 오탐이다 — 사람에게 확인받아라."
   done < <(exec_segments "$t")
   done
 
-  tool_aliased gh && deny "gh 를 변수에 담아 부르는 형태('G=gh; \$G …')는 하위 명령을 읽을 수 없어 차단한다 — gh 를 'gh <그룹> <하위명령>' 형태로 직접 불러라. **PR 생성·머지와 이슈 조작은 오케스트레이터·사람의 몫**이고(세션 블록 '원격 반영은 사용자 명시 지시 시에만' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다), 서브에이전트는 구현 완료 신호를 내고 멈춘다."
+  tool_aliased gh && deny "gh 를 변수에 담아 부르는 형태('G=gh; \$G …')는 하위 명령을 읽을 수 없어 차단한다 — gh 를 'gh <그룹> <하위명령>' 형태로 직접 불러라. **PR 생성·머지와 이슈 조작은 오케스트레이터·사람의 몫**이고(세션 블록 'Remote reflection only on explicit user instruction' — 그 항목의 예외 둘은 오케스트레이터의 것이고 harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다), 서브에이전트는 구현 완료 신호를 내고 멈춘다."
   local t1 t2 shown
   while IFS=' ' read -r t1 t2; do
     [ -n "$t1" ] || continue     # 옵션만 있는 호출(gh --version · gh --help) — 읽기다
     gh_is_read "$t1" && continue
     gh_is_read "$t2" && continue
     shown="gh${t1:+ $t1}${t2:+ $t2}"
-    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 '원격 반영은 사용자 명시 지시 시에만'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 '서브에이전트는 범위 밖이다 — 로컬 커밋까지' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh run view · gh auth status). 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
+    deny "GitHub 조작 금지 — '$shown' 은 읽기 면제 목록에 없다. PR 생성·머지, 이슈 조작 등 **GitHub 반영은 오케스트레이터·사람의 몫**이다(agents/implementer.md 의 금지 목록, 세션 블록 'Remote reflection only on explicit user instruction'). **그 항목의 예외 둘(사이클 종결의 작업 브랜치 push·PR 생성 포함)은 오케스트레이터의 것이다** — harness:develop '사이클 종결' 이 'Subagents are out of scope — up to the local commit' 로 경계를 못박는다. 바뀐 것은 오케스트레이터가 **언제** 해도 되는가이지 **누가** 하는가가 아니다. 읽기는 면제다 — gh 다음 두 토큰 중 하나가 [$GH_READ_EXEMPT] 이면 통과한다(gh pr view · gh pr list · gh issue view · gh run view · gh auth status). 서브에이전트는 구현 완료 신호('SIGNAL: IMPLEMENTATION_COMPLETE')를 내고 멈춘다 — PR·이슈가 필요하면 무엇이 왜 필요한지 보고에 적어 오케스트레이터가 사용자 승인을 받게 하라."
   done < <(gh_next_pairs)
   return 0
 }
@@ -812,7 +939,7 @@ RULES+=("Bash:r_grader_shell")
 # 우회 시 빠지는 불변식: **원장 구조는 오케스트레이터가 소유한다.** implementer 가
 # create·update·label·close·dep 를 부르면 계층(스프린트→레일→스토리→마일스톤→태스크)·
 # 의존성·상태·재시도 카운터가 구현자의 손에서 바뀐다. "계획을 바꾸지 않는다"
-# (agents/implementer.md "역할")와 "evaluator 의 MATCH 기록 없이 태스크를 닫지 않는다"
+# (agents/implementer.md "Role")와 "No task is closed without the evaluator's MATCH record"
 # (harness:develop)가 함께 무너지는데, 실측상 그 실패는 조용하다 — r_bd_root 주석의
 # 임시 원장 실측에서 create·remember·label 이 rc=0 으로 끝났다.
 # `note` 만 예외인 이유는 절차 8 이 그것을 **요구**하기 때문이다(`알게 된 중요한 사실은
@@ -982,7 +1109,7 @@ for rule in ${RULES[@]+"${RULES[@]}"}; do
   # 매처 대조보다 **먼저** 둔다: 이번 호출에 디스패치되지 않는 항목의 오타도 잡아야
   # 규칙이 영영 꺼진 채 남지 않는다.
   declare -F "$fn" >/dev/null || deny "규칙 등록부가 깨졌다 — '$rule' 이 가리키는 함수 $fn 이 없다"
-  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (docs/development.md).
+  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (../docs/development.md).
   [[ "$matcher" = "*" || "$matcher" = "$TOOL_NAME" ]] || continue
   "$fn"
 done

@@ -31,7 +31,7 @@ TEMPLATE = Path(__file__).resolve().parent.parent / 'html-report' / 'template.ht
 STORE = ('.brag', 'entries.jsonl')  # 홈 아래 고정. SKILL.md 와 같은 값이다.
 REQUIRED = ('date', 'project', 'title', 'problem', 'solution', 'result')
 DATE = re.compile(r'^\d{4}-\d{2}-\d{2}$')
-# 증감은 색만으로 구분하지 않는다(SKILL.md §9). 기호를 입력이 들고 오게 하고
+# 증감은 색만으로 구분하지 않는다(SKILL.md §2 "Accumulating" 의 delta 규칙). 기호를 입력이 들고 오게 하고
 # 여기서 강제한다 — 방향은 사실이고 pos/neg(좋아졌는가)는 판단이라 값이 둘이다.
 ARROWS = '▲▼—'
 
