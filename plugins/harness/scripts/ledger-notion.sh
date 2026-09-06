@@ -322,12 +322,13 @@ case "$cmd" in
   update)
     [ $# -gt 0 ] || die "update: id 가 필요하다"
     id="$1"; shift
-    status=""; claim=""; actor=""; parent=""; type=""; acc=""; desc=""; set_desc=""; set_acc=""
+    status=""; claim=""; actor=""; parent=""; type=""; acc=""; desc=""; set_desc=""; set_acc=""; assignee=""; set_assignee=""
     while [ $# -gt 0 ]; do
       case "$1" in
         -s|--status) status="$2"; shift 2 ;;
         --claim) claim=1; shift ;;
         --actor) actor="$2"; shift 2 ;;
+        -a|--assignee) assignee="$2"; set_assignee=1; shift 2 ;;
         --parent) parent="$2"; shift 2 ;;
         -t|--type) type="$2"; shift 2 ;;
         --acceptance) acc="$2"; set_acc=1; shift 2 ;;
@@ -337,10 +338,16 @@ case "$cmd" in
         *) die "update: 모르는 인자 '$1'" ;;
       esac
     done
+    # --assignee 는 claim 과 **다른 경로**다: claim 은 --actor 값을 Assignee 에 넣고 status 를
+    # in_progress 로 옮기지만 이 옵션은 Assignee 만 바꾼다(레일 담당자는 epic 의 assignee 다 —
+    # 스토리 skills#105). 같이 주면 아래 두 항이 같은 Assignee 를 겹쳐 쓴다 — 거부한다.
+    [ -n "$claim" ] && [ -n "$set_assignee" ] && die "update: --claim 과 --assignee 는 같이 쓸 수 없다 (claim 은 실행자를 넣고 status 를 옮긴다)"
     if [ -n "$claim" ]; then [ -n "$status" ] || status="in_progress"; fi
-    props="$(jq -n --arg status "$status" --arg actor "$actor" --arg claim "$claim" --arg parent "$parent" --arg type "$type" --arg acc "$acc" --arg set_acc "$set_acc" --arg desc "$desc" --arg set_desc "$set_desc" "$JQLIB"'
+    # 빈 문자열은 지우기다 — rt 가 빈 배열을 내고 norm 이 그것을 null 로 읽는다(대응표: assignee).
+    props="$(jq -n --arg status "$status" --arg actor "$actor" --arg claim "$claim" --arg parent "$parent" --arg type "$type" --arg acc "$acc" --arg set_acc "$set_acc" --arg desc "$desc" --arg set_desc "$set_desc" --arg assignee "$assignee" --arg set_assignee "$set_assignee" "$JQLIB"'
       {} + (if $status == "" then {} else {Status:{select:{name:$status}}} end)
          + (if $claim == "" then {} else {Assignee:{rich_text:($actor|rt)}} end)
+         + (if $set_assignee == "" then {} else {Assignee:{rich_text:($assignee|rt)}} end)
          + (if $parent == "" then {} else {Parent:{relation:[{id:$parent}]}} end)
          + (if $type == "" then {} else {Type:{select:{name:$type}}} end)
          + (if $set_acc == "" then {} else {Acceptance:{rich_text:($acc|rt)}} end)

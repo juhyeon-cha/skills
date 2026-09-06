@@ -34,7 +34,10 @@ usage() {
   children <id> [--json]
   note <id> <본문> | --file <f> | --stdin
   close <id>… [--reason <문>|--reason-file <f>] [--force]
-  update <id> [--status <s>] [--claim --actor <값>] [--parent <id>] [-t <type>] [--acceptance <문>]
+  update <id> [--status <s>] [--claim --actor <값>] [-a|--assignee <값>] [--parent <id>] [-t <type>] [--acceptance <문>]
+                             --assignee 는 assignee 만 바꾼다(빈 문자열이면 지운다) — 실행자를 넣고 status 를
+                             옮기는 --claim 과 다른 경로라 둘을 같이 주면 rc≠0 이다
+                             (github: 그 이슈가 사는 레포에 assign 할 수 없는 login 이면 rc≠0)
   dep add <id> <의존 대상 id> | --file - (JSONL {"from","to"})
   label add|remove <id> <라벨>
   wire-worktree <워크트리 절대 경로>   워크트리에 원장을 배선한다 — hooks/enter-worktree.sh 가 부른다

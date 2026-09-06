@@ -349,12 +349,13 @@ case "$cmd" in
   update)
     [ $# -gt 0 ] || die "update: id 가 필요하다"
     split_id "$1"; shift
-    status=""; claim=""; actor=""; parent=""; type=""; acc=""; desc=""; set_desc=""
+    status=""; claim=""; actor=""; parent=""; type=""; acc=""; desc=""; set_desc=""; assignee=""; set_assignee=""
     while [ $# -gt 0 ]; do
       case "$1" in
         -s|--status) status="$2"; shift 2 ;;
         --claim) claim=1; shift ;;
         --actor) actor="$2"; shift 2 ;;
+        -a|--assignee) assignee="$2"; set_assignee=1; shift 2 ;;
         --parent) parent="$2"; shift 2 ;;
         -t|--type) type="$2"; shift 2 ;;
         --acceptance) acc="$2"; shift 2 ;;
@@ -364,10 +365,26 @@ case "$cmd" in
         *) die "update: 모르는 인자 '$1'" ;;
       esac
     done
+    # --assignee 는 claim 과 **다른 경로**다: claim 은 실행자(@me)를 붙이고 status 를 in_progress 로
+    # 옮기지만 이 옵션은 assignee 만 바꾼다(레일 담당자는 epic 의 assignee 다 — 스토리 skills#105).
+    # 같이 주면 두 쓰기가 같은 필드를 겹쳐 어느 쪽이 남는지가 코드 순서에 달린다 — 거부한다.
+    [ -n "$claim" ] && [ -n "$set_assignee" ] && die "update: --claim 과 --assignee 는 같이 쓸 수 없다 (claim 은 실행자를 넣고 status 를 옮긴다)"
     if [ -n "$claim" ]; then
       gh issue edit "$NUM" -R "$SLUG" --add-assignee @me >/dev/null 2>&1 || die "assignee 를 붙이지 못했다: $REPO#$NUM"
       [ -n "$actor" ] && { gh issue comment "$NUM" -R "$SLUG" -b "ACTOR: $actor" >/dev/null 2>&1 || die "ACTOR 코멘트 실패: $REPO#$NUM"; }
       [ -n "$status" ] || status="in_progress"
+    fi
+    if [ -n "$set_assignee" ]; then
+      # **assign 가능한지 먼저 묻는다.** 이슈 PATCH 는 assign 할 수 없는 login 을 조용히 버리고 200 을
+      # 내므로 rc 만으로는 "넣었다" 와 "버려졌다" 가 구별되지 않는다. repos/<slug>/assignees/<login> 이
+      # 가능하면 204, 아니면 404 다 (실측 2026-09-06: dongqdev 가 skills 에서 404 · sap-harness 에서 204).
+      [ -z "$assignee" ] || gh api "repos/$SLUG/assignees/$assignee" >/dev/null 2>&1 \
+        || die "assign 할 수 없는 login 이다: '$assignee' 는 레포 $SLUG 의 협업자가 아니다 (repos/$SLUG/assignees/$assignee 가 404)"
+      # 빈 문자열이면 지우기다. PATCH 는 목록을 **대체**하므로 넣기와 지우기가 한 경로다 —
+      # gh issue edit 의 --remove-assignee 로 지우려면 현재 login 을 먼저 읽어야 해 왕복이 는다.
+      jq -n --arg a "$assignee" '{assignees: (if $a == "" then [] else [$a] end)}' \
+        | gh api -X PATCH "repos/$SLUG/issues/$NUM" --input - >/dev/null 2>&1 \
+        || die "assignee 를 바꾸지 못했다: $REPO#$NUM"
     fi
     if [ -n "$status" ] || [ -n "$type" ]; then
       cur="$(labels_of "$SLUG" "$NUM")" || die "라벨을 읽지 못했다: $REPO#$NUM"
