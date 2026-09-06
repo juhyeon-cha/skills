@@ -589,7 +589,8 @@ declare -a MC_SH_READ_PASS=(
   "[ -f $MCROOT/repo/README.md ] && echo y"          # `[` 는 tr 이 지우던 낱말 — 첫 실행 낱말이 경로 basename 이었다
   "if [ -f $MCROOT/repo/f ]; then cat $MCROOT/repo/f; fi"
   "echo \"\$(cat $MCROOT/repo/f)\""                  # 큰따옴표 안의 명령 치환은 경계로 남는다 — 아래 MIX 의 rm 대조군과 쌍
-  "sed -n 1,5p \"$MCROOT/repo/f\""                   # 인용된 피연산자 — 인용 안이 토큰 하나뿐이면 스크립트가 아니다(아래 sed w 대조군과 쌍)
+  "sed -n 1,5p \"$MCROOT/repo/f\""                   # 인용된 피연산자 — 스크립트 인자(1,5p)에 w 가 없다(아래 sed w 대조군과 쌍)
+  "ls $MCROOT/repo | awk '{print \$1}'"             # 인용 밖 파이프는 경계 — awk 조각에 `|` 가 남지 않는다
   "sed 's/a/b/' $MCROOT/repo/f"                      # 경로 없는 스크립트 + 인용 밖 피연산자
 )
 for c in "${MC_SH_READ_PASS[@]}"; do
@@ -607,7 +608,10 @@ step "git 읽기 옵션 쌍 목록이 훅 소스에서 파생됐다 (3개 이상
 mc_fails=""
 while IFS= read -r w; do
   [ -n "$w" ] || continue
-  runm "$(j_bash "$w $MCROOT/repo/f")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails $w"
+  # sed 만 스크립트 인자를 앞에 둔다 — `sed <경로>` 는 경로가 스크립트 자리라 읽기 명령이 아니고, 훅도 그 토큰의
+  # `w`(임시 디렉토리 이름의 글자)를 쓰기로 센다. 낱말의 실제 읽기 형태로 시험한다.
+  a=""; [ "$w" = sed ] && a="-n 1p "
+  runm "$(j_bash "$w $a$MCROOT/repo/f")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails $w"
 done <<< "$MC_WORDS"
 while IFS= read -r w; do
   [ -n "$w" ] || continue
@@ -657,6 +661,16 @@ declare -a MC_SH_READ_MIX=(
   "sed -I 1d $MCROOT/repo/f"
   "sort -ro $MCROOT/repo/f $MCROOT/repo/f"
   "sort --out=$MCROOT/repo/f $MCROOT/repo/f"
+  # verify-code 2차(harness-m8gg.8.5)가 62b1c94 에서 rc=0 으로 실측한 변형 — 인용 안 공백을 이스케이프로 대신하거나
+  # 경로를 인용에 붙이거나 ARGV·-v 로 넘기면 "인용 안에 경로가 있나" 판정이 놓쳤다. 지금은 스크립트 본문의
+  # 쓰기 기능(sed 의 w·W, awk 의 system·|·getline)을 보므로 경로가 어디 있든 막힌다.
+  "sed \$'s/a/b/w\\x20$MCROOT/repo/f' /etc/hosts"
+  "awk 'BEGIN{system(\"rm\\t-rf\\t$MCROOT/repo/src\")}'"
+  "sed 's/a/b/w'$MCROOT/repo/f /etc/hosts"
+  "sed 'w$MCROOT/repo/f' /etc/hosts"
+  "sed -n 'w '$MCROOT/repo/f /etc/hosts"
+  "awk 'BEGIN{system(\"rm -rf \" ARGV[1])}' $MCROOT/repo/src"
+  "awk -v p=$MCROOT/repo/src 'BEGIN{system(\"rm -rf \" p)}'"
 )
 for c in "${MC_SH_READ_MIX[@]}"; do
   runm "$(j_bash "$c")"

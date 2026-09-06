@@ -536,35 +536,58 @@ MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath 
 # 결합 짧은 옵션(`sed -ni`·`sort -ro`)·BSD 의 `-I`·getopt_long 접두(`--out=`)까지 한 형태로 잡는다 —
 # 낱개 `-i`·`-o`·`--output` 만 적으면 그 셋이 샌다(harness-m8gg.8.5 리뷰 MUST FIX 4, macOS sort 로 파일 생성 실측).
 MC_WRITE_OPTS="sed:-[A-Za-z]*[iI][^[:space:]]*|--i[^[:space:]]* sort:-[A-Za-z]*o[^[:space:]]*|--o[^[:space:]]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)"
-# sed·awk 의 쓰기는 옵션이 아니라 **스크립트 본문**에도 있다 — sed 의 `w <파일>` 명령, awk 의 system()·
-# `print … | "sh"`. 스크립트는 인용되고 파일 피연산자는 인용 밖이므로, 이 두 낱말의 조각은 COMMAND_RAW 의
-# 인용 안에 본 체크아웃 경로가 들면 읽기로 보지 않는다. 인용 내용이 토큰 하나뿐이면(`sed -n 1p "<경로>"`)
-# 피연산자를 인용한 것이라 센다. 못 보는 것: `-f <스크립트파일>` — 본문이 명령 문자열에 없다.
-MC_SCRIPT_CMDS="sed awk"
-mc_quoted_texts() {  # COMMAND_RAW 의 최외곽 인용 내용 — 한 줄에 하나, 토큰 하나뿐인 것은 뺀다
-  printf '%s\n' "$COMMAND_RAW" | awk '
+# sed·awk 의 쓰기는 옵션이 아니라 **스크립트 본문**에도 있다 — sed 의 `w`·`W` 명령(`s///w` 플래그 포함),
+# awk 의 system()·`print … | "sh"`·`"cmd" | getline`. 판정은 "경로가 인용 안에 있나" 가 아니라 **본문에 쓰기
+# 기능이 있나** 다 — 경로는 `$'…\x20…'`·`'w '<경로>`(인용에 붙은 인자)·ARGV·`-v` 로 얼마든지 인용 밖에 둘 수
+# 있다(harness-m8gg.8.5 2차 리뷰, 7 형태 전부 rc 0 실측). 그래서:
+#   awk 조각 — 조각 문자열 **전체**(인용 안팎 무관)에 `system`·`|`·`getline` 이 있으면 읽기가 아니다
+#     (`>` 는 조각 공통의 리다이렉션 판정이 먼저 잡는다). 인용 안의 `(`·`|` 는 mc_segcmd 가 경계로 쪼개지 않으려고
+#     공백·\001 로 바꿔 두므로 `system(` 의 괄호는 세지 않고 `|` 는 그 문자를 본다.
+#   sed 조각 — **스크립트 인자**(`-e`·`--expression` 의 값, 없으면 첫 비옵션 토큰)에 `w`·`W` 글자가 있으면
+#     읽기가 아니다. 인용을 존중해 토큰을 가르므로 파일 피연산자의 `w`(`.harness-workspace`)는 세지 않는다.
+# 감수하는 오탐(차단 쪽): `sed 's/new/old/'`·`awk '{print a || b}'` 처럼 쓰기가 아닌 `w`·`|` 도 막힌다 —
+# 그 명령은 워크트리 경로로 돌리거나 스크래치에 복사해 돌린다. 못 보는 것: `-f <스크립트파일>`(본문이 명령
+# 문자열에 없다) · GNU sed 의 `e` 명령(이 머신의 BSD sed 에는 없다 — `e` 글자를 세면 거의 모든 스크립트가 막힌다).
+mc_script_writes() {  # mc_script_writes <낱말> <원본 조각(인용 유지)> → 스크립트 본문에 쓰기 기능이 있으면 0
+  case "$1" in
+    awk) case "$2" in *system*|*$'\001'*|*getline*) return 0 ;; esac; return 1 ;;
+    sed) ;;
+    *) return 1 ;;
+  esac
+  printf '%s\n' "$2" | awk '
     {
+      n = 0; tok = ""; q = ""; has = 0
       for (i = 1; i <= length($0); i++) {
         c = substr($0, i, 1)
-        if (q == "") { if (c == "\"" || c == "\047") { q = c; buf = "" } }
-        else if (c == q) { n = split(buf, t, /[[:space:]]+/); k = 0; for (j = 1; j <= n; j++) if (t[j] != "") k++; if (k > 1) print buf; q = "" }
-        else buf = buf c
+        if (q != "") { if (c == q) q = ""; else tok = tok c; continue }
+        if (c == "\"" || c == "\047") { q = c; has = 1; continue }
+        if (c == "\\") { i++; tok = tok substr($0, i, 1); continue }
+        if (c ~ /[[:space:]]/) { if (tok != "" || has) t[++n] = tok; tok = ""; has = 0; continue }
+        tok = tok c
       }
+      if (tok != "" || has) t[++n] = tok
+      s = 0; for (i = 1; i <= n; i++) { x = t[i]; sub(".*/", "", x); if (x == "sed") { s = i; break } }
+      if (!s) exit 1
+      ne = 0; first = ""; seen = 0
+      for (i = s + 1; i <= n; i++) {
+        x = t[i]
+        if (x == "--") continue
+        if (x ~ /^--expression=/) { e[++ne] = substr(x, 14); continue }
+        if (x == "--expression") { if (i < n) e[++ne] = t[++i]; continue }
+        if (x ~ /^--(file|line-length)=/) continue
+        if (x == "--file" || x == "--line-length") { i++; continue }
+        if (x ~ /^-[^-]/) {
+          if (x ~ /^-[A-Za-z]*e$/) { if (i < n) e[++ne] = t[++i]; continue }
+          if (x ~ /^-[A-Za-z]*e./) { e[++ne] = x; sub(/^-[A-Za-z]*e/, "", e[ne]); continue }
+          if (x ~ /^-[A-Za-z]*[fl]$/) { i++; continue }
+          continue
+        }
+        if (!seen) { first = x; seen = 1 }
+      }
+      if (ne == 0 && seen) e[++ne] = first
+      for (i = 1; i <= ne; i++) if (e[i] ~ /[wW]/) exit 0
+      exit 1
     }'
-}
-mc_quoted_has_main() {  # 인용 안에 본 체크아웃 경로(워크트리 제외)가 있으면 0. mc_locate 의 전역은 되돌린다.
-  local q cand hit=1 sp="$MC_PATH" sr="$MC_REPO" ss="$MC_SUB"
-  while IFS= read -r q; do
-    q="${q//\$\{HOME\}/$HOME}"; q="${q//\$HOME/$HOME}"
-    while IFS= read -r cand; do
-      [ -n "$cand" ] || continue
-      mc_locate "$cand" || continue
-      case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
-      hit=0; break 2
-    done < <(printf '%s' "$q" | grep -oE "[~/][^[:space:]\"'\`;|&()<>]*")
-  done < <(mc_quoted_texts)
-  MC_PATH="$sp"; MC_REPO="$sr"; MC_SUB="$ss"
-  return $hit
 }
 # **모든 형태가 읽기인 하위 명령만 든다.** `branch`(-D)·`tag`(-d)·`config`(값 쓰기)·
 # `remote`(add·remove)·`stash`(bare 형태)는 읽기 형태가 있어도 쓰기 형태가 있어 뺀다 —
@@ -576,7 +599,7 @@ MC_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-
 # 위에서 뺀 하위 명령의 읽기 형태 — `<하위명령>:<바로 다음 토큰>`. 바로 다음 토큰이 그것일 때만 읽기다
 # (`git worktree list` · `git config --get x` · `git branch --show-current`). 게이트가 쌍마다 통과를 단언한다.
 MC_GIT_READ_OPT="worktree:list config:--get config:--get-regexp config:--list config:-l branch:--show-current branch:--list branch:-a branch:-r branch:-v branch:-vv remote:-v remote:show remote:get-url stash:list stash:show tag:-l tag:--list"
-mc_segcmd() {  # COMMAND_RAW 의 인용 안 경계 문자를 공백으로 — 그다음은 COMMAND 와 같은 정규화
+mc_segcmd() {  # COMMAND_RAW 의 인용 안 경계 문자를 공백으로(`|` 는 \001 — mc_script_writes 가 본다). 인용은 남긴다.
   printf '%s\n' "$COMMAND_RAW" | awk '
     {
       q = ""; out = ""; prev = ""
@@ -584,15 +607,16 @@ mc_segcmd() {  # COMMAND_RAW 의 인용 안 경계 문자를 공백으로 — �
         c = substr($0, i, 1)
         if (q == "") { if (c == "\"" || c == "\047") q = c }
         else if (c == q) q = ""
-        else if (index(";|&()", c) && !(c == "(" && q == "\"" && prev == "$")) c = " "
+        else if (index(";|&()", c) && !(c == "(" && q == "\"" && prev == "$")) c = (c == "|") ? "\001" : " "
         prev = substr($0, i, 1); out = out c
       }
       print out
-    }' | strip_quotes
+    }'
 }
 mc_all_readonly() {
-  local seg w sub nxt re e any=0
-  while IFS= read -r seg; do
+  local raw seg w sub nxt re e any=0
+  while IFS= read -r raw; do
+    seg="$(printf '%s' "$raw" | strip_quotes)"   # 조각마다 걷어내도 결과는 같다 — strip_quotes 는 문자 단위 치환이다
     [ -n "$(printf '%s' "$seg" | tr -d '[:space:]')" ] || continue
     any=1
     case "$(printf '%s' "$seg" | sed -E 's#[0-9]?>&[0-9]##g; s#[0-9]?>/dev/null##g')" in *'>'*) return 1 ;; esac
@@ -609,7 +633,7 @@ mc_all_readonly() {
     case " $MC_READ_CMDS " in *" $w "*)
       re=""; for e in $MC_WRITE_OPTS; do [ "${e%%:*}" = "$w" ] && re="${e#*:}"; done
       [ -n "$re" ] && printf '%s' "$seg" | grep -Eq "(^|[[:space:]])($re)([[:space:]]|$)" && return 1
-      case " $MC_SCRIPT_CMDS " in *" $w "*) mc_quoted_has_main && return 1 ;; esac
+      mc_script_writes "$w" "$raw" && return 1
       continue ;;
     esac
     if [ "$w" = "git" ]; then
@@ -641,7 +665,12 @@ r_main_shell() {
   cmd="${cmd//\$HOME/$HOME}"
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
-    mc_locate "$cand" || continue
+    # 클론 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<클론>/f` 는 인용을 걷으면 `s/a/b/w<클론>/f`
+    # 한 토큰이라 후보 grep 이 `/a/b/w<클론>/f` 를 내고 mc_locate 가 놓친다(harness-m8gg.8.5 2차 리뷰의 형태 3).
+    # 토큰 안에 클론 루트가 있으면 거기서부터 다시 본다.
+    if ! mc_locate "$cand"; then
+      case "$cand" in ?*"$CLONE_ROOT"/*) cand="$CLONE_ROOT/${cand#*"$CLONE_ROOT"/}"; mc_locate "$cand" || continue ;; *) continue ;; esac
+    fi
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0
     mc_deny_root "$cand"
