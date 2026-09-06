@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.0.0 — 2026-09-06
+
+1.0.0 뒤 `plugins/harness/` 의 커밋 전수(스토리 `harness-m8gg` 의 M7 과 `harness-kw0l` 의 M0·M1·M2). 직전 태그 `harness-v1.0.0` 은 스쿼시 머지 전 브랜치 커밋을 가리켜 `main` 의 조상이 아니라, 훑은 범위는 1.0.0 을 실어 보낸 커밋(`648b90a`)부터다.
+
+**폭 판단 — MAJOR.** 설치본이 손으로 할 일이 있다: 하네스 루트 `.gitignore` 에서 다섯 줄(`.claude/ralph-loop.local.md` · `.claude/ralph-cancel` · `.claude/stop-resume.log` · `.claude/stop-resume-cancel*` · `*.harness-bak`)을 지워야 한다. 이 판이 `harness:setup` 의 `.gitignore` 규약 문장에서 그것들을 뺐고 `rules-check` S12 는 규약과 실물을 **양방향**으로 대조하므로, 그대로 두면 S12 가 실패하고 커밋 게이트가 막힌다. 권고(필수는 아니다): 하네스 루트 `docs/` 의 `development.md` · `guardrails.md` · `guardrail-verification.md` · `operations.md` · `usecases.md` 를 지운다 — 이 판부터 플러그인이 자기 `docs/` 를 들고 있어 루트의 것은 낡은 사본이다(`architecture.md` 는 루트 소유로 남는다).
+
+### 원장을 GitHub 로 옮기는 도구 (`harness-kw0l.2`)
+- **새 스크립트 `scripts/ledger-migrate.sh`** — beads 원장의 열린 항목을 github 백엔드로 옮긴다. `plan`(읽기: 이슈 본문 첫 줄 `beads: <원 id>`, 부모가 계획 밖이면 둘째 줄 `beads-parent:`) · `apply`(쓰기: 위상 순으로 이슈 → Project 항목 → 코멘트 → sub-issue → blocked_by, map 파일로 멱등) · `verify`(map 의 id 마다 이슈를 읽어 전수 대조). 이슈 규약은 `scripts/ledger-github.sh` 머리 주석이 단일 소유이고 이 도구는 따른다.
+- **새 검사 `checks/ledger-migrate-check.sh`** — 가짜 bd·gh 픽스처. 가짜의 응답은 실측 payload 형태를 낸다(코드가 기대하는 모양을 흉내 내면 결함을 못 잡는다). 세 하위 명령의 stderr 에 셸 오류가 없다는 단언을 포함한다.
+- 검증은 검색·목록으로 하지 않는다 — 이슈 생성 직후 `gh issue list -l <라벨>` 은 5 중 3 만 냈고 `gh project item-list` 도 새 항목을 즉시 내지 않았다(실측). id 별 조회만 쓴다.
+
+### 원장의 경계와 사거리 (`harness-kw0l.3`)
+- **github 백엔드의 읽기가 Projects v2 소속으로 좁혀졌다.** 종전에는 `repos.json` 등재 레포의 이슈 전수를 훑어 그 레포의 하네스와 무관한 이슈가 원장으로 읽혔다. 소속은 이슈 쪽 `projectItems{project{number}}` 로 판정한다 — 프로젝트 쪽 목록과 달리 생성 직후에도 지연이 없다(실측).
+- **정규화 JSON 에 `actor` 키**(세 백엔드) — github 는 마지막 `ACTOR:` 코멘트의 값, beads·notion 은 assignee. `hooks/stop-resume.sh` 가 `.actor // .assignee` 로 사거리를 좁힌다. github 의 assignee 는 로그인명이라 그것만으로는 세션을 가릴 수 없었다.
+- `scripts/board.sh` 가 **닫힌 스프린트의 0건**을 실패로 읽지 않는다(활성 스프린트의 0건과 등재 없음은 종전대로 실패). **새 검사 `checks/board-render-check.sh`**.
+- `harness:setup` 의 합류(B) github 분기, `harness:develop` 사이클 종결의 원장 반영, `harness:plan-sprint`·`harness:plan-story` 의 계획 채널이 백엔드 모양으로 갈린다(`bd dolt push` 직접 언급 0). `docs/operations.md` 에 "원장 이전" 절.
+
+### 가드 (`harness-m8gg.8.5` · `harness-kw0l.3.4`)
+- `r_main_shell` 의 읽기 전용 목록이 넓어졌다(`sed`·`jq`·`awk`·`sort`·`wc`·`find`·`git worktree list|config --get|branch --show-current|rev-parse|archive` 등)고, 인용 안의 괄호·파이프를 조각 경계로 읽던 결함, `sed`·`awk` 스크립트 본문의 쓰기 기능(`w`·`system`·`|`·`getline`)과 결합 옵션(`-I`·`-ro`·`--out=`)이 새던 자리를 막았다.
+- **서브에이전트에게 `gh api` 는 통째로 차단이다** — 하위 명령이 아니라 임의 요청이라 명령 문자열로 읽기·쓰기를 가를 수 없다(파일 경유·치환 경유·평문 미끼로 세 번 우회가 났다). 원장은 `ledger.sh` 로 읽는다. 하위 명령이 곧 연산인 형태(`pr view`·`issue list`·`project item-list`·`field-list` 등)의 읽기 면제는 그대로다. 한계: 엔드포인트 토큰이 면제어와 겹치는 `gh api list`·`gh api search` 는 통과한다(닿는 것이 없어 악용 가치가 없다).
+
+### 검사가 어느 트리를 보는가 (`harness-m8gg.8.1` · `.8.2` · `.8.4` · `.8.14`)
+- `checks/rules-check.sh` 가 **원장은 하네스 루트에서, 트리 검사는 호출 CWD 의 트리에서** 읽는다. 시작 줄에 두 자리를 낸다. 머리의 검사 목록에 `[트리]`·`[하네스 루트]` 표지가 붙었다.
+- `R-REM` 이 스캔 대상을 `git ls-files` 가 아니라 `find` 로 파생한다 — 설치 캐시처럼 git 트리가 아닌 플러그인 루트에서 0건이 되어 조용히 통과하던 것을 막는다. 0건이면 실패한다.
+- `scripts/check-all.sh` 가 호출자 CWD 를 보존해 각 검사를 부른다 — 하네스 워크트리에서 돌린 게이트가 그 워크트리를 판정한다.
+- `checks/workspace-check.sh`·`checks/workspace-cleanup-check.sh` 가 `scripts/workspace-cleanup.sh` 에 `HARNESS_ROOT` 를 넘긴다.
+
+### 문서와 잔재 (`harness-m8gg.8.6` · `.8.11` · `.8.12` · `.8.15` · `.8.3`)
+- **하네스 루트의 문서 다섯이 플러그인 안으로 들어왔다** — `docs/development.md` · `guardrails.md` · `guardrail-verification.md` · `operations.md` · `usecases.md`. 플러그인이 하네스 루트 문서를 가리키던 포인터 35줄이 자기 `docs/` 를 가리킨다.
+- 설치되지 않은 루프 플러그인(`ralph-loop`)의 잔재를 걷어냈다 — `hooks/ralph-cancel.sh` 삭제, **Stop 훅이 둘에서 하나로**(훅 항목 5 → 4), `harness:develop` 의 "장기 실행" 이 `/loop` 하나를 든다. 규율 넷(사용자만 시작 · 안에서 멈추기는 재무장 안 함 · 밖에서 멈추기는 `stop-resume-cancel` 마커 · 재시도 상한은 note)은 그대로다.
+- 스킬 10 · 역할 정의 3 · 주입 블록 · 옮겨온 docs 를 `toolkit:agent-doc-audit` 7기준으로 정리했다(역할 정의와 주입 블록의 영어화 포함). 실측·정정 이력·죽은 경로가 걷혔다.
+- `harness:setup` 0절 분기표의 원본 판별자가 `VERSION` 에서 `ledger.json` 으로 바뀌었다(1.0.0 이 `VERSION` 을 걷어내 판별이 성립하지 않았다). 빈 디렉토리는 1절로 보내지 않고 사용자에게 묻는다 — 1절이 아직 tarball·`scripts/install.sh` 전제다.
+- `checks/rdup-language-probe.sh` 삭제 — 그 프로브가 대조군으로 쓰던 "원천이 한국어라 한글 없는 파일은 못 옮긴다" 는 전제가 영어화로 사라졌다.
+
 ## 1.0.0 — 2026-09-05
 
 발행 시점의 변경은 아래와 같다(skills 레포 `plugins/harness/`, 0.2.0 뒤 커밋 전수 + 스토리 `harness-m8gg`). 이 판부터 CHANGELOG 는 이 파일 하나이고 버전 원본은 `.claude-plugin/plugin.json` 하나다 — 0.2.0 까지의 항목은 하네스 루트에 있던 것을 그대로 옮겼다.
