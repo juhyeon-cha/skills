@@ -32,23 +32,27 @@ ROOT="$TMP/root"; mkdir -p "$ROOT"
 cat > "$ROOT/repos.json" <<'EOF'
 {"repos":[{"name":"harness","url":"https://github.com/juhyeon-cha/harness.git","default_branch":"master","check":"true","bootstrap":""}]}
 EOF
-cat > "$ROOT/rails.json" <<'EOF'
-{"rails":{"r1":{"owner":"juhyeon-cha","description":"픽스처"}}}
-EOF
-# 2026-S01 닫힘 · 2026-S02 활성 — 이 검사가 가르는 유일한 축이다.
-cat > "$ROOT/sprints.json" <<'EOF'
-{"sprints":{"2026-S01":{"status":"closed"},"2026-S02":{"status":"active"}}}
-EOF
 printf '{"backend":"github","owner":"juhyeon-cha","project":4}\n' > "$ROOT/ledger.json"
+# 등록부 파일(rails.json·sprints.json)을 두지 않는다 — board.sh 는 이제 어댑터의 rails·sprints 로
+# 읽는다. 파일이 없는 루트에서 아래 다섯 경우가 다 서는 것이 그 전환의 증거다.
 
-# 가짜 gh — 이슈 한 건만 낸다. 그 이슈가 어느 스프린트에 붙는지는 FAKE_SPRINT 가 정한다.
+# 가짜 gh — 두 질의에 답한다.
+#   ① 이슈: 한 건만 낸다. 그 이슈가 어느 스프린트에 붙는지는 FAKE_SPRINT 가 정한다.
+#      rail:r1 의 owner 는 이 epic 의 assignee 에서 나온다 (github 백엔드의 rails).
+#   ② Projects v2 ITERATION 필드: 2026-S01 닫힘 · 2026-S02 활성 — 이 검사가 가르는 유일한 축이다.
+# 두 질의 다 `gh api graphql` 이라 $1 $2 로는 안 갈린다. 스프린트 질의에만 있는 projectV2 로 가른다
+# (이슈 질의의 프로젝트 필드는 projectItems 다 — ledger-github.sh 의 PROJECT_FIELD).
 mkdir -p "$TMP/bin"
 cat > "$TMP/bin/gh" <<'FAKE'
 #!/usr/bin/env bash
 case "$1 $2" in
   "auth status") exit 0 ;;
   "api graphql")
-    printf '[{"data":{"repository":{"issues":{"nodes":[{"id":"NODE_1","databaseId":1001,"number":1,"title":"픽스처 스토리","state":"OPEN","body":"본문","createdAt":"2026-09-06T00:00:00Z","updatedAt":"2026-09-06T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:epic"},{"name":"repo:harness"},{"name":"rail:r1"},{"name":"slug:fx-story"},{"name":"sprint:%s"}]},"assignees":{"nodes":[]},"comments":{"nodes":[]},"parent":null,"projectItems":{"nodes":[{"project":{"number":4}}]}}]}}}}]' "$FAKE_SPRINT"
+    if [[ "$*" == *projectV2* ]]; then
+      printf '{"data":{"user":{"projectV2":{"fields":{"nodes":[{},{"configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
+      exit 0
+    fi
+    printf '[{"data":{"repository":{"issues":{"nodes":[{"id":"NODE_1","databaseId":1001,"number":1,"title":"픽스처 스토리","state":"OPEN","body":"본문","createdAt":"2026-09-06T00:00:00Z","updatedAt":"2026-09-06T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:epic"},{"name":"repo:harness"},{"name":"rail:r1"},{"name":"slug:fx-story"},{"name":"sprint:%s"}]},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":[]},"parent":null,"blockedBy":{"totalCount":0,"nodes":[]},"projectItems":{"nodes":[{"project":{"number":4}}]}}]}}}}]' "$FAKE_SPRINT"
     exit 0 ;;
 esac
 echo "fake gh: 모르는 호출 $*" >&2; exit 1
@@ -83,7 +87,7 @@ step "닫힌 스프린트 N건 → rc 0 이고 스토리 행이 있다" \
 render 2026-S01 2026-S02
 step "활성 스프린트 0건 → rc≠0 (완화가 여기로 새지 않는다)" [ "$RC" -ne 0 ]
 step "활성 스프린트 0건의 stderr 가 등록부의 status 를 든다" \
-  bash -c 'grep -q "sprints.json 의 status" "$1"' _ "$TMP/err"
+  bash -c 'grep -q "스프린트 등록부의 status" "$1"' _ "$TMP/err"
 
 # ④ 활성 스프린트 · N건 — 평시 경로.
 render 2026-S02 2026-S02
