@@ -42,7 +42,8 @@ die() { echo "ledger-notion: $*" >&2; exit 1; }
 [ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트의 .harness-root 로 찾는다"; exit 0; }
 # 원격 반영 검사 — 페이지가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (notion 백엔드: 페이지가 원격 자체다)"; exit 0; }
-# 등록부 질의 — 이 백엔드가 자기 계층(People · select)으로 답한다(스토리 skills#105 결정 2).
+# 등록부 질의 — 이 백엔드가 자기 계층(rails 는 epic 의 Assignee(rich_text) · sprints 는 select)으로
+# 답한다(스토리 skills#105 결정 2).
 # 이 태스크(skills#142)는 배선까지다: 하위 명령 인식과 인자 검증이 여기 서고, 값을 내는 것은
 # skills#145 다. 그때까지 빈 배열이고, **빈 배열이 실제 상태가 아니라는 사실을 stderr 로 밝힌다** —
 # 조용한 빈 배열은 "레일이 없다" 와 구별되지 않는다. rc 는 0 이다: 계약이 "JSON 배열" 이고
@@ -344,6 +345,8 @@ case "$cmd" in
     [ -n "$claim" ] && [ -n "$set_assignee" ] && die "update: --claim 과 --assignee 는 같이 쓸 수 없다 (claim 은 실행자를 넣고 status 를 옮긴다)"
     if [ -n "$claim" ]; then [ -n "$status" ] || status="in_progress"; fi
     # 빈 문자열은 지우기다 — rt 가 빈 배열을 내고 norm 이 그것을 null 로 읽는다(대응표: assignee).
+    # Assignee 가 rich_text 라 **값을 전혀 검증하지 않는다**: 없는 사람 이름도 그대로 들어간다.
+    # github 이 assign 가능한 login 인지 대조하는 것과 갈리는 자리다(그쪽은 People 이 아니라 계정이다).
     props="$(jq -n --arg status "$status" --arg actor "$actor" --arg claim "$claim" --arg parent "$parent" --arg type "$type" --arg acc "$acc" --arg set_acc "$set_acc" --arg desc "$desc" --arg set_desc "$set_desc" --arg assignee "$assignee" --arg set_assignee "$set_assignee" "$JQLIB"'
       {} + (if $status == "" then {} else {Status:{select:{name:$status}}} end)
          + (if $claim == "" then {} else {Assignee:{rich_text:($actor|rt)}} end)

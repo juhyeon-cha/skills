@@ -36,8 +36,11 @@ usage() {
   close <id>… [--reason <문>|--reason-file <f>] [--force]
   update <id> [--status <s>] [--claim --actor <값>] [-a|--assignee <값>] [--parent <id>] [-t <type>] [--acceptance <문>]
                              --assignee 는 assignee 만 바꾼다(빈 문자열이면 지운다) — 실행자를 넣고 status 를
-                             옮기는 --claim 과 다른 경로라 둘을 같이 주면 rc≠0 이다
-                             (github: 그 이슈가 사는 레포에 assign 할 수 없는 login 이면 rc≠0)
+                             옮기는 --claim 과 다른 경로다
+                             (github·notion: --claim 과 같이 주면 rc≠0 · beads: 가드가 없다 — bd 가 두
+                              플래그를 다 받고(`bd help update` 실측) 남는 값은 bd 가 정한다, 확인하지 않았다)
+                             (github: 그 이슈가 사는 레포에 assign 할 수 없는 login 이면 rc≠0 ·
+                              notion·beads: 값을 검증하지 않는다 — 없는 사람 이름도 그대로 들어간다)
   dep add <id> <의존 대상 id> | --file - (JSONL {"from","to"})
   label add|remove <id> <라벨>
   wire-worktree <워크트리 절대 경로>   워크트리에 원장을 배선한다 — hooks/enter-worktree.sh 가 부른다
@@ -45,7 +48,7 @@ usage() {
   sync-check [--push]        원장이 원격과 어긋났는가 — checks/ledger-check.sh 가 부른다
                              (beads: Dolt 원격 대조, --push 면 앞선 커밋 반영 · github·notion: "원격 반영 대상 없음" rc 0)
   rails --json               레일 전체 — 출력 JSON 은 [{id, owner}] 배열. owner 는 레일 담당자
-                             (beads: <루트>/rails.json · github: epic 의 rail: 라벨 + 그 epic 의 assignee · notion: People)
+                             (beads: <루트>/rails.json · github: epic 의 rail: 라벨 + 그 epic 의 assignee · notion: Assignee(rich_text))
   sprints --json             스프린트 전체 — 출력 JSON 은 [{id, status}] 배열. status 는 active | closed
                              (beads: <루트>/sprints.json · github: Projects v2 Iteration 필드, id 는 iteration 의 title · notion: select)
   help | --help

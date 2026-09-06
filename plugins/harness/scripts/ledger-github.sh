@@ -375,16 +375,19 @@ case "$cmd" in
       [ -n "$status" ] || status="in_progress"
     fi
     if [ -n "$set_assignee" ]; then
-      # **assign 가능한지 먼저 묻는다.** 이슈 PATCH 는 assign 할 수 없는 login 을 조용히 버리고 200 을
-      # 내므로 rc 만으로는 "넣었다" 와 "버려졌다" 가 구별되지 않는다. repos/<slug>/assignees/<login> 이
-      # 가능하면 204, 아니면 404 다 (실측 2026-09-06: dongqdev 가 skills 에서 404 · sap-harness 에서 204).
-      [ -z "$assignee" ] || gh api "repos/$SLUG/assignees/$assignee" >/dev/null 2>&1 \
-        || die "assign 할 수 없는 login 이다: '$assignee' 는 레포 $SLUG 의 협업자가 아니다 (repos/$SLUG/assignees/$assignee 가 404)"
-      # 빈 문자열이면 지우기다. PATCH 는 목록을 **대체**하므로 넣기와 지우기가 한 경로다 —
+      # 빈 문자열이면 지우기다. PATCH 는 assignees 목록을 **대체**하므로 넣기와 지우기가 한 경로다 —
       # gh issue edit 의 --remove-assignee 로 지우려면 현재 login 을 먼저 읽어야 해 왕복이 는다.
+      # 대체이므로 assignee 가 2명 이상인 이슈에서는 나머지가 함께 지워진다. 이 어댑터의 계약이
+      # assignee 1명(대응표: `.assignees.nodes[0].login`)이라 계약 안의 부작용이지만, 지워졌다는
+      # 사실은 원장 JSON 으로 보이지 않는다.
+      # **200 은 성공의 근거가 아니다**: PATCH 는 assign 할 수 없는 login 을 조용히 버리고 200 을 낸다.
+      # 그래서 rc 가 아니라 **응답에 실린 assignees 를 대조한다**(응답에 갱신된 목록이 이미 실려 온다).
+      # 앞에 GET repos/<slug>/assignees/<login> 선검사를 두는 길도 되지만, 그 GET 과 이 PATCH 사이가
+      # 열려 있어 같은 구멍이 남으면서 왕복만 는다. login 은 대소문자를 가리지 않아 낮춰서 견준다.
       jq -n --arg a "$assignee" '{assignees: (if $a == "" then [] else [$a] end)}' \
-        | gh api -X PATCH "repos/$SLUG/issues/$NUM" --input - >/dev/null 2>&1 \
-        || die "assignee 를 바꾸지 못했다: $REPO#$NUM"
+        | gh api -X PATCH "repos/$SLUG/issues/$NUM" --input - 2>/dev/null \
+        | jq -e --arg a "$assignee" '(.assignees[0].login // "" | ascii_downcase) == ($a | ascii_downcase)' >/dev/null \
+        || die "assignee 를 '$assignee' 로 바꾸지 못했다 — 레포 $SLUG 에 assign 할 수 없는 login 이면 GitHub 이 PATCH 를 200 으로 받고 조용히 버린다: $REPO#$NUM"
     fi
     if [ -n "$status" ] || [ -n "$type" ]; then
       cur="$(labels_of "$SLUG" "$NUM")" || die "라벨을 읽지 못했다: $REPO#$NUM"
