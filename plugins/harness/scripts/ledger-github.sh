@@ -217,6 +217,40 @@ case "$cmd" in
     fi
     gh project view "$PROJECT" --owner "$OWNER" --format json >/dev/null 2>&1 \
       || die "Project $PROJECT (owner $OWNER) 를 읽지 못했다 — 번호가 틀렸거나 project scope 가 없다: 'gh auth refresh -h github.com -s project,read:project'"
+    # ── ITERATION 필드. **이 백엔드에서 스프린트의 원본이 그 필드다** — 없으면 sprints 가 답할
+    # 수 없고, 갓 세운 하네스가 문서화된 경로로 스프린트를 읽을 수 없다(이 태스크의 배경).
+    # gh project field-create 는 ITERATION 을 지원하지 않아 gh api graphql 로 만든다(M0 실측).
+    #
+    # **멱등하다** — 먼저 읽고 없을 때만 만든다. 있으면 이름을 들어 한 줄로 말하고 넘어간다.
+    # 판별은 sprints 와 같은 축이다(configuration 이 있는 필드 = ITERATION 필드) — 두 자리가
+    # 다른 기준으로 같은 필드를 찾으면 한쪽이 만든 것을 다른 쪽이 못 보는 판이 생긴다.
+    #
+    # 이름은 "Sprint" 다. sprints 는 dataType 으로 찾고 이름을 읽지 않으므로 값 자체는 계약이
+    # 아니지만, 이미 서 있는 원장(project 5)이 손으로 만들어 쓰는 이름이 그것이라 맞춘다 —
+    # 다른 이름을 쓰면 사람이 GitHub UI 에서 두 열을 보게 된다.
+    #
+    # **iteration 은 하나도 만들지 않는다.** iteration 의 title 이 곧 스프린트 ID(YYYY-SNN)이고
+    # 그것은 사람이 plan-sprint 에서 정하는 값이라 init 이 알 수 없다. 자리를 채우려고 하나
+    # 만들면 그것이 등록부에 실재하는 스프린트로 나온다 — 없는 것보다 나쁘다.
+    # ponytail: 필드는 first:100(GraphQL 한 페이지 상한)까지만 읽는다. 그 이상이면 이미 있는
+    # 필드를 못 보고 하나 더 만들 수 있다 — sprints 의 같은 천장과 한 짝이다.
+    fq='query($o:String!,$n:Int!){ user(login:$o){ projectV2(number:$n){ id fields(first:100){ nodes{
+          ... on ProjectV2IterationField { name configuration { iterations { title } } } } } } } }'
+    fout="$(gh api graphql -f query="$fq" -f o="$OWNER" -F n="$PROJECT" 2>&1)" \
+      || die "init: Projects v2 $PROJECT (owner $OWNER) 의 필드를 읽지 못했다 — $fout"
+    have="$(printf '%s' "$fout" | jq -r '[.data.user.projectV2.fields.nodes[] | select(.configuration != null)] | first.name // empty')" \
+      || die "init: 필드 응답을 읽지 못했다 — $fout"
+    if [ -n "$have" ]; then
+      echo "✓ ITERATION 필드 '$have' 가 이미 있다 — 다시 만들지 않는다"
+    else
+      pid="$(printf '%s' "$fout" | jq -r '.data.user.projectV2.id // empty')"
+      [ -n "$pid" ] || die "init: Projects v2 $PROJECT 의 node id 를 읽지 못했다 — 번호가 틀렸거나, owner 가 사용자가 아니다(이 질의는 user(login:) 이라 조직 소유 project 에 닿지 않는다)"
+      mq='mutation($p:ID!){ createProjectV2Field(input: {projectId: $p, dataType: ITERATION, name: "Sprint"})
+            { projectV2Field { ... on ProjectV2IterationField { name } } } }'
+      mout="$(gh api graphql -f query="$mq" -f p="$pid" 2>&1)" \
+        || die "init: ITERATION 필드를 만들지 못했다 — $mout (토큰에 project scope 가 없으면 'gh auth refresh -h github.com -s project,read:project')"
+      echo "✓ ITERATION 필드 'Sprint' 를 만들었다 — iteration 은 비어 있다(스프린트 ID 는 plan-sprint 에서 사람이 정한다)"
+    fi
     echo "✓ github 원장: owner=$OWNER project=$PROJECT ($LEDGER_CONFIG)"
     ;;
 
@@ -512,9 +546,16 @@ case "$cmd" in
         cfg="$(printf '%s' "$out" | jq -c '[.data.user.projectV2.fields.nodes[] | select(.configuration != null)] | first // empty')" \
           || die "sprints: 필드 응답을 읽지 못했다"
         [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 의 필드(첫 100개) 안에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다. ledger.sh init 은 이 필드를 만들지 않으므로 사람이 한 번 만든다 — 'gh project view $PROJECT --owner $OWNER --format json' 으로 project id 를 얻고, gh api graphql -f query='mutation { createProjectV2Field(input: {projectId: \"<그 id>\", dataType: ITERATION, name: \"Sprint\"}) { projectV2Field { ... on ProjectV2IterationField { id } } } }' 그 다음 같은 자리에서 updateProjectV2Field 의 iterationConfiguration 으로 iteration 을 넣는다(title 이 스프린트 ID, YYYY-SNN)"
-        printf '%s' "$cfg" | jq '[(.configuration.iterations[] | {id: .title, status: "active"}),
-                                  (.configuration.completedIterations[] | {id: .title, status: "closed"})] | sort_by(.id)' \
+        # 빈 배열이 나오는 판이 둘이고 **문면으로 갈린다.** 필드가 없으면 위에서 rc≠0 으로
+        # 죽고(원장이 답할 수 없는 상태다), 필드는 있는데 iteration 이 0개면 여기서 rc 0 의 빈
+        # 배열이다 — 갓 init 한 하네스가 그 모양이고 그것은 정상 상태다. 조용히 내면 둘이
+        # 같은 문면이 되어 board-check 가 모든 sprint: 라벨을 미등재로 읽는다.
+        out="$(printf '%s' "$cfg" | jq '[(.configuration.iterations[] | {id: .title, status: "active"}),
+                                         (.configuration.completedIterations[] | {id: .title, status: "closed"})] | sort_by(.id)')" \
           || die "sprints: 출력을 만들지 못했다"
+        [ "$(printf '%s' "$out" | jq -r 'length')" != "0" ] \
+          || echo "ledger-github: sprints: ITERATION 필드는 있는데 iteration 이 하나도 없다 — '스프린트가 없다' 이고 '필드가 없다' 가 아니다. 스프린트는 plan-sprint 가 그 필드에 iteration 으로 넣는다(title 이 스프린트 ID, YYYY-SNN)" >&2
+        printf '%s\n' "$out"
         ;;
     esac
     ;;

@@ -80,7 +80,19 @@ Follow the one branch that matches `backend`, then continue at "all backends".
 
 #### backend: github (default)
 
-Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `ledger.json` as `{"backend":"github","owner":"<github login>"}` and run `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init` (optionally `--title <project name>`): it creates the Projects v2 that groups the issues of every target repo and writes its `project` number back into `ledger.json` — or, if `project` is already there, verifies the number is readable. Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
+Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `ledger.json` as `{"backend":"github","owner":"<github login>"}` and run `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh init` (optionally `--title <project name>`). Issues live in the target repos of `repos.json` (a story's `repo:` label picks the repo), so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand. Item 2 below (the Dolt remote) does not apply.
+
+**What `init` makes, and what it deliberately does not.** Two things, and it is idempotent in both — running it again on a root that already has them changes nothing and says so:
+
+| | made by `init` | why |
+|---|---|---|
+| the Projects v2 | created when `project` is absent, and its number written back into `ledger.json`; when `project` is already there, the number is only verified as readable | it is the ledger's boundary — see the paragraph below |
+| an `ITERATION` field named `Sprint` on it | created when the project has no `ITERATION` field; when one is already there, `init` names it and leaves it alone | **this backend's sprints are that field's iterations.** Without it `ledger.sh sprints` dies rc≠0 and no sprint can be registered |
+| iterations inside that field | **none** | an iteration's title *is* the sprint ID (`YYYY-SNN`), and people pick it in `plan-sprint`. A placeholder would show up in `sprints` as a sprint that does not exist |
+
+So a freshly initialized root answers `ledger.sh sprints --json` with rc 0 and `[]`, and a stderr line saying the field is there but holds no iterations yet — that is the normal empty state, and it reads differently from the missing-field failure.
+
+**A harness that was set up before `init` made that field** has the project but no `ITERATION` field, so `sprints` dies rc≠0 naming the field. Re-run `ledger.sh init` on that root: it sees the project already present, creates only the missing field, and touches nothing else.
 
 **The ledger's boundary is membership in that Projects v2, not "the issues of the registered repos".** Reads (`list`·`ready`, and therefore every projection and check built on them) return only the issues that are in the `project`, so a target repo's own issues — bug reports, other people's backlog — stay outside the harness even though they live in a repo the harness reads. That is the point: without the boundary, `triage` would offer somebody else's backlog as harness work. What puts an issue inside is `ledger.sh create`, which adds it to the project as it makes it; an issue made any other way is not in the ledger until someone adds it to the project.
 
@@ -162,7 +174,7 @@ The root's files came with the clone (`git clone` brought the context files), an
 **Nothing to restore** — the issues and the Projects v2 live on GitHub, so there is no local copy to bring back and nothing to write into `ledger.json`. What a second participant actually does is four things:
 
 1. **Clone the harness root** (`git clone <the root's url>` and `cd` into it) — this is what section 2 means by "from a clone", and it is the prerequisite for everything below.
-2. **`ledger.json` came with that clone.** `owner` and `project` are already in it — do not run `ledger.sh init`, which would create a *second* Projects v2 and make this machine read a different ledger from everyone else's.
+2. **`ledger.json` came with that clone.** `owner` and `project` are already in it — do not run `ledger.sh init`. It is idempotent and would not make a second project while `project` is set, but it writes to the shared ledger's structure (it creates the `ITERATION` field when that is missing), and that belongs to whoever owns the root. If `sprints` dies naming a missing `ITERATION` field, say so to the root's owner rather than running `init` yourself — 1.5's github branch has the upgrade path.
 3. **`gh auth status` rc 0, with the `project` scope on the token** — `gh auth refresh -s project,read:project` if it is missing (1.5 has the same command and the `-h github.com` caveat for a non-interactive runner). The scope is not optional: the ledger's boundary is Projects v2 membership, so reads need it too, not just writes.
 4. **`HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0** (the `HARNESS_ROOT` prefix is 1.5's rule — the same discriminator gap applies to a clone). This is the whole restore: rc 0 with a row means this machine reads the same ledger as the others.
 

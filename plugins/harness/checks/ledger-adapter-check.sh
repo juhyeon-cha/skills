@@ -281,14 +281,22 @@ case "$1 $2" in
     all="$*"
     case "$all" in
       *addSubIssue*) echo '{"data":{"addSubIssue":{}}}' ;;
-      # Projects v2 의 필드 목록 — sprints 가 읽는 자리. FAKE_GH_NO_ITERATION 이면 ITERATION 필드가
-      # 없는 프로젝트(configuration 이 없는 노드만)를 낸다. 상태 필드가 없으므로 status 는
-      # iterations(현재·미래)/completedIterations(종료일이 지난 것) 두 목록에서만 갈린다.
+      # ITERATION 필드 생성 — init 이 부르는 자리. gh project field-create 는 ITERATION 을
+      # 지원하지 않아 이 뮤테이션이 유일한 통로다(M0 실측).
+      *createProjectV2Field*) echo '{"data":{"createProjectV2Field":{"projectV2Field":{"name":"Sprint"}}}}' ;;
+      # Projects v2 의 필드 목록 — sprints 와 init 이 읽는 자리. 세 판을 낸다:
+      #   기본                    ITERATION 필드가 있고 iteration 이 두 개
+      #   FAKE_GH_NO_ITERATION    ITERATION 필드가 없다 (configuration 이 없는 노드만)
+      #   FAKE_GH_EMPTY_ITERATION 필드는 있고 iteration 이 0개 — 갓 init 한 하네스의 모양이다
+      # 상태 필드가 없으므로 status 는 iterations(현재·미래)/completedIterations(종료일이 지난
+      # 것) 두 목록에서만 갈린다. projectV2.id 는 init 이 뮤테이션에 넘길 node id 다.
       *"fields(first"*)
         if [ -n "${FAKE_GH_NO_ITERATION:-}" ]; then
-          echo '{"data":{"user":{"projectV2":{"fields":{"nodes":[{},{}]}}}}}'
+          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{}]}}}}}'
+        elif [ -n "${FAKE_GH_EMPTY_ITERATION:-}" ]; then
+          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[],"completedIterations":[]}}]}}}}}'
         else
-          echo '{"data":{"user":{"projectV2":{"fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
+          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
         fi ;;
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
       *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
@@ -484,6 +492,37 @@ for sub in rails sprints; do
   step "project 키 없음 → $sub 가 rc≠0 이고 stderr 한 줄이 project 를 이름으로 든다" \
     bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ] && printf "%s" "$2" | grep -q project' _ "$RC" "$ERR"
 done
+# 갓 init 한 하네스의 모양 — 필드는 있고 iteration 이 0개다. 이것은 **정상 상태**라 rc 0 이고,
+# 바로 위의 "필드가 없다"(rc≠0)와 문면으로 갈려야 한다. 갈리지 않으면 board-check 가 두 판을
+# 같게 읽는다.
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_EMPTY_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" sprints --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "필드는 있고 iteration 이 0개 → rc 0 의 빈 배열 (갓 init 한 하네스)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null' _ "$OUT" "$RC"
+step "그 빈 배열이 '스프린트가 없다' 임을 stderr 가 밝히고 '필드가 없다' 와 문면이 다르다" \
+  bash -c 'printf "%s" "$1" | grep -q "iteration 이 하나도 없다" && ! printf "%s" "$1" | grep -q "ITERATION 필드가 없다"' _ "$ERR"
+
+# ── init 이 ITERATION 필드를 만든다 (skills#167). 이 필드가 없으면 갓 세운 github 하네스가
+#    문서화된 경로로 sprints 를 rc 0 으로 만들 수 없다 — 실제로 이 스토리의 오케스트레이터도
+#    필드 생성 명령을 손으로 돌려야 했다.
+: > "$LOG"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_NO_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" init 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "init: ITERATION 필드가 없으면 createProjectV2Field(dataType: ITERATION) 를 부른다" \
+  bash -c '[ "$1" -eq 0 ] && grep -q "createProjectV2Field" "$2" && grep -q "dataType: ITERATION" "$2"' _ "$RC" "$LOG"
+step "init: 뮤테이션이 project 의 node id 를 넘긴다 (번호가 아니다)" \
+  bash -c 'grep -q "p=PVT_x" "$1"' _ "$LOG"
+step "init: iteration 은 만들지 않는다 (스프린트 ID 는 사람이 정한다 — 자리를 채우면 없는 스프린트가 등재된다)" \
+  bash -c '! grep -q "iterationConfiguration" "$1"' _ "$LOG"
+step "init: 무엇을 만들었는지 한 줄로 말한다" bash -c 'printf "%s" "$1" | grep -q "ITERATION 필드"' _ "$OUT"
+# ② 멱등 — project 가 이미 있는 ledger.json 에 다시 돌려도 필드를 겹쳐 만들지 않는다.
+: > "$LOG"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$GH" bash "$LEDGER" init 2>"$TMP/err"); RC=$?
+step "init 멱등: ITERATION 필드가 이미 있으면 createProjectV2Field 를 부르지 않는다" \
+  bash -c '[ "$1" -eq 0 ] && ! grep -q "createProjectV2Field" "$2"' _ "$RC" "$LOG"
+step "init 멱등: 이미 있다는 사실을 필드 이름과 함께 한 줄로 말한다" \
+  bash -c 'printf "%s" "$1" | grep -q "이미 있다" && printf "%s" "$1" | grep -q Sprint' _ "$OUT"
+step "init 멱등: project 가 이미 있으므로 project create 도 부르지 않는다" \
+  bash -c '! grep -q "^project create" "$1"' _ "$LOG"
+
 grun rails --all
 step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
 
