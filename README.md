@@ -105,10 +105,9 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
   버전은 건드리지 않는다.
 - **아직 아무도 쓰지 않는 플러그인은 버전을 올리지 않는다.** 첫 사용자가 생기기 전의
   변경은 전부 `0.1.0` 에 쌓는다. 올려 봐야 아무에게도 알리는 바가 없다.
-- **릴리스 절차는 이 레포가 소유한다** — `.claude/skills/release/SKILL.md`(`/release`). 이전
-  태그부터 훑기 → 폭 결정 → CHANGELOG 항목 → `plugin.json` 버전 → validate → 커밋·로컬 태그.
-  이 레포에서 일할 때만 쓰는 스킬이라 플러그인으로 배포하지 않는다. 태그 push 와 GitHub
-  릴리스는 명시 지시가 있을 때만 한다.
+- **릴리스는 `/release` 로 한다** (`.claude/skills/release/SKILL.md`). 폭과 CHANGELOG 항목은
+  사람이 정하고, 그 뒤의 버전 갱신·validate·커밋·로컬 태그는
+  `bash scripts/release.sh <플러그인> <patch|minor|major>` 가 한다.
 
 ## 커밋
 

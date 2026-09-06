@@ -38,28 +38,34 @@ A plugin nobody has installed yet stays at its current number — raising it tel
 When the rule says MAJOR and you decide not to widen, write that judgment into the entry in one
 line; the next reader must not have to rediscover it.
 
-## 3. Write the entry and raise the number
+## 3. Write the entry
 
-- `plugins/<name>/CHANGELOG.md`: a new entry at the top, heading `## <version> — YYYY-MM-DD`
-  (today's date), body = what an install receives in this edition, grouped by what changed, with
-  the width judgment as its first line. The entry is filled once, here — never per commit.
-- `plugins/<name>/.claude-plugin/plugin.json`: `version` = `<version>`. When the plugin gained or
-  lost a skill, the `description` gets the matching phrase, and `README.md` plus
-  `.claude-plugin/marketplace.json` copy that sentence verbatim — `plugin.json` is the original.
+`plugins/<name>/CHANGELOG.md`: a new entry at the top, heading `## <version> — YYYY-MM-DD` (today's
+date; `<version>` is the number the width from step 2 produces), body = what an install receives in
+this edition, grouped by what changed, with the width judgment as its first line. The entry is
+filled once, here — never per commit.
 
-## 4. Validate, commit, tag
+**Write it before running step 4** — the script refuses to move while the top heading is not this
+release's, so a version that rose without an entry cannot happen.
+
+When the plugin gained or lost a skill, `plugin.json`'s `description` gets the matching phrase, and
+`README.md` plus `.claude-plugin/marketplace.json` copy that sentence verbatim — `plugin.json` is
+the original. Do that here too; step 4 commits those files along with the version.
+
+## 4. Run the script
 
 ```bash
-claude plugin validate . --strict && claude plugin validate ./plugins/<name> --strict
+bash scripts/release.sh <name> <patch|minor|major>
 ```
 
-**rc≠0: stop. No commit and no tag** — fix what validate names and return to this step.
+It computes the next number, checks the preconditions, raises `version` in
+`plugins/<name>/.claude-plugin/plugin.json`, runs `claude plugin validate --strict` on both the
+marketplace and the plugin, commits, and puts a local tag `<name>-v<version>`. **Everything that
+changes state comes after the preconditions**, so a refusal at that stage leaves nothing behind, and
+a validate failure restores the original `plugin.json`.
 
-```bash
-git add plugins/<name> README.md .claude-plugin/marketplace.json
-git commit -m 'chore(<name>): release <version>'
-git tag '<name>-v<version>'
-```
+**rc≠0: read what it printed and fix that.** Do not do the steps by hand instead — the script is
+where the version, the CHANGELOG heading, and the tag name are held to one number.
 
 The tag is local. **Pushing the tag and publishing a GitHub release (`gh release create`) happen
 only on the user's explicit instruction**, and an instruction covers one release. The marketplace
