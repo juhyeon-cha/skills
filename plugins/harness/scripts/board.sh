@@ -93,10 +93,23 @@ fi
 #
 # **0건은 스프린트에서만 실패다.** 백로그·adr 은 비는 것이 정상 상태다(스토리가 전부
 # 스프린트에 편입됐거나 닫혔다 · 신규 하네스는 epic 도 decision 도 없다) — 빈 표 index.md 를 낸다.
+#
+# **예외: 닫힌 스프린트는 0건이어도 통과다** (사용자 결정 2026-09-06, harness-kw0l.3.6).
+# "0건 통과는 검사 안 함이다" 라는 이 트리의 규율에 대한 예외이므로 근거를 적는다. 원장을 옮기면
+# **열린 항목만** 넘어가므로, 마감된 스프린트의 스토리는 새 원장에 아예 없다 — 그 스프린트의 렌더
+# 입력이 0건인 것은 오진이 아니라 사실이고, 실패로 두면 board.sh all 이 영구히 rc 1 이 된다.
+# 그래도 **활성 스프린트의 0건은 여전히 실패다**: 진행 중인 스프린트가 비어 보이는 것은 라벨을
+# 안 붙였거나 질의가 어긋난 것이고, 그것이 이 규칙이 애초에 잡으려던 오진이다.
+# 경계의 원본은 sprints.json 의 status 다 — 닫힌 이슈 개수로 판정하지 않는다(그 오판의 되돌림이
+# 커밋 f88d779 다). 등재가 없거나 status 를 읽지 못하면 종전대로 실패다: 모르는 스프린트를
+# "닫혔겠지" 로 통과시키면 예외가 규칙을 삼킨다.
 if [[ "$MODE" == "sprint" ]] \
    && [[ "$(printf '%s' "$JSON" | jq '[.[] | select(.issue_type == "epic")] | length')" -eq 0 ]]; then
-  echo "sprint:$NAME 라벨이 붙은 스토리(epic)가 없다" >&2
-  exit 1
+  SPRINT_STATUS="$(jq -r --arg id "$NAME" '.sprints[$id].status // ""' "$ROOT/sprints.json" 2>/dev/null)" || SPRINT_STATUS=""
+  if [[ "$SPRINT_STATUS" != "closed" ]]; then
+    echo "sprint:$NAME 라벨이 붙은 스토리(epic)가 없다 (sprints.json 의 status: ${SPRINT_STATUS:-등재 없음} — 닫힌 스프린트만 0건이 통과다)" >&2
+    exit 1
+  fi
 fi
 
 # 타임스탬프를 넣지 않는다 — 같은 bd 상태면 바이트 동일(결정론). 재렌더가 diff 를 만들지 않는다.
