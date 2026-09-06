@@ -162,7 +162,7 @@ Several places say "do not quote a hand count; use the output of `scripts/guard-
 | no log, and **the inspected `guard.sh` has the logging call** | 1 | "the hook never ran". **Only when the inspected hook is the one sessions load** — the phrase prints the path |
 | no log, and **the inspected `guard.sh` has no logging call** | 3 | **not "0 firings".** The hook runs and leaves nothing |
 
-The three branches are reproduced, and a copy of the counting command with the distinction removed is shown unable to tell them apart, by `checks/guard-check.sh` ⑯.
+The three branches are reproduced, and a copy of the counting command with the distinction removed is shown unable to tell them apart, by `checks/guard-check.sh` ⑱.
 
 ### Ceilings (what it cannot do)
 
