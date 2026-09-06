@@ -170,6 +170,12 @@ node() { # <번호> <제목> <상태> <라벨 JSON> <부모 JSON> <본문>
   printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"%s","state":"%s","body":"%s","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":%s},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":[{"body":"메모"}]},"parent":%s}' \
     "$1" "$1" "$1" "$2" "$3" "$6" "$4" "$5"
 }
+# actor 픽스처 — 코멘트만 갈아 끼운 노드. assignee 는 로그인명 그대로다(그것이 이 백엔드에서
+# actor 와 assignee 가 갈리는 이유다 — ledger-github.sh 대응표).
+node_actor() { # <번호> <코멘트 nodes JSON>
+  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"actor 픽스처","state":"OPEN","body":"본문","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:task"},{"name":"repo:harness"}]},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":%s},"parent":null}' \
+    "$1" "$1" "$1" "$2"
+}
 N57='[{"name":"type:epic"},{"name":"repo:harness"},{"name":"status:blocked"}]'
 N58='[{"name":"type:feature"},{"name":"repo:harness"},{"name":"rail:r1"}]'
 N59='[{"name":"type:task"},{"name":"repo:harness"}]'
@@ -189,6 +195,13 @@ case "$1 $2" in
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
       *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
+      # 60 — ACTOR 코멘트가 하나. 뒤에 다른 note 가 더 붙어도 값이 살아야 한다.
+      *"n=60"*) printf '{"data":{"repository":{"issue":%s}}}' \
+        "$(node_actor 60 '[{"body":"메모"},{"body":"ACTOR: sess-abc123"},{"body":"두 번째 메모"}]')" ;;
+      # 62 — ACTOR 코멘트가 둘이고 뒤엣것이 스토리 형태(`ACTOR: <레포> <값>`)다. 마지막 코멘트의
+      #      마지막 토큰이 값이다 — 첫 토큰을 읽으면 레포 이름(harness)을 집는다.
+      *"n=62"*) printf '{"data":{"repository":{"issue":%s}}}' \
+        "$(node_actor 62 '[{"body":"ACTOR: sess-old111"},{"body":"ACTOR: harness sess-new222"}]')" ;;
       *) printf '{"data":{"repository":{"issue":%s}}}' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1\n')" ;;
     esac; exit 0 ;;
   "api -X"|"api repos"*)
@@ -237,11 +250,22 @@ grun create "x" -t task
 step "create 에 repo: 라벨도 --parent 도 없으면 rc≠0" [ "$RC" -ne 0 ]
 
 grun show 'harness#57' --json
-step "show --json 의 키가 bd 와 같다 (id·title·status·issue_type·labels·acceptance_criteria·notes·assignee·parent)" \
-  bash -c 'printf "%s" "$1" | jq -e ".[0] | keys | contains([\"id\",\"title\",\"status\",\"issue_type\",\"labels\",\"acceptance_criteria\",\"notes\",\"assignee\",\"parent\",\"description\",\"dependencies\"])" >/dev/null' _ "$OUT"
+step "show --json 의 키가 bd 와 같다 (id·title·status·issue_type·labels·acceptance_criteria·notes·assignee·actor·parent)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | keys | contains([\"id\",\"title\",\"status\",\"issue_type\",\"labels\",\"acceptance_criteria\",\"notes\",\"assignee\",\"actor\",\"parent\",\"description\",\"dependencies\"])" >/dev/null' _ "$OUT"
 step "show --json 의 값 대응: status:blocked 라벨→blocked · type:epic→epic · labels 에서 type:·status: 제거 · 코멘트→notes · 본문 절 분리" \
   bash -c 'printf "%s" "$1" | jq -e ".[0] | .id == \"harness#57\" and .status == \"blocked\" and .issue_type == \"epic\" and .labels == [\"repo:harness\"] and .notes == \"메모\" and .acceptance_criteria == \"조건 1\" and .description == \"본문\" and .assignee == \"juhyeon-cha\" and .parent == null and (.dependencies | length == 1) and .dependencies[0].id == \"harness#58\"" >/dev/null' _ "$OUT"
 step "jq -r .[0].status 가 그대로 돈다" bash -c '[ "$(printf "%s" "$1" | jq -r ".[0].status")" = "blocked" ]' _ "$OUT"
+# ── actor 키 (harness-kw0l.3.1). 정지 가드가 `.actor // .assignee` 로 읽는 필드다. github 은 이
+#    둘이 갈린다 — assignee 는 claim 을 돌린 사람의 GitHub 로그인이고 actor 는 세션 값이다.
+#    실패 경로를 같은 자리에서 함께 못박는다: ACTOR 코멘트가 없으면 actor 는 null 이다(57번).
+step "actor 실패 경로: ACTOR 코멘트가 없는 이슈의 actor 는 null 이다 (assignee 로 새지 않는다)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | has(\"actor\") and .actor == null and .assignee == \"juhyeon-cha\"" >/dev/null' _ "$OUT"
+grun show 'harness#60' --json
+step "actor: 마지막 ACTOR 코멘트의 값을 싣고 assignee 는 로그인명 그대로다 (둘이 갈린다)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0] | .actor == \"sess-abc123\" and .assignee == \"juhyeon-cha\"" >/dev/null' _ "$OUT"
+grun show 'harness#62' --json
+step "actor: ACTOR 코멘트가 둘이면 마지막 것이고, 스토리 형태(ACTOR: <레포> <값>)는 마지막 토큰이다" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0].actor == \"sess-new222\"" >/dev/null' _ "$OUT"
 # compose_body 는 본문을 "\n" 으로 끝낸다(위 픽스처 57 의 body 가 그 형태) — bd 처럼 acceptance_criteria 에 끝 개행이 없어야 한다.
 step "본문 끝 개행이 acceptance_criteria 에 남지 않는다" bash -c 'printf "%s" "$1" | jq -e ".[0].acceptance_criteria | endswith(\"\\n\") | not" >/dev/null' _ "$OUT"
 grun show 'harness#999' --json
@@ -262,6 +286,10 @@ step "children --json 이 subIssues 2건을 parent 와 함께 낸다" \
   bash -c 'printf "%s" "$1" | jq -e "length == 2 and .[0].id == \"harness#58\" and .[0].parent == \"harness#57\" and .[1].status == \"closed\"" >/dev/null' _ "$OUT"
 grun list --json
 step "list --json 은 closed 를 뺀다 (3건 중 2건)" bash -c 'printf "%s" "$1" | jq -e "length == 2" >/dev/null' _ "$OUT"
+# 정지 가드가 실제로 읽는 것은 show 가 아니라 `list --status in_progress --json` 이다 — 그쪽에도
+# actor 키가 실려야 좁히기가 산다. show 에만 있으면 가드는 조용히 종전 동작으로 돌아간다.
+step "list --json 의 항목에도 actor 키가 있다 (정지 가드가 읽는 경로)" \
+  bash -c 'printf "%s" "$1" | jq -e "all(has(\"actor\"))" >/dev/null' _ "$OUT"
 grun list --all --json -n 0
 step "list --all --json -n 0 은 전부 낸다 (3건)" bash -c 'printf "%s" "$1" | jq -e "length == 3" >/dev/null' _ "$OUT"
 grun list -l repo:harness,rail:r1 --status open --json

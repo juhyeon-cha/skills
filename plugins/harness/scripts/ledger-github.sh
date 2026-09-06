@@ -20,6 +20,14 @@
 #   labels               라벨 전부 − type:·status: (인코딩용 라벨은 뺀다), 정렬
 #   notes                코멘트 본문을 "\n" 로 이은 문자열 (0건이면 null) — note·ACTOR:·close 사유가 전부 여기
 #   assignee             첫 assignee 의 login (없으면 null)
+#   actor                마지막 `ACTOR: <값>` 코멘트의 <값> (없으면 null) — 그 항목을 잡은 세션이다.
+#                        assignee 와 갈리는 이유: 이 백엔드의 claim 은 assignee 에 `@me`(사람의 GitHub
+#                        로그인)를 넣고 세션 actor 는 코멘트로 남기므로 한 필드가 둘을 겸할 수 없다.
+#                        정지 가드(hooks/stop-resume.sh)가 `.actor // .assignee` 로 읽는다 —
+#                        beads 는 그 개념이 assignee 하나뿐이라 actor 키가 없고 뒤엣것으로 떨어진다.
+#                        줄의 **마지막 공백 구분 토큰**을 값으로 읽는다 — claim 이 남기는 것은
+#                        `ACTOR: <값>` 한 토큰이지만 스토리 항목의 ACTOR note 는 `ACTOR: <레포> <값>`
+#                        이라(harness:develop 1절) 첫 토큰을 읽으면 스토리에서 레포 이름을 집는다.
 #   parent               sub-issue 부모의 <repo>#<number> (없으면 null)
 #   dependencies         show 에만: blocked_by 목록 [{id, status, dependency_type:"blocks"}]
 #   priority             2 고정 (대응 필드 없음)
@@ -77,6 +85,10 @@ NORM='def norm:
       labels: ($ls | map(select((startswith("type:") or startswith("status:")) | not)) | sort),
       notes: (if (.comments.nodes|length) == 0 then null else (.comments.nodes | map(.body) | join("\n")) end),
       assignee: (.assignees.nodes[0].login // null),
+      actor: ([.comments.nodes[].body
+               | capture("^ACTOR:[ \t]*(?<v>[^\r\n]*)").v
+               | (split(" ") | map(select(length > 0)) | last)]
+              | map(select(. != null)) | last),
       parent: (if .parent then (.parent.repository.name + "#" + (.parent.number|tostring)) else null end),
       priority: 2,
       created_at: .createdAt, updated_at: .updatedAt, closed_at: .closedAt };'

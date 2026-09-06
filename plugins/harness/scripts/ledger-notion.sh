@@ -22,6 +22,9 @@
 #   labels               Labels 의 이름들, 정렬
 #   notes                페이지 자식 문단 블록을 "\n" 로 이은 문자열 (0건이면 null) — note·ACTOR:·close 사유가 전부 여기
 #   assignee             Assignee (빈 문자열이면 null)
+#   actor                assignee 와 같은 값 — 이 백엔드의 claim 은 --actor 값을 Assignee 에 그대로
+#                        넣는다. 키를 따로 두는 이유는 정지 가드가 백엔드를 모르는 채 `.actor` 를
+#                        읽기 때문이다(github 는 두 값이 갈린다 — ledger-github.sh 대응표).
 #   parent               Parent 관계의 첫 페이지 id (없으면 null)
 #   dependencies         show 에만: Blocked by 목록 [{id, status, dependency_type:"blocks"}]
 #   priority             2 고정
@@ -79,6 +82,7 @@ def norm: {
   labels: ([.properties.Labels.multi_select[]?.name] | sort),
   notes: null,
   assignee: ((.properties.Assignee.rich_text | txt) | if . == "" then null else . end),
+  actor: ((.properties.Assignee.rich_text | txt) | if . == "" then null else . end),
   parent: (.properties.Parent.relation[0].id // null),
   priority: 2,
   created_at: .created_time, updated_at: .last_edited_time };'
