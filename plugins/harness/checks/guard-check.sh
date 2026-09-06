@@ -568,12 +568,55 @@ declare -a MC_SH_READ_PASS=(
   "R=$MCROOT/repo; cat \$R/README.md"
   "R=$MCROOT/repo cat \$R/README.md"
   "R=$MCROOT/repo; git -C \$R log --oneline -1; echo done"
+  # harness-m8gg.8.5 — 조회 형태 16개 (harness-c2bo 의 13개 + 이 스토리에서 관측된 3개). 고치기 전에는
+  # wc·rev-parse 를 뺀 14개가 rc=2 였다(재현은 그 태스크의 note).
+  "sed -n 1,5p $MCROOT/repo/README.md"
+  "jq .name $MCROOT/repo/package.json"
+  "awk '{print \$1}' $MCROOT/repo/README.md"
+  "sort $MCROOT/repo/README.md"
+  "wc -l $MCROOT/repo/README.md"
+  "find $MCROOT/repo -name '*.sh'"
+  "ls $MCROOT/repo | sort"
+  "for f in $MCROOT/repo/*.md; do cat \$f; done"
+  "git -C $MCROOT/repo worktree list"
+  "git -C $MCROOT/repo config --get remote.origin.url"
+  "git -C $MCROOT/repo branch --show-current"
+  "git -C $MCROOT/repo rev-parse HEAD"
+  "git -C $MCROOT/repo archive HEAD"
+  "cd $MCROOT/repo && gh pr view"
+  "echo \"a (b)\"; cat $MCROOT/repo/README.md"       # 인용 안의 괄호 — 조각 경계가 아니다
+  "grep 'a|b' $MCROOT/repo/README.md"                # 인용 안의 파이프 — 조각 경계가 아니다
+  "[ -f $MCROOT/repo/README.md ] && echo y"          # `[` 는 tr 이 지우던 낱말 — 첫 실행 낱말이 경로 basename 이었다
+  "if [ -f $MCROOT/repo/f ]; then cat $MCROOT/repo/f; fi"
+  "echo \"\$(cat $MCROOT/repo/f)\""                  # 큰따옴표 안의 명령 치환은 경계로 남는다 — 아래 MIX 의 rm 대조군과 쌍
 )
 for c in "${MC_SH_READ_PASS[@]}"; do
   runm "$(j_bash "$c")"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "통과(읽기 전용 명령만): $c" [ "$GUARD_RC" -eq 0 ]
 done
+# ── 읽기 낱말 목록의 **전수** — 훅 소스의 한 자리(MC_READ_CMDS·MC_GIT_READ·MC_GIT_READ_OPT)에서 파생해
+#    낱말마다 통과를 단언한다. 위 손목록은 형태를, 이 파생은 목록의 신선도를 든다 — 목록에 있는데 시험이
+#    없는 낱말은 구조상 없다. `[` 가 목록에 있으면서 죽어 있던 것이 이 단언이 없어서였다(harness-m8gg.8.5).
+MC_WORDS=$(hook_vopts MC_READ_CMDS); MC_GITSUBS=$(hook_vopts MC_GIT_READ); MC_GITOPTS=$(hook_vopts MC_GIT_READ_OPT)
+step "읽기 낱말 목록이 훅 소스에서 파생됐다 (20개 이상)" [ "$(printf '%s\n' "$MC_WORDS" | grep -c .)" -ge 20 ]
+step "git 읽기 하위 명령 목록이 훅 소스에서 파생됐다 (10개 이상)" [ "$(printf '%s\n' "$MC_GITSUBS" | grep -c .)" -ge 10 ]
+step "git 읽기 옵션 쌍 목록이 훅 소스에서 파생됐다 (3개 이상)" [ "$(printf '%s\n' "$MC_GITOPTS" | grep -c .)" -ge 3 ]
+mc_fails=""
+while IFS= read -r w; do
+  [ -n "$w" ] || continue
+  runm "$(j_bash "$w $MCROOT/repo/f")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails $w"
+done <<< "$MC_WORDS"
+while IFS= read -r w; do
+  [ -n "$w" ] || continue
+  runm "$(j_bash "git -C $MCROOT/repo $w")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails git:$w"
+done <<< "$MC_GITSUBS"
+while IFS= read -r w; do
+  [ -n "$w" ] || continue
+  runm "$(j_bash "git -C $MCROOT/repo ${w%%:*} ${w#*:}")"; [ "$GUARD_RC" -eq 0 ] || mc_fails="$mc_fails git:$w"
+done <<< "$MC_GITOPTS"
+[ -z "$mc_fails" ] || say_fail "목록에 있는데 본 체크아웃 경로와 함께 막히는 낱말:$mc_fails"
+step "읽기 목록의 모든 낱말이 본 체크아웃 경로와 함께 통과한다 (목록 ⊆ 시험)" [ -z "$mc_fails" ]
 # 읽기 명령에 쓰기 조각이나 파일 리다이렉션이 하나라도 섞이면 종전대로 막힌다.
 declare -a MC_SH_READ_MIX=(
   "cat $MCROOT/repo/a > /tmp/b"
@@ -589,6 +632,19 @@ declare -a MC_SH_READ_MIX=(
   "git -C $MCROOT/repo tag -d v1"
   "git -C $MCROOT/repo config user.name x"
   "git -C $MCROOT/repo remote add o u"
+  # harness-m8gg.8.5 — 목록이 넓어져도 쓰기는 그대로 막힌다. 읽기 낱말의 쓰기 옵션(MC_WRITE_OPTS)과
+  # 옵션 쌍 밖의 git 하위 명령, 인용 안이 스크립트인 `bash -c`, 큰따옴표 안의 명령 치환이 여기다.
+  "find $MCROOT/repo -exec rm {} \\;"
+  "find $MCROOT/repo -name x -execdir rm {} \\;"
+  "sed -ni.bak 1p $MCROOT/repo/f"
+  "sort -o $MCROOT/repo/f $MCROOT/repo/f"
+  "git -C $MCROOT/repo pull"
+  "git -C $MCROOT/repo worktree add /tmp/x"
+  "bash scripts/install.sh sync $MCROOT"
+  "bash -c \"cd $MCROOT/repo && rm -rf src\""
+  "echo \"\$(rm -rf $MCROOT/repo/src)\""
+  "cd $MCROOT/repo && gh pr checkout 5"
+  "for f in $MCROOT/repo/*; do rm \$f; done"
 )
 for c in "${MC_SH_READ_MIX[@]}"; do
   runm "$(j_bash "$c")"
@@ -739,6 +795,15 @@ runm "$(j_write_cwd '../../../f' "$MC_CWD_WT")"
 step "Write 도구의 상대 경로도 cwd 로 접는다 → rc=2" [ "$GUARD_RC" -eq 2 ]
 runm "$(j_write_cwd 'src/a.js' "$MC_CWD_WT")"
 step "Write 도구의 워크트리 안 상대 경로는 통과 → rc=0" [ "$GUARD_RC" -eq 0 ]
+# cwd 가 클론 루트 **밖**이면 상위 디렉토리 상대 경로는 클론 루트 직속으로 접히지 않는다 (harness-m8gg.8.5
+# acceptance 2). 접힌 결과가 실제로 밖이라 읽기도 쓰기도 rc=0 이다 — 클론 루트와 접두만 같은 형제도 같다.
+MC_CWD_OUT="$TMP/elsewhere/deep"
+runm "$(j_bash_cwd 'cat ../f' "$MC_CWD_OUT")"
+step "상대 읽기(cwd 클론 밖): ../f 는 클론 루트 직속이 아니다 → rc=0" [ "$GUARD_RC" -eq 0 ]
+runm "$(j_bash_cwd 'echo 1 > ../f' "$MC_CWD_OUT")"
+step "상대 쓰기(cwd 클론 밖): ../f 는 클론 루트 직속이 아니다 → rc=0" [ "$GUARD_RC" -eq 0 ]
+runm "$(j_bash_cwd 'ls ../; for d in ../*/; do ls $d; done' "${MCROOT}-sibling/deep")"
+step "상대 읽기(cwd 가 클론 루트의 형제): ../ 는 클론 루트가 아니다 → rc=0" [ "$GUARD_RC" -eq 0 ]
 # A/B 귀속 — cwd 를 접는 한 줄(mc_norm 의 상대 분기)을 옛 형태로 되돌린 사본은 같은 입력을 통과시킨다.
 NEG_CWD="$TMP/guard-no-cwd.sh"
 step "부정 대조군 전제: 상대 분기가 훅에 1줄 실재한다" \

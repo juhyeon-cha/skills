@@ -164,13 +164,14 @@ AGENT_TYPE="$(field '.agent_type')"   # 역할별 차등 규칙의 근거 (imple
 # 판정하지 않는다(한계). 명령 안의 `cd` 는 못 따라간다 — 서브에이전트는 호출마다 cd 한다(한계).
 CWD="$(field '.cwd')"
 SESSION_ID="$(field '.session_id')"   # 발화 로그의 회차 열. 판정에는 쓰지 않는다
-COMMAND="$(field '.tool_input.command')"    # Bash
+COMMAND_RAW="$(field '.tool_input.command')"    # Bash — 인용부호를 걷기 전 원문 (mc_all_readonly 가 조각 경계를 인용 안팎으로 가를 때 쓴다)
 # 판정용 정규화 — 인용부호와 백슬래시를 걷어낸다. 셸은 `git pu\sh`·`git p""ush` 를 push 로
 # 실행하는데 낱말 판정(has_token 의 -w)은 그 글자에 막혀 **미탐**이었다 [실측 2026-08-28,
 # implementer: 둘 다 rc=0 — 리뷰 #6]. 리터럴 `\n`·`\t` 는 먼저
 # 공백으로 되돌린다(걷어내면 `\n/path` 가 `n/path` 로 붙어 경로 추출이 어긋난다).
 # 역따옴표는 남긴다(판정 재료로 쓰는 규칙은 지금 없다 — 걷어내면 뒤의 경로 추출이 어긋난다).
-COMMAND="$(printf '%s' "$COMMAND" | sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g")"
+strip_quotes() { sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g"; }
+COMMAND="$(printf '%s' "$COMMAND_RAW" | strip_quotes)"
 FILE_PATH="$(field '.tool_input.file_path')" # Write·Edit·Read 계열
 NOTEBOOK_PATH="$(field '.tool_input.notebook_path')" # NotebookEdit 은 file_path 를 쓰지 않는다
 
@@ -246,16 +247,19 @@ subcmds_after() {  # subcmds_after <도구> <값-받는 옵션 목록> [건초�
 # 규칙은 낱말의 **존재**가 아니라 **실행되는 자리**를 본다. 명령 문자열을 조각으로 나누고
 # (경계: `;` `&&` `||` `|` `(` `$(` 개행) 조각의 **첫 실행 낱말**을 그 조각이 실행하는 명령으로
 # 읽는다. 앞에 붙는 것은 건너뛴다 — `VAR=값` · 옵션(`-x`) · 숫자(`timeout 5` 의 5) · 래퍼
-# (timeout env nice sudo bash sh zsh — `bash -c "bd …"` 의 실행은 bd 다). 산문·경로·인용문
-# 속 낱말은 조각의 첫 실행 낱말이 아니므로 판정에 들지 않는다 (`git log --grep push` ·
+# (timeout env nice sudo bash sh zsh — `bash -c "bd …"` 의 실행은 bd 다) · 명령 앞에 서는 셸
+# 키워드(if then else elif while until do — `if git push; then` 의 실행은 git 이고 `do cat f` 는 cat 이다).
+# 산문·경로·인용문 속 낱말은 조각의 첫 실행 낱말이 아니므로 판정에 들지 않는다 (`git log --grep push` ·
 # 커밋 메시지 본문의 `bd create` · 파이썬 문자열 속 `git push`).
 # 못 보는 것: 변수 치환(`B=bd; $B …`) · `eval` · 스크립트 파일 경유 — 종전과 같다.
 # 첫 실행 낱말은 basename 으로 비교한다 — 경로 **끝**의 도구 이름은 인자 자리라 걸리지 않고
 # (`chmod +x /tmp/x/gh` · `bash /tmp/gh-runner.sh`), `/opt/homebrew/bin/gh pr create` 는 걸린다.
-EXEC_WRAPPERS="timeout env nice sudo bash sh zsh"
+# `[` 는 낱말로 남긴다 — tr 이 지우면 `[ -f <경로> ]` 의 첫 실행 낱말이 경로의 basename 이 된다
+# (MC_READ_CMDS 의 `[` 가 그래서 죽어 있었다 — harness-m8gg.8.5 note).
+EXEC_WRAPPERS="timeout env nice sudo bash sh zsh if then else elif while until do"
 cmd_segments() { printf '%s\n' "${1-$COMMAND}" | sed -E 's/\|\||&&|[;|(]|\$\(/\n/g'; }
 seg_exec_word() {  # seg_exec_word <조각> → 첫 실행 낱말 (없으면 빈 줄)
-  printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=-' '\n' \
+  printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=[-' '\n' \
     | awk -v w="$EXEC_WRAPPERS" '
         BEGIN { split(w, a, " "); for (k in a) wrap[a[k]] = 1 }
         $0 == "" { next }
@@ -500,35 +504,79 @@ RULES+=("*:r_main_write")
 # **상대 경로**는 payload 의 cwd 로 접어 후보에 넣는다(`./`·`../` 로 시작하는 토큰) — 워크트리에서
 # `echo x > ../../../f` 가 본 체크아웃 쓰기인 자리다. cwd 가 없으면 mc_norm 이 판정하지 않는다.
 # 읽기 전용 명령만으로 된 명령은 본 체크아웃 경로가 있어도 통과한다. 조각(`;` `&&` `||` `|`)
-# **전부**의 첫 실행 낱말이 아래 목록이거나 git 의 읽기 하위 명령이고, 어느 조각에도 파일
-# 리다이렉션(`>` — `2>&1`·`>/dev/null` 은 제외)이 없을 때다. 하나라도 어긋나면 종전대로 막는다.
-# find 는 면제하지 않는다 — -delete·-exec 가 쓰기다.
-MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath test [ cd pwd echo printf"
+# **전부**의 첫 실행 낱말이 아래 목록이거나 git 의 읽기 하위 명령(또는 읽기 옵션이 붙은 하위 명령)이거나
+# gh 의 읽기 하위 명령이고, 어느 조각에도 파일 리다이렉션(`>` — `2>&1`·`>/dev/null` 은 제외)이 없을
+# 때다. 하나라도 어긋나면 종전대로 막는다.
+# 조각 경계는 **인용 밖**에서만 센다 — `echo "a (b)"; cat f` 의 `(`, `grep 'a|b' f` 의 `|` 는 텍스트다.
+# 위의 COMMAND 는 인용부호를 먼저 걷어내므로 그 구분이 사라진다 — 그래서 이 판정만 COMMAND_RAW 에서
+# 인용 안의 `; | & ( )` 를 공백으로 바꾼 뒤 걷어낸다(harness-c2bo 의 괄호 결함이 이 자리다).
+# 큰따옴표 안의 `$(` 는 명령 치환이라 경계로 남긴다 — `echo "$(rm -rf …)"` 의 rm 을 봐야 한다.
+# `bash -c "…"` 는 인용 안이 스크립트라 경계를 지우면 그 안의 쓰기가 가려진다 — 조각에 `sh -c` 가
+# 있으면(bash·zsh 도 이 문자열을 품는다) 읽기로 보지 않는다.
+# 읽기 낱말 목록 — 여기 한 자리뿐이다. 게이트(checks/guard-check.sh ⑨)가 이 줄에서 파생해 낱말마다
+# 통과를 단언하므로 시험 없는 낱말은 없다. 옵션에 따라 쓰기가 되는 낱말은 MC_WRITE_OPTS 에 그 옵션을 둔다.
+MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find"
+# 읽기 낱말이 쓰기가 되는 옵션 — `<낱말>:<정규식>`. 조각에 그 토큰이 있으면 읽기가 아니다.
+MC_WRITE_OPTS="sed:-[A-Za-z]*i[^[:space:]]*|--in-place[^[:space:]]* sort:-o[^[:space:]]*|--output[^[:space:]]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)"
 # **모든 형태가 읽기인 하위 명령만 든다.** `branch`(-D)·`tag`(-d)·`config`(값 쓰기)·
 # `remote`(add·remove)·`stash`(bare 형태)는 읽기 형태가 있어도 쓰기 형태가 있어 뺀다 —
 # 목록은 옵션을 보지 않으므로 등재하면 그 쓰기까지 함께 통과한다. 채점자 쪽 목록
 # (GR_GIT_READ)이 `branch` 를 들고 있는 것과 갈리는 지점이고, 그쪽을 따라가지 않는다.
-MC_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-remote grep for-each-ref merge-base ls-tree rev-list shortlog diff-tree name-rev check-ignore var count-objects whatchanged"
+# `archive` 는 stdout 으로 내는 것이 기본이라 읽기로 둔다 — `-o <본 체크아웃>/x.tar` 는 추적되지
+# 않는 파일 하나를 떨구는 것이라 감수한다.
+MC_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-remote grep for-each-ref merge-base ls-tree rev-list shortlog diff-tree name-rev check-ignore var count-objects whatchanged archive"
+# 위에서 뺀 하위 명령의 읽기 형태 — `<하위명령>:<바로 다음 토큰>`. 바로 다음 토큰이 그것일 때만 읽기다
+# (`git worktree list` · `git config --get x` · `git branch --show-current`). 게이트가 쌍마다 통과를 단언한다.
+MC_GIT_READ_OPT="worktree:list config:--get config:--get-regexp config:--list config:-l branch:--show-current branch:--list branch:-a branch:-r branch:-v branch:-vv remote:-v remote:show remote:get-url stash:list stash:show tag:-l tag:--list"
+mc_segcmd() {  # COMMAND_RAW 의 인용 안 경계 문자를 공백으로 — 그다음은 COMMAND 와 같은 정규화
+  printf '%s\n' "$COMMAND_RAW" | awk '
+    {
+      q = ""; out = ""; prev = ""
+      for (i = 1; i <= length($0); i++) {
+        c = substr($0, i, 1)
+        if (q == "") { if (c == "\"" || c == "\047") q = c }
+        else if (c == q) q = ""
+        else if (index(";|&()", c) && !(c == "(" && q == "\"" && prev == "$")) c = " "
+        prev = substr($0, i, 1); out = out c
+      }
+      print out
+    }' | strip_quotes
+}
 mc_all_readonly() {
-  local seg w sub any=0
+  local seg w sub nxt re e any=0
   while IFS= read -r seg; do
     [ -n "$(printf '%s' "$seg" | tr -d '[:space:]')" ] || continue
     any=1
     case "$(printf '%s' "$seg" | sed -E 's#[0-9]?>&[0-9]##g; s#[0-9]?>/dev/null##g')" in *'>'*) return 1 ;; esac
+    case "$seg" in *"sh -c"*) return 1 ;; esac
     w="$(seg_exec_word "$seg")"
     # 실행 낱말이 없는 조각은 **명령이 아니므로** 읽기·쓰기를 가를 대상이 아니다 —
     # 변수 대입만 있는 조각(`P=<경로>; …`)이 그렇다. 판정은 명령을 실행하는 조각이 든다.
     # 대입 접두형(`P=<경로> cat …`)과 같은 결론이 되는 것이 옳다 — 그쪽은 seg_exec_word 가
     # `=` 토큰을 건너뛰어 뒤의 `cat` 을 낸다. 쓰기는 그대로 막힌다: 그 조각의 실행 낱말은
     # 쓰기 명령이지 빈 문자열이 아니다 (게이트 ⑨ 의 MC_SH_READ_MIX 가 못박는다).
+    # 명령을 실행하지 않는 셸 키워드 조각(`for f in …` · `done` · `fi`)도 같다.
     [ -n "$w" ] || continue
-    case " $MC_READ_CMDS " in *" $w "*) continue ;; esac
+    case "$w" in for|done|fi|'esac') continue ;; esac
+    case " $MC_READ_CMDS " in *" $w "*)
+      re=""; for e in $MC_WRITE_OPTS; do [ "${e%%:*}" = "$w" ] && re="${e#*:}"; done
+      [ -n "$re" ] && printf '%s' "$seg" | grep -Eq "(^|[[:space:]])($re)([[:space:]]|$)" && return 1
+      continue ;;
+    esac
     if [ "$w" = "git" ]; then
       sub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
       case " $MC_GIT_READ " in *" $sub "*) continue ;; esac
+      nxt="$(printf '%s' "$seg" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk -v s="$sub" 'f && $0 != "" { print; exit } $0 == s { f = 1 }')"
+      case " $MC_GIT_READ_OPT " in *" $sub:$nxt "*) continue ;; esac
+    fi
+    if [ "$w" = "gh" ]; then
+      # r_remote 와 같은 면제 — gh 다음 두 토큰 중 하나가 GH_READ_EXEMPT 면 읽기다.
+      nxt="$(subcmds_after gh "" "$seg")"; nxt="${nxt%%$'\n'*}"
+      sub=""; [ -n "$nxt" ] && { sub="$(subcmds_after "$nxt" "" "$seg")"; sub="${sub%%$'\n'*}"; }
+      { gh_is_read "$nxt" || gh_is_read "$sub"; } && continue
     fi
     return 1
-  done < <(cmd_segments)
+  done < <(cmd_segments "$(mc_segcmd)")
   [ "$any" -eq 1 ]
 }
 
