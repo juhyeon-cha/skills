@@ -126,7 +126,31 @@ FX_LS="bash $TMP/fx-plugin/scripts/ledger.sh"
 outside_clone() {  # outside_clone <경로> — 클론 루트 밖이면 0
   case "$1/" in "${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"/*) return 1;; *) return 0;; esac
 }
+# ── 절 범위: 이 게이트가 두 자리에서 도는 이유와 그 분리선 ─────────────
+# 통째로 돌리면 이 게이트 하나가 check-all 의 나머지 검사 전부와 맞먹는다(실측 skills#223,
+# 깨끗한 직렬 1회: 이 파일 159.5초 vs check-all 이 도는 나머지 10개 합계 163.3초). 그래서
+# check-all 에 통째로 넣으면 그 게이트가 두 배가 된다 — **그것이 자리를 둘로 가르는 이유다.**
+# "느려서 뺀다" 가 아니다: 같은 게이트 안에 76.6초짜리 rules-check 이 면제 없이 돈다.
+#
+# **분리선은 절 이름이 아니라 소요다.** 이름으로 걸 수 없는 실측 근거가 있다 — 같은 라벨이
+# 한 회차 안에 여러 번 출력돼 초를 특정 절에 귀속시키는 매핑이 회차마다 뒤집힌다(skills#223).
+#
+# 기준(수가 아니라 재현하는 절차다):
+#   ① 한 절의 실측 소요가 **게이트 나머지 전부의 소요의 10분의 1** 을 넘으면 전수 자리로 뺀다.
+#      나머지가 약 160초인 지금 그 선은 약 10초다 — 어느 절도 커밋마다 치르는 게이트를
+#      10% 넘게 늘리지 못한다는 뜻이다.
+#   ② ① 로 빠진 절이 세운 픽스처에 기대는 절은 함께 뺀다. 기댐은 소요와 무관하므로
+#      임계만으로는 갈리지 않는다.
+#   재는 법: 절 머리의 `echo "── ` 줄 앞에 시각을 찍고 이웃 절과 뺀다.
+#   지금 빠진 것: ⑨ 22.3s · ⑩ 24.3s · ⑪ 31.9s · ⑫ 24.3s · ⑬ 44.0s (①) · ⑬-2 7.5s (②).
+#
+# GUARD_CHECK_SCOPE=fast → 임계 아래 절만 (checks/guard-fast-check.sh 가 그 자리다).
+# 기본값 full → 전수. 절을 새로 넣으면 위 ①② 로 어느 쪽인지 정하라.
+SCOPE="${GUARD_CHECK_SCOPE:-full}"
+full_scope() { [ "$SCOPE" = "full" ]; }
+
 echo "── ⓪ 픽스처 전제 ──"
+echo "  절 범위: $SCOPE"
 step "FX_ROOT 가 클론 루트 밖이다 (안이면 아래 rc=0 통과 단언이 r_main_shell 때문에 뒤집힌다)" outside_clone "$FX_ROOT"
 step "FX_CLONE 이 클론 루트 밖이다 (같은 사유)" outside_clone "$FX_CLONE"
 
@@ -466,6 +490,7 @@ run "$(j_sub "bd -C $FX_ROOT --actor harness note $FX_TASK \"메모\"" 'harness:
 printf '  rc=%d  [implementer] --actor <값> note (note 는 허용)\n' "$GUARD_RC"
 step "통과: --actor 값을 건너뛰어도 note 는 그대로 허용된다" [ "$GUARD_RC" -eq 0 ]
 
+if full_scope; then   # ↓↓ 임계 위 절 (위 「절 범위」 참조) — fast 에서는 통째로 건너뛴다
 echo "── ⑨ C3: 본 체크아웃 쓰기 차단 (도구 경로 + 셸 경로) ──"
 # 클론 루트를 임시 디렉토리로 돌린다. 진짜 ~/.harness-workspace 를 기준으로 삼으면
 # 시험 경로가 실재하는 본 체크아웃을 가리키고, 판정이 게이트를 돌리는 사람의 홈 상태에
@@ -2679,6 +2704,8 @@ step "읽어낸 하위 명령이 값이 아니라 create 다" has_text "'bd crea
 # 밝히고, 플래그는 --file·--stdin(둘 다 note 본문의 출처)뿐이다. 그래서 note 를 연 것이
 # 구조 변경 통로를 여는 것은 아니다. 대신 **대상 이슈를 못 고른다**는 것이 실제 폭이고,
 # 그것이 위 한계 4 다.
+
+fi   # ↑↑ 임계 위 절 끝
 
 # ── ⑯ 발화 로그 (S16) ────────────────────────────────────────────────
 # 막는 것: **"발화 0" 과 "훅이 안 돌았다" 가 둘 다 무기록으로 보이는 상태.** 그 구분이
