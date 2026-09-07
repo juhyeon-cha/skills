@@ -1744,19 +1744,26 @@ echo "── ⑫ A1/A2: 채점자(reviewer·evaluator)의 쓰기 차단 ──"
 # reviewer·evaluator 인가"다. 그래서 implementer 대조군이 이 절의 핵심이다: 구현자를 함께
 # 막으면 개발이 통째로 멈추는데 rc 만 보면 "잘 막힌다"로 읽힌다.
 #
-# 시험 경로는 **클론 루트 밖**(/tmp)을 쓴다. 본 체크아웃 경로를 쓰면 C3 도 함께 걸려
-# rc=2 가 어느 규칙 때문인지 갈리지 않는다. 겹침은 아래에서 따로 본다.
-GR_PATH="/tmp/guard-check-grader.txt"
+# 차단 시험 경로는 **워크트리**(⑧ 의 MCROOT 아래)를 쓴다 — r_grader_write 가 대상 트리 안만
+# 막게 좁혀졌으므로(skills#225) 트리 밖 경로로는 차단이 성립하지 않는다. 본 체크아웃 대신
+# 워크트리를 쓰는 것은 **귀속** 때문이다: 그 자리는 C3(r_main_write)가 통과시키므로 rc=2 의
+# 원인이 이 규칙 하나로 갈린다. 겹침(본 체크아웃·클론 루트)은 아래에서 따로 본다.
+GR_WT="$MCROOT/repo/.claude/worktrees/story-a"
+GR_PATH="$GR_WT/grader.txt"
+GR_OUTSIDE="/tmp/guard-check-grader.txt"   # 트리 밖 — 좁힌 뒤로는 통과 대상이다
 
-j_tool_agent() {  # j_tool_agent <도구> <경로> <agent_type>
-  jq -n --arg t "$1" --arg p "$2" --arg a "$3" '
-    {hook_event_name:"PreToolUse", tool_name:$t, cwd:"/x",
+j_tool_agent() {  # j_tool_agent <도구> <경로> <agent_type> [cwd — 기본값 /x]
+  jq -n --arg t "$1" --arg p "$2" --arg a "$3" --arg d "${4-/x}" '
+    {hook_event_name:"PreToolUse", tool_name:$t, cwd:$d,
      agent_id:"aa306a4edf39e7dfe", agent_type:$a,
      tool_input: (if   $t == "NotebookEdit" then {notebook_path:$p, new_source:"x"}
                   elif $t == "Edit"         then {file_path:$p, old_string:"a", new_string:"b"}
                   else                           {file_path:$p, content:"hi"} end)}'
 }
-runrole() { run "$(j_sub "$1" "$2")"; }   # <명령> <agent_type>
+# 이 절의 훅 호출은 클론 루트를 MCROOT 로 고정한다 — 위 GR_WT 가 그 아래 경로라서다.
+# 셸 픽스처는 경로를 담지 않지만 같은 환경으로 돌린다(한 절 안에서 환경이 갈리면 rc 의 원인이 늘어난다).
+runmr()  { runh "$HOOK" "$1" "HARNESS_CLONE_ROOT=$MCROOT"; }              # <json>
+runrole() { runmr "$(j_sub "$1" "$2")"; }   # <명령> <agent_type>
 
 # ── 차단: 파일 쓰기 (acceptance ①).
 # 목록의 뒤 둘은 **규칙에 이름이 등재되지 않은** 도구다. 종전에는 r_grader_write 가 세
@@ -1766,7 +1773,7 @@ runrole() { run "$(j_sub "$1" "$2")"; }   # <명령> <agent_type>
 GR_R=harness:reviewer; GR_E=harness:evaluator; IMPL_T=harness:implementer
 for role in $GR_R $GR_E; do
   for tool in Write Edit NotebookEdit MultiEdit mcp__fs__write_file; do
-    run "$(j_tool_agent "$tool" "$GR_PATH" "$role")"
+    runmr "$(j_tool_agent "$tool" "$GR_PATH" "$role")"
     printf '  rc=%d  [%s] %s %s\n' "$GUARD_RC" "$role" "$tool" "$GR_PATH"
     step "차단(도구): $tool · agent_type=$role" [ "$GUARD_RC" -eq 2 ]
   done
@@ -1774,12 +1781,52 @@ for role in $GR_R $GR_E; do
   # 명시하고, 읽지 못하면 리뷰·판정 자체가 불가능하다. 위 극성 반전이 읽기까지 삼키면
   # 채점자는 아무것도 못 하는데 rc 만 보면 "잘 막힌다"로 읽힌다.
   for tool in Read Grep; do
-    run "$(jq -n --arg t "$tool" --arg p "$GR_PATH" --arg a "$role" \
+    runmr "$(jq -n --arg t "$tool" --arg p "$GR_PATH" --arg a "$role" \
       '{hook_event_name:"PreToolUse",tool_name:$t,cwd:"/x",agent_id:"aa306a4edf39e7dfe",agent_type:$a,tool_input:{file_path:$p}}')"
     printf '  rc=%d  [%s] %s %s\n' "$GUARD_RC" "$role" "$tool" "$GR_PATH"
     step "통과(읽기): $tool · agent_type=$role" [ "$GUARD_RC" -eq 0 ]
   done
 done
+
+# ── 좁힘의 경계 (skills#225). 불변식은 "채점자가 **대상 트리를** 고치지 않는다"이지 "채점자가
+#    아무 파일도 못 쓴다"가 아니다. 종전 판정은 경로를 보지 않아 리뷰어가 트리 밖
+#    스크래치패드에 메모조차 못 썼고, 그것이 skills#191 회차 실측 오탐 2건이다.
+#    **양쪽을 함께 든다** — 통과만 늘리면 좁히다 구멍을 낸 것과 구별되지 않는다.
+declare -a GRW_D_LABEL=() GRW_D_JSON=()
+GRW_D_LABEL+=("워크트리 안 (채점 대상 그 자체)");        GRW_D_JSON+=("$(j_tool_agent Write "$GR_WT/x.md" "$GR_R")")
+GRW_D_LABEL+=("워크트리 깊은 경로");                     GRW_D_JSON+=("$(j_tool_agent Edit  "$GR_WT/plugins/harness/hooks/guard.sh" "$GR_E")")
+GRW_D_LABEL+=("본 체크아웃 (C3 와 겹친다)");             GRW_D_JSON+=("$(j_tool_agent Write "$MCROOT/repo/main.txt" "$GR_R")")
+GRW_D_LABEL+=("클론 루트 직속 (C3 와 겹친다)");          GRW_D_JSON+=("$(j_tool_agent Write "$MCROOT/stray.txt" "$GR_E")")
+GRW_D_LABEL+=("cwd 가 워크트리일 때의 상대 경로");        GRW_D_JSON+=("$(j_tool_agent Write "./x.md" "$GR_R" "$GR_WT")")
+GRW_D_LABEL+=("워크트리에서 .. 로 본 체크아웃 탈출");     GRW_D_JSON+=("$(j_tool_agent Write "../../../esc.txt" "$GR_E" "$GR_WT")")
+GRW_D_LABEL+=("cwd 없는 상대 경로 (판정 불가는 차단이다)"); GRW_D_JSON+=("$(j_tool_agent Write "./x.md" "$GR_R" "")")
+for i in "${!GRW_D_JSON[@]}"; do
+  runmr "${GRW_D_JSON[$i]}"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${GRW_D_LABEL[$i]}"
+  step "차단(대상 트리 안): ${GRW_D_LABEL[$i]}" [ "$GUARD_RC" -eq 2 ]
+done
+
+declare -a GRW_A_LABEL=() GRW_A_JSON=()
+GRW_A_LABEL+=("스크래치패드 (/private/tmp 아래)"); GRW_A_JSON+=("$(j_tool_agent Write "/private/tmp/claude-501/sess/scratchpad/review-note.md" "$GR_R")")
+GRW_A_LABEL+=("/tmp 직속");                        GRW_A_JSON+=("$(j_tool_agent Write "$GR_OUTSIDE" "$GR_E")")
+GRW_A_LABEL+=("트리 밖 임시 디렉토리 (Edit)");      GRW_A_JSON+=("$(j_tool_agent Edit  "$TMP/notes/판정.md" "$GR_R")")
+GRW_A_LABEL+=("트리 밖 (NotebookEdit)");            GRW_A_JSON+=("$(j_tool_agent NotebookEdit "$TMP/notes/n.ipynb" "$GR_E")")
+GRW_A_LABEL+=("cwd 가 트리 밖일 때의 상대 경로");   GRW_A_JSON+=("$(j_tool_agent Write "./review-note.md" "$GR_R" "$TMP/notes")")
+for i in "${!GRW_A_JSON[@]}"; do
+  runmr "${GRW_A_JSON[$i]}"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${GRW_A_LABEL[$i]}"
+  step "통과(트리 밖): ${GRW_A_LABEL[$i]}" [ "$GUARD_RC" -eq 0 ]
+done
+
+# 부정 대조군 — 좁힘 한 줄만 되돌린 사본에서 스크래치패드 쓰기가 rc=2 로 돌아온다.
+# 그 줄이 없으면 위 "통과(트리 밖)" 다섯이 "규칙이 꺼져서" 통과한 것과 구별되지 않는다.
+NEG_GRW="$TMP/guard-no-grader-scope.sh"
+step "부정 대조군 전제: 좁힘 한 줄(GRADER_TREE_SCOPE)이 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'GRADER_TREE_SCOPE' "$HOOK")" -eq 1 ]
+grep -vF 'GRADER_TREE_SCOPE' "$HOOK" > "$NEG_GRW"; chmod +x "$NEG_GRW"
+step "부정 대조군 전제: 사본이 실재하고 원본과 다르다" not_same "$HOOK" "$NEG_GRW"
+runh "$NEG_GRW" "$(j_tool_agent Write "/private/tmp/claude-501/sess/scratchpad/review-note.md" "$GR_R")" "HARNESS_CLONE_ROOT=$MCROOT"
+step "부정 대조군: 좁힘을 빼면 스크래치패드 쓰기가 rc=2 로 돌아온다" [ "$GUARD_RC" -eq 2 ]
 
 # ── 차단: 셸 (acceptance ②). commit 토큰과 bd 쓰기 하위 명령.
 declare -a GR_DENY=(
@@ -1862,13 +1909,13 @@ for c in "${GR_MATRIX[@]}"; do
   step "통과(오케스트레이터, agent 필드 없음): $c" [ "$GUARD_RC" -eq 0 ]
 done
 for role in $GR_R $GR_E; do
-  run "$(j_tool_agent Write "$GR_PATH" "$role")"
+  runmr "$(j_tool_agent Write "$GR_PATH" "$role")"
   step "차단(도구, agent_type=$role): Write $GR_PATH" [ "$GUARD_RC" -eq 2 ]
 done
-run "$(j_tool_agent Write "$GR_PATH" "$IMPL_T")"
+runmr "$(j_tool_agent Write "$GR_PATH" "$IMPL_T")"
 printf '  rc=%d  [implementer] Write %s\n' "$GUARD_RC" "$GR_PATH"
 step "통과(도구, agent_type=implementer): Write $GR_PATH" [ "$GUARD_RC" -eq 0 ]
-run "$(j_write "$GR_PATH")"
+runmr "$(j_write "$GR_PATH")"
 step "통과(도구, 오케스트레이터): Write $GR_PATH" [ "$GUARD_RC" -eq 0 ]
 
 # ── 극성 반전의 역방향 단언. 역할 목록을 게이트에 다시 적지 않는다:
@@ -1895,7 +1942,7 @@ gr_leaked=""; gr_blocked=""; gr_checked=0
 while read -r a; do
   [ -n "$a" ] || continue
   gr_checked=$((gr_checked + 1))
-  run "$(j_tool_agent Write "$GR_PATH" "$a")"
+  runmr "$(j_tool_agent Write "$GR_PATH" "$a")"
   if printf '%s\n' "$GR_DECLARED" | grep -qx -- "$a"; then
     [ "$GUARD_RC" -eq 2 ] || gr_leaked="$gr_leaked $a"
   else
@@ -1961,8 +2008,12 @@ for c in 'bd --help' 'bd --version' 'bd --help > /dev/null 2>&1'; do
 done
 
 # ── 차단 메시지 (acceptance ⑤ — 그 역할이 **무엇만 할 수 있는지**가 적힌다).
-run "$(j_tool_agent Write "$GR_PATH" "$GR_R")"
+runmr "$(j_tool_agent Write "$GR_PATH" "$GR_R")"
 echo "  deny(Write/reviewer) → $GUARD_OUT"
+# 좁힘(skills#225)을 메시지가 말해야 한다 — 없으면 받은 채점자가 "아무 데도 못 쓴다"로 읽고
+# 스크래치패드 메모까지 포기한다. 그것이 종전 판정에서 실제로 일어난 일이다.
+step "reviewer: 막힌 경로가 실린다"            has_text "$GR_PATH" "$GUARD_OUT"
+step "reviewer: 트리 밖은 열려 있음을 밝힌다"   has_text '트리 **밖**' "$GUARD_OUT"
 step "reviewer: 검증용 명령이 허용됨을 밝힌다" has_text '검증용 명령 실행은 허용된다' "$GUARD_OUT"
 step "reviewer: 할 수 있는 것을 역할 이름으로 연다" has_text 'reviewer 가 할 수 있는 것' "$GUARD_OUT"
 step "reviewer: 대신 낼 신호를 지시한다"       has_text 'SIGNAL: CHANGES_REQUESTED' "$GUARD_OUT"
@@ -1971,7 +2022,7 @@ step "reviewer: 근거 문서를 인용한다"          has_text 'agents/reviewe
 step "reviewer: 문제의 도구 이름이 실린다"     has_text 'Write 도구' "$GUARD_OUT"
 step "reviewer: evaluator 용 문구가 섞이지 않는다" lacks_text 'SIGNAL: MATCH' "$GUARD_OUT"
 
-run "$(j_tool_agent Edit "$GR_PATH" "$GR_E")"
+runmr "$(j_tool_agent Edit "$GR_PATH" "$GR_E")"
 echo "  deny(Edit/evaluator) → $GUARD_OUT"
 step "evaluator: 할 수 있는 것을 역할 이름으로 연다" has_text 'evaluator 가 할 수 있는 것' "$GUARD_OUT"
 step "evaluator: 대신 낼 신호를 지시한다"      has_text "SIGNAL: MATCH" "$GUARD_OUT"
