@@ -16,8 +16,9 @@
 # 호출자 CWD 를 보존한다: 검사는 저마다 **호출자의 CWD 에서** 절대 경로로 부른다(위 하네스 루트
 # 진단 줄도 같다). 이 스크립트가 플러그인 루트로 cd 한 채 부르면 CWD 정보가 사라져, 하네스
 # 워크트리에서 돌린 게이트가 그 트리가 아니라 플러그인이 사는 트리의 redirect 가 가리키는
-# 루트(master)를 판정한다 — rules-check 의 트리 검사(S12·R18·R40)가 그 CWD 를 본다(harness-ofwp ·
-# harness-m8gg.8.14). checks/*.sh 는 전부 자기 위치(BASH_SOURCE)에서 플러그인 루트를 파생하므로
+# 루트(master)를 판정한다 — rules-check·board-check·workspace-check 이 lib/harness-root.sh 를 그 CWD
+# 에서 불러 원장 루트를 낸다(harness-ofwp · harness-m8gg.8.14). rules-check 의 R18·R40 은 여기 해당하지
+# 않는다 — 등록부는 클론 루트 직속의 머신 로컬 파일이라 CWD 와 무관하다. checks/*.sh 는 전부 자기 위치(BASH_SOURCE)에서 플러그인 루트를 파생하므로
 # 호출자 CWD 에 기대지 않는다 — 플러그인 루트로 cd 하는 것은 이 스크립트 자신의 find·bash -n·jq 뿐이다.
 #
 # set -e 를 쓰지 않는다 — 첫 실패에서 죽으면 나머지 검사의 결과가 보고되지 않는다. 실패는

@@ -106,7 +106,7 @@ CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
 echo "트리: $PLUGIN_ROOT (플러그인) · 원장 루트: ${HROOT:-(없음)}"
 
 # 등록부는 검토 대상 트리에 있지 않다 — 클론 루트 직속의 머신 로컬 파일이다(scripts/repo.sh 머리 주석).
-# 그래서 R18·R40 은 TREE 를 요구하지 않고, 워크트리에서 돌려도 같은 파일 하나를 본다.
+# 그래서 R18·R40 은 검토 대상 트리를 요구하지 않고, 워크트리에서 돌려도 같은 파일 하나를 본다.
 MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 재정의는 검사 스크립트용
 BLOCK="hooks/session-context.md"                   # SessionStart 주입 블록 — 플러그인의 유일한 상시 로드 문서
 

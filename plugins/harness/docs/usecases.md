@@ -44,7 +44,7 @@
 1. At the harness root: `bash "$(<plugin>)/scripts/repo.sh" add <url> --check '<gate command>'` — clone and registration in the clone root's `repos.json` together; `--check` lands in the clone's own `.harness.json`, to be committed to that repo. The clone lands at `~/.harness-workspace/<repo>`, beside the clone root's `ledger.json` — the harness root marker that `repo.sh root` writes. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
 2. `… repo.sh list` confirms the registration and the harness root.
 3. `harness:plan-story` creates the story epic: `ledger.sh create "<title>" -t epic -l sprint:<sprint ID>,rail:r1,slug:r1-<slug>,repo:<repo>`.
-4. Open a session in `<clone>` and run `harness:develop` — section 2 calls `EnterWorktree` with `name=<story ID>`; the plugin's PostToolUse hook wires the ledger and runs the repo's `bootstrap` if the repo has no EnterWorktree hook of its own.
+4. Open a session in `<clone>` and run `harness:develop` — section 2 calls `EnterWorktree` with `name=<worktree name>`; the plugin's PostToolUse hook wires the ledger and runs the repo's `bootstrap` if the repo has no EnterWorktree hook of its own.
 5. `harness:develop` 3-1 delegates to `harness:implementer` with the worktree path and the harness root absolute path.
 
 **Pass criteria**
@@ -114,14 +114,14 @@
 2. `ledger.sh -C <harness root> list --status in_progress --all` finds the in-progress tasks.
 3. `ledger.sh show <story ID>` — read the last `ACTOR: <repo> …` line for this repo.
 4. **With that value as is**, `ledger.sh update <task ID> --claim --actor <read value>` — the same actor passes idempotently.
-5. `EnterWorktree` with `name=<story ID>` — enters the existing worktree, does not create a second one; the hook is idempotent.
+5. `EnterWorktree` with `name=<worktree name>` — enters the existing worktree, does not create a second one; the hook is idempotent.
 6. `git -C <worktree> log --oneline -5` and the last `RETRY:` line of `ledger.sh show <task ID>` restore the stop point and the remaining retries.
 
 **Pass criteria**
 
 - 4 → rc 0 (re-claiming under the same actor is not refused)
 - 5 → the session's cwd is the same path as before, string-equal
-- `ls -a <clone>/.claude/worktrees/` lists `<story ID>` exactly once (no duplicate creation)
+- `ls -a <clone>/.claude/worktrees/` lists `<worktree name>` exactly once (no duplicate creation)
 - the last `RETRY:` line of `ledger.sh show <task ID>` notes is the same before and after the session change (the counter does not reset)
 - the picked-up session's first report names who acts next; in a human-wait state the reason exists in `ledger.sh show <task ID>` notes
 
@@ -165,7 +165,7 @@
 - step 2 prints 0 lines (the merge commit carried every change of the story branch — the squash merge did not swallow a rename's deletion half)
 - 3 → rc 0
 - `[ ! -d <worktree> ]` → rc 0
-- `ls -a <clone>/.claude/worktrees/` does not list `<story ID>`
+- `ls -a <clone>/.claude/worktrees/` does not list `<worktree name>`
 - `git -C <clone> branch --list 'worktree-<worktree name>'` prints 0 lines
 - the reverse path: with uncommitted changes in the worktree, 3 → non-zero and `[ -d <worktree> ]` → rc 0 (not removed, `--force` included)
 

@@ -3,6 +3,7 @@
 #
 #   ① 경계 — ledger.json 없음·backend 허용값 밖은 rc≠0 이고 stderr 한 줄이 원인을 이름으로 든다.
 #      --help 의 목록이 플러그인이 실제 부르는 bd 하위 명령 전수(grep 으로 파생)를 덮는다.
+#      세 백엔드의 has-ui 답(UI 이름 한 줄 / 빈 출력)이 원장에 닿지 않고 나온다 — 어댑터의 계약이다.
 #   ② beads 동등성(읽기) — 실제 하네스 원장을 .beads/redirect 로 가리키는 사본 루트에서
 #      ledger.sh 의 list·show --json 이 bd -C <루트> 의 것과 바이트 단위로 같다.
 #      **backend 가 beads 일 때만 돈다.** 그 밖의 백엔드에서는 대조할 bd 원장이 루트에 없으므로
@@ -74,6 +75,40 @@ for tok in $MEASURED; do
   printf '%s\n' "$HELP" | grep -qw -- "$tok" || missing="$missing $tok"
 done
 step "--help 가 측정된 bd 하위 명령 전수를 덮는다 (측정 $(printf '%s\n' "$MEASURED" | grep -c .)개, 빠짐:${missing:- 없음})" [ -z "$missing" ]
+
+# ── has-ui 계약 (skills#152) ──────────────────────────────────────────
+# scripts/board.sh 는 이 하위 명령의 답 하나로 렌더 여부를 정한다. 그래서 세 백엔드가 여기에
+# 무엇을 답하는지가 어댑터의 계약이고, 답이 조용히 바뀌면 투영이 조용히 사라지거나 되살아난다.
+# 계약: UI 를 갖는 백엔드는 그 UI 이름을 stdout 한 줄로 내고, 갖지 않는 백엔드는 아무것도 내지
+# 않는다. **둘 다 rc 0 이고, rc≠0 은 "없다" 가 아니라 "답하지 못했다" 다** — board.sh 가 rc≠0 에서
+# 그리지 않고 멈추는 근거가 이 줄이다.
+# 극성: 가짜 gh·curl·bd 를 PATH 앞에 세워 **원장에 닿는 순간 rc≠0 · stderr 가 생기게** 한다.
+# 그래서 "gh 검사·토큰 검사보다 앞의 상수" 라는 성질 자체가 판정 대상이다. 픽스처의 ledger.json 은
+# owner·database_id 도 비워 둔다 — 그 검사보다도 앞이어야 통과한다.
+UIBIN="$TMP/uibin"; mkdir -p "$UIBIN"
+for c in gh curl bd; do
+  printf '#!/bin/sh\necho "원장에 닿았다: %s" >&2\nexit 9\n' "$c" > "$UIBIN/$c"
+  chmod +x "$UIBIN/$c"
+done
+has_ui() {  # has_ui <backend> — 그 backend 만 적힌 ledger.json 픽스처에서 has-ui 를 돌린다
+  local root="$TMP/ui-$1"
+  mkdir -p "$root"; printf '{"backend":"%s"}\n' "$1" > "$root/ledger.json"
+  OUT=$(env -u NOTION_TOKEN PATH="$UIBIN:$PATH" HARNESS_ROOT="$root" bash "$LEDGER" has-ui 2>"$TMP/err"); RC=$?
+  ERR=$(cat "$TMP/err")
+}
+one_line() { [ "$(printf '%s\n' "$1" | grep -c .)" -eq 1 ]; }
+
+has_ui beads
+step "has-ui beads: rc 0 · 빈 출력(UI 없음) · 원장(bd)에 닿지 않는다" \
+  bash -c '[ "$1" -eq 0 ] && [ -z "$2" ] && [ -z "$3" ]' _ "$RC" "$OUT" "$ERR"
+has_ui github
+step "has-ui github: rc 0 · UI 이름 한 줄 · owner·gh 검사보다 앞이다 (원장에 닿지 않는다)" \
+  bash -c '[ "$1" -eq 0 ] && [ -z "$3" ]' _ "$RC" "$OUT" "$ERR"
+step "has-ui github: 출력이 정확히 한 줄이다" one_line "$OUT"
+has_ui notion
+step "has-ui notion: rc 0 · UI 이름 한 줄 · NOTION_TOKEN·curl 검사보다 앞이다 (원장에 닿지 않는다)" \
+  bash -c '[ "$1" -eq 0 ] && [ -z "$3" ]' _ "$RC" "$OUT" "$ERR"
+step "has-ui notion: 출력이 정확히 한 줄이다" one_line "$OUT"
 
 # 마감 판정 줄(맨 아래)이 이 라벨을 그대로 쓴다 — 건너뛴 절이 통과 항목으로 열거되면
 # 게이트가 꺼진 상태와 통과한 상태가 같은 문장으로 보인다.
@@ -751,4 +786,4 @@ if [ "$fail" -ne 0 ]; then
   echo "✗ 원장 어댑터 검사 실패 — 위 항목을 고쳐라"
   exit 1
 fi
-echo "✓ 원장 어댑터 검사 통과 — 경계 · $EQUIV_LABEL · beads 왕복 · github 오프라인 · notion 오프라인"
+echo "✓ 원장 어댑터 검사 통과 — 경계 · has-ui 계약(세 백엔드) · $EQUIV_LABEL · beads 왕복 · github 오프라인 · notion 오프라인"
