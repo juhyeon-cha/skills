@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # 게이트: 원장 어댑터(scripts/ledger.sh + ledger-<backend>.sh)를 픽스처로 단언한다.
 #
-#   ① 경계 — ledger.json 없음·backend 허용값 밖은 rc≠0 이고 stderr 한 줄이 원인을 이름으로 든다.
+#   ① 경계 — .harness.json 없음·backend 허용값 밖은 rc≠0 이고 stderr 한 줄이 원인을 이름으로 든다.
 #      --help 의 목록이 플러그인이 실제 부르는 bd 하위 명령 전수(grep 으로 파생)를 덮는다.
 #      세 백엔드의 has-ui 답(UI 이름 한 줄 / 빈 출력)이 원장에 닿지 않고 나온다 — 어댑터의 계약이다.
 #   ② beads 동등성(읽기) — 실제 하네스 원장을 .beads/redirect 로 가리키는 사본 루트에서
@@ -26,7 +26,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && p
 LEDGER="$PLUGIN_ROOT/scripts/ledger.sh"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
-BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json" 2>/dev/null)"
+BACKEND="$(jq -r '.ledger.backend // empty' "$ROOT/.harness.json" 2>/dev/null)"
 
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
@@ -52,11 +52,11 @@ ledger_err_lines() { printf '%s\n' "$ERR" | grep -c '^ledger'; }
 echo "── ① 경계 ──"
 mkdir -p "$TMP/noconf"
 run "$TMP/noconf" list
-step "ledger.json 없음 → rc≠0" [ "$RC" -ne 0 ]
-step "ledger.json 없음 → stderr 한 줄이 ledger.json 을 든다" \
-  bash -c '[ "$(printf "%s\n" "$1" | grep -c .)" -eq 1 ] && printf "%s" "$1" | grep -q "ledger.json"' _ "$ERR"
+step ".harness.json 없음 → rc≠0" [ "$RC" -ne 0 ]
+step ".harness.json 없음 → stderr 한 줄이 .harness.json 을 든다" \
+  bash -c '[ "$(printf "%s\n" "$1" | grep -c .)" -eq 1 ] && printf "%s" "$1" | grep -q ".harness.json"' _ "$ERR"
 
-mkdir -p "$TMP/badconf"; printf '{"backend":"jira"}\n' > "$TMP/badconf/ledger.json"
+mkdir -p "$TMP/badconf"; printf '{"ledger":{"backend":"jira"}}\n' > "$TMP/badconf/.harness.json"
 run "$TMP/badconf" list
 step "backend 허용값 밖 → rc≠0" [ "$RC" -ne 0 ]
 step "backend 허용값 밖 → stderr 가 허용값 셋을 든다" \
@@ -85,16 +85,16 @@ step "--help 가 측정된 bd 하위 명령 전수를 덮는다 (측정 $(printf
 # 않는다. **둘 다 rc 0 이고, rc≠0 은 "없다" 가 아니라 "답하지 못했다" 다** — board.sh 가 rc≠0 에서
 # 그리지 않고 멈추는 근거가 이 줄이다.
 # 극성: 가짜 gh·curl·bd 를 PATH 앞에 세워 **원장에 닿는 순간 rc≠0 · stderr 가 생기게** 한다.
-# 그래서 "gh 검사·토큰 검사보다 앞의 상수" 라는 성질 자체가 판정 대상이다. 픽스처의 ledger.json 은
+# 그래서 "gh 검사·토큰 검사보다 앞의 상수" 라는 성질 자체가 판정 대상이다. 픽스처의 .harness.json 은
 # owner·database_id 도 비워 둔다 — 그 검사보다도 앞이어야 통과한다.
 UIBIN="$TMP/uibin"; mkdir -p "$UIBIN"
 for c in gh curl bd; do
   printf '#!/bin/sh\necho "원장에 닿았다: %s" >&2\nexit 9\n' "$c" > "$UIBIN/$c"
   chmod +x "$UIBIN/$c"
 done
-has_ui() {  # has_ui <backend> — 그 backend 만 적힌 ledger.json 픽스처에서 has-ui 를 돌린다
+has_ui() {  # has_ui <backend> — 그 backend 만 적힌 .harness.json 픽스처에서 has-ui 를 돌린다
   local root="$TMP/ui-$1"
-  mkdir -p "$root"; printf '{"backend":"%s"}\n' "$1" > "$root/ledger.json"
+  mkdir -p "$root"; printf '{"ledger":{"backend":"%s"}}\n' "$1" > "$root/.harness.json"
   OUT=$(env -u NOTION_TOKEN PATH="$UIBIN:$PATH" HARNESS_ROOT="$root" bash "$LEDGER" has-ui 2>"$TMP/err"); RC=$?
   ERR=$(cat "$TMP/err")
 }
@@ -123,7 +123,7 @@ COPY="$TMP/copy"; mkdir -p "$COPY/.beads"
 LEDGER_DIR="$ROOT/.beads"
 [ -r "$LEDGER_DIR/redirect" ] && LEDGER_DIR="$(head -1 "$LEDGER_DIR/redirect")"
 printf '%s\n' "$LEDGER_DIR" > "$COPY/.beads/redirect"
-printf '{"backend":"beads"}\n' > "$COPY/ledger.json"
+printf '{"ledger":{"backend":"beads"}}\n' > "$COPY/.harness.json"
 # 이 어댑터가 bd 에 더하는 것은 actor 키 하나뿐이다(harness-kw0l.3.1 — 어댑터의 계약). 그래서
 # 동등성은 **actor 를 뺀 뒤** 대조하고, actor 자체는 바로 아래에서 따로 단언한다. 두 단언을 하나로
 # 합치면 어느 쪽이 깨졌는지가 diff 한 줄에 묻힌다.
@@ -153,7 +153,7 @@ fi
 echo "── ③ beads 왕복 — 임시 원장 쓰기 ──"
 FX="$TMP/fx"; mkdir -p "$FX"
 ( cd "$FX" && bd init --prefix lac ) >/dev/null 2>&1 || { echo "  ✗ FAILED: 픽스처 bd init"; fail=1; }
-printf '{"backend":"beads"}\n' > "$FX/ledger.json"
+printf '{"ledger":{"backend":"beads"}}\n' > "$FX/.harness.json"
 printf '본문 첫 줄\n둘째 줄\n' > "$TMP/body.txt"
 
 run "$FX" create "부모" -t feature --silent; P="$OUT"
@@ -256,7 +256,7 @@ step "history --json 은 jq 를 타지 않는다 (이슈 아닌 레코드에 act
 #    별도 루트를 쓰는 이유: 파일이 **없는** 판을 먼저 세워야 "빈 배열 rc 0 으로 삼키지 않는다" 가
 #    판정되고, FX 는 위 왕복이 쓰는 원장이라 파일을 붙였다 뗐다 할 자리가 아니다. bd 는 부르지
 #    않는 경로라 bd init 도 필요 없다.
-RG="$TMP/reg"; mkdir -p "$RG"; printf '{"backend":"beads"}\n' > "$RG/ledger.json"
+RG="$TMP/reg"; mkdir -p "$RG"; printf '{"ledger":{"backend":"beads"}}\n' > "$RG/.harness.json"
 for sub in rails sprints; do
   run "$RG" "$sub" --json
   step "$sub: 등록부 파일이 없으면 rc≠0 이고 stderr 가 $sub.json 을 이름으로 든다 (빈 배열 rc 0 으로 삼키지 않는다)" \
@@ -311,7 +311,7 @@ mkdir -p "$TMP/jqbin" "$TMP/ghbin"
 ln -s "$(command -v jq)" "$TMP/jqbin/jq"
 NOGH_PATH="$TMP/jqbin:/usr/bin:/bin"
 GH="$TMP/ghbin"; mkdir -p "$GH"
-printf '{"backend":"github","owner":"juhyeon-cha","project":4}\n' > "$GH/ledger.json"
+printf '{"ledger":{"backend":"github","owner":"juhyeon-cha","project":4}}\n' > "$GH/.harness.json"
 LOG="$TMP/gh.log"
 cat > "$TMP/ghbin/gh" <<'FAKE'
 #!/usr/bin/env bash
@@ -474,7 +474,7 @@ OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_AUTH
 step "gh auth status rc≠0 → rc≠0 · stderr 한 줄" bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ]' _ "$RC" "$ERR"
 
 mkdir -p "$TMP/ghnoproj"
-printf '{"backend":"github","owner":"juhyeon-cha"}\n' > "$TMP/ghnoproj/ledger.json"
+printf '{"ledger":{"backend":"github","owner":"juhyeon-cha"}}\n' > "$TMP/ghnoproj/.harness.json"
 : > "$LOG"
 OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghnoproj" bash "$LEDGER" create "x" -l repo:harness 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
 step "project 키 없음 → create 가 이슈를 만들기 전에 rc≠0 (item-add 를 건너뛰지 않는다)" \
@@ -550,7 +550,7 @@ grun show 57
 step "형식 밖 id(번호만) → rc≠0" [ "$RC" -ne 0 ]
 grun show 'nowhere#1'
 step "없는 레포 → rc≠0 (이름의 실재는 원격이 판정한다 — 등록부를 읽지 않는다)" [ "$RC" -ne 0 ]
-step "slug 는 ledger.json 의 owner 와 repo 이름으로 파생한다 (등록부의 url 이 아니다)" \
+step "slug 는 .harness.json 의 owner 와 repo 이름으로 파생한다 (등록부의 url 이 아니다)" \
   bash -c 'grep -q -- "-f o=juhyeon-cha" "$1" && grep -q -- "-f r=nowhere" "$1"' _ "$LOG"
 # 레포 목록의 출처가 실패하면 삼키지 않는다 — 종전에는 레포 루프가 빈 채로 돌아 "이슈 0건" 으로
 # rc 0 이 났다(harness-m8gg.4 verify-code 2차 관찰).
@@ -588,7 +588,7 @@ step "경계 밖이어도 show 는 id 로 읽는다 (소속을 요구하지 않�
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ".[0].id == \"harness#70\"" >/dev/null' _ "$RC" "$OUT"
 # 없는 project 번호 → 조용한 전수가 아니라 0건이고, 0건이 정상 상태와 구별되도록 stderr 로 밝힌다.
 mkdir -p "$TMP/ghbadproj"
-printf '{"backend":"github","owner":"juhyeon-cha","project":99999}\n' > "$TMP/ghbadproj/ledger.json"
+printf '{"ledger":{"backend":"github","owner":"juhyeon-cha","project":99999}}\n' > "$TMP/ghbadproj/.harness.json"
 OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$TMP/ghbadproj" bash "$LEDGER" list --all --json -n 0 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
 step "없는 project 번호 → 0건 + stderr 가 그 사실을 밝힌다 (rc 0 — 빈 프로젝트도 같은 모양이라 실패로 읽을 수 없다)" \
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q "99999"' _ "$RC" "$OUT" "$ERR"
@@ -694,7 +694,7 @@ step "init: 뮤테이션이 project 의 node id 를 넘긴다 (번호가 아니�
 step "init: iteration 은 만들지 않는다 (스프린트 ID 는 사람이 정한다 — 자리를 채우면 없는 스프린트가 등재된다)" \
   bash -c '! grep -q "iterationConfiguration" "$1"' _ "$LOG"
 step "init: 무엇을 만들었는지 한 줄로 말한다" bash -c 'printf "%s" "$1" | grep -q "ITERATION 필드"' _ "$OUT"
-# ② 멱등 — project 가 이미 있는 ledger.json 에 다시 돌려도 필드를 겹쳐 만들지 않는다.
+# ② 멱등 — project 가 이미 있는 .harness.json 에 다시 돌려도 필드를 겹쳐 만들지 않는다.
 : > "$LOG"
 OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$GH" bash "$LEDGER" init 2>"$TMP/err"); RC=$?
 step "init 멱등: ITERATION 필드가 이미 있으면 createProjectV2Field 를 부르지 않는다" \
@@ -740,7 +740,7 @@ echo "── ⑤ notion 오프라인 — 가짜 curl ──"
 # 가짜 curl 은 요청(메서드·경로·본문)을 번호 붙여 기록하고 정해진 답을 낸다. 페이지 4개:
 #   E(epic, blocked, Blocked by T) · F(feature, open, parent E, Blocked by T) · T(task, closed, parent F) · U(task, open, parent F, Blocked by F)
 NT="$TMP/ntbin"; mkdir -p "$NT" "$TMP/ntroot"
-printf '{"backend":"notion","database_id":"d0000000-0000-0000-0000-00000000000d"}\n' > "$TMP/ntroot/ledger.json"
+printf '{"ledger":{"backend":"notion","database_id":"d0000000-0000-0000-0000-00000000000d"}}\n' > "$TMP/ntroot/.harness.json"
 NLOG="$TMP/curl.log"
 cat > "$NT/curl" <<'FAKE'
 #!/usr/bin/env bash

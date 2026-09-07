@@ -6,9 +6,9 @@ The always-on block the harness plugin injects at SessionStart. A rule that is n
 
 A gate does not weaken a prohibition — every gate can be bypassed, and "cannot block" is not "allowed". The full list of enforcement mechanisms and their limits is `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`.
 
-- **Remote reflection only on explicit user instruction** — merge · tag push · release publication · GitHub issue changes · remote configuration changes · direct push to a default branch · a remote not registered in `repos.json` · `bd dolt push`. The two exceptions are user decisions.
+- **Remote reflection only on explicit user instruction** — merge · tag push · release publication · GitHub issue changes · remote configuration changes · direct push to a default branch · a remote other than the current repo's own `origin` · `bd dolt push`. The two exceptions are user decisions.
   - Exception one — ledger reflection tied to a target-repo push is automatic. A hand-typed push is itself the explicit instruction, and the working-branch push of cycle-close stage 2 is the same approval — inside that approval the orchestrator runs `bd dolt push` as an explicit stage (no harness git hook is planted in a target repo, so no pre-push does it instead). The procedure is `harness:develop` "사이클 종결".
-  - Exception two — the working-branch push and PR creation of a cycle close are automatic **only when no decision is unresolved**. Scope: repos registered in `repos.json` — registration is the approval surface.
+  - Exception two — the working-branch push and PR creation of a cycle close are automatic **only when no decision is unresolved**. Scope: repos that carry a committed `.harness.json` — that file is the approval surface.
 
     | State at the end of the cycle | Working-branch push · PR creation |
     |---|---|
@@ -17,14 +17,14 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
     | One came up and there is no user instruction or approval | **Do not** |
 
     Even when the table says "do it", **a target repo's own push·PR rules come first.** An unresolved decision = a task whose human-wait signal came up and which the human has not yet decided + a task whose `status` is `blocked`. The signal list is `harness:develop` "사람 대기"; the stages and failure handling are the same skill's "사이클 종결".
-- **Never modify a target repo's main checkout (`~/.harness-workspace/<repo>` itself) directly** — work only in its `.claude/worktrees/<worktree name>/` worktree.
-- **Never improve the plugin core (skills · roles · hooks) in the installed copy without explicit user instruction** — the place to fix is the skills repo `plugins/harness/`, and the installed copy receives it through a marketplace update. What is outside the plugin is machine-local (`ledger.json`·`repos.json` directly under the clone root, written only by `scripts/repo.sh`), each target repo's own `.harness.json`, and the ledger itself.
+- **Never modify a target repo's main checkout directly** — the checkout carrying `.harness.json` at its root. Work only in its `.claude/worktrees/<worktree name>/` worktree.
+- **Never improve the plugin core (skills · roles · hooks) in the installed copy without explicit user instruction** — the place to fix is the skills repo `plugins/harness/`, and the installed copy receives it through a marketplace update. What is outside the plugin is each target repo's own `.harness.json` and the ledger itself.
 - **Never judge completion by impression** — the only evidence is gate exit codes and the acceptance comparison. Whoever built it does not grade it.
 
 ## Ledger
 
-- The ledger is reached only through the adapter `${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh` — every `ledger.sh …` in this block and in the skill bodies is that path. Subcommands, arguments, and JSON keys are `bd`'s (`ledger.sh --help`). One value picks the backend, `backend` in the harness root's `ledger.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
-- Harness root discovery is two steps and no tree is walked up: `HARNESS_ROOT` → the clone root `~/.harness-workspace` itself, and the discriminator is the `ledger.json` directly there. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
+- The ledger is reached only through the adapter `${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh` — every `ledger.sh …` in this block and in the skill bodies is that path. Subcommands, arguments, and JSON keys are `bd`'s (`ledger.sh --help`). One value picks the backend, `ledger.backend` in the repo's `.harness.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
+- Harness root discovery is two steps: `HARNESS_ROOT` → walking up from the cwd to the first `.harness.json`, which is the discriminator. That file is committed by the target repo, so cloning it is what attaches the harness — the clone may live anywhere. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
 - When delegating to a subagent, give the harness root absolute path on the first line, and the subagent calls only `HARNESS_ROOT=<harness root> ledger.sh …` — a call without the variable can reach another harness's ledger through root discovery.
 - The ledger is the SSOT. `scripts/board.sh all` projects it into `docs/sprints/`·`docs/backlog/`·`docs/adr/` **only on a backend with no UI of its own** — where those exist they are generated, never edited by hand.
 - Bodies (note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".

@@ -40,10 +40,10 @@ step() {
 # **원장에 닿지 않고 끝난다는 것 자체가 단언의 일부다.**
 echo "── ① UI 를 갖는 백엔드 — board.sh 가 그리지 않는다 ──"
 
-noop_case() { # noop_case <이름> <ledger.json 본문>
+noop_case() { # noop_case <이름> <.harness.json 본문>
   local name="$1" cfg="$2" root="$TMP/ui-$1" rc
   mkdir -p "$root"
-  printf '%s\n' "$cfg" > "$root/ledger.json"
+  printf '%s\n' "$cfg" > "$root/.harness.json"
   HARNESS_ROOT="$root" bash "$BOARD" all >"$TMP/out" 2>"$TMP/err"
   rc=$?
   step "$name: rc 0" [ "$rc" -eq 0 ]
@@ -52,8 +52,8 @@ noop_case() { # noop_case <이름> <ledger.json 본문>
     bash -c 'grep -q "그리지 않았다" "$1" && grep -q "docs/sprints/" "$1"' _ "$TMP/out"
 }
 
-noop_case github '{"backend":"github","owner":"juhyeon-cha","project":4}'
-noop_case notion '{"backend":"notion","database_id":"fx"}'
+noop_case github '{"ledger":{"backend":"github","owner":"juhyeon-cha","project":4}}'
+noop_case notion '{"ledger":{"backend":"notion","database_id":"fx"}}'
 
 # 대상이 all 만이 아니다 — 개별 대상도 같이 no-op 이어야 docs/ 가 부분적으로 서지 않는다.
 UIROOT="$TMP/ui-github"
@@ -71,7 +71,7 @@ step "github: 대상 형식 위반은 no-op 이 삼키지 않는다 (rc≠0)" [ 
 echo "── ② board.sh 0건 판정 (beads) — 닫힌 스프린트 예외 ──"
 
 ROOT="$TMP/root"; mkdir -p "$ROOT"
-printf '{"backend":"beads"}\n' > "$ROOT/ledger.json"
+printf '{"ledger":{"backend":"beads"}}\n' > "$ROOT/.harness.json"
 # beads 백엔드에서 등록부의 원본은 이 두 파일이다(어댑터가 그렇게 답한다 — ledger-beads.sh).
 # 2026-S01 닫힘 · 2026-S02 활성 — 이 검사가 가르는 유일한 축이다.
 printf '{"rails":{"r1":{"owner":"juhyeon-cha"}}}\n' > "$ROOT/rails.json"
