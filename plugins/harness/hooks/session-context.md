@@ -50,7 +50,7 @@ Creation forms:
 ```bash
 ledger.sh create "<story title>" -t epic -l sprint:<sprint ID>,rail:<rail ID>,slug:<rail ID>-<slug>,repo:<repo>[,repo:<repo>]
 ledger.sh create "<milestone title>" -t feature --parent <story ID>
-ledger.sh create "<task title>" -t task --parent <milestone ID> --acceptance "<machine-judgeable completion criterion>"
+ledger.sh create "<task title>" -t task --parent <milestone ID> -l repo:<repo> --acceptance "<machine-judgeable completion criterion>"
 ```
 
 ## Rules owned elsewhere

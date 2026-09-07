@@ -894,8 +894,8 @@ step "sprints: Type 이 sprint 인 페이지가 0건 → rc 0 의 빈 배열이�
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q sprint' _ "$OUT" "$RC" "$ERR"
 # ── 스프린트 등재 (skills#181). 이 백엔드에서 스프린트는 같은 DB 의 페이지 한 장이므로 등재도
 #    페이지 한 장을 만드는 것이다 — **위 sprints 가 읽는 모양 그대로**여야 왕복이 성립한다.
-#    (계획 문서 몇 곳이 이 자리를 "select option" 이라 적었는데, select option 에는 상태를 둘 데가
-#     없어 sprints 가 그것을 내지 못한다. 읽는 자리와 같은 모양으로 쓴다.)
+#    (계획 문서 몇 곳이 이 자리를 "select option" 이라 적었었다 — skills#182 가 고쳤다. select option
+#     에는 상태를 둘 데가 없어 sprints 가 그것을 내지 못했다. 읽는 자리와 같은 모양으로 쓴다.)
 : > "$NLOG"
 nreg 1 sprint-add 2026-S03
 step "sprint-add notion: Type=sprint · Name=<ID> · Status=open 페이지 한 장을 만든다 (sprints 가 읽는 모양)" \

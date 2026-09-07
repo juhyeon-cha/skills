@@ -156,7 +156,10 @@ case "${1:-}" in
     # 그 부재를 rc≠0 으로 드는 계약(아래 rails|sprints 주석)이 무의미해진다.
     # status 는 active 다. **마감은 이 명령이 하지 않는다** — 이 파일의 status 를 손으로 고치는 것이
     # 이 백엔드의 마감이고, sprints 는 읽기만 한다.
-    sid="${2:-}"
+    # 이 case 는 shift 하지 않으므로 $1 이 하위 명령 이름이고 $2 가 ID 다 — 인자 하나만 받는다는
+    # 계약은 github(`[ $# -eq 1 ]`)·notion 과 같고, 세는 수만 다르다.
+    [ $# -eq 2 ] || { echo "ledger-beads sprint-add: 인자는 스프린트 ID 하나다" >&2; exit 1; }
+    sid="$2"
     f="$LEDGER_ROOT/sprints.json"
     [ -r "$f" ] && [ -w "$f" ] || { echo "ledger-beads sprint-add: $f 가 없다(또는 쓸 수 없다) — 이 백엔드에서 등록부의 원본이 그 파일이다. 없는 등록부를 등재가 만들지는 않는다(setup 5절이 만든다)" >&2; exit 1; }
     tmp="$(mktemp)" || { echo "ledger-beads sprint-add: 임시 파일을 만들지 못했다" >&2; exit 1; }
