@@ -93,7 +93,7 @@ Two places it backs off by design. **An unreadable oracle does not fall back to 
 - So **"a state in which a mechanism is believed present" is created.** This project paid that cost once: a loop ran nine hours with `iteration` at 1, and the orchestrator, seeing `hooks.json` in the cache, concluded "plugin hook registration is normal" and built a **false hypothesis** on top (section 8's measurement).
 - **Files remaining in the cache and a plugin being alive are different things.** The misjudgment was exactly that confusion — the cache directory was there, with `.orphaned_at` inside it.
 
-**What catches it now — nothing automatic.** Every caller reaches the plugin through `${CLAUDE_PLUGIN_ROOT}`, which the runtime substitutes only for a plugin it actually has, so an uninstalled plugin does not resolve to a wrong tree; it simply does nothing, silently. `claude plugin list` is the check, by hand, and the plugin's own `guardrail-check.sh` compares `hooks.json` with the hook files inside the plugin tree, not with the machine's install list (the old S4, which compared an install script's plugin list with `settings.json` and the registry, went away with the install script).
+**What catches it now — nothing automatic.** Every caller reaches the plugin through `${CLAUDE_PLUGIN_ROOT}`, which the runtime substitutes only for a plugin it actually has, so an uninstalled plugin does not resolve to a wrong tree; it simply does nothing, silently. `claude plugin list` is the check, by hand, and the plugin's own `guardrail-check.sh` compares `hooks.json` with the hook files inside the plugin tree, not with the machine's install list.
 
 **Ceilings**
 

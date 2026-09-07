@@ -653,6 +653,22 @@ r_main_shell() {
   cmd="$COMMAND"
   cmd="${cmd//\$\{HOME\}/$HOME}"
   cmd="${cmd//\$HOME/$HOME}"
+  # **원장 지정 대입 하나는 후보에서 뺀다** (skills#211). r_bd_root 는 서브에이전트의 원장 쓰기를
+  # `HARNESS_ROOT=<하네스 루트> ledger.sh …` 형태로만 인정하는데, 하네스 루트는 **대상 레포 자신**
+  # 이라 그 값이 이 규칙의 후보로 잡혀 **지명해도 막히고 안 지명해도 막히는** 배반이 된다
+  # (skills#209 실측 ③ — 두 규칙이 서로를 배반한다).
+  # 값이 **하네스 루트일 때만** 뺀다. 판별자는 그 자리의 `.harness.json` 이고, 뒤따르는 공백이
+  # "정확히 그 값" 을 보장한다 — `HARNESS_ROOT=<루트>/sub` 는 그대로 후보이고, 명령의 나머지
+  # 후보도 손대지 않으므로 `HARNESS_ROOT=<루트> rm -rf <루트>/x` 는 계속 막힌다.
+  # **이 자리에 정규식을 쓰지 마라.** 값을 정규식에 보간하면 값에 든 메타문자가 판정을 바꾼다 —
+  # `.` 은 한 글자만 다른 남의 경로까지 함께 벗기고, `[` 은 sed 를 죽여 후보를 통째로 없앤다
+  # (그 순간 이 규칙은 무엇이든 통과시킨다). 인용한 셸 치환은 값을 리터럴로 읽어 그 부류가 없다 —
+  # 게이트 ⑨ 의 "원장 지정 대입의 면제" 절이 메타문자 루트로 그 차이를 못박는다.
+  while IFS= read -r hr; do
+    [ -n "$hr" ] || continue
+    [ -f "$(mc_norm "$hr")/.harness.json" ] || continue
+    cmd="${cmd//"HARNESS_ROOT=$hr "/}"
+  done < <(printf '%s' "$cmd" | tr ' \t' '\n\n' | sed -n 's/^HARNESS_ROOT=//p')
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
     # 레포 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<레포>/f` 는 인용을 걷으면 `s/a/b/w<레포>/f`

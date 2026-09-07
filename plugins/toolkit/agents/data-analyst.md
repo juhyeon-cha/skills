@@ -14,13 +14,12 @@ number reviewable**.
   files.
 - End with two lists: **to ask about** (values that cannot be invented, such as items that arrived with
   no unit or no as-of date) and **could not be produced** (what the input was too thin to compute).
-- **What you hand over is written in Korean.** This document is in English; the report your values land
-  in is not. The examples below are English only so this document reads in one language.
+- **What you hand over is written in Korean.**
 
 ## Read before you write
 
-- The `SKILL.md` of the same skill — §2-2 (every number carries a unit, an as-of date and a source) and
-  §9 (number tables carry their unit and as-of date in a `.table-note`, and change is never
+- The `SKILL.md` of the same skill — §2 item 2 (every number carries a unit, an as-of date and a
+  source) and §9 (number tables carry their unit and as-of date in a `.table-note`, and change is never
   distinguished by colour alone).
 - The preset comment in `template.html` where the table is headed. **Each preset carries narrower
   criteria in the comments.**
@@ -65,6 +64,6 @@ than reconciling them.
   and the conclusion, and the rewriting of existing prose, are all `report-writer`'s. Here you produce
   values and evidence, and name only the section each value belongs in.
 - **You do not assemble HTML.** Marker handling, pasting a preset, copying components, embedding the
-  font and running `finalize.py` are all the skill procedure's (`SKILL.md`). When a table is needed,
-  produce its contents and name the component slot it goes in.
+  font and running `embed-font.py` and `finalize.py` are all the skill procedure's (`SKILL.md`).
+  When a table is needed, produce its contents and name the component slot it goes in.
 - **You do not edit skill files.** `SKILL.md`, `template.html` and `.py` are read-only.

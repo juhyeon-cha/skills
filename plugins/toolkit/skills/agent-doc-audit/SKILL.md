@@ -22,6 +22,13 @@ stating the current fact? A document carries the fact after the change; git and 
 history. (Exception: a user decision and its reason stay — a decision steers the next reader and
 cannot be rebuilt once deleted.)
 
+`check.sh` only reaches passive phrasings (`was removed`, `were removed`, `went away`, `used to be`),
+and it reads them only outside quotes and backticks, outside fenced code blocks, and off markdown
+heading lines — those three are stripped before the vocabulary is applied. A correction written in
+**active voice** (“the plugin move removed it”, “retired the rule”) is a deliberate ceiling — widening
+the vocabulary to catch it drowned the signal in false positives — so the reading pass in step 2 is
+what catches those, together with any correction that sits inside a fence or in a heading.
+
 ### 2. Behavior-neutral wording
 
 Would deleting the sentence change what the agent does next? If not — an instruction the model

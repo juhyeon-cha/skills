@@ -25,7 +25,7 @@ So **these enforcement points are designed as "a guardrail against careless acci
 
 ## 1. Hook rules (7) — the plugin's `hooks/guard.sh` (PreToolUse, every tool)
 
-Blocking is **exit code 2 + a reason on stderr**. Every judgment is **token presence**, not enumeration of command shapes (enumeration leaked three times in a row in the spike). The price is false positives, accepted deliberately. **The rules are the four anchor-free invariants** of story `harness-lzs3`: work only in a worktree · whoever built it does not grade it · a person opens the remote · one ledger. Rules that leaned on a tree anchor (`r_worktree` · `r_core_write` · `r_bead_leak` · `r_bd_body`) were removed with the plugin move — the reasons are the table in the note of `harness-lzs3.3.1`.
+Blocking is **exit code 2 + a reason on stderr**. Every judgment is **token presence**, not enumeration of command shapes (enumeration leaked three times in a row in the spike). The price is false positives, accepted deliberately. **The rules are the four anchor-free invariants** of story `harness-lzs3`: work only in a worktree · whoever built it does not grade it · a person opens the remote · one ledger. **No rule leans on a tree anchor** — the rules outside these four, and the ones that used to lean on a tree anchor, are not here; that list and the reasons for it are the table in the note of `harness-lzs3.3.1`.
 
 **The whole table hangs on `jq`.** The hook parses its input with `jq`, and **without it the hook does not die — it passes with a warning on stderr**; broken JSON input likewise. In an environment without `jq` every rule below is silently off. The reason is that this is a guardrail, not a fence: showing "the guardrail is off" costs less than blocking every tool call because one tool is missing. **The `jq` absence in `guardrail-check.sh` ([guardrail-verification.md](guardrail-verification.md) section 4) is a different place** — there the check goes dark, here the guardrail itself does.
 
@@ -47,7 +47,7 @@ Blocking is **exit code 2 + a reason on stderr**. Every judgment is **token pres
 
 **A grader's reads pass.** Words in downstream filters (`HARNESS_ROOT=<harness root> ledger.sh show <ID> --json | jq -r '.notes[] | .commit'` · `… | grep -c 'ledger.sh note'`) are not in executing position, and read-only commands on the main checkout (`ls -d <clone>/<repo>/.beads` · `grep -c . <clone>/<repo>/docs/guardrails.md`) pass through `r_main_shell`'s read exemption. No action a grader needs to gather evidence is blocked — what remains is a path inside argument text (the `r_main_shell` row), which is a write command's place.
 
-**The body of a ledger write is no longer guarded** (`r_bd_body` was removed). The rule still stands — the body goes to the ledger through a file option, never inside the command string, because backticks and `$VAR` inside a double-quoted body are expanded by the shell before the ledger tool sees them and it exits 0 anyway — but it is persuasion only. The form is `harness:develop` "원장에 본문을 넘기는 형태".
+**The body of a ledger write has no gate.** The rule still stands — the body goes to the ledger through a file option, never inside the command string, because backticks and `$VAR` inside a double-quoted body are expanded by the shell before the ledger tool sees them and it exits 0 anyway — but it is persuasion only. The form is `harness:develop` "원장에 본문을 넘기는 형태".
 
 ### 1-1. Three limits on slash commands [measured — `harness-dg0.3.1` note 7.1]
 
@@ -163,7 +163,7 @@ The survey (`harness-uhy.1.2 note`) sorted 54 candidates into **fit 30 / unfit 1
 
 | State | Count | Items · where |
 |---|---|---|
-| **Implemented** | 10 | the seven hook rules of section 1 cover C2·C3·A1·A2·A3·A4·A5·R19·S3, and `rules-check.sh` covers R5. **S12** and **R18·R40** had checks here too; each was retired together with its subject — S12 with the harness root's `.gitignore` convention, R18·R40 with the repo registry itself (not "unimplemented"; the subject is gone). A8 (`harness-dg0.6.25`) was covered by `r_bead_leak`, which the plugin move removed — it is back to persuasion (the implementer definition still forbids leaking this ledger's bead IDs into a target repo's commits) |
+| **Implemented** | 10 | the seven hook rules of section 1 cover C2·C3·A1·A2·A3·A4·A5·R19·S3, and `rules-check.sh` covers R5. **S12** and **R18·R40** have nothing to assert: the harness root is a target repo rather than a directory of its own, and there is no repo registry — the rules' subjects do not exist, which is not "unimplemented" but an empty subject. A8 (`harness-dg0.6.25`) is persuasion only — no hook carries it, and the implementer definition is the whole of it (it forbids leaking this ledger's bead IDs into a target repo's commits) |
 | **Not implemented — scope reduced by user instruction (deferred)** | 11 | C5→`harness-uhy.5.3` · R20→`5.4` · S1·S2→`6.1` · S11·S15→`6.2` · R8·R16→`7.2` · R4·S5→`7.3` · R17→`7.4` |
 
 **Zero fit items remain unregistered** — all 11 exist as beads. Two more, found outside the survey and deferred with them: `harness-uhy.5.5` (blocking a subagent's worktree-script execution — moot now that creation is the native tool) · `harness-uhy.7.5` (orphan worktree detection).

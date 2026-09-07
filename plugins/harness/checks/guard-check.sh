@@ -18,7 +18,12 @@
 #   ⑨ C3 — 대상 레포 본 체크아웃 쓰기가 차단되고(도구 경로 + 셸 경로), 같은 레포의
 #      .claude/worktrees/<워크트리 이름>/ 아래 쓰기는 통과한다. **상대 경로는 payload 의 cwd 로
 #      접어 판정한다** — cwd 가 없으면 종전대로 판정하지 않는다. **막지 못하는 경로도 rc=0 으로
-#      박아 둔다** — 한계를 주석에만 두면 조용히 사라진다
+#      박아 둔다** — 한계를 주석에만 두면 조용히 사라진다.
+#      셸 경로에는 **원장 지정 대입 하나의 면제**가 붙는다 — 값이 하네스 루트인
+#      `HARNESS_ROOT=` 대입만 벗겨 낸다. 없으면 ⑩ 이 요구하는 원장 지정이 곧 이 규칙의 후보라
+#      지명해도 안 해도 막히는 배반이 된다. 면제가 그보다 넓지 않음을 차단 픽스처들로 가르고
+#      (덧붙은 값·다른 변수 이름·한 글자 다른 값·메타문자가 든 루트), 면제를 뺀 사본과
+#      정규식 시안으로 되돌린 사본 둘로 **면제가 문자열 치환이어야 함**을 못박는다
 #   ⑩ A4 — 서브에이전트의 `bd` 쓰기가 하네스 루트 지정(-C·--directory·--db) 없이는 차단되고,
 #      지정하면 통과하며, 오케스트레이터(부모 세션)는 판정 대상이 아니다. 면제(읽기) 목록은
 #      훅 소스에서 파생하고, `bd --help` 의 하위 명령 집합에서 면제를 뺀 나머지를 **전수** 시험한다
@@ -918,11 +923,66 @@ runh "$NEG_WT" "$(j_write "$MCROOT/repo/.claude/worktrees/story-a/deep/f.txt")"
 step "부정 대조군: 그 줄을 빼면 워크트리 안의 쓰기가 막힌다 (rc=2)" [ "$GUARD_RC" -eq 2 ]
 
 NEG_HOME="$TMP/guard-no-homeexp.sh"
+# 대상은 **홈 치환 두 줄**이다 — `cmd="${cmd//` 로만 고르면 바로 아래 절이 얹은 원장 지정
+# 대입의 면제까지 함께 지워져, 이 대조군이 자기 대상 밖의 규칙을 빼고 판정하게 된다.
 step "부정 대조군 전제: 홈 치환이 훅에 2줄 실재한다" \
-  [ "$(grep -cF 'cmd="${cmd//' "$HOOK")" -eq 2 ]
-grep -vF 'cmd="${cmd//' "$HOOK" > "$NEG_HOME"; chmod +x "$NEG_HOME"
+  [ "$(grep -cF 'cmd="${cmd//\$' "$HOOK")" -eq 2 ]
+grep -vF 'cmd="${cmd//\$' "$HOOK" > "$NEG_HOME"; chmod +x "$NEG_HOME"
 runh "$NEG_HOME" "$(j_bash "echo x > \$HOME/$HPROBE_NAME/repo/README.md")"
 step "부정 대조군: 치환을 빼면 홈 표기가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+
+# ── 원장 지정 대입의 면제 (skills#211) ────────────────────────────────
+# r_bd_root 는 서브에이전트의 원장 쓰기를 `HARNESS_ROOT=<하네스 루트> ledger.sh …` 형태로만
+# 인정하는데 하네스 루트는 **대상 레포 자신**이다 — 그 값이 이 규칙의 후보로 잡혀 **지명해도
+# 막히고 안 지명해도 막히는** 배반이 성립했다 (skills#209 실측 ③). 면제는 그 배반만 걷는다:
+# 값이 하네스 루트(`.harness.json` 이 있는 자리)인 대입 하나. 통과 하나와 차단 여섯이 그 폭이다.
+# 픽스처 루트는 **실재해야 한다** — 판별자가 파일이라 없는 경로는 면제되지 않는다.
+MC_DOT="$TMP/dot.root"           # `.` 이 든 하네스 루트
+MC_DOTX="$TMP/dotXroot"          # 그 `.` 자리만 다른 남의 루트 (정규식이면 이것도 벗겨진다)
+MC_BRK="$TMP/br[ack"             # `[` 이 든 하네스 루트 — 정규식이면 sed 가 죽는다
+for d in "$MC_DOT" "$MC_DOTX" "$MC_BRK"; do
+  mkdir -p "$d" && printf '{"ledger":{"backend":"beads"}}\n' > "$d/.harness.json"
+done
+MC_HR_ROOT="$MCROOT/repo"        # ⑨ 머리에서 만든 픽스처 레포 (판별자를 갖췄다)
+MC_HR_SUB="$FX_LS note $FX_TASK \"메모\""
+runh "$HOOK" "$(j_sub "HARNESS_ROOT=$MC_HR_ROOT $MC_HR_SUB" 'harness:implementer')"
+printf '  rc=%d  면제: HARNESS_ROOT=<하네스 루트> ledger.sh note\n' "$GUARD_RC"
+step "면제: HARNESS_ROOT=<하네스 루트> 로 지명한 원장 쓰기가 통과한다" [ "$GUARD_RC" -eq 0 ]
+
+# 메타문자가 든 루트가 위에 있다. **그 둘이 면제를 정규식으로 쓰지 못하게 못박는다** — 값을
+# 정규식에 보간하면 `.` 은 한 글자만 다른 남의 대입까지 함께 벗기고, `[` 은 sed 를 죽여 후보를
+# 통째로 없앤다(그 순간 r_main_shell 은 무엇이든 통과시킨다). 아래 부정 대조군 ②가 그 무너짐을 든다.
+declare -a MC_HR_LABEL=() MC_HR_CMD=()
+MC_HR_LABEL+=("(a) 대입은 같아도 명령이 본 체크아웃을 건드린다"); MC_HR_CMD+=("HARNESS_ROOT=$MC_HR_ROOT rm -rf $MC_HR_ROOT/x")
+MC_HR_LABEL+=("(b) 값에 뭔가 붙은 형태 — HARNESS_ROOT=<루트>/sub"); MC_HR_CMD+=("HARNESS_ROOT=$MC_HR_ROOT/sub $MC_HR_SUB")
+MC_HR_LABEL+=("(c) 변수 이름이 다른 형태 — OTHER=<루트>");         MC_HR_CMD+=("OTHER=$MC_HR_ROOT $MC_HR_SUB")
+MC_HR_LABEL+=("(d) 지정이 없는 형태 (r_bd_root 가 계속 막는다)");   MC_HR_CMD+=("$MC_HR_SUB")
+MC_HR_LABEL+=("(e) 한 글자만 다른 값 — 면제는 정확히 같을 때만");   MC_HR_CMD+=("HARNESS_ROOT=$MC_DOTX rm -rf $MC_DOT/x")
+MC_HR_LABEL+=("(f) 메타문자가 든 루트에서도 차단이 산다");          MC_HR_CMD+=("HARNESS_ROOT=$MC_BRK rm -rf $MC_BRK/repo")
+for i in "${!MC_HR_LABEL[@]}"; do
+  runh "$HOOK" "$(j_sub "${MC_HR_CMD[$i]}" 'harness:implementer')"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${MC_HR_LABEL[$i]}"
+  step "면제가 넓지 않다: ${MC_HR_LABEL[$i]}" [ "$GUARD_RC" -eq 2 ]
+done
+
+# 부정 대조군 ① — 면제 한 줄만 뺀 사본에서는 통과 픽스처가 다시 막힌다(배반의 재현).
+NEG_EX="$TMP/guard-no-hrexempt.sh"
+step "부정 대조군 전제: 면제가 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'cmd="${cmd//"HARNESS_ROOT=$hr "/}"' "$HOOK")" -eq 1 ]
+grep -vF 'cmd="${cmd//"HARNESS_ROOT=$hr "/}"' "$HOOK" > "$NEG_EX"; chmod +x "$NEG_EX"
+step "부정 대조군 ① 사본이 원본과 다르다" not_same "$HOOK" "$NEG_EX"
+runh "$NEG_EX" "$(j_sub "HARNESS_ROOT=$MC_HR_ROOT $MC_HR_SUB" 'harness:implementer')"
+step "부정 대조군 ①: 면제를 빼면 지명한 원장 쓰기가 다시 막힌다 (rc=2)" [ "$GUARD_RC" -eq 2 ]
+
+# 부정 대조군 ② — 면제를 정규식 시안(skills#209 note 의 형태)으로 되돌린 사본. (f) 의 클론 루트에서
+# sed 가 죽어 후보가 통째로 사라지고, 클론 루트를 지우는 명령이 통과한다. 위 (f) 가 그 차이를 든다.
+NEG_RE="$TMP/guard-re-exempt.sh"
+NEG_RE_LINE='    cmd="$(printf '"'"'%s'"'"' "$cmd" | sed -E "s#(^|[;&|(] *)HARNESS_ROOT=$hr #\\1#g")"'
+awk -v repl="$NEG_RE_LINE" 'index($0,"cmd=\"${cmd//\"HARNESS_ROOT=$hr \"/}\"") { print repl; next } { print }' \
+  "$HOOK" > "$NEG_RE"; chmod +x "$NEG_RE"
+step "부정 대조군 ② 사본이 원본과 다르다" not_same "$HOOK" "$NEG_RE"
+runh "$NEG_RE" "$(j_sub "HARNESS_ROOT=$MC_BRK rm -rf $MC_BRK/repo" 'harness:implementer')"
+step "부정 대조군 ②: 정규식 형태는 메타문자 루트에서 통째로 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
 # ── 차단 메시지 — acceptance ③ (워크트리 경로를 대안으로 지시).
 runm "$(j_write "$MCROOT/repo/main.txt")"
