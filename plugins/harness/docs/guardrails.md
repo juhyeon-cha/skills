@@ -164,7 +164,7 @@ The survey (`harness-uhy.1.2 note`) sorted 54 candidates into **fit 30 / unfit 1
 
 | State | Count | Items · where |
 |---|---|---|
-| **Implemented** | 11 | the seven hook rules of section 1 cover C2·C3·A1·A2·A3·A4·A5·R19·S3, and `rules-check.sh` covers R5·R18. **S12** had a check here too, but `skills#153` retired the rule itself together with the harness root's `.gitignore` convention sentence in `harness:setup` — the harness root is no longer a git repo, so there is nothing left to assert (not "unimplemented"; the subject is gone). A8 (`harness-dg0.6.25`) was covered by `r_bead_leak`, which the plugin move removed — it is back to persuasion (the implementer definition still forbids leaking this ledger's bead IDs into a target repo's commits) |
+| **Implemented** | 11 | the seven hook rules of section 1 cover C2·C3·A1·A2·A3·A4·A5·R19·S3, and `rules-check.sh` covers R5·R18. **S12** has nothing to assert: the harness root is not a git repo, so the rule's subject does not exist — that is not "unimplemented", it is an empty subject. A8 (`harness-dg0.6.25`) is persuasion only — no hook carries it, and the implementer definition is the whole of it (it forbids leaking this ledger's bead IDs into a target repo's commits) |
 | **Not implemented — scope reduced by user instruction (deferred)** | 11 | C5→`harness-uhy.5.3` · R20→`5.4` · S1·S2→`6.1` · S11·S15→`6.2` · R8·R16→`7.2` · R4·S5→`7.3` · R17→`7.4` |
 
 **Zero fit items remain unregistered** — all 11 exist as beads. Two more, found outside the survey and deferred with them: `harness-uhy.5.5` (blocking a subagent's worktree-script execution — moot now that creation is the native tool) · `harness-uhy.7.5` (orphan worktree detection).
