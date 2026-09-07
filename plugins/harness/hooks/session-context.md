@@ -17,16 +17,16 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
     | One came up and there is no user instruction or approval | **Do not** |
 
     Even when the table says "do it", **a target repo's own push·PR rules come first.** An unresolved decision = a task whose human-wait signal came up and which the human has not yet decided + a task whose `status` is `blocked`. The signal list is `harness:develop` "사람 대기"; the stages and failure handling are the same skill's "사이클 종결".
-- **Never modify a target repo's main checkout (`~/.harness-workspace/<repo>` itself) directly** — work only in its `.claude/worktrees/<story-id>/` worktree.
-- **Never improve the plugin core (skills · roles · hooks) in the installed copy without explicit user instruction** — the place to fix is the skills repo `plugins/harness/`, and the installed copy receives it through a marketplace update. The project context (`repos.json`·`rails.json`·`sprints.json`·`CLAUDE.md`·`.beads`) is owned by the harness root.
+- **Never modify a target repo's main checkout (`~/.harness-workspace/<repo>` itself) directly** — work only in its `.claude/worktrees/<worktree name>/` worktree.
+- **Never improve the plugin core (skills · roles · hooks) in the installed copy without explicit user instruction** — the place to fix is the skills repo `plugins/harness/`, and the installed copy receives it through a marketplace update. What is outside the plugin is machine-local (`ledger.json`·`repos.json` directly under the clone root, written only by `scripts/repo.sh`), each target repo's own `.harness.json`, and the ledger itself.
 - **Never judge completion by impression** — the only evidence is gate exit codes and the acceptance comparison. Whoever built it does not grade it.
 
 ## Ledger
 
 - The ledger is reached only through the adapter `${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh` — every `ledger.sh …` in this block and in the skill bodies is that path. Subcommands, arguments, and JSON keys are `bd`'s (`ledger.sh --help`). One value picks the backend, `backend` in the harness root's `ledger.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
-- Harness root discovery goes `HARNESS_ROOT` → the worktree's `.beads/redirect` (beads wiring) → the root pointer under `~/.harness-workspace/` (written by `scripts/repo.sh`), and the discriminator is the `ledger.json` at that spot. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
+- Harness root discovery is two steps and no tree is walked up: `HARNESS_ROOT` → the clone root `~/.harness-workspace` itself, and the discriminator is the `ledger.json` directly there. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
 - When delegating to a subagent, give the harness root absolute path on the first line, and the subagent calls only `HARNESS_ROOT=<harness root> ledger.sh …` — a call without the variable can reach another harness's ledger through root discovery.
-- The ledger is the SSOT. `docs/sprints/`·`docs/backlog/`·`docs/adr/` are projections of `scripts/board.sh all`, so they are never edited by hand.
+- The ledger is the SSOT. `scripts/board.sh all` projects it into `docs/sprints/`·`docs/backlog/`·`docs/adr/` **only on a backend with no UI of its own** — where those exist they are generated, never edited by hand.
 - Bodies (note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".
 
 ## Procedure skills (10)
@@ -39,8 +39,8 @@ Role definitions (3 — subagents, the Agent tool's `subagent_type`): `harness:i
 
 | Level | Ledger form | Convention |
 |---|---|---|
-| Sprint | label `sprint:<ID>` | ID format `YYYY-SNN`. Dates go on each story bead's `--due`. **The source of the status (`active`/`closed`) is the root `sprints.json`** — closure is never judged from the count of closed issues. `board-check` sees that the registry and the labels match both ways |
-| Rail | label `rail:<ID>` | **A person.** One rail per assignee; one rail crosses several repos. Repo boundaries are `repo:` labels. **Only IDs registered in the root `rails.json`**, in the numbered form `r1`·`r2`. Child issues inherit it |
+| Sprint | label `sprint:<ID>` | ID format `YYYY-SNN`. Dates go on each story bead's `--due`. **The source of the status (`active`/`closed`) is the adapter — `ledger.sh sprints`** — closure is never judged from the count of closed issues. `board-check` sees that the registry and the labels match both ways |
+| Rail | label `rail:<ID>` | **A person.** One rail per assignee; one rail crosses several repos. Repo boundaries are `repo:` labels. **Only IDs the adapter answers to `ledger.sh rails`**, in the numbered form `r1`·`r2`. Child issues inherit it |
 | Story | `--type epic` | Names the repos involved with `repo:<name>` labels (several allowed). Carries a mandatory `slug:<rail ID>-<name>` label that becomes its documentation directory name — the rail-ID prefix keeps different people's slugs from colliding. Uniqueness is required within a sprint, and the renderer asserts it |
 | Milestone | `--type feature --parent <story ID>` | A stage inside a story. Order goes through `blocks` dependencies |
 | Task | `--type task --parent <milestone ID>` | The unit of execution. `--acceptance` is mandatory. **Exactly one `repo:` label** — when inheritance hands it several, plan-story keeps only the one it actually touches (`ledger.sh label remove`). With several, develop refuses to start |

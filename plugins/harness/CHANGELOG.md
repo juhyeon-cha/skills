@@ -1,5 +1,40 @@
 # Changelog
 
+## Unreleased — 하네스 루트 레포 폐기 (스토리 `skills#105`)
+
+**폭 판단 — MAJOR.** 설치본이 손으로 할 일이 있다(아래 "설치본이 할 일"). 하네스 루트가 git 레포에서 **클론 루트 직속의 평범한 디렉토리**로 내려갔고, 등록부가 원장 어댑터 뒤로 들어갔으며, 하네스가 심던 git 훅 넷이 사라졌다. 옛 배치 그대로 두면 `lib/harness-root.sh` 가 루트를 못 찾아 **모든 원장 호출이 rc≠0** 이 된다.
+
+### 등록부가 어댑터 인터페이스 뒤로 갔다 (`skills#141`~`#150`)
+- **`ledger.sh rails --json` → `[{id, owner}]` · `ledger.sh sprints --json` → `[{id, status}]`.** 코어(`board.sh`·`board-check.sh`·`status` 스킬)는 이 둘만 알고 등록부 파일을 열지 않는다. 파생은 백엔드의 몫이다 — `github` 은 epic 의 `rail:` 라벨 + assignee 와 Projects v2 Iteration 필드, `notion` 은 페이지 속성, `beads` 는 하네스 루트의 `rails.json`·`sprints.json`.
+- **`repos.json` 이 셋으로 갈렸다.** 클론 목록(`name`·`url`)만 클론 루트 직속 머신 로컬로 남고, **게이트 명령·기본 브랜치·부트스트랩은 대상 레포 자신의 `.harness.json`** 이 소유한다. 이슈 라우팅은 없앴다 — `repo:` 라벨과 `ledger.json` 의 `owner` 로 `owner/name` 이 파생된다.
+- **`ledger.json` 이 클론 루트 직속 머신 로컬 한 파일**이고 `{backend, owner, project}` 셋이다. 그 자리에 있다는 사실이 곧 하네스 루트의 표지이며, `scripts/repo.sh root` 만 쓴다(가드가 손으로 쓰는 것을 막는다).
+
+### 하네스 루트가 클론 루트가 됐다 (`skills#151`~`#153`)
+- **`lib/harness-root.sh` 의 탐색이 두 단계다** — `HARNESS_ROOT` → `${HARNESS_CLONE_ROOT:-~/.harness-workspace}` 직속의 `ledger.json`. CWD 를 거슬러 올라가지 않으므로 어디서 불러도 답이 같고, 못 찾으면 rc 1 과 stderr 한 줄이다(조용한 폴백 없음). `<클론루트>/.harness-root` 포인터 파일과 `repo.sh apply` 는 없앴다.
+- **`.beads/redirect` 는 beads 백엔드 안에서만 산다** — `ledger.sh wire-worktree` 가 쓰고 `bd` 가 읽는다. 루트 판별에는 쓰이지 않는다.
+- **`rules-check` 의 S12(하네스 루트 `.gitignore` 규약)가 폐기됐다** — 하네스 루트가 git 트리가 아니라 대조할 대상이 없다.
+
+### 투영과 git 훅 (`skills#156`·`#157`)
+- **자기 UI 를 갖는 백엔드에서는 `board.sh` 가 아무것도 그리지 않는다.** 판단은 어댑터의 새 하위 명령 `has-ui` 가 하고, 코어는 백엔드 이름을 알지 않는다. `github`·`notion` 에서는 rc 0 과 "무엇을 하지 않았는지" 한 줄이다.
+- **하네스는 이제 어디에도 git 훅을 심지 않는다.** 하네스 루트의 `pre-commit`(board-check) · `pre-push`(사라지는 추적 파일 + ledger-check 쓰기 모드) · `post-merge`·`post-checkout`(투영 렌더) 넷이 존재 이유와 함께 사라졌다. `board-check`·`ledger-check` 와 원장 반영은 **사이클 종결의 명시 단계**다(`harness:develop` "사이클 종결"). `LEDGER_CHECK_PUSH=1` 은 남지만 자동으로 켜는 자리가 없다.
+
+### 워크트리 이름 (`skills#172`)
+- **`lib/worktree-name.sh` 가 스토리 ID → 워크트리 이름 변환의 유일한 자리다.** `EnterWorktree` 의 `name` 이 `#` 을 받지 않아 github 형식 ID(`<repo>#<번호>`)를 그대로 쓰면 도구가 거부한다. 허용 문자 밖을 전부 `-` 로 바꾼다(`skills#105` → `skills-105`, 브랜치 `worktree-skills-105`). 가드의 차단 문구와 문서의 경로 표기도 `<워크트리 이름>` 으로 맞췄다.
+
+### 문서 (`skills#154`·`#155`)
+- **`docs/architecture.md` 가 플러그인 `docs/` 로 왔다.** 구성 요소 표에서 하네스 루트 레포에 묶여 소멸한 넷(`plugin-root.sh` · harness root 전용 git 훅 · 하네스 루트 `.claude/settings.json` · beads 아카이브)이 빠지고, 대상 레포의 `.harness.json` 행과 `lib/worktree-name.sh` 행이 새로 섰다.
+- 플러그인 전역에서 등록부를 "하네스 루트의 파일" 로 서술하던 자리, 하네스 루트를 git 레포로 전제하던 자리, 투영을 무조건 그린다고 말하던 자리를 걷었다.
+
+### 설치본이 할 일 — 이 순서대로
+
+1. **머신 로컬 원장 지정 파일을 만든다.** `bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh root --backend <github|beads|notion> [--owner <소유자>] [--project <번호>]` → `~/.harness-workspace/ledger.json`. **손으로 쓰지 않는다** — 가드가 클론 루트 직속 쓰기를 막는다. 이 파일이 없으면 `lib/harness-root.sh` 가 rc 1 이고 모든 원장 호출이 죽는다.
+2. **등록부를 새 자리로 옮긴다.** 대상 레포마다 `bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh add <url>` — `~/.harness-workspace/repos.json` 에 `name`·`url` 로만 등재된다. 이미 클론이 있으면 그 자리를 그대로 쓴다.
+3. **대상 레포에 `.harness.json` 을 만든다.** 그 레포 루트에 `{"check": "<게이트 명령>", "default_branch": "<기본 브랜치>"}`(필요하면 `bootstrap`). **그 레포에 커밋한다** — 하네스가 소유하는 파일이 아니다. 없으면 `repo.sh check <이름>` 이 경로를 들고 rc≠0 이다(폴백 없음).
+4. **옛 하네스 루트를 정리한다.** 그 디렉토리의 `ledger.json`·`repos.json`·`rails.json`·`sprints.json`·`.claude/settings.json`·`scripts/plugin-root.sh` 와 `.beads/hooks/` 의 git 훅 넷은 이 판이 읽지 않는다. `beads` 를 계속 쓴다면 `.beads/` 의 원장 자체는 남긴다. `core.hooksPath` 를 그 훅 디렉토리로 물려 뒀다면 해제한다(`git config --unset core.hooksPath`).
+5. **`permissions.deny` 를 옮긴다.** 옛 하네스 루트의 `.claude/settings.json` 에 있던 비밀 파일 차단 10줄은 하네스가 들어 줄 자리가 없어졌다 — 세션을 여는 트리(대상 레포 클론) 자신의 `.claude/settings.json` 에 넣는다.
+
+**전환 기간에는 양쪽 자리가 함께 선다.** 새 자리의 파일을 만들어도 옛 자리를 지우지 않으면 이전 판 설치본과 새 판이 같은 원장을 함께 본다 — 그것이 이 개편을 수행한 스토리가 실제로 돈 방식이다. **옛 자리는 이 판이 설치본이 된 것을 확인한 뒤 4번으로 한 번에 치운다.** 무엇을 언제 치울지의 목록은 원장 `skills#151` 의 note 에 있다.
+
 ## 2.0.2 — 2026-09-06
 
 직전 태그 `harness-v2.0.1` 뒤 `plugins/harness/` 의 커밋 하나 — `189f46c`(PR #120).

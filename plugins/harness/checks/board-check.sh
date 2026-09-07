@@ -10,8 +10,8 @@
 # (scripts/ledger.sh). 이 검사는 등록부 파일을 열지 않는다: 여는 순간 beads 에서만 서는 게이트가 된다.
 #
 # 투영(docs/sprints/·docs/backlog/)은 검사하지 않는다. 그 트리는 git 밖의 생성물이라 낡을
-# 수는 있어도 커밋될 수는 없다 — 다시 그리는 것은 scripts/board.sh all 이고, post-merge·
-# post-checkout 훅이 그것을 부른다.
+# 수는 있어도 커밋될 수는 없다 — 다시 그리는 것은 scripts/board.sh all 이고, 그것을 부르는
+# git 훅은 없다(절차나 사람이 부른다). 자기 UI 를 갖는 백엔드에서는 아예 그리지 않는다.
 #
 # set -e 를 쓰지 않는다 — 검사 스크립트는 첫 실패에서 죽으면 안 된다. 실패는 fail=1 로
 # 모아서 전부 보고한다.

@@ -52,7 +52,7 @@ Follow section 4.
 
 ### 1.3 Create the context files
 
-Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `ledger.json` · `CLAUDE.md`).
+Follow section 5 — `ledger.json` · `repos.json` · `CLAUDE.md` always, plus `rails.json`·`sprints.json` **only when `backend` is `beads`** (on `github`·`notion` the adapter derives both registries from the ledger and neither file is read).
 
 ### 1.4 Ledger initialization
 
@@ -235,13 +235,13 @@ claude plugin update harness@skills
 
 ### 3.2 Context files the new edition requires
 
-The root owns the context files, so a plugin update does not create them — the plugin becomes new while what it reads is missing. Check `sprints.json` first: it holds a value that is not derived from the ledger (whether a sprint is closed), so it is created by hand here, while `docs/backlog/` is rebuilt by a single command and the `board.sh` row of the 3.3 table is its spot.
+The root owns the context files, so a plugin update does not create them — the plugin becomes new while what it reads is missing. Check the sprint registry first: it holds a value that is not derived from the ledger (whether a sprint is closed), while `docs/backlog/` is rebuilt by a single command and the `board.sh` row of the 3.3 table is its spot. **Ask the adapter, not a file** — the registry's backing differs per backend and only `beads` keeps it as `sprints.json`.
 
 ```bash
-[ -f sprints.json ] || echo "missing — create it as below"
+HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh sprints --json || echo "the registry does not answer — see below"
 ```
 
-If it is missing, create it in the `sprints.json` shape from section 5. **If the ledger already has `sprint:` labels, register every one of those IDs** — `board-check` blocks both a label the registry does not have and a registration the ledger does not have (two-way). This command produces the IDs to register.
+On `beads`, a missing answer means a missing `sprints.json`; create it in the shape from section 5. **If the ledger already has `sprint:` labels, register every one of those IDs** — `board-check` blocks both a label the registry does not have and a registration the ledger does not have (two-way). This command produces the IDs to register.
 
 ```bash
 HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list --all --json -n 0 | jq -r '[.[] | (.labels // [])[] | select(startswith("sprint:")) | sub("sprint:";"")] | unique | .[]'
@@ -295,15 +295,15 @@ Ask the user (all at once):
 
 ## 5. Creating the context files (A only)
 
-These five are not part of the plugin but **owned by the root**, so the plugin does not create them. The shapes below are the specification — build them from here rather than from another file. **B builds them too** — nothing is inherited, because the root is machine-local (section 0); B's only difference is that `ledger.json` is filled from the coordinates of a ledger that already exists instead of from `ledger.sh init`.
+These are not part of the plugin but **owned by the root**, so the plugin does not create them. **Three of them always, and two only on `beads`** — the rail and sprint registries are files only on that backend. The shapes below are the specification — build them from here rather than from another file. **B builds them too** — nothing is inherited, because the root is machine-local (section 0); B's only difference is that `ledger.json` is filled from the coordinates of a ledger that already exists instead of from `ledger.sh init`.
 
-All five live directly under the clone root (= the harness root, section 0). Two of them are read by tools there, so their absence kills those tools with a non-zero exit immediately: without `repos.json`, `scripts/repo.sh` and `workspace-cleanup.sh` stop; without `ledger.json`, the harness root cannot be recognized at all and every `scripts/ledger.sh` call stops. **`rails.json`·`sprints.json` are backend-dependent** — `board.sh`·`board-check.sh` reach the two registries only through the adapter (`ledger.sh rails`·`sprints`) and open no file of their own. On `beads` the adapter reads exactly these two files, so without `rails.json` `board.sh`·`board-check.sh` stop and without `sprints.json` `board-check.sh`·`board.sh all` stop; on `github`·`notion` the adapter derives both registries from the ledger and neither file is opened. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
+They live directly under the clone root (= the harness root, section 0). Two of them are read by tools there, so their absence kills those tools with a non-zero exit immediately: without `repos.json`, `scripts/repo.sh` and `workspace-cleanup.sh` stop; without `ledger.json`, the harness root cannot be recognized at all and every `scripts/ledger.sh` call stops. **`rails.json`·`sprints.json` are backend-dependent** — `board.sh`·`board-check.sh` reach the two registries only through the adapter (`ledger.sh rails`·`sprints`) and open no file of their own. On `beads` the adapter reads exactly these two files, so without `rails.json` `board.sh`·`board-check.sh` stop and without `sprints.json` `board-check.sh`·`board.sh all` stop; on `github`·`notion` the adapter derives both registries from the ledger and neither file is opened. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
 
 | File | What it holds |
 |---|---|
 | `repos.json` | the target repo registry, at `~/.harness-workspace/repos.json` — `scripts/repo.sh add` writes it |
-| `rails.json` | the rail registry — one rail per person |
-| `sprints.json` | the sprint registry — the only source of whether a sprint is closed |
+| `rails.json` | **`beads` only** — how that backend backs `ledger.sh rails`. One rail per person |
+| `sprints.json` | **`beads` only** — how that backend backs `ledger.sh sprints`, the only source of whether a sprint is closed |
 | `ledger.json` | the ledger backend — `github` (default) · `beads` · `notion` — and what that backend needs to find the ledger. It lives at `~/.harness-workspace/ledger.json` and **being there is what makes that directory the harness root**; `scripts/repo.sh root` writes it |
 | `CLAUDE.md` | the top-level rules |
 
@@ -379,7 +379,7 @@ This file lives **at the root of the target repo and is committed there**, not a
 | `default_branch` | The branching base for worktrees. EnterWorktree cuts them from `origin/<the default branch>` (`worktree.baseRef` default `fresh`). `repo.sh add` records what it detected from `origin/HEAD` or took via `--branch`; `repo.sh restore` does not read it — it re-detects from `origin/HEAD`, since a clone has to exist before this file can be read |
 | `bootstrap` | A preparation command run once inside a worktree right after it is created (installing dependencies and the like; optional). Without it, a bare worktree can fail the gate for reasons unrelated to the code — the EnterWorktree hook (`hooks/enter-worktree.sh`) reads it **from the worktree's own copy** and runs it once as the fallback when the target repo has no EnterWorktree hook of its own, reporting failure on stderr |
 
-### `rails.json` — the rail registry
+### `rails.json` — the rail registry (`beads` only)
 
 ```json
 {
@@ -401,7 +401,7 @@ This file lives **at the root of the target repo and is committed there**, not a
 
 **`board-check.sh` rejects a `rail:` label the registry does not have.** When adding a rail, fix this file before the label.
 
-### `sprints.json` — the sprint registry
+### `sprints.json` — the sprint registry (`beads` only)
 
 This is **the source of whether a sprint is closed**. A label has no room to carry state, and while this file did not exist there was a case of misjudging "every closed issue is closed, so the sprint is over".
 
@@ -425,14 +425,14 @@ Writing this file while opening and closing sprints is the `plan-sprint` procedu
 
 If the root already has one, append only the harness sections; if not, write a new one. The skeleton is these four.
 
-- **Status** — the work ledger (backend), the task loop, the orchestration means. The fact that this repo is development-language-neutral and that `repos.json` owns the build and test commands
+- **Status** — the work ledger (backend), the task loop, the orchestration means. The fact that the harness is development-language-neutral and that each target repo's own `.harness.json` owns the build and test commands
 - **How To Work** — the session context block the harness plugin injects at SessionStart, the order of the procedure skills, where the role definitions are, the documents under the plugin's `docs/`
 - **Quick Reference** — `ledger.sh ready` · `ledger.sh list` · `ledger.sh show <id>`, `scripts/repo.sh add|list`, `scripts/board.sh all`, `EnterWorktree` · `scripts/workspace-cleanup.sh <story ID>`
 - **"절대 금지"** — remote reflection only on explicit instruction (**two exceptions**: the ledger reflection tied to `git push`, and the working-branch push and PR creation of a cycle closing with no unresolved decision — from merge onward it is explicit instruction) · no direct edits to a target repo's main checkout · **fixing the plugin core also only on explicit instruction** · no judging completion by impression. For each item, write **whether a gate enforces it** — where there is none, write "게이트 없음(설득뿐)". The full list of gates, their limits, and how to verify them is held by `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`
 
 **Do not drop the core-editing item.** This skeleton is **the only path by which that discipline enters a root's `CLAUDE.md`**. Write all three of the following together.
 
-- **What the core is** — the installed plugin (`${CLAUDE_PLUGIN_ROOT}`: skills · role definitions · hooks · checks · scripts). The project context created in this section (`repos.json`·`rails.json`·`sprints.json`·`ledger.json`·`CLAUDE.md`·`.beads`) is not core but owned by this root
+- **What the core is** — the installed plugin (`${CLAUDE_PLUGIN_ROOT}`: skills · role definitions · hooks · checks · scripts). The context created in this section (`ledger.json`·`repos.json`·`CLAUDE.md`, plus `rails.json`·`sprints.json`·`.beads` on `beads`) is not core but owned by this root, and it is machine-local — nothing in it is shared or committed
 - **Why explicit instruction is needed** — an edit to the installed copy is overwritten by the next plugin update and vanishes silently. The place to fix is the plugin's source, the skills repo `plugins/harness/`, from which a release (the `release` skill) and a plugin update (section 3) carry it to every install. Do not write it as an unconditional ban — with instruction it can be done, and even then the same fix has to go to the source so that the next update does not undo it
 - **The gate** — none (persuasion alone). There is nothing for a hook to guard — the loss itself is the consequence
 

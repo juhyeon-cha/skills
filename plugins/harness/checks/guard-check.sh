@@ -16,7 +16,7 @@
 #   ⑧-값옵션 — 하위 명령 추출이 건너뛰는 값-받는 전역 옵션 목록(git·bd)이 `--help` 파생과
 #      갈리지 않았다 (파생 ⊆ 훅 목록). 종전 ⑧ 본체(git worktree 차단)는 r_worktree 와 함께 뺐다
 #   ⑨ C3 — 대상 레포 본 체크아웃 쓰기가 차단되고(도구 경로 + 셸 경로), 같은 레포의
-#      .claude/worktrees/<스토리ID>/ 아래 쓰기는 통과한다. **상대 경로는 payload 의 cwd 로
+#      .claude/worktrees/<워크트리 이름>/ 아래 쓰기는 통과한다. **상대 경로는 payload 의 cwd 로
 #      접어 판정한다** — cwd 가 없으면 종전대로 판정하지 않는다. **막지 못하는 경로도 rc=0 으로
 #      박아 둔다** — 한계를 주석에만 두면 조용히 사라진다
 #   ⑩ A4 — 서브에이전트의 `bd` 쓰기가 하네스 루트 지정(-C·--directory·--db) 없이는 차단되고,
@@ -897,14 +897,14 @@ step "부정 대조군: 치환을 빼면 홈 표기가 통과한다 (rc=0)" [ "$
 runm "$(j_write "$MCROOT/repo/main.txt")"
 echo "  write  → $GUARD_OUT"
 step "도구 메시지가 워크트리 경로를 대안으로 지시" \
-  has_text "$MCROOT/repo/.claude/worktrees/<스토리ID>/" "$GUARD_OUT"
+  has_text "$MCROOT/repo/.claude/worktrees/<워크트리 이름>/" "$GUARD_OUT"
 step "도구 메시지가 워크트리 생성 수단(EnterWorktree)을 지시" has_text 'EnterWorktree' "$GUARD_OUT"
 step "도구 메시지에 문제의 경로가 실린다"     has_text "$MCROOT/repo/main.txt" "$GUARD_OUT"
 
 runm "$(j_bash "echo hi > $MCROOT/repo/main.txt")"
 echo "  shell  → $GUARD_OUT"
 step "셸 메시지도 워크트리 경로를 대안으로 지시" \
-  has_text "$MCROOT/repo/.claude/worktrees/<스토리ID>/" "$GUARD_OUT"
+  has_text "$MCROOT/repo/.claude/worktrees/<워크트리 이름>/" "$GUARD_OUT"
 step "셸 메시지가 읽기 전용 면제를 밝힌다" has_text '읽기 전용 명령만으로 된 명령' "$GUARD_OUT"
 step "셸 메시지는 도구 전용 문구를 쓰지 않는다 (분기 확인)" \
   lacks_text '쓰기는 스토리 워크트리 안에서만 한다' "$GUARD_OUT"

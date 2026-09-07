@@ -51,7 +51,7 @@ esac
 
 main="${wt%%/.claude/worktrees/*}"          # 워크트리를 소유한 클론(본 체크아웃)
 rest="${wt#*/.claude/worktrees/}"
-wtname="${rest%%/*}"                          # .claude/worktrees/ 바로 아래 한 칸 = 스토리 ID
+wtname="${rest%%/*}"                          # .claude/worktrees/ 바로 아래 한 칸 = 워크트리 이름
 repo="${main##*/}"                            # 클론 디렉토리 이름 = 등록부의 name
 
 # ① 원장 배선 — 루트는 헬퍼가, 배선은 어댑터가. 헬퍼의 stderr(왜 못 찾았나 — ledger.json 의 자리)를 사유에 싣는다.

@@ -7,7 +7,8 @@
 # 산출물은 git 밖이다(.gitignore) — 원장이 SSOT 이고 이 트리는 사람이 로컬에서 읽는 투영이다.
 # **백엔드가 사람이 읽는 자기 UI 를 가지면 이 렌더러는 아무것도 하지 않는다** (rc 0 + 무엇을 하지
 # 않았는지 한 줄). 판단은 어댑터의 has-ui 가 하고 이 파일은 백엔드 이름을 알지 않는다 — 아래 그 자리.
-# post-merge·post-checkout 훅이 `all` 을 불러 pull·checkout 뒤 다시 그린다.
+# **이것을 자동으로 부르는 git 훅은 없다** — 하네스는 어디에도 git 훅을 심지 않는다.
+# 다시 그리는 것은 절차(plan-sprint 5 · plan-story 7 · develop 4 · verify-implement 3)나 사람의 손이다.
 # 출력(스프린트·백로그):
 #   index.md                     — 대상의 스토리 표
 #   <슬러그>/index.md            — 스토리 (디렉토리명 = slug: 라벨. 대상 안에서 유일해야 한다)

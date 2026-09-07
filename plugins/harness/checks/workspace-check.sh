@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # EnterWorktree 흐름의 왕복을 고정하는 게이트 — 생성은 네이티브 도구(세션 없이는 재현할 수 없다)라
-# 그 도구가 하는 일을 `git worktree add -b worktree-<id> <클론>/.claude/worktrees/<id> origin/<기본브랜치>`
+# 그 도구가 하는 일을 `git worktree add -b worktree-<이름> <클론>/.claude/worktrees/<이름> origin/<기본브랜치>`
 # 로 재현하고(실측 2026-09-05, claude -p: name=X → 경로 .claude/worktrees/X · 브랜치 worktree-X),
+# — <이름> 은 스토리 ID 가 아니라 lib/worktree-name.sh 가 ID 에서 파생한 이름이다 —
 # 그 위에 PostToolUse 훅(hooks/enter-worktree.sh)을 표본 payload 로 돌린 뒤 scripts/workspace-cleanup.sh
 # 로 되돌린다.
 #   ① 훅 — .beads/redirect 가 하네스 원장을 가리키고, 클론 exclude 에 .beads 가 등재되며,

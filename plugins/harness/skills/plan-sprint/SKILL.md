@@ -9,7 +9,7 @@ description: Sprint composition procedure. Use when opening a new sprint, assign
 
 The ID format is `YYYY-SNN` (4-digit year - S + 2-digit sequence). Read the existing IDs with `ledger.sh list --label-pattern 'sprint:*' --all --json -n 0` and take the next sequence for that year. When the sprint has dates, hang them on the stories with `--due`.
 
-**Once the ID is fixed, register it in the root `sprints.json` as `"<ID>": {"status": "active"}`.** That registry is the source of truth for whether a sprint is closed, and flipping the value to `closed` at the end belongs to this same procedure — the registry alone decides closure, and a count of closed issues decides nothing (the mapping table in the session context block, sprint row). An unregistered ID gets blocked by `board-check`, which names it.
+**Once the ID is fixed, register it so that `ledger.sh sprints --json` answers `{"id": "<ID>", "status": "active"}`.** Where that registration lives is the backend's: on `github` it is a Projects v2 Iteration whose title is the ID, on `notion` a select property, on `beads` a key in the root's `sprints.json`. Check with `ledger.sh sprints --json` — that answer, not a count of closed issues, is the source of truth for whether a sprint is closed, and flipping it to `closed` at the end belongs to this same procedure (the mapping table in the session context block, sprint row). An unregistered ID gets blocked by `board-check`, which names it.
 
 ## 2. Collect story candidates
 
@@ -17,8 +17,8 @@ Sources: user instruction, `ledger.sh ready`, the backlog (`ledger.sh list`), ex
 
 ## 3. Assign
 
-- Label the story epic with `sprint:<ID>` and `rail:<rail ID>`. **Use only rail IDs registered in the root `rails.json`** — when you need a rail that is absent, update the registry with the user first.
-- Set the story's assignee to the rail owner named in the registry: `ledger.sh update <story ID> --assignee <owner>`.
+- Label the story epic with `sprint:<ID>` and `rail:<rail ID>`. **Use only rail IDs that `ledger.sh rails --json` answers** — when you need a rail that is absent, settle it with the user first.
+- Set the story's assignee to that rail's `owner`: `ledger.sh update <story ID> --assignee <owner>`. **A rail is one person**, so on `github`·`notion` the assignee *is* what makes the rail exist — the adapter derives the pair from the ledger, and two different assignees under one `rail:` label is what `board-check` names.
 - When the story already has children, confirm the labels were inherited with `ledger.sh list -l sprint:<ID> --all`.
 
 ## 4. Delegate the breakdown
@@ -34,18 +34,15 @@ Sprint composition is complete when both hold:
 
 ## 6. Ship the registry
 
-The body of a plan lives in the ledger and the projection sits outside git. What this channel puts in a
-commit is **registry changes only** — `sprints.json` (open/close) and `rails.json` (rails). When the
-registry is unchanged there is no commit and no PR, and what remains is the ledger's own remote
+The body of a plan lives in the ledger and the projection sits outside git. **This channel puts nothing
+in a commit** — the registries are behind the adapter, so registering a sprint or a rail is a ledger
+write, not a file diff. There is no commit and no PR, and what remains is the ledger's own remote
 reflection — which is backend-shaped: on `beads` it is `ledger.sh sync-check --push`, and on
 `github`·`notion` there is nothing to reflect (the ledger is already remote). Where it exists it rides
 outside `git push`, so it needs an explicit instruction from the user.
 
-The body of the close procedure is owned by `harness:develop` "사이클 종결 — PR 이 종점이다"
-— commit → push the work branch → open the PR. **Restate none of those steps here.** This channel has
-two constraints of its own.
-
-1. **The commit carries the registry only.** Mixing code in dissolves the reason this channel exists.
-2. **A human does the merge.** Leave the PR open and let a human confirm the plan before merging. A plan
-   is the artifact with the highest cost to reverse (the whole task tree) — its gate is **the human
-   merge**, and opening a PR spends none of that gate. It puts the plan where a human can see it.
+**There is no PR on this channel** — nothing changed in any repo, so `harness:develop` "사이클 종결" has
+no branch to push. What replaces the human merge as the gate on a plan is the ledger itself: a plan is
+the artifact with the highest cost to reverse (the whole task tree), so **show the finished tree to the
+user and get their confirmation before the develop procedure picks it up** — `ledger.sh list -l
+sprint:<ID> --all` is what you put in front of them.
