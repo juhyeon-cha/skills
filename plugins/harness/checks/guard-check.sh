@@ -147,6 +147,8 @@ outside_clone() {  # outside_clone <경로> — 클론 루트 밖이면 0
 # GUARD_CHECK_SCOPE=fast → 임계 아래 절만 (checks/guard-fast-check.sh 가 그 자리다).
 # 기본값 full → 전수. 절을 새로 넣으면 위 ①② 로 어느 쪽인지 정하라.
 SCOPE="${GUARD_CHECK_SCOPE:-full}"
+# 모르는 값은 조용히 좁은 집합으로 떨어지지 않고 여기서 죽는다 — 좁아진 집합의 통과는 통과가 아니다.
+case "$SCOPE" in full|fast) ;; *) echo "guard-check: GUARD_CHECK_SCOPE 값 '$SCOPE' 는 허용값이 아니다 (허용값: full·fast)" >&2; exit 2 ;; esac
 full_scope() { [ "$SCOPE" = "full" ]; }
 
 echo "── ⓪ 픽스처 전제 ──"
