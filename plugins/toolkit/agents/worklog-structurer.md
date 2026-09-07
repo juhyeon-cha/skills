@@ -19,8 +19,8 @@ entry is the whole of the judgement here.
 
 ## Read before you write
 
-- The `SKILL.md` of the same skill — §9 (the component list) and §2-5 (write what you do not know as
-  not known).
+- The `SKILL.md` of the same skill — §9 (the component list) and §2 item 5 (write what you do not
+  know as not known).
 - The `PALETTE` region comments in `template.html`. **Which components exist and what each is for is
   original there.** The component names given below are the examples of their day, so where the list
   has moved on, what you read wins.

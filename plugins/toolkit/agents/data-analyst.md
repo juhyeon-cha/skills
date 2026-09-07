@@ -19,8 +19,8 @@ number reviewable**.
 
 ## Read before you write
 
-- The `SKILL.md` of the same skill — §2-2 (every number carries a unit, an as-of date and a source) and
-  §9 (number tables carry their unit and as-of date in a `.table-note`, and change is never
+- The `SKILL.md` of the same skill — §2 item 2 (every number carries a unit, an as-of date and a
+  source) and §9 (number tables carry their unit and as-of date in a `.table-note`, and change is never
   distinguished by colour alone).
 - The preset comment in `template.html` where the table is headed. **Each preset carries narrower
   criteria in the comments.**
