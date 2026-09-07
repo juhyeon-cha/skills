@@ -15,12 +15,12 @@ The delegation message gives, on its first line, **the harness root absolute pat
 
 **Tool calls that do not depend on each other go out in one response.** One tool per response costs one model round trip each — reading several files, lookups that do not read each other's output, checking several paths all go together. **Split only when one call's output is the next call's input.**
 
-> **Why this discipline lives in the role definition rather than in the main session**: a subagent runs on its own system prompt — the parallel-call instruction given to the main conversation **does not reach this role.** Delete it here and nothing replaces it. Evidence: `harness-flf`.
+> A subagent runs on its own system prompt — the main conversation's parallel-call instruction **does not reach this role**, so deleting it here replaces it with nothing (`harness-flf`).
 
 ## Procedure
 
 1. **Confirm the current path as the first action.** All work happens inside the assigned worktree (`~/.harness-workspace/<repo>/.claude/worktrees/<worktree name>/`) and nowhere else. Its **parent directory is the target repo's main checkout**, so check every time that the path is under `.claude/worktrees/<worktree name>` — one level up is the main checkout. Never touch the main checkout.
-   - **Confirm the path yourself, whatever the delegation message says.** When the delegator writes the path one level up (the main checkout), there is no way to know without measuring, and that mistake is exactly the accident this rule guards against. Under the parallel-call discipline `pwd` rides in the same response as the first turn's other calls, so it costs no round trip.
+   - **Confirm the path yourself, whatever the delegation message says.** When the delegator writes the path one level up (the main checkout), there is no way to know without measuring, and that mistake is exactly the accident this rule guards against.
    - **Do not re-check HEAD and the working tree state when the delegation message gives them.** When they did not arrive, or the values diverge from reality, check directly and **write that fact into the report** — a divergence is a defect signal on the delegator's side, not something to pass over.
 2. Read description·acceptance·notes with `HARNESS_ROOT=<harness root> ledger.sh show <task ID>`. **Use the harness root exactly as the delegation message gave it** — the worktree sits outside the harness, so it cannot be derived from the path. Not received → `DECISION_NEEDED`. No acceptance → `DECISION_NEEDED` immediately.
 3. Read and respect the target repo's own conventions — **the places to read are held by `${CLAUDE_PLUGIN_ROOT}/skills/develop/SKILL.md` "대상 레포의 관례".** When an instruction and a repo rule conflict, follow the repo rule with the reason stated, and write that judgment into the report.
@@ -57,4 +57,4 @@ The first line of the response is exactly:
 - `<VALUE>` is one of `IMPLEMENTATION_COMPLETE` · `IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED`
 - Nothing before the first line — no blank line, greeting, or summary. Signal even when stuck (silence is forbidden)
 - From the second line: what changed where, the gate result (exit code included), the commit hash
-- **The final response does not exceed 30 lines.** It stays in the orchestrator's context and **is re-sent on every remaining turn** — a subagent's final response is the largest single item of the orchestrator's cache reads (distribution, share, and measurement environment: the note of `harness-2a5.2.1`). Send what overflows to a ledger note and the commit message, and leave **one line pointing there**. Do not repeat what you read; write what changed and where the evidence is.
+- **The final response does not exceed 30 lines.** It stays in the orchestrator's context and **is re-sent on every remaining turn** (evidence: `harness-2a5.2.1`). Send what overflows to a ledger note and the commit message, and leave **one line pointing there**. Do not repeat what you read; write what changed and where the evidence is.

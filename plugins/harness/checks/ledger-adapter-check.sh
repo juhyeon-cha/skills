@@ -361,7 +361,12 @@ PI70='[{"project":{"number":9}}]'
 PI71='[]'
 case "$1 $2" in
   "auth status") [ -z "${FAKE_GH_AUTH_FAIL:-}" ] || exit 1; exit 0 ;;
-  "label create"|"issue comment"|"issue close"|"issue edit"|"issue reopen"|"project item-add") exit 0 ;;
+  "label create"|"issue comment"|"issue close"|"issue edit"|"issue reopen") exit 0 ;;
+  # item-add 는 rc 를 고를 수 있다 — create 의 판정이 그 rc 에 기대지 않는다는 것을 보는 축이다.
+  # 실패판은 stderr 에 표지를 낸다: 호출부가 그것을 버리면 진짜 사유가 영영 보이지 않는다.
+  "project item-add")
+    [ -z "${FAKE_GH_ITEM_ADD_FAIL:-}" ] || { echo "FAKEGH_MARKER: item-add 가 낸 진짜 사유 (scope 부족)" >&2; exit 1; }
+    exit 0 ;;
   "issue create")
     while [ $# -gt 0 ]; do [ "$1" = "-F" ] && cp "$2" "$FAKE_GH_LOG.body"; shift; done
     echo "https://github.com/juhyeon-cha/harness/issues/61"; exit 0 ;;
@@ -426,6 +431,15 @@ case "$1 $2" in
                 "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 83 r3 '[]')" ;;
           *) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
         esac ;;
+      # 소속 재확인 (skills#212) — create 가 item-add 뒤에 이슈를 다시 읽는 자리다. 기본은 소속,
+      # FAKE_GH_NOT_IN_PROJECT 는 빈 목록(정말 안 들어간 판). 아래 n= 분기들보다 **앞**에 둔다 —
+      # 이 질의도 -F n=<번호> 를 실어 가므로 뒤에 두면 그쪽이 먼저 집어 FIELDS 노드를 답한다.
+      *'issue(number:$n){ projectItems'*)
+        if [ -n "${FAKE_GH_NOT_IN_PROJECT:-}" ]; then
+          echo '{"data":{"repository":{"issue":{"projectItems":{"nodes":[]}}}}}'
+        else
+          echo '{"data":{"repository":{"issue":{"projectItems":{"nodes":[{"project":{"number":4}}]}}}}}'
+        fi ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
       # 없는 레포 — 등록부가 사라져 이름의 실재를 판정하는 것은 원격뿐이다(ledger-github.sh 머리 주석).
       *"r=nowhere"*) echo 'gh: Could not resolve to a Repository' >&2; exit 1 ;;
@@ -493,6 +507,56 @@ step "create 의 본문이 <description>\\n\\n## Acceptance\\n\\n<acceptance> �
   bash -c '[ "$(cat "$1")" = "$(printf "본문\n\n## Acceptance\n\n조건")" ]' _ "$LOG.body"
 grun create "x" -t task
 step "create 에 repo: 라벨도 --parent 도 없으면 rc≠0 (레포를 정할 출처가 없다)" [ "$RC" -ne 0 ]
+
+# ── create 의 Project 등재 판정 (skills#212) ──────────────────────────
+# 판정은 `gh project item-add` 의 **종료 코드가 아니라 다시 읽은 소속**이다. 이슈는 item-add
+# 앞에서 이미 만들어지므로, rc 하나로 죽으면 실재하는 등재가 실패로 기록된다 — 이 스토리를
+# 쪼갤 때 실제로 그랬다(skills#210 실측 ①②③). 이 레포 자신의 교리이기도 하다
+# (../docs/guardrails.md 5-1 — 시도한 반영이 아니라 다시 세어본 결과가 판정한다).
+grunenv() { # grunenv <VAR=값…> -- <ledger.sh 인자…>
+  local -a e=()
+  while [ $# -gt 0 ] && [ "$1" != "--" ]; do e+=("$1"); shift; done
+  shift
+  OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$GH" \
+        env "${e[@]}" bash "$LEDGER" "$@" 2>"$TMP/err"); RC=$?
+  ERR=$(cat "$TMP/err")
+}
+: > "$LOG"; grunenv FAKE_GH_ITEM_ADD_FAIL=1 -- create "제목" -t task -l repo:harness --silent
+step "item-add 가 rc≠0 이어도 소속이 확인되면 create 가 통과한다 (rc=0 · id 를 낸다)" \
+  bash -c '[ "$1" -eq 0 ] && [ "$2" = "harness#61" ]' _ "$RC" "$OUT"
+step "소속을 실제로 **다시 읽었다** — item-add 뒤에 projectItems 질의가 있다" \
+  bash -c 'grep -q projectItems "$1" \
+    && [ "$(grep -n "^project item-add" "$1" | head -1 | cut -d: -f1)" -lt "$(grep -n projectItems "$1" | head -1 | cut -d: -f1)" ]' _ "$LOG"
+
+: > "$LOG"; grunenv FAKE_GH_ITEM_ADD_FAIL=1 FAKE_GH_NOT_IN_PROJECT=1 -- create "제목" -t task -l repo:harness --silent
+step "정말 소속이 아니면 create 가 죽는다 (rc≠0)" [ "$RC" -ne 0 ]
+step "죽을 때 gh 자신의 stderr 가 메시지에 실린다 (>/dev/null 2>&1 로 버리지 않는다)" \
+  has_text 'FAKEGH_MARKER' "$ERR"
+# 반대쪽 극성 — **rc 0 이면 다시 읽지 않는다.** 소속 조회가 item-add 직후에 신선한지는 미측정이고
+# (같은 계열의 item-list 는 직후에 새 항목을 내지 않는 것이 실측이다 — ../scripts/ledger-github.sh 머리 주석),
+# 보고된 성공을 낡을 수 있는 조회로 뒤집으면 흔한 경로에서 거짓 실패가 난다. 이 두 줄이 그 경계를 든다.
+: > "$LOG"; grunenv FAKE_GH_NOT_IN_PROJECT=1 -- create "제목" -t task -l repo:harness --silent
+step "item-add 가 rc 0 이면 소속을 다시 읽지 않는다 (통과 · projectItems 질의 0회)" \
+  bash -c '[ "$1" -eq 0 ] && ! grep -q projectItems "$2"' _ "$RC" "$LOG"
+
+# 부정 대조군 — 판정 한 줄만 옛 형태(rc 만 본다)로 되돌린 어댑터 사본에서는 첫 픽스처가 죽는다
+# (../docs/development.md "Checking that a check is alive"). 사본이 비지 않고 원본과 다름을 먼저 단언한다.
+NEGP="$TMP/negplug"; mkdir -p "$NEGP/scripts"
+cp "$PLUGIN_ROOT/scripts/ledger.sh" "$NEGP/scripts/ledger.sh"
+step "부정 대조군 전제: 소속 재확인이 어댑터에 1줄 실재한다" \
+  [ "$(grep -cE '^ *\[ "\$add_rc" -eq 0 \] \|\| in_project "\$slug" "\$num" \\$' "$PLUGIN_ROOT/scripts/ledger-github.sh")" -eq 1 ]
+sed 's#^ *\[ "\$add_rc" -eq 0 \] || in_project "\$slug" "\$num" \\$#    [ "$add_rc" -eq 0 ] \\#' \
+  "$PLUGIN_ROOT/scripts/ledger-github.sh" > "$NEGP/scripts/ledger-github.sh"
+step "부정 대조군 사본이 원본과 다르다" bash -c '[ -s "$1" ] && [ -s "$2" ] && ! cmp -s "$1" "$2"' \
+  _ "$PLUGIN_ROOT/scripts/ledger-github.sh" "$NEGP/scripts/ledger-github.sh"
+: > "$LOG"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$GH" \
+      CLAUDE_PLUGIN_ROOT="$NEGP" FAKE_GH_ITEM_ADD_FAIL=1 bash "$NEGP/scripts/ledger.sh" \
+      create "제목" -t task -l repo:harness --silent 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "부정 대조군: rc 만 보는 옛 형태는 같은 픽스처에서 죽는다 (rc≠0)" [ "$RC" -ne 0 ]
+# 사본이 **엉뚱한 이유로** 죽은 것이 아님 — 죽은 자리가 그 판정이고, 이슈는 이미 만들어진 뒤다.
+step "부정 대조군이 죽은 자리가 등재 판정이다 (이슈는 만들어졌다)" \
+  bash -c 'printf "%s" "$1" | grep -q "Project 4" && grep -q "^issue create" "$2"' _ "$ERR" "$LOG"
 # ── create 의 라벨 상속 (skills#179 · 스토리 skills#175 결정 1) ────────
 # **방향이 뒤집힌 자리다.** 종전 단언은 "--parent 만으로는 레포를 정하지 않는다 — repo: 라벨 0개는
 # rc≠0" 이었다(폴백 없음). 상속이 어댑터의 것이 된 뒤 그것은 폴백이 아니라 규칙이다 — 부모의

@@ -11,7 +11,8 @@
 # 출력 한 줄 = 파일:줄:기준:문장. 기준 표지는 SKILL.md 의 번호를 앞에 단다:
 #   4-date          YYYY-MM-DD 날짜 — 펜스 코드 블록 안은 뺀다(예시 JSON 의 날짜는 데이터이지 주장이 아니다)
 #   4-line-pointer  파일 경로 뒤의 :<줄 번호> — 펜스 코드 블록 안은 뺀다
-#   1-correction    정정 어휘 (종전 · 이전에는 · 바로잡 · 정정)
+#   1-correction    정정 어휘 (종전 · 이전에는 · 바로잡 · 정정 · was removed · were removed · went away ·
+#                   used to be) — 7-korean 과 같은 제거본 위에서만 본다: 백틱·따옴표 안, 펜스, 제목 줄은 뺀다.
 #   6-dead-path     백틱 안 경로가 실재하지 않는다 — 파일의 디렉토리 · 인자로 받은 디렉토리 전부 · CWD
 #                   어디서도 test -e 가 거짓. 자리표시자(<…> ${…} * ~ 공백)와 URL 은 보지 않고, 경로로
 #                   읽는 것은 마지막 조각에 점이 있거나 / 로 끝나거나 ./ 또는 / 로 시작하는 것뿐이다.
@@ -59,7 +60,6 @@ while (my $line = <$fh>) {
   my @hits;
   push @hits, "4-date"         if !$fence && $line =~ /(?<![\d.])\d{4}-\d{2}-\d{2}(?![\d.])/;
   push @hits, "4-line-pointer" if !$fence && $line =~ /[\w.\/-]+\.[A-Za-z]+:\d+/;
-  push @hits, "1-correction"   if $line =~ /종전|이전에는|바로잡|정정/;
   my $dead = 0;
   while ($line =~ /`([^`]+)`/g) {
     my $p = $1;
@@ -75,6 +75,7 @@ while (my $line = <$fh>) {
     my $s = $line;
     $s =~ s/`[^`]*`//g; $s =~ s/"[^"]*"//g; $s =~ s/“[^”]*”//g; $s =~ s/「[^」]*」//g;
     $s =~ s/\x27[^\x27]*[가-힣][^\x27]*\x27//g;
+    push @hits, "1-correction" if $s =~ /종전|이전에는|바로잡|정정|was removed|were removed|went away|used to be/;
     push @hits, "7-korean" if $s =~ /[가-힣]/;
   }
   print "$file:$n:$_:$line\n" for @hits;
