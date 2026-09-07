@@ -57,4 +57,4 @@ The first line of the response is exactly:
 - `<VALUE>` is one of `IMPLEMENTATION_COMPLETE` · `IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED`
 - Nothing before the first line — no blank line, greeting, or summary. Signal even when stuck (silence is forbidden)
 - From the second line: what changed where, the gate result (exit code included), the commit hash
-- **The final response does not exceed 30 lines.** It stays in the orchestrator's context and **is re-sent on every remaining turn** — a subagent's final response is the largest single item of the orchestrator's cache reads (distribution, share, and measurement environment: the note of `harness-2a5.2.1`). Send what overflows to a ledger note and the commit message, and leave **one line pointing there**. Do not repeat what you read; write what changed and where the evidence is.
+- **The final response does not exceed 30 lines.** It stays in the orchestrator's context and **is re-sent on every remaining turn** (evidence: `harness-2a5.2.1`). Send what overflows to a ledger note and the commit message, and leave **one line pointing there**. Do not repeat what you read; write what changed and where the evidence is.
