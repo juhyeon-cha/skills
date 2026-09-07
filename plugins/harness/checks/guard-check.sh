@@ -2073,6 +2073,60 @@ for c in 'git status' 'git log --oneline -3' 'git diff HEAD~1' 'git show HEAD' '
   step "통과(채점자 git 읽기): $c" [ "$GUARD_RC" -eq 0 ]
 done
 
+# ── 두 낱말 읽기 쌍 (skills#226). 하위 명령만으로는 읽기·쓰기가 갈리지 않아 GR_GIT_READ 에
+#    올릴 수 없는 것들의 읽기 형태를, C3 의 MC_GIT_READ_OPT 를 재사용해 면제한다.
+#    실측 오탐: skills#191 회차의 `gh issue view <n> -R $(git remote get-url origin | sed …)`.
+#    **원인은 명령 치환이 아니다** — 치환 밖의 같은 명령도 함께 막혔고 아래 두 줄이 그 짝이다.
+for c in \
+  "gh issue view 42 -R \$(git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/]+?)(\.git)?\$#\1#')" \
+  'git remote get-url origin' \
+  'echo $(git remote get-url origin)' \
+  'git remote -v' 'git remote show origin' \
+  'git config --get remote.origin.url' 'git config --list' \
+  'git worktree list' 'git stash list' 'git tag -l' \
+  'git status --porcelain --ignored; ls -la' \
+  'git status --porcelain --ignored && git diff --stat && git log --oneline -3'; do
+  runrole "$c" "$GR_R"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "통과(채점자 git 읽기 쌍): $c" [ "$GUARD_RC" -eq 0 ]
+done
+# **넓히는 것이지 여는 것이 아니다.** 쌍이 어긋나면 종전대로 막힌다 — 명령 치환 안이라고
+# 통과시키지 않는다는 것이 아래 두 줄(`echo $(…)`)의 몫이다.
+# `git branch -D x` 는 이 배열에 없다 — bare `branch` 가 GR_GIT_READ 의 면제어라 종전부터
+# 통과하며, 그것은 이 변경과 무관한 기존 한계다 (../docs/guardrails.md r_grader_shell 행).
+for c in \
+  'git remote add up https://x' 'git remote remove origin' 'git remote set-url origin https://x' \
+  'git config user.email x@y' 'git tag -d v1' 'git worktree add /tmp/w main' \
+  'git stash push -m x' \
+  'echo $(git commit -m x)' 'echo $(git remote remove origin)' \
+  'git remote get-url origin && git commit -m x'; do
+  runrole "$c" "$GR_E"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "차단(쌍이 어긋난 git 쓰기): $c" [ "$GUARD_RC" -eq 2 ]
+done
+# 원장 쓰기는 명령 치환 안에서도 막힌다 — 위 git 면제가 원장 규칙까지 새게 하지 않음을 본다.
+for c in "echo \$($FX_LS note $FX_TASK hi)" "echo \$(bd -C $FX_ROOT close $FX_TASK)"; do
+  runrole "$c" "$GR_R"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "차단(치환 안의 원장 쓰기): $c" [ "$GUARD_RC" -eq 2 ]
+done
+
+# 부정 대조군 — 넓힌 쌍 판정 한 줄만 뺀 사본에서 위 첫 줄이 rc=2 로 돌아온다.
+NEG_GRS="$TMP/guard-no-grader-pair.sh"
+GRS_MARK='case " $MC_GIT_READ_OPT " in *" $gsub:$gnxt "*) continue ;; esac'
+step "부정 대조군 전제: 쌍 판정이 채점자 규칙에 1줄 실재한다" \
+  [ "$(grep -cF "$GRS_MARK" "$HOOK")" -eq 1 ]
+grep -vF "$GRS_MARK" "$HOOK" > "$NEG_GRS"; chmod +x "$NEG_GRS"
+step "부정 대조군 전제: 사본이 실재하고 원본과 다르다" not_same "$HOOK" "$NEG_GRS"
+runh "$NEG_GRS" "$(j_sub "gh issue view 42 -R \$(git remote get-url origin | sed -E 's#x#y#')" "$GR_R")" "HARNESS_CLONE_ROOT=$MCROOT"
+step "부정 대조군: 쌍 판정을 빼면 그 읽기가 rc=2 로 돌아온다" [ "$GUARD_RC" -eq 2 ]
+# 목록을 둘로 두지 않았다는 단언 — 채점자 규칙이 C3 와 **같은** 변수를 본다. 여기서 갈리면
+# 한쪽만 늘어났을 때 두 규칙의 판정이 조용히 어긋난다.
+step "채점자 규칙이 C3 와 같은 쌍 목록(MC_GIT_READ_OPT)을 본다" \
+  [ "$(grep -cF 'MC_GIT_READ_OPT " in' "$HOOK")" -eq 2 ]
+step "쌍 추출도 한 자리다 (git_next_token 정의 1 · 호출 2)" \
+  [ "$(grep -cF 'git_next_token' "$HOOK")" -eq 3 ]
+
 # ── 막지 못하는 것. rc=0 을 단언으로 박아 둔다 — harness-uhy.5.1 note "한계" 와 1:1.
 declare -a GR_LIMIT_N=() GR_LIMIT_JSON=() GR_LIMIT_CMD=()
 GR_LIMIT_N+=(1); GR_LIMIT_CMD+=('echo x > /tmp/guard-check-grader.txt')

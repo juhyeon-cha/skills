@@ -601,6 +601,11 @@ MC_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-
 # 위에서 뺀 하위 명령의 읽기 형태 — `<하위명령>:<바로 다음 토큰>`. 바로 다음 토큰이 그것일 때만 읽기다
 # (`git worktree list` · `git config --get x` · `git branch --show-current`). 게이트가 쌍마다 통과를 단언한다.
 MC_GIT_READ_OPT="worktree:list config:--get config:--get-regexp config:--list config:-l branch:--show-current branch:--list branch:-a branch:-r branch:-v branch:-vv remote:-v remote:show remote:get-url stash:list stash:show tag:-l tag:--list"
+# 조각에서 하위 명령 **바로 다음** 토큰. 위 쌍 목록의 우변을 뽑는 자리이며 r_grader_shell 도
+# 같은 목록을 같은 추출로 본다 — 추출을 둘로 두면 한쪽만 고쳐졌을 때 두 규칙의 판정이 어긋난다.
+git_next_token() {  # git_next_token <하위 명령> <조각>
+  printf '%s' "$2" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk -v s="$1" 'f && $0 != "" { print; exit } $0 == s { f = 1 }'
+}
 mc_segcmd() {  # COMMAND_RAW 의 인용 안 경계 문자를 공백으로(`|` 는 \001 — mc_script_writes 가 본다). 인용은 남긴다.
   printf '%s\n' "$COMMAND_RAW" | awk '
     {
@@ -641,7 +646,7 @@ mc_all_readonly() {
     if [ "$w" = "git" ]; then
       sub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
       case " $MC_GIT_READ " in *" $sub "*) continue ;; esac
-      nxt="$(printf '%s' "$seg" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk -v s="$sub" 'f && $0 != "" { print; exit } $0 == s { f = 1 }')"
+      nxt="$(git_next_token "$sub" "$seg")"
       case " $MC_GIT_READ_OPT " in *" $sub:$nxt "*) continue ;; esac
     fi
     if [ "$w" = "gh" ]; then
@@ -947,11 +952,22 @@ r_grader_shell() {
   gr_is_grader || return 0
 
   tool_aliased git && deny "git 을 변수에 담아 부르는 형태('G=git; \$G …')는 하위 명령을 읽을 수 없어 차단한다 — git 을 직접 불러라. $(gr_can)"
-  local seg gsub
+  local seg gsub gnxt
   while IFS= read -r seg; do
     gsub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
-    if [ -n "$gsub" ]; then case " $GR_GIT_READ " in *" $gsub "*) continue ;; esac; fi
-    deny "채점자의 git 쓰기 금지 — 'git ${gsub:-<하위 명령 없음>}' 은 읽기 면제 목록 밖이다. agent_type=$AGENT_TYPE 은 파일 수정·커밋이 금지다(리뷰·평가만) — 채점자가 만든 커밋이 곧 다음 판정의 대상이 된다. 판정은 git 이 실행하는 하위 명령이라 commit 뿐 아니라 revert·cherry-pick·merge·am·rebase·reset·clean·stash·checkout 도 막힌다. 읽기 면제: $GR_GIT_READ. 실행이 아닌 문자열(git log --grep commit)은 걸리지 않는다 — 그래도 막혔으면 오탐이니 사람에게 확인받아라. $(gr_can)"
+    if [ -n "$gsub" ]; then
+      case " $GR_GIT_READ " in *" $gsub "*) continue ;; esac
+      # 하위 명령만으로는 읽기·쓰기가 갈리지 않아 GR_GIT_READ 에 올릴 수 없는 것들의 **읽기 형태**.
+      # `remote` 는 add·remove 가 있어 목록 밖인데 `remote get-url` 은 URL 을 stdout 으로 낼 뿐이다 —
+      # skills#191 회차에서 `gh issue view <n> -R $(git remote get-url origin | sed …)` 가 이것 때문에
+      # 막혔다. 원인은 명령 치환이 아니다: 치환 밖의 `git remote get-url origin` 도 똑같이 막혔다
+      # [실측 skills#226]. 목록은 C3 의 MC_GIT_READ_OPT 를 **그대로 재사용**한다 — 같은 "git 읽기 쌍"
+      # 개념이고, 둘로 두면 한쪽만 늘어났을 때 두 규칙의 판정이 어긋난다.
+      # 넓히는 것이지 여는 것이 아니다: 쌍이 어긋나면(`remote add`·`config <k> <v>`·`tag -d`) 종전대로 막힌다.
+      gnxt="$(git_next_token "$gsub" "$seg")"
+      case " $MC_GIT_READ_OPT " in *" $gsub:$gnxt "*) continue ;; esac
+    fi
+    deny "채점자의 git 쓰기 금지 — 'git ${gsub:-<하위 명령 없음>}' 은 읽기 면제 목록 밖이다. agent_type=$AGENT_TYPE 은 파일 수정·커밋이 금지다(리뷰·평가만) — 채점자가 만든 커밋이 곧 다음 판정의 대상이 된다. 판정은 git 이 실행하는 하위 명령이라 commit 뿐 아니라 revert·cherry-pick·merge·am·rebase·reset·clean·stash·checkout 도 막힌다. 읽기 면제: $GR_GIT_READ. 하위 명령 **바로 다음** 토큰까지 봐서 읽기인 쌍도 면제다: $MC_GIT_READ_OPT. 실행이 아닌 문자열(git log --grep commit)은 걸리지 않는다 — 그래도 막혔으면 오탐이니 사람에게 확인받아라. $(gr_can)"
   done < <(exec_segments git)
 
   local t sub
