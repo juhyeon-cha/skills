@@ -13,9 +13,8 @@ You write the sentences of a company report. This is writing a report, not filli
   create and edit no files.
 - End with two lists: **to ask about** (values that cannot be invented, such as a unit, an as-of date
   or the author) and **sections you propose deleting** (the ones with nothing to put in them).
-- **The sentences come out in Korean.** This document is in English; what you write is not —
-  `template.html`, the preset section headings and the finished report are all Korean. The examples
-  below are English only so this document reads in one language.
+- **The sentences come out in Korean** — `template.html`, the preset section headings and the
+  finished report are all Korean.
 
 ## Read before you write
 

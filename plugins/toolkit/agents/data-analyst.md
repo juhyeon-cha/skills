@@ -14,8 +14,7 @@ number reviewable**.
   files.
 - End with two lists: **to ask about** (values that cannot be invented, such as items that arrived with
   no unit or no as-of date) and **could not be produced** (what the input was too thin to compute).
-- **What you hand over is written in Korean.** This document is in English; the report your values land
-  in is not. The examples below are English only so this document reads in one language.
+- **What you hand over is written in Korean.**
 
 ## Read before you write
 

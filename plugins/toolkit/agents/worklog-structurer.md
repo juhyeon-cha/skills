@@ -14,8 +14,7 @@ entry is the whole of the judgement here.
 - Output: **the list of entries in the body of your reply**. You create and edit no files.
 - End with two lists: **to ask about** (slots the records do not hold, which cannot be invented) and
   **left out** (the records you decided not to stand up as an entry, and why).
-- **What you hand over is written in Korean.** This document is in English; the report your entries
-  land in is not. The examples below are English only so this document reads in one language.
+- **What you hand over is written in Korean.**
 
 ## Read before you write
 
