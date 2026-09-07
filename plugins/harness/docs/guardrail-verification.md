@@ -1,8 +1,8 @@
 # Verifying the enforcement mechanisms, and as-built observations — how to confirm, and what was observed
 
 > The **full list** of guardrails and gates (what is blocked) is [guardrails.md](guardrails.md).
-> This document is its pair: **how to confirm** (section 4) and **as-built observations** (sections 7–11).
-> **Section numbers continue from that document** — other documents and scripts point at "section 8" by number, so the numbers stay. Sections 1 · 2 · 3 · 5 · 5-1 · 6 · 6-1 are in guardrails.md, not here.
+> This document is its pair: **how to confirm** (section 4) and **as-built observations** (sections 7 · 8 · 8-1 · 9 · 11).
+> **Section numbers continue from that document** — other documents and scripts point at "section 8" and "section 11" by number, so the numbers stay and a retired section leaves its number vacant rather than renumbering the rest. Sections 1 · 2 · 3 · 5 · 5-1 · 6 · 6-1 are in guardrails.md, not here.
 > Structure: [architecture.md](architecture.md). Development rules: [development.md](development.md).
 > Paths written as `hooks/…` · `checks/…` · `scripts/…` are inside the plugin `harness@skills` (`${CLAUDE_PLUGIN_ROOT}`, `plugins/harness` in the skills repo); `docs/…` · `.beads/…` · `.claude/…` are harness-root-relative.
 
@@ -130,19 +130,6 @@ Two places it backs off by design. **An unreadable oracle does not fall back to 
 3. **Totals flow — the evidence is the ratio.** The transcript directory grows with every session, and since sessions now open in target clones the transcripts are spread over several project directories under `~/.claude/projects` — the check reads all of them by default (`--projects` narrows), and the header line states the population. **Only the judgment count grows; the violation count can shrink** — the judgment reads `texts[-1]` per transcript, and one instance reused for several delegations has a mid-way violation covered by a later correct `SIGNAL`. **Do not read a falling violation count as improvement.**
 4. **`<task-notification>` is not subagent-only.** A background shell job ends the same way. A notification with no transcript file cannot be attributed to a role and is removed from the population, and **that count goes into the header line**; a transcript whose role cannot be read leaves one unreached line — asynchronous role attribution hangs on `attributionAgent` alone, and if that field vanished the population would shrink to **0 unreached · 0 violations · rc=0**.
 5. **The A9 judgment is lenient on leading whitespace.** It reads the first line after `lstrip()`, so it catches **content** before `SIGNAL`, not blank lines — narrower than the role definition's text ("no blank line before the first line"); widening it would make every serialization-side blank a violation.
-
-## 10. Release width — a confirmation step, no gate
-
-The width of a version bump is decided by **whether an install gets hand work** ([development.md](development.md) "Release"; the procedure is the skills repo's own skill, `.claude/skills/release/SKILL.md`). That judgment is natural language and **no gate sees it.** What exists is one confirmation command in that skill's sweep step: the diff of the plugin's `skills/setup/SKILL.md` since the previous tag (in the skills repo) — a new hand step in its update section is the definition of MAJOR.
-
-**This item is not one of the eight in 6-1** — that list is locked as a set with `docs/adr/natural-language.md` 6.4, and the both-way count in that section asserts it. Adding this place as a row would break the count. It stands apart in place, not in kind.
-
-### Ceilings (what it cannot do)
-
-1. **It cannot be wired to any gate — the commit gate in principle.** The width is settled once, at release time, over the whole range since the previous tag; between releases there is no width for a commit to be compared against. Firing it on every commit makes every commit but the release one a false positive.
-2. **It looks one way — a miss remains, and that is the dangerous shape.** The command sees only the setup skill's diff. **Hand work that appeared without the setup skill being updated is not caught.** Then an install updates with a narrow width and no procedure, and its gate breaks right after, with the person not knowing why. **That loss has not actually happened — a hypothesis**: no install has updated across a release yet.
-3. **False positives remain.** A typo fix in the setup skill also produces output. The judgment is a person reading the diff — the command **points at what to read**, it does not judge.
-4. **rc says nothing — the signal is whether there is output.** Both cases are rc=0.
 
 ## 11. When firing counts can be used as evidence
 

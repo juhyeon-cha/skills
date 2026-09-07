@@ -79,12 +79,6 @@ The as-built rule list and each rule's limits are [guardrails.md](guardrails.md)
 - **Approval rules do not cover a command with a file redirection** [measured — `harness-m8gg.8.12` note]. `bash <script> >/dev/null 2>&1` is refused under `Bash(<prefix>:*)` · `Bash(<prefix> *)` · `Bash(*)` alike — not a rule-syntax issue: the redirection is split off for approval before rule matching. `2>&1` alone and pipes are approved. To cut prompts, **drop the `>` from the command**, not the rule. A command after `;`·`&&` is not approved by a prefix rule either — the approval rule is not an injection channel.
 - **The shell baseline is macOS's default `bash` 3.2.** No `mapfile`/`readarray`, `declare -A`, `${var,,}`, `${var^^}`. (Measured: a missing `mapfile` killed one check of `ledger-check` outright while the script reported only the remaining reasons — with a clean audit log that would have been a false rc=0 pass.)
 
-## Release
-
-- **What gets released is the plugin `harness@skills`** — nothing else in a harness carries a version number. The number has exactly one source — `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. The history is `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md` and the tag is `harness-v<number>`; the marketplace reads the number from `plugin.json`.
-- **The procedure is owned by the skills repo's own skill, `.claude/skills/release/SKILL.md`** (`/release`) — the sweep from the previous tag, the bump width (decided by what an install has to do by hand), the entry, raising the number, `claude plugin validate --strict`, and the local commit and tag. It is not restated here. It is not shipped inside the plugin: releasing is work done in the skills repo, not in a harness root.
-- **Tag push and a GitHub release (`gh release create`) only on explicit user instruction.**
-
 ## Remote
 
 Local commits are free. Tag push · merge · release publishing only on explicit user instruction, and an approval is valid for that one time. **Working-branch push and PR creation are automatic only as the product of a cycle close** — only when no decision is unresolved in that cycle (exception two of the session block's "절대 금지"). Ledger reflection is an explicit step of that close, not something a git hook rides on (`bd dolt push` on `beads`; on `github`·`notion` the ledger is already remote and there is nothing to send).
