@@ -47,7 +47,7 @@ Blocking is **exit code 2 + a reason on stderr**. Every judgment is **token pres
 
 **A grader's reads pass.** Words in downstream filters (`HARNESS_ROOT=<harness root> ledger.sh show <ID> --json | jq -r '.notes[] | .commit'` · `… | grep -c 'ledger.sh note'`) are not in executing position, and read-only commands on the main checkout (`ls -d <clone>/<repo>/.beads` · `grep -c . <clone>/<repo>/docs/guardrails.md`) pass through `r_main_shell`'s read exemption. No action a grader needs to gather evidence is blocked — what remains is a path inside argument text (the `r_main_shell` row), which is a write command's place.
 
-**The body of a ledger write is no longer guarded** (`r_bd_body` was removed). The rule still stands — the body goes to the ledger through a file option, never inside the command string, because backticks and `$VAR` inside a double-quoted body are expanded by the shell before the ledger tool sees them and it exits 0 anyway — but it is persuasion only. The form is `harness:develop` "원장에 본문을 넘기는 형태".
+**The body of a ledger write has no gate.** The rule still stands — the body goes to the ledger through a file option, never inside the command string, because backticks and `$VAR` inside a double-quoted body are expanded by the shell before the ledger tool sees them and it exits 0 anyway — but it is persuasion only. The form is `harness:develop` "원장에 본문을 넘기는 형태".
 
 ### 1-1. Three limits on slash commands [measured — `harness-dg0.3.1` note 7.1]
 
