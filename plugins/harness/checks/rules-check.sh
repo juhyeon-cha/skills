@@ -448,8 +448,12 @@ RREM_KEEPF=(
   "checks/rules-check.sh"                  # 이 검사 자신. 무엇을 낡은 문장으로 보는지 서술하려면 그 문장을 인용해야 한다 — 자기 인용이 잔존으로 잡히는 것을 확인하고 등재했다
 )
 # 면제 — 앵커 문자열. 남는 줄과 고칠 줄을 함께 가진 파일에 쓴다(줄번호는 편집에 흔들린다).
-# 지금은 없다 — 플러그인 트리에는 docs/ 의 실측 기록이 없다. (0건 면제표는 정상이다.)
-RREM_KEEPL=()
+RREM_KEEPL=(
+  "two exceptions"              # 예외 둘을 같은 줄에서 드는 문장은 낡지 않았다 — 세션 블록의 규칙 제목과 setup 이 지시하는 그 사본
+  "RM_Q1="                      # checks/guard-check.sh 의 역방향 단언 탐침. 세션 블록의 제목을 그대로 인용해야 그 줄의 실재를 잴 수 있다
+  "PR to that repo"             # skills:retrospective — 대상은 **플러그인 코어**의 PR 이고, 그것은 예외 둘이 아니라 세션 블록의 별개 항목(코어 개선 금지)이 덮는다
+  "PR to the skills repo"       # skills:setup — 위와 같은 대상, 같은 사유
+)
 
 # 면제표를 히트 목록에서 걷어낸다. 경로 키는 경로 필드에, 앵커 키는 줄 전체에 건다.
 rrem_strip() {
@@ -463,8 +467,11 @@ check_rrem() {
   local s1 s2 files hits hits_f hits_p resid n_cand_f n_cand_p n_res k c p scope f=0
   local -a flist=()
 
-  s1='(PR|풀 리퀘스트)[^|]{0,60}(명시 지시|명시적 지시|사용자 승인|사람의 몫)|(명시 지시|명시적 지시|사용자 승인)[^|]{0,60}PR'
-  s2='(원격 반영|GitHub 반영)[^|]{0,40}(명시 지시|명시적 지시|사용자 승인)|(명시 지시|명시적 지시)[^|]{0,40}(원격 반영|GitHub 반영)'
+  # 검색어는 한국어와 영어를 함께 든다 — 문서 영어화가 진행 중이라 한국어만 들면 번역된
+  # 파일에서 같은 주장이 새로 들어와도 잡히지 않는다(R-WAIT 의 WAIT_TRIGGER 가 같은 형태다).
+  local ko_e='명시 지시|명시적 지시|사용자 승인|사람의 몫' en_e='explicit (user )?instruction|user approval'
+  s1="(PR|풀 리퀘스트)[^|]{0,60}($ko_e|$en_e)|($ko_e|$en_e)[^|]{0,60}PR"
+  s2="(원격 반영|GitHub 반영|[Rr]emote reflection|GitHub reflection)[^|]{0,60}($ko_e|$en_e)|($ko_e|$en_e)[^|]{0,60}(원격 반영|GitHub 반영|[Rr]emote reflection|GitHub reflection)"
 
   # 스캔 대상은 플러그인 트리에서 파생한다 — 트리 아래 .md·.sh 전부. git 으로 파생하지 않는다:
   # 설치 캐시(~/.claude/plugins/cache/…)는 git 트리가 아니라 ls-files 가 0건을 내고, 그러면 아래

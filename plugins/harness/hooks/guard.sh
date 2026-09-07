@@ -5,13 +5,13 @@
 # (모든 입력이 통과)이 harness-uhy.3.5 note 에 기록돼 있어, 지금의 차단이 규칙 때문임을
 # 그 기록과의 대조로 증명한다. 규칙별 실측은 그 규칙을 만든 태스크 bead 의 note 에 있다.
 #
-# **남은 규칙은 앵커와 무관한 불변식 넷이다** (플러그인 재구조화 — 스토리 harness-lzs3 "결정됨"):
+# **규칙은 앵커와 무관한 불변식 넷을 진다** (플러그인 재구조화 — 스토리 harness-lzs3 "결정됨"):
 #   작업은 워크트리에서만 …… r_main_write · r_main_shell
 #   만든 주체가 채점하지 않는다 … r_grader_write · r_grader_shell · r_impl_bd
 #   원격은 사람이 연다 ……………… r_remote
 #   원장 하나 …………………………… r_bd_root
-# 뺀 것과 그 사유는 태스크 harness-lzs3.3.1 의 note 표가 든다 — 트리 앵커(GUARD_ROOT·.harness-state·
-# 앵커 트리의 원장 이름)에 기대던 규칙과 불변식 밖 규칙이다. 앵커·플러그인 루트·실측 형식은 아래 GUARD_ROOT 주석.
+# 이 넷 밖의 규칙과 트리 앵커에 기대던 규칙은 여기 없다 — 그 목록과 사유는 태스크
+# harness-lzs3.3.1 의 note 표가 든다. 앵커·플러그인 루트·실측 형식은 아래 GUARD_ROOT 주석.
 #
 # 담장이 아니라 난간이다. 명령 문자열 검사는 원리적으로 완전하지 않다 — 스크립트
 # 경유 밀수(`bash x.sh` 안의 명령은 훅에 이벤트로 뜨지 않는다)와 인터프리터 간접
@@ -51,7 +51,6 @@ set -uo pipefail
 # **이 값은 하네스 루트도 프로젝트 루트도 워크트리도 아니다** — 플러그인은 셋 다의 밖에 산다. 규칙은
 # 이 값을 트리 판정에 쓰지 않는다. 쓰는 곳은 둘뿐이다: 내부 오류 메시지의 자기 경로, 그리고
 # lib/harness-root.sh 의 자리(r_bd_root 의 차단 메시지가 하네스 루트를 제시할 때 부른다).
-# 종전에 이 값에 기대던 규칙(파생본 판별 .harness-state · 앵커 트리의 원장 이름)은 뺐다.
 #
 # 클론 루트를 기준으로 판정하는 규칙(r_main_write·r_main_shell)의 값은
 # `${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}` 다 — scripts/repo.sh·hooks/enter-worktree.sh 가
@@ -535,7 +534,10 @@ MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath 
 # 읽기 낱말이 쓰기가 되는 옵션 — `<낱말>:<정규식>`. 조각에 그 토큰이 있으면 읽기가 아니다.
 # 결합 짧은 옵션(`sed -ni`·`sort -ro`)·BSD 의 `-I`·getopt_long 접두(`--out=`)까지 한 형태로 잡는다 —
 # 낱개 `-i`·`-o`·`--output` 만 적으면 그 셋이 샌다(harness-m8gg.8.5 리뷰 MUST FIX 4, macOS sort 로 파일 생성 실측).
-MC_WRITE_OPTS="sed:-[A-Za-z]*[iI][^[:space:]]*|--i[^[:space:]]* sort:-[A-Za-z]*o[^[:space:]]*|--o[^[:space:]]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)"
+# **`-f <스크립트 파일>` 도 여기 있다** — sed·awk 의 쓰기 판정은 아래처럼 스크립트 **본문**을 보는데,
+# `-f` 형태는 본문이 명령 문자열 밖의 파일에 있어 볼 것이 없다. 볼 수 없는 것은 읽기로 두지 않는다.
+# 대문자 `-F`(awk 의 필드 구분자)는 소문자 `f` 를 요구하는 정규식에 걸리지 않는다.
+MC_WRITE_OPTS="sed:-[A-Za-z]*[iI][^[:space:]]*|--i[^[:space:]]*|-[A-Za-z]*f[^[:space:]]*|--file[^[:space:]]* awk:-[A-Za-z]*f[^[:space:]]*|--file[^[:space:]]* sort:-[A-Za-z]*o[^[:space:]]*|--o[^[:space:]]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)"
 # sed·awk 의 쓰기는 옵션이 아니라 **스크립트 본문**에도 있다 — sed 의 `w`·`W` 명령(`s///w` 플래그 포함),
 # awk 의 system()·`print … | "sh"`·`"cmd" | getline`. 판정은 "경로가 인용 안에 있나" 가 아니라 **본문에 쓰기
 # 기능이 있나** 다 — 경로는 `$'…\x20…'`·`'w '<경로>`(인용에 붙은 인자)·ARGV·`-v` 로 얼마든지 인용 밖에 둘 수
@@ -725,11 +727,8 @@ RULES+=("Bash:r_main_shell")
 # `download` 는 **받기만 하는 동사**라 면제다(2026-08-23, harness-u9n.3.2). 이 낱말이 첫·둘째
 # 토큰에 오는 gh 명령은 셋뿐이고 — `gh release download`·`gh run download`·`gh attestation
 # download` — 전부 원격에서 파일을 내려받기만 한다. 짝인 쓰기 동사(`gh release upload`·
-# `create`)는 낱말이 달라 그대로 차단이다. 넣은 이유: 지금 릴리스 아티팩트를 받는 곳은
-# `scripts/install.sh` 의 `check`(*.state)와 `update`(*.tar.gz) 두 줄이고(그 위의
-# `gh release view` 는 종전부터 면제), 그 동작을 서브에이전트가 직접 확인할 수 없었다.
-# 면제를 넣을 때는 `check` 하나가 근거였고 `update` 는 계획이었다 — harness-u9n.2.5 가
-# 그 하위 명령을 만들면서 둘이 됐다 (2026-08-23).
+# `create`)는 낱말이 달라 그대로 차단이다. 가르는 기준은 동사의 방향 하나다 — 받기만 하면
+# 면제, 올리거나 만들면 차단. 실측 근거는 harness-u9n.3.2 note.
 # `item-list`·`field-list` 는 Projects v2 조회 동사다(2026-09-06, harness-kw0l.3.4). 넣은 이유:
 # 원장 백엔드가 github 면 서브에이전트의 **원장 읽기 전부**가 gh 를 타는데, 그중 Projects v2
 # 조회(`gh project item-list`·`field-list`)가 막혀 evaluator 가 원장을 못 읽었다 [실측 2026-09-06,
