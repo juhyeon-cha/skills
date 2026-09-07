@@ -593,6 +593,8 @@ declare -a MC_SH_READ_PASS=(
   "sed -n 1,5p \"$MCROOT/repo/f\""                   # 인용된 피연산자 — 스크립트 인자(1,5p)에 w 가 없다(아래 sed w 대조군과 쌍)
   "ls $MCROOT/repo | awk '{print \$1}'"             # 인용 밖 파이프는 경계 — awk 조각에 `|` 가 남지 않는다
   "sed 's/a/b/' $MCROOT/repo/f"                      # 경로 없는 스크립트 + 인용 밖 피연산자
+  "awk -F: '{print}' $MCROOT/repo/f"                  # 대문자 -F 는 -f 판정에 걸리지 않는다
+  "grep -f /tmp/pat $MCROOT/repo/f"                   # -f 판정은 sed·awk 에만 걸린다
 )
 for c in "${MC_SH_READ_PASS[@]}"; do
   runm "$(j_bash "$c")"
@@ -672,6 +674,11 @@ declare -a MC_SH_READ_MIX=(
   "sed -n 'w '$MCROOT/repo/f /etc/hosts"
   "awk 'BEGIN{system(\"rm -rf \" ARGV[1])}' $MCROOT/repo/src"
   "awk -v p=$MCROOT/repo/src 'BEGIN{system(\"rm -rf \" p)}'"
+  # 스크립트가 명령 문자열 **밖의 파일**에 있는 형태(`-f`). 본문을 볼 수 없으므로 읽기로 두지
+  # 않는다 — 볼 수 없는 것을 통과시키면 위 열넷의 본문 판정이 파일 하나로 통째로 우회된다.
+  "sed -f /tmp/s.sed /etc/hosts $MCROOT/repo/f"
+  "awk -f /tmp/x.awk $MCROOT/repo/f"
+  "awk -f /tmp/x.awk -v p=$MCROOT/repo/src"
 )
 for c in "${MC_SH_READ_MIX[@]}"; do
   runm "$(j_bash "$c")"
