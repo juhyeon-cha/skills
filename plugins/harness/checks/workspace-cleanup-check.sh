@@ -15,19 +15,67 @@
 #      일시적으로 안 보이는(볼륨 언마운트) 남의 등록까지 지운다. 그 지점을 스토리로 좁혔다
 #   ⑪ 등록부에 없는 repo: 라벨 → rc=1
 #
+# **⓪ 스토리 ID → 워크트리 이름 변환**은 위 ①~⑪ 앞에 서고 **백엔드와 무관하게 돈다** —
+# lib/worktree-name.sh 는 원장에 닿지 않는 순수 변환이라 아래 backend 게이트에 걸릴 이유가 없다.
+# 그 자리를 **단독으로** 판정하는 곳이 여기다: cleanup 이 경로를 바르게 만드는지는 ①~⑪ 이 보지만,
+# 그 절들은 backend=beads 에서만 돌고 beads 의 ID 는 변환이 무해해서 **어긋남이 드러나지 않는다**
+# (harness#79 가 그 결함이 beads 에서 안 보였던 이유로 든 것과 같은 사정이다).
+#
 # **⑪ 은 bead 에 등록부에 없는 라벨을 붙인다 — 그 뒤의 모든 절은 rc 가 1 로 고정된다.**
 # rc 를 보는 절은 전부 ⑪ 앞에 둔다. 뒤에 붙이면 그 절의 rc 단언이 조용히 오염된다
 # (실측 2026-08-22: ⑩ 을 뒤에 뒀더니 rc=0 단언이 실패했다).
 #
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려
 # 실제 ~/.harness-workspace 는 건드리지 않는다 (workspace-check.sh 와 같은 격리 방식).
-# 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 임시 HARNESS_CLONE_ROOT 에는 .harness-root 가
+# 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 임시 HARNESS_CLONE_ROOT 에는 ledger.json 이
 # 없어 CWD 가 하네스 루트일 때(redirect 도 없다) 헬퍼가 루트를 못 찾는다.
 set -uo pipefail
 # 하네스 루트(원장의 자리 — 검사용 bead 를 만든다)는 lib/harness-root.sh 가 낸다. 못 찾으면 rc=1.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
 cd "$ROOT" || { echo "✗ 하네스 루트로 이동하지 못했다: $ROOT" >&2; exit 1; }
+
+# 이 검사는 검사용 스토리 bead 를 만들고(create --ephemeral) 끝나며 지운다(delete). 그 둘은
+# beads 전용 인자다 — --ephemeral 은 `bd list --all --json` 이 내지 않는 wisp 이슈를 만들고
+# (rules-check.sh:473-474 의 실측), delete 는 이슈를 실제로 지운다. github·notion 에는 대응물이
+# 둘 다 없다(github 은 close 만 된다). 어댑터에 --ephemeral 을 더하면 검사용 이슈가 실제
+# 원장(Projects v2 멤버십이 경계다)에 영구히 남고 지울 수단도 없으므로 더하지 않는다 —
+# beads 가 아닌 백엔드에서는 사유를 밝히고 건너뛴다. 조용히 죽으면 "건너뛴 것" 과 "실패한
+# 것" 이 구별되지 않는다. ⑪ 이 쓰는 tag 도 같은 이유로 beads 전용이다.
+command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
+
+fail=0
+step() {
+  local label="$1"; shift
+  if "$@"; then echo "  ✓ ${label}"; else echo "  ✗ FAILED: ${label}"; fail=1; fi
+}
+
+# ── ⓪ 스토리 ID → 워크트리 이름 (백엔드 무관) ────────────────────────
+echo "── ⓪ 스토리 ID → 워크트리 이름 ──"
+wtname() { bash "$PLUGIN_ROOT/lib/worktree-name.sh" "$1"; }
+step "github 형식: 'skills#105' → 'skills-105' (도구의 name 이 '#' 을 안 받는다)" \
+  [ "$(wtname 'skills#105')" = "skills-105" ]
+step "beads 형식: 'harness-abc' → 그대로 (변환이 무해하다 — 어긋남이 여기서 안 드러났다)" \
+  [ "$(wtname 'harness-abc')" = "harness-abc" ]
+step "beads 의 dotted id: 'harness-0r2.1.10' → 그대로 (점·숫자는 허용 문자다)" \
+  [ "$(wtname 'harness-0r2.1.10')" = "harness-0r2.1.10" ]
+step "인자 없이 부르면 rc≠0 (빈 이름을 내면 클론 루트를 지우러 간다)" \
+  bash -c '! bash "$1" 2>/dev/null' _ "$PLUGIN_ROOT/lib/worktree-name.sh"
+# 순파생하는 자리가 이 변환을 **실제로 부르는가** — 부르지 않고 ID 를 그대로 쓰면 github 에서
+# 없는 경로를 뒤져 rc 0 을 내고 실물이 남는다. 그 형태 자체를 없앤 것을 여기서 못박는다.
+step "workspace-cleanup.sh 에 ID 직접 파생(worktrees/\$STORY · worktree-\$STORY)이 0건" \
+  bash -c '! grep -qE "worktrees/\$STORY|worktree-\$STORY" "$1"' _ "$PLUGIN_ROOT/scripts/workspace-cleanup.sh"
+step "workspace-cleanup.sh 가 lib/worktree-name.sh 를 부른다" \
+  grep -q "lib/worktree-name.sh" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh"
+
+BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json")" \
+  || { echo "✗ ledger.json 을 읽지 못했다: $ROOT/ledger.json" >&2; exit 1; }
+[ -n "$BACKEND" ] \
+  || { echo "✗ ledger.json 에 backend 키가 없다: $ROOT/ledger.json" >&2; exit 1; }
+if [ "$BACKEND" != beads ]; then
+  echo "⊘ ①~⑪ 을 건너뛴다 (backend=$BACKEND) — 검사용 bead 의 'create --ephemeral' 과 'delete' 가 beads 전용 인자라 github·notion 에는 대응물이 없다. **판정한 것은 ⓪ 뿐이다**"
+  exit "$fail"
+fi
 
 TMP=$(mktemp -d)
 BEAD=""
@@ -42,11 +90,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-fail=0
-step() {
-  local label="$1"; shift
-  if "$@"; then echo "  ✓ ${label}"; else echo "  ✗ FAILED: ${label}"; fail=1; fi
-}
 has_text() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
 no_branch() { ! git -C "$CLONE" show-ref --verify --quiet "refs/heads/worktree-$BEAD"; }
 has_branch() { git -C "$CLONE" show-ref --verify --quiet "refs/heads/worktree-$BEAD"; }
@@ -55,6 +98,12 @@ is_repo() { git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
 # ── 준비: bare origin, 등록 대상 클론 ──
 git init -q --bare "$TMP/origin.git"
 git clone -q "$TMP/origin.git" "$TMP/seed" 2>/dev/null
+# 게이트 명령·기본 브랜치·부트스트랩은 대상 레포가 소유한다 — seed 의 추적 파일로 둔다
+# (scripts/repo.sh 머리 주석). 부트스트랩 산출물은 무시되는 경로에 쓴다 — 실제 레포의
+# node_modules 와 같은 성질. 정리가 이것 때문에 막히면 게이트 ① 이 깨진다.
+jq -n --arg b "$(git -C "$TMP/seed" symbolic-ref --short HEAD)" \
+  '{check: "true", default_branch: $b, bootstrap: "mkdir -p node_modules && echo ran > node_modules/mark"}' \
+  > "$TMP/seed/.harness.json"
 ( cd "$TMP/seed" && printf 'node_modules/\n' > .gitignore && echo one > a.txt \
   && git add . && git "${GITC[@]}" commit -qm first && git push -q origin HEAD )
 DEFAULT_BRANCH=$(git -C "$TMP/seed" symbolic-ref --short HEAD)
@@ -63,12 +112,7 @@ mkdir -p "$HARNESS_CLONE_ROOT"
 git clone -q "$TMP/origin.git" "$HARNESS_CLONE_ROOT/wcclean" 2>/dev/null
 CLONE="$HARNESS_CLONE_ROOT/wcclean"
 
-# 부트스트랩 산출물은 무시되는 경로에 쓴다 — 실제 레포의 node_modules 와 같은 성질.
-# 정리가 이것 때문에 막히면 게이트 ① 이 깨진다.
-jq -n --arg b "$DEFAULT_BRANCH" \
-  '{repos: [{name: "wcclean", url: "unused-in-this-check", default_branch: $b, check: "true",
-             bootstrap: "mkdir -p node_modules && echo ran > node_modules/mark"}]}' \
-  > "$TMP/manifest.json"
+jq -n '{repos: [{name: "wcclean", url: "unused-in-this-check"}]}' > "$TMP/manifest.json"
 
 BEAD=$(ledger create "wcclean: workspace-cleanup.sh 게이트용" -t task --ephemeral -l "repo:wcclean" --silent)
 [[ -n "$BEAD" ]] || { echo "  ✗ FAILED: 검사용 bead 생성"; exit 1; }
@@ -85,7 +129,7 @@ run_ws() {
     | HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" bash "$PLUGIN_ROOT/hooks/enter-worktree.sh" >/dev/null 2>&1
 }
 # cleanup 도 HARNESS_ROOT 로 물린다 — 이 검사가 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌렸으므로
-# lib/harness-root.sh 의 .harness-root 폴백이 사라진다. 하네스 루트를 CWD 로 부르면(check-all 경유)
+# lib/harness-root.sh 의 클론 루트 폴백이 임시 디렉토리를 가리킨다. 하네스 루트를 CWD 로 부르면(check-all 경유)
 # redirect 도 없어 루트를 못 찾았다 (실측 2026-09-06, harness-m8gg.8.2).
 run_cl() { HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD" "$@"; }
 

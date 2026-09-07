@@ -388,7 +388,7 @@ RULES=()
 # ── C3 — 대상 레포 본 체크아웃 쓰기 차단 ──────────────────────────────
 #
 # 경계가 한 단계 차이다. 클론 루트 아래 `<레포>/` 는 전부 금지이고 예외가 딱 하나,
-# `<레포>/.claude/worktrees/<스토리ID>/` 다. 워크트리가 본 체크아웃의 **하위 경로**라
+# `<레포>/.claude/worktrees/<워크트리 이름>/` 다. 워크트리가 본 체크아웃의 **하위 경로**라
 # 접두 일치만 보면 워크트리까지 함께 막힌다 — 그것이 harness-uhy.1.1 note ④ 가 실측한 실패다.
 # `permissions.deny` 로 부모를 막고 자식(워크트리)을 allow 하면 둘 다 막혔고
 # (`main.txt: old  wt.txt: old`), 훅으로 바꾸니 의도대로 갈렸다
@@ -462,7 +462,7 @@ mc_locate() {
 mc_deny_root() {
   [ -n "$MC_SUB" ] && return 0
   [ -n "$MC_REPO" ] || deny "클론 루트 자체 금지 — $1 은 클론 루트($CLONE_ROOT) 그 자체다. 지우거나 옮기면 모든 레포의 클론·워크트리·미커밋 변경이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크다. 이 층은 scripts/repo.sh 가 소유한다."
-  deny "클론 루트 직속 금지 — $1 은 클론 루트($CLONE_ROOT) 바로 아래다. 레포 체크아웃 루트이거나 그 옆의 파일이며, 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/<레포>/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree(name=<스토리ID>)로 만든다."
+  deny "클론 루트 직속 금지 — $1 은 클론 루트($CLONE_ROOT) 바로 아래다. 레포 체크아웃 루트이거나 그 옆의 파일이며, 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/<레포>/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
 }
 
 # 이 호출이 **파일 쓰기**인가 — 아래 두 규칙(r_main_write·r_grader_write)의 공통 판정.
@@ -489,7 +489,7 @@ w_path() {
 }
 
 # 쓰기 도구의 경로. 이 호출들은 **쓰기임이 확정**이라 예외를 최소로 둔다:
-# 스토리 워크트리 **안**(`.claude/worktrees/<스토리ID>/<무언가>`)만 통과시키고,
+# 스토리 워크트리 **안**(`.claude/worktrees/<워크트리 이름>/<무언가>`)만 통과시키고,
 # 워크트리 디렉토리 직속(`.claude/worktrees/x`)은 워크트리가 아니므로 막는다.
 r_main_write() {
   local p
@@ -498,7 +498,7 @@ r_main_write() {
   mc_locate "$p" || return 0
   case "$MC_SUB" in .claude/worktrees/*/*) return 0 ;; esac
   mc_deny_root "$p"
-  deny "본 체크아웃 쓰기 금지 — $MC_PATH 는 대상 레포 '$MC_REPO' 의 본 체크아웃 안이다. 쓰기는 스토리 워크트리 안에서만 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree(name=<스토리ID>)로 만든다."
+  deny "본 체크아웃 쓰기 금지 — $MC_PATH 는 대상 레포 '$MC_REPO' 의 본 체크아웃 안이다. 쓰기는 스토리 워크트리 안에서만 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
 }
 # 매처가 `*` 인 이유는 위 w_path 주석에 있다 — 도구 이름을 여기 나열하면 그 목록이 곧
 # 허용 목록이 되어, 나열되지 않은 쓰기 도구가 기본값 "검사 안 됨"으로 샌다.
@@ -674,7 +674,7 @@ r_main_shell() {
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0
     mc_deny_root "$cand"
-    deny "본 체크아웃 경로 금지 — 명령에 $MC_PATH 가 들어 있다. 대상 레포 '$MC_REPO' 의 본 체크아웃은 직접 건드리지 않는다(읽기 전용 명령만으로 된 명령 — ls·cat·grep·git status 등 — 은 통과한다. 파일 리다이렉션이나 그 밖의 명령이 하나라도 섞이면 막힌다). 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree(name=<스토리ID>)로 만든다."
+    deny "본 체크아웃 경로 금지 — 명령에 $MC_PATH 가 들어 있다. 대상 레포 '$MC_REPO' 의 본 체크아웃은 직접 건드리지 않는다(읽기 전용 명령만으로 된 명령 — ls·cat·grep·git status 등 — 은 통과한다. 파일 리다이렉션이나 그 밖의 명령이 하나라도 섞이면 막힌다). 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
   done < <(printf '%s' "$cmd" | grep -oE "[~/][^[:space:]\"'\`;|&()<>]*"
            printf '%s' "$cmd" | grep -oE "(^|[[:space:]])\.\.?/[^[:space:]\"'\`;|&()<>]*" | sed 's/^[[:space:]]//')
 }
@@ -939,7 +939,7 @@ r_grader_shell() {
   while read -r t sub; do
     [ -n "$sub" ] || continue     # 옵션만 있는 호출(`--help`·`--version`) — 읽기다
     bd_is_read "$sub" && continue
-    deny "채점자의 $t 쓰기 금지 — '$t $sub' 는 읽기 면제 목록에 없다. agent_type=$AGENT_TYPE 의 $t 는 **읽기만**이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 기록(note·update·close·label)은 오케스트레이터의 몫이다. $(gr_can)"
+    deny "채점자의 $t 쓰기 금지 — '$t $sub' 는 읽기 면제 목록에 없다. agent_type=$AGENT_TYPE 의 $t 는 **읽기만**이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT (어댑터 전용 읽기 $LEDGER_READ_EXEMPT 도 면제다 — 등록부 질의라 상태를 바꾸지 않는다). 원장 기록(note·update·close·label)은 오케스트레이터의 몫이다. $(gr_can)"
   done < <(gr_ledger_subcmds)
   # 원장 도구가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "도구는 있는데 하위 명령을 하나도 못
   # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 낱말은 exec_segments 가 가른다.
@@ -1020,7 +1020,7 @@ r_impl_bd() {
     [ -n "$sub" ] || continue
     bd_is_read "$sub" && continue
     impl_bd_write_allowed "$sub" && continue
-    deny "implementer 의 $t 쓰기 금지 — '$t $sub' 는 허용 목록 밖이다. agent_type=$AGENT_TYPE 에게 허용된 $t **쓰기**는 '$IMPL_BD_WRITE_ALLOW' 뿐이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 그 밖의 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT. 원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다 — 필요하면 무엇을 왜 바꿔야 하는지 **응답에** 적어 올려라(태스크 범위 밖이면 첫 줄 'SIGNAL: DECISION_NEEDED'). 알게 된 사실은 '$(ledger_root_form "$t") note <태스크ID> \"…\"' 로 남길 수 있다. note 와 같은 일을 하는 '$t update <id> --append-notes' 도 여기서 막히니 note 를 써라 (note 는 'update <id> --append-notes' 의 축약이다). (agents/implementer.md)"
+    deny "implementer 의 $t 쓰기 금지 — '$t $sub' 는 허용 목록 밖이다. agent_type=$AGENT_TYPE 에게 허용된 $t **쓰기**는 '$IMPL_BD_WRITE_ALLOW' 뿐이고, **원장 지정($(ledger_root_form "$t"))을 붙여도 그 밖의 쓰기는 금지**다 — 그 점이 r_bd_root 와 다르다(그쪽은 원장 지정만 요구한다). 읽기 면제: $BD_READ_EXEMPT (어댑터 전용 읽기 $LEDGER_READ_EXEMPT 도 면제다 — 등록부 질의라 상태를 바꾸지 않는다). 원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다 — 필요하면 무엇을 왜 바꿔야 하는지 **응답에** 적어 올려라(태스크 범위 밖이면 첫 줄 'SIGNAL: DECISION_NEEDED'). 알게 된 사실은 '$(ledger_root_form "$t") note <태스크ID> \"…\"' 로 남길 수 있다. note 와 같은 일을 하는 '$t update <id> --append-notes' 도 여기서 막히니 note 를 써라 (note 는 'update <id> --append-notes' 의 축약이다). (agents/implementer.md)"
   done < <(gr_ledger_subcmds)
   # 원장 도구가 실행 위치인 조각마다 위 루프가 한 줄씩 받으므로 "도구는 있는데 하위 명령을 하나도 못
   # 읽은" 자리는 없다 — 치환 우회는 위 tool_aliased 가, 경로·문자열 속 낱말은 exec_segments 가 가른다.
@@ -1070,9 +1070,19 @@ RULES+=("Bash:r_impl_bd")
 # 항목을 내므로 무해하지 않다 — 그래서 이것은 "안전해서"가 아니라 **작업을 멈추지 않으려고**
 # 연 구멍이며, 목록을 늘리는 것은 그만큼 구멍을 넓히는 일이다.
 BD_READ_EXEMPT="show list ready blocked children search query count graph history status prime where context info version help"
+# ledger.sh **에만** 있는 읽기 하위 명령. 위 목록과 갈라 두는 이유는 게이트가 그것을 `bd --help`
+# 파생 집합과 역방향으로 대조하기 때문이다(⑩ "면제 키가 전부 실제 bd 하위 명령이다") — bd 에
+# 대응물이 없는 이름을 그 목록에 섞으면 그 단언이 깨진다.
+# 등록부 질의 둘은 백엔드가 자기 계층에서 읽어 JSON 배열을 낼 뿐 원장의 상태를 바꾸지 않는다.
+# 이것이 막혀 있는 동안 reviewer·evaluator 가 skills#142 의 acceptance 를 검증하지 못해
+# 오케스트레이터가 대신 판정해야 했다(skills#165 의 배경).
+# ponytail: 판정이 도구를 가리지 않아 `bd rails` 도 원장 지정 없이 통과한다. bd 에 그런 하위
+# 명령이 없어 즉시 실패하고 원장에 닿지 않는다 — 도구별로 가르려면 bd_is_read 의 서명과 세
+# 호출부를 함께 바꿔야 하고, 그 대가가 이 무해한 통과보다 크다.
+LEDGER_READ_EXEMPT="rails sprints"
 
 bd_is_read() {
-  case " $BD_READ_EXEMPT " in *" $1 "*) return 0 ;; esac
+  case " $BD_READ_EXEMPT $LEDGER_READ_EXEMPT " in *" $1 "*) return 0 ;; esac
   return 1
 }
 
@@ -1082,7 +1092,7 @@ bd_is_read() {
 # 차단 시점에만 도는 호출이라 도구 호출마다의 비용은 없다.
 bd_root_hint() {
   local r
-  # cwd 로 못 들어가도(합성 페이로드·사라진 디렉토리) 헬퍼는 돈다 — HARNESS_ROOT·.harness-root 파일은 cwd 와 무관하다.
+  # cwd 로 못 들어가도(합성 페이로드·사라진 디렉토리) 헬퍼는 돈다 — HARNESS_ROOT·클론 루트 직속 ledger.json 은 cwd 와 무관하다.
   if r="$(cd "${CWD:-.}" 2>/dev/null; bash "$GUARD_ROOT/lib/harness-root.sh" 2>/dev/null)" && [ -n "$r" ]; then
     printf '%s' "이 호출의 cwd 에서 찾은 하네스 루트는 $r 다 — 위임 메시지가 다른 값을 주지 않았다면 그것이다."
   else
@@ -1107,7 +1117,7 @@ r_bd_root() {
     [ -n "$sub" ] || continue     # 옵션만 있는 호출(`--help`·`--version`·원장 지정만) — 읽기다
     bd_is_read "$sub" && continue
     ledger_root_given "$t" "${seg%%$sub*}" && continue
-    deny "$t 원장 지정 누락 — 서브에이전트의 $t 쓰기는 '$(ledger_root_form "$t") $sub …' 로 부른다($(ledger_root_alts "$t")). 원장 지정 없이 부르면 루트 탐색이 다른 하네스에 닿거나(ledger.sh) 워크트리의 부모 레포가 가진 .beads 에 붙어(bd) **조용히 성공**한다(실측: create·remember·label 이 rc=0). 읽기($BD_READ_EXEMPT)는 면제다. $(bd_root_hint)"
+    deny "$t 원장 지정 누락 — 서브에이전트의 $t 쓰기는 '$(ledger_root_form "$t") $sub …' 로 부른다($(ledger_root_alts "$t")). 원장 지정 없이 부르면 루트 탐색이 다른 하네스에 닿거나(ledger.sh) 워크트리의 부모 레포가 가진 .beads 에 붙어(bd) **조용히 성공**한다(실측: create·remember·label 이 rc=0). 읽기($BD_READ_EXEMPT · 어댑터 전용 읽기 $LEDGER_READ_EXEMPT)는 면제다. $(bd_root_hint)"
   done < <(exec_segments "$t")
   done
   return 0

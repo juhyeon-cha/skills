@@ -3,9 +3,12 @@
 # 사용: scripts/board.sh <스프린트ID>   (형식: YYYY-SNN)  → docs/sprints/<ID>/
 #       scripts/board.sh backlog                          → docs/backlog/
 #       scripts/board.sh adr                              → docs/adr/
-#       scripts/board.sh all                              → sprints.json 의 스프린트 전부 + backlog + adr
+#       scripts/board.sh all                              → 등록부(어댑터의 sprints)의 스프린트 전부 + backlog + adr
 # 산출물은 git 밖이다(.gitignore) — 원장이 SSOT 이고 이 트리는 사람이 로컬에서 읽는 투영이다.
-# post-merge·post-checkout 훅이 `all` 을 불러 pull·checkout 뒤 다시 그린다.
+# **백엔드가 사람이 읽는 자기 UI 를 가지면 이 렌더러는 아무것도 하지 않는다** (rc 0 + 무엇을 하지
+# 않았는지 한 줄). 판단은 어댑터의 has-ui 가 하고 이 파일은 백엔드 이름을 알지 않는다 — 아래 그 자리.
+# **이것을 자동으로 부르는 git 훅은 없다** — 하네스는 어디에도 git 훅을 심지 않는다.
+# 다시 그리는 것은 절차(plan-sprint 5 · plan-story 7 · develop 4 · verify-implement 3)나 사람의 손이다.
 # 출력(스프린트·백로그):
 #   index.md                     — 대상의 스토리 표
 #   <슬러그>/index.md            — 스토리 (디렉토리명 = slug: 라벨. 대상 안에서 유일해야 한다)
@@ -34,13 +37,8 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && p
 
 TARGET="${1:?사용법: scripts/board.sh <스프린트ID>|backlog|adr|all (스프린트 ID 형식: YYYY-SNN)}"
 if [[ "$TARGET" == "all" ]]; then
-  ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
-  [[ -f "$ROOT/sprints.json" ]] || { echo "스프린트 등록부가 없다: $ROOT/sprints.json" >&2; exit 1; }
-  for id in $(jq -r '.sprints | keys[]' "$ROOT/sprints.json"); do bash "$0" "$id" || exit 1; done
-  bash "$0" backlog || exit 1
-  exec bash "$0" adr
-fi
-if [[ "$TARGET" == "backlog" ]]; then
+  MODE="all"
+elif [[ "$TARGET" == "backlog" ]]; then
   MODE="backlog"; NAME="backlog"; TITLE="백로그"; FRONTMATTER="backlog: true"
 elif [[ "$TARGET" == "adr" ]]; then
   MODE="adr"; NAME="adr"; TITLE="결정 기록 (ADR)"; FRONTMATTER="adr: true"
@@ -53,8 +51,30 @@ fi
 
 # 하네스 루트는 lib/harness-root.sh 가 낸다 — 스크립트 위치로 파생하지 않는다 (플러그인은 하네스 루트 밖에 산다).
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
-RAILS="$ROOT/rails.json"
-[[ -f "$RAILS" ]] || { echo "레일 등록부가 없다: $RAILS" >&2; exit 1; }
+
+# ── 자기 UI 를 갖는 백엔드에서는 그리지 않는다 ────────────────────────
+# 이 파일 머리가 적듯 산출물은 **사람이 로컬에서 읽는 투영**이다. 백엔드에 사람이 읽는 화면이
+# 이미 있으면 같은 것을 두 벌 들게 되고, 그 둘은 렌더를 돌린 시점만큼 어긋난다.
+# **어느 백엔드가 UI 를 갖는지 여기서 이름으로 가르지 않는다** — 어댑터의 has-ui 가 답한다.
+# 코어가 백엔드 이름을 열거하면 백엔드가 늘 때마다 이 파일을 고쳐야 하고, 그 판단의 원본이
+# 어댑터 밖으로 샌다. rc≠0 은 "답하지 못했다" 이므로 그리지 않고 실패한다 — 답을 못 받은 것을
+# "UI 없음" 으로 읽으면 원장을 못 읽는 판에서 조용히 렌더로 들어간다.
+UI="$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" has-ui)" \
+  || { echo "백엔드가 UI 보유 여부에 답하지 못했다 (어댑터의 has-ui) — 그리지 않는다" >&2; exit 1; }
+if [[ -n "$UI" ]]; then
+  echo "board.sh: '$TARGET' 를 그리지 않았다 — 이 백엔드는 자기 UI($UI)를 갖는다. docs/sprints/·docs/backlog/·docs/adr/ 아래 파일을 만들지도 지우지도 않았다 (원장이 SSOT 이고 이 트리는 그 투영이라, UI 가 있으면 중복이다)"
+  exit 0
+fi
+
+if [[ "$MODE" == "all" ]]; then
+  # 스프린트 등록부는 어댑터가 낸다 — 백엔드가 무엇이든 [{id, status}] 다 (scripts/ledger.sh).
+  SPRINT_IDS="$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" sprints --json | jq -r '.[].id')" \
+    || { echo "스프린트 등록부를 읽지 못했다 (어댑터의 sprints)" >&2; exit 1; }
+  for id in $SPRINT_IDS; do bash "$0" "$id" || exit 1; done
+  bash "$0" backlog || exit 1
+  exec bash "$0" adr
+fi
+
 if [[ "$MODE" == "sprint" ]]; then
   OUT="$ROOT/docs/sprints/$NAME"
 else
@@ -100,14 +120,15 @@ fi
 # 입력이 0건인 것은 오진이 아니라 사실이고, 실패로 두면 board.sh all 이 영구히 rc 1 이 된다.
 # 그래도 **활성 스프린트의 0건은 여전히 실패다**: 진행 중인 스프린트가 비어 보이는 것은 라벨을
 # 안 붙였거나 질의가 어긋난 것이고, 그것이 이 규칙이 애초에 잡으려던 오진이다.
-# 경계의 원본은 sprints.json 의 status 다 — 닫힌 이슈 개수로 판정하지 않는다(그 오판의 되돌림이
+# 경계의 원본은 등록부(어댑터의 sprints)의 status 다 — 닫힌 이슈 개수로 판정하지 않는다(그 오판의 되돌림이
 # 커밋 f88d779 다). 등재가 없거나 status 를 읽지 못하면 종전대로 실패다: 모르는 스프린트를
 # "닫혔겠지" 로 통과시키면 예외가 규칙을 삼킨다.
 if [[ "$MODE" == "sprint" ]] \
    && [[ "$(printf '%s' "$JSON" | jq '[.[] | select(.issue_type == "epic")] | length')" -eq 0 ]]; then
-  SPRINT_STATUS="$(jq -r --arg id "$NAME" '.sprints[$id].status // ""' "$ROOT/sprints.json" 2>/dev/null)" || SPRINT_STATUS=""
+  SPRINT_STATUS="$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" sprints --json 2>/dev/null \
+    | jq -r --arg id "$NAME" '.[] | select(.id == $id) | .status')" || SPRINT_STATUS=""
   if [[ "$SPRINT_STATUS" != "closed" ]]; then
-    echo "sprint:$NAME 라벨이 붙은 스토리(epic)가 없다 (sprints.json 의 status: ${SPRINT_STATUS:-등재 없음} — 닫힌 스프린트만 0건이 통과다)" >&2
+    echo "sprint:$NAME 라벨이 붙은 스토리(epic)가 없다 (스프린트 등록부의 status: ${SPRINT_STATUS:-등재 없음} — 닫힌 스프린트만 0건이 통과다)" >&2
     exit 1
   fi
 fi
@@ -166,7 +187,15 @@ printf '%s' "$JSON" | jq -r '
   .[] | .id as $i | (.labels // [])[] | [$i, .] | @tsv
 ' > "$CACHE_DIR/labels"
 
-# ④ 대체 관계: <대체된id>\t<대체한id>. 간선은 옛 bead 에 있고 depends_on_id 가 새 bead 다.
+# ④ 레일: <레일id>\t<owner>. 등록부는 어댑터가 낸다 — [{id, owner}] (scripts/ledger.sh).
+# adr 은 레일을 쓰지 않으므로 부르지 않는다 — 백엔드에 따라 원격 왕복이다.
+if [[ "$MODE" != "adr" ]]; then
+  HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" rails --json \
+    | jq -r '.[] | [.id, .owner] | @tsv' > "$CACHE_DIR/rails" \
+    || { echo "레일 등록부를 읽지 못했다 (어댑터의 rails)" >&2; exit 1; }
+fi
+
+# ⑤ 대체 관계: <대체된id>\t<대체한id>. 간선은 옛 bead 에 있고 depends_on_id 가 새 bead 다.
 printf '%s' "$JSON" | jq -r '
   .[] | .id as $i | (.dependencies // [])[] | select(.type == "supersedes")
   | [$i, .depends_on_id] | @tsv
@@ -193,6 +222,9 @@ label_of() {
 }
 children_of() {
   awk -F'\t' -v pid="$1" '$1==pid {print $2}' "$CACHE_DIR/children"
+}
+owner_of() {
+  awk -F'\t' -v id="$1" '$1==id {print $2; exit}' "$CACHE_DIR/rails"
 }
 superseded_by() {
   awk -F'\t' -v id="$1" '
@@ -307,8 +339,8 @@ for sid in $(printf '%s' "$JSON" | jq -r '[.[] | select(.issue_type=="epic")] | 
     echo "슬러그 형식 위반: '$slug' (스토리 $sid) — 소문자·숫자·하이픈만, 첫 글자는 영숫자" >&2
     exit 1
   fi
-  owner=$(jq -r --arg r "$rail" '.rails[$r].owner // empty' "$RAILS")
-  [[ -n "$owner" ]] || { echo "레일 '$rail' 이 rails.json 에 없다 (스토리 $sid)" >&2; exit 1; }
+  owner=$(owner_of "$rail")
+  [[ -n "$owner" ]] || { echo "레일 '$rail' 이 등록부에 없거나 owner 를 낼 수 없다 (스토리 $sid)" >&2; exit 1; }
 
   dir="$slug"
 

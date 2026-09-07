@@ -34,13 +34,31 @@ usage() {
   children <id> [--json]
   note <id> <본문> | --file <f> | --stdin
   close <id>… [--reason <문>|--reason-file <f>] [--force]
-  update <id> [--status <s>] [--claim --actor <값>] [--parent <id>] [-t <type>] [--acceptance <문>]
+  update <id> [--status <s>] [--claim --actor <값>] [-a|--assignee <값>] [--parent <id>] [-t <type>] [--acceptance <문>]
+                             --assignee 는 assignee 만 바꾼다(빈 문자열이면 지운다) — 실행자를 넣고 status 를
+                             옮기는 --claim 과 다른 경로다
+                             (github·notion: --claim 과 같이 주면 rc≠0 · beads: 가드가 없다 — bd 가 두
+                              플래그를 다 받고(`bd help update` 실측) 남는 값은 bd 가 정한다, 확인하지 않았다)
+                             (github: 그 이슈가 사는 레포에 assign 할 수 없는 login 이면 rc≠0 ·
+                              notion: Assignee 가 rich_text 라 값을 검증하지 않는다 — 없는 사람 이름도
+                              그대로 들어간다 · beads: 확인하지 않았다)
   dep add <id> <의존 대상 id> | --file - (JSONL {"from","to"})
   label add|remove <id> <라벨>
   wire-worktree <워크트리 절대 경로>   워크트리에 원장을 배선한다 — hooks/enter-worktree.sh 가 부른다
                              (beads: <워크트리>/.beads/redirect · github·notion: 배선할 것이 없다, rc 0)
+  has-ui                     이 백엔드가 **사람이 읽는 자기 UI** 를 갖는가 — scripts/board.sh 가 부른다.
+                             갖는 백엔드는 그 UI 이름을 stdout 한 줄로 내고, 갖지 않는 백엔드는 아무것도
+                             내지 않는다 (둘 다 rc 0 · rc≠0 은 "답하지 못했다" 다). 답이 상수라 백엔드에
+                             닿지 않는다 — gh·토큰 없이도 답한다
+                             (beads: 없음 — 로컬 Dolt DB 라 사람이 읽는 화면이 board.sh 의 투영뿐이다 ·
+                              github: 이슈·Projects 화면 · notion: 데이터베이스 화면)
   sync-check [--push]        원장이 원격과 어긋났는가 — checks/ledger-check.sh 가 부른다
                              (beads: Dolt 원격 대조, --push 면 앞선 커밋 반영 · github·notion: "원격 반영 대상 없음" rc 0)
+  rails --json               레일 전체 — 출력 JSON 은 [{id, owner}] 배열. owner 는 레일 담당자
+                             (beads: <루트>/rails.json · github: epic 의 rail: 라벨 + 그 epic 의 assignee · notion: Assignee(rich_text))
+  sprints --json             스프린트 전체 — 출력 JSON 은 [{id, status}] 배열. status 는 active | closed
+                             (beads: <루트>/sprints.json · github: Projects v2 Iteration 필드, id 는 iteration 의 title ·
+                              notion: Type 이 sprint 인 페이지, id 는 Name 이고 status 는 Status select)
   help | --help
 
 beads 전용 (github · notion 은 rc≠0):

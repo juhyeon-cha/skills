@@ -20,7 +20,7 @@ description: Story → milestone → task breakdown and acceptance writing. Use 
 
   - **"Open" is the list the owner takes to the user.** When the owner picks the story up and runs this procedure again, they close those questions first and then break it down — leaving a question open costs less than the planner filling it with a guess.
   - **The body goes into the ledger** (`ledger.sh create --body-file`). The reason it stays out of the shell command string, and the form it takes, are held by `harness:develop` "원장에 본문을 넘기는 형태".
-- Fix the repos involved and name them with `repo:<name>` labels (more than one allowed). Every one of them lives in `repos.json`.
+- Fix the repos involved and name them with `repo:<name>` labels (more than one allowed). Every one of them is a repo the harness has a clone of. **The `create` call itself carries exactly one `repo:` label — the repo the issue is to live in** (that label is what routes the issue, so zero or two of them is an error). A multi-repo story gets its remaining `repo:` labels right after creation with `ledger.sh label add <story ID> repo:<name>`.
 - **Read each of those repos' own conventions before breaking the story down.** Nothing in a target repo loads on its own — the session stands at the harness root — so a milestone or an acceptance written without them nails the harness's taste into the task tree instead of that repo's. **The places to read are owned by `harness:develop` "대상 레포의 관례".** What they yield goes into the story body's **Current state**, and where it constrains a task, into that task's acceptance.
 - **Give the story an English slug as a `slug:<rail ID>-<name>` label** for its documentation directory name (lowercase, digits, hyphens; a short summary of the story). **Prefix it with the rail ID** — the format and the reason are owned by the "스토리" row of the mapping table in the session context block. board.sh refuses to render a story without a slug.
 - When the original lives outside (a GitHub issue, say), link it with `--external-ref` and carry a summary over, so the task body alone is enough to work from.
@@ -99,9 +99,9 @@ Check the finished tree with `ledger.sh children <story ID>`: 0 tasks without ac
 
 ## 7. Document rendering
 
-Redraw the local projection with `scripts/board.sh all`. **A backlog breakdown gets redrawn too** — the `sprint:` label splits the output path (`docs/backlog/<slug>/`) and nothing else. The projection sits outside git — leave it unedited and out of the commit.
+Redraw the local projection with `scripts/board.sh all`. **A backlog breakdown gets redrawn too** — the `sprint:` label splits the output path (`docs/backlog/<slug>/`) and nothing else. The projection sits outside git, and on a backend with its own UI the command draws nothing at all (rc 0 with one line saying so) — either way there is nothing to edit or commit.
 
-When the breakdown changed a registry (`sprints.json` · `rails.json`), ship it through the channel in plan-sprint 6. When it did not, this procedure has no commit, and what is left is the ledger's own remote reflection — `beads` alone has one (`ledger.sh sync-check --push`, waiting for an explicit instruction from the user); on `github`·`notion` the ledger is already remote and there is nothing to reflect.
+**This procedure has no commit** — the whole breakdown lives in the ledger. What is left is the ledger's own remote reflection: `beads` alone has one (`ledger.sh sync-check --push`, waiting for an explicit instruction from the user); on `github`·`notion` the ledger is already remote and there is nothing to reflect.
 
 ## 여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다
 

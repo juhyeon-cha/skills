@@ -6,20 +6,23 @@ description: One-screen harness status, read-only — the active sprint, open/cl
 # Harness status
 
 Six items, always the same six, always in this order, each as a table. **This procedure only
-reads** — the ledger calls are `list` and `show`, and the registry read is `sprints.json`. When one
+reads** — the ledger calls are `list`, `show`, and the registry query `sprints`. When one
 item has nothing to show, its table has one row saying so; the item is never dropped, so a missing
 item means the report was cut short.
 
 ## 0. The active sprint — and the two ways it is absent
 
 ```bash
-jq -r '.sprints | to_entries[] | select(.value.status == "active") | .key' <harness root>/sprints.json
+HARNESS_ROOT=<harness root> bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh sprints --json \
+  | jq -r '.[] | select(.status == "active") | .id'
 ```
 
-**When `sprints.json` is missing, or that command prints nothing, that fact is the first line of the
-output** — `sprints.json not found at <path>` or `no active sprint in sprints.json` — followed by
+**When the adapter fails, or that command prints nothing, that fact is the first line of the
+output** — the adapter's stderr as it stands, or `no active sprint` — followed by
 items 3 and 4 only (they do not depend on a sprint). Do not guess a sprint from labels: the registry
-is the only source of sprint state (session context block, mapping table).
+the adapter answers is the only source of sprint state (session context block, mapping table), and
+what backs it — a Projects v2 Iteration, a Notion property, `sprints.json` on `beads` — is the
+backend's business, not this procedure's.
 
 One read covers items 1, 2, and 5 and 6 — hold it as a file:
 

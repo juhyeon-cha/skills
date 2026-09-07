@@ -3,7 +3,7 @@
 > The **full list** of guardrails and gates (what is blocked) is [guardrails.md](guardrails.md).
 > This document is its pair: **how to confirm** (section 4) and **as-built observations** (sections 7–11).
 > **Section numbers continue from that document** — other documents and scripts point at "section 8" by number, so the numbers stay. Sections 1 · 2 · 3 · 5 · 5-1 · 6 · 6-1 are in guardrails.md, not here.
-> Structure: `architecture.md` at the harness root. Development rules: [development.md](development.md).
+> Structure: [architecture.md](architecture.md). Development rules: [development.md](development.md).
 > Paths written as `hooks/…` · `checks/…` · `scripts/…` are inside the plugin `harness@skills` (`${CLAUDE_PLUGIN_ROOT}`, `plugins/harness` in the skills repo); `docs/…` · `.beads/…` · `.claude/…` are harness-root-relative.
 
 ## 4. Verification — how the enforcement mechanisms are confirmed
@@ -45,13 +45,13 @@ These two documents are the full list, so they carry numbers. **The only ones th
 - **[guardrails.md](guardrails.md) section 2 and the "Limits (what it cannot block)" list of 5-1 have no fixtures.** The former's enforcer is the permission engine, so no hook emits an rc; the latter's judgment is a tree, a remote, or an install configuration, not one command's rc — the configuration side is S6's fixtures.
 - **A single rc=0 cannot tell "this shape leaks" from "the rule is dead".** That the rule is alive is S1's blocking assertion, and the check asserts the pair exists.
 
-## 7. No git hook is planted in a target repo — the ledger checks are explicit steps of the cycle close
+## 7. No git hook is planted anywhere — the ledger checks are explicit steps of the cycle close
 
-**The harness plants no git hook in a target repo** (story `harness-lzs3` decision; it closes `harness-v8n`). So in a target worktree a commit runs only that repo's own hooks, and a push runs no ledger check. The two things the harness-root hooks do for the harness repo — `board-check` at commit, `ledger-check` in write mode at push — are done in a target repo **by the orchestrator, as explicit steps of the cycle close** — the steps are owned by `harness:develop` "사이클 종결" and not restated here.
+**The harness plants no git hook at all** — not in a target repo (story `harness-lzs3` decision; it closes `harness-v8n`), and not at its own root, which is a plain directory and no git repo. So in a worktree a commit runs only that repo's own hooks, and a push runs no ledger check. `board-check` and `ledger-check` are run **by the orchestrator, as explicit steps of the cycle close** — the steps are owned by `harness:develop` "사이클 종결" and not restated here.
 
 **What that means for evidence.** "The commit succeeded" is never evidence that the ledger was checked in a target repo — only "the check was run, and here is its rc" is. The failure table of the cycle close names each step's failure a **close incomplete** and the story stays open; that is the whole mechanism. **There is no gate** on whether the orchestrator ran the steps — the checks run at its hand, and `r_remote` does not see `bd dolt push` typed by the orchestrator (it is not a subagent).
 
-The harness repo itself is the exception: its clone's worktrees share the harness root's `.beads/hooks` through `core.hooksPath`, and `bd where` from such a worktree follows the redirect to the harness ledger, so the commit and push gates fire there too.
+**There is no exempt tree.** The harness's own core lives in the `skills` repo, which is a target repo like any other and gets the same treatment — the checks fire because a step runs them, nowhere because a hook does.
 
 ## 8. The stop guard — `hooks/stop-resume.sh` (Stop)
 
@@ -59,7 +59,7 @@ When **this session's claimed** work is left `in_progress` and the session tries
 
 **Every state file is under `${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}`** — `stop-resume.log` · the cancel entrance `stop-resume-cancel` (claimed as `stop-resume-cancel.<session_id>` by the first session that sees it). Nothing is written into a project tree or a worktree, so a worktree being removed loses no record, and a session opened in any repo or worktree writes to the same place. If the directory cannot be created the guard passes without judging and says so on stderr.
 
-**The ledger is reached through `lib/harness-root.sh`** with the payload `cwd` as the working directory — from a worktree that is the redirect, from a clone root the `~/.harness-workspace/.harness-root` file. Not found → `ORACLE_FAIL` and pass (never a fallback to 0 — "could not read" must not read as "nothing in progress"). **`ORACLE_FAIL` is a pass path**: a session in a clone root before `repo.sh` has written the pointer file has this guard effectively off, and "the guard is on" must not be read there.
+**The ledger is reached through `lib/harness-root.sh`**, which does not depend on the payload `cwd` at all — it is `HARNESS_ROOT`, else the `ledger.json` directly under the clone root. Not found → `ORACLE_FAIL` and pass (never a fallback to 0 — "could not read" must not read as "nothing in progress"). **`ORACLE_FAIL` is a pass path**: on a machine where `repo.sh root` has not written that file yet, this guard is effectively off, and "the guard is on" must not be read there.
 
 **The scope is the actor this session claimed** [`harness-qih`]. The oracle still reads the whole ledger (`bd list --status in_progress`), and the judgment narrows to this session's share using the session→actor mapping `guard.sh` writes (`~/.claude/harness-session-actor.tsv`, override `HARNESS_SESSION_ACTOR_LOG`) — one tab-separated line `<UTC time> <session_id> <actor>` whenever `PreToolUse` passes a `bd … --claim --actor <value>`. **It is an observation, not a derivation**: `actor` is six random characters, reused across sessions by the pickup rule, so the only place the two values meet is the moment of the claim. The two fallbacks differ: mapping **unreadable** → judge on the whole ledger and log `SCOPE_FAIL`; readable but **no actor for this session** → pass with `NO_CLAIM`. `checks/guardrail-check.sh` S7 pins four fixtures for this and attributes both sides with A/B.
 
@@ -84,7 +84,7 @@ Two places it backs off by design. **An unreadable oracle does not fall back to 
 
 ## 8-1. Enabled but not installed — what silently dies [`harness-dg0.6.35`]
 
-**The shape of the mismatch**: `enabledPlugins` in a settings file **turns a plugin on**. Turning on and **installing** are different — a settings file can name a plugin the machine does not have. "Registered everywhere, installed nowhere" is a normal product of a fresh clone. Measured (`harness-dg0.6.35`): the harness root's `.claude/settings.json` then named `harness@skills` and a loop plugin from `claude-plugins-official`, and a new clone had installed neither.
+**The shape of the mismatch**: `enabledPlugins` in a settings file **turns a plugin on**. Turning on and **installing** are different — a settings file can name a plugin the machine does not have. "Registered everywhere, installed nowhere" is a normal product of a fresh clone. Measured (`harness-dg0.6.35`): a project `.claude/settings.json` named `harness@skills` and a loop plugin from `claude-plugins-official`, and a new clone had installed neither.
 
 **What silently dies in that state**:
 
@@ -93,7 +93,7 @@ Two places it backs off by design. **An unreadable oracle does not fall back to 
 - So **"a state in which a mechanism is believed present" is created.** This project paid that cost once: a loop ran nine hours with `iteration` at 1, and the orchestrator, seeing `hooks.json` in the cache, concluded "plugin hook registration is normal" and built a **false hypothesis** on top (section 8's measurement).
 - **Files remaining in the cache and a plugin being alive are different things.** The misjudgment was exactly that confusion — the cache directory was there, with `.orphaned_at` inside it.
 
-**What catches it now.** For the harness plugin itself, the resolver `scripts/plugin-root.sh` at the harness root fails loudly (rc=1, with the install command) when neither `HARNESS_PLUGIN_ROOT` nor a cached install exists — so the commit and push gates and `harness.check` cannot run against nothing. For the *session* side there is **no gate**: `claude plugin list` is the check, by hand, and the plugin's own `guardrail-check.sh` compares `hooks.json` with the hook files inside the plugin tree, not with the machine's install list (the old S4, which compared an install script's plugin list with `settings.json` and the registry, went away with the install script).
+**What catches it now — nothing automatic.** Every caller reaches the plugin through `${CLAUDE_PLUGIN_ROOT}`, which the runtime substitutes only for a plugin it actually has, so an uninstalled plugin does not resolve to a wrong tree; it simply does nothing, silently. `claude plugin list` is the check, by hand, and the plugin's own `guardrail-check.sh` compares `hooks.json` with the hook files inside the plugin tree, not with the machine's install list (the old S4, which compared an install script's plugin list with `settings.json` and the registry, went away with the install script).
 
 **Ceilings**
 

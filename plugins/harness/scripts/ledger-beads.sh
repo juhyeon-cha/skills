@@ -131,6 +131,12 @@ case "${1:-}" in
     fi
     exec bd -C "$LEDGER_ROOT" init --prefix "$prefix"
     ;;
+  has-ui)
+    # 사람이 읽는 자기 UI — 갖지 않는다. 원장이 로컬 Dolt DB 라 사람이 읽을 화면이 없고,
+    # scripts/board.sh 의 투영이 그 자리를 메운다. 빈 출력이 "없다" 다 (rc 0).
+    # bd 로 흘리지 않으려고 여기서 잡는다 — 아래 exec 로 가면 `bd has-ui` 가 되어 rc≠0 이다.
+    exit 0
+    ;;
   wire-worktree)
     wt="${2:-}"
     [ -n "$wt" ] && [ -d "$wt" ] || { echo "ledger-beads wire-worktree: 실재하는 <워크트리 절대 경로> 가 필요하다 ('${wt}')" >&2; exit 1; }
@@ -142,6 +148,41 @@ case "${1:-}" in
   sync-check)
     shift
     sync_check "$@"
+    ;;
+  rails|sprints)
+    # 등록부 질의 — bd 하위 명령이 아니라 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2).
+    # 이 백엔드의 자기 계층은 **원장 루트의 JSON 파일 둘**이다: <루트>/rails.json · sprints.json.
+    # bd(Dolt)에는 레일도 스프린트도 없어 대응물이 없고, 그래서 결정 2 가 "파일은 사라지는 것이
+    # 아니라 beads 백엔드의 구현 세부가 된다" 로 정했다. 파일의 계약은 그 파일 자신의 doc 키가 든다.
+    #
+    # **파일이 없으면 rc≠0 이다.** 빈 배열 rc 0 으로 삼키면 "등재가 하나도 없다" 와 구별되지 않고,
+    # 소비자(board-check)는 원장의 rail:·sprint: 라벨을 전부 미등재로 읽는다 — 등록부가 통째로
+    # 사라진 판이 정상 상태와 같은 문면이 된다.
+    #
+    # 계약을 깨는 값도 흘리지 않는다. owner 없는 레일(레일 담당자는 1명이 원본이다)과 active·closed
+    # 밖의 status(sprints.json 의 doc 이 그 둘뿐이라고 못박는다)는 jq 의 error() 로 죽인다 —
+    # `{id, owner:null}` 이나 낯선 status 를 그대로 내면 소비자가 그것을 등재로 읽는다.
+    sub="$1"; shift
+    for a in "$@"; do
+      [ "$a" = --json ] || { echo "ledger-beads $sub: 모르는 인자 '$a' (사용: $sub --json)" >&2; exit 1; }
+    done
+    f="$LEDGER_ROOT/$sub.json"
+    [ -r "$f" ] || { echo "ledger-beads $sub: $f 가 없다(또는 읽을 수 없다) — 이 백엔드에서 등록부의 원본이 그 파일이다. 빈 배열로 답하면 '등재가 없다' 와 구별되지 않는다" >&2; exit 1; }
+    case "$sub" in
+      rails)
+        q='[(.rails // error("최상위 rails 키가 없다")) | to_entries[]
+            | {id: .key, owner: (.value.owner // error("레일 \(.key) 에 owner 가 없다 — 레일은 사람이고 담당자 1명이 등록부의 계약이다"))}]' ;;
+      sprints)
+        q='[(.sprints // error("최상위 sprints 키가 없다")) | to_entries[]
+            | {id: .key, status: (.value.status as $s
+                | if $s == "active" or $s == "closed" then $s
+                  else error("스프린트 \(.key) 의 status 가 \($s | tojson) 다 — active|closed 둘뿐이다") end)}]' ;;
+    esac
+    # jq 의 실패 문면을 그대로 물어 나른다 — 어느 키가 왜 문제인지는 jq 가 이미 이름으로 든다.
+    # 성공하면 stderr 가 비므로 2>&1 로 합쳐 받아도 출력이 섞이지 않는다.
+    out=$(jq "$q" "$f" 2>&1) || { echo "ledger-beads $sub: $f 를 읽지 못했다 — $(printf '%s' "$out" | sed 's/^jq: //' | head -1)" >&2; exit 1; }
+    printf '%s\n' "$out"
+    exit 0
     ;;
 esac
 

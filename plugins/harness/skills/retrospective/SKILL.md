@@ -45,7 +45,7 @@ Skipping the sort promotes personal taste into a rule and turns the harness into
 - Leave it in your own ledger as backlog — make a `-t task -l harness` issue with `ledger.sh create` and write the verbatim observation and the reproduction conditions into it. That is the only record that survives in this tree.
 - Once the fix has landed in the plugin's source, leave a "반영됨 → <커밋>" note on that bead.
 
-What is outside the plugin (`repos.json` · `rails.json` · `sprints.json` · `CLAUDE.md` · `.beads`) belongs to the harness root, so the table above applies to it as written.
+**Almost nothing is outside the plugin any more** — `ledger.json`·`repos.json` are machine-local files `scripts/repo.sh` owns, the rail and sprint registries are the adapter's answers, and each target repo's gate command is its own `.harness.json`. None of them is a place to land a rule, so the table above covers every proposal this procedure can make.
 
 ## 3. Promotion bar — 2 observations
 

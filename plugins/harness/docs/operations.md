@@ -1,6 +1,6 @@
 # Operating flow (operations)
 
-> The order one sprint flows through, and what each step calls. Structure: `architecture.md` at the harness root. Enforcement mechanisms: [guardrails.md](guardrails.md).
+> The order one sprint flows through, and what each step calls. Structure: [architecture.md](architecture.md). Enforcement mechanisms: [guardrails.md](guardrails.md).
 
 ## Standard cycle
 
@@ -21,16 +21,16 @@ plan-sprint ─→ plan-story ─→ develop ─┬→ verify-code ─→ verify
 
 | Session | Open where | Why |
 |---|---|---|
-| Planning · retrospective (`harness:plan-sprint` · `harness:plan-story` · `harness:retrospective`) | the **harness root** | the ledger and the registries are here; nothing is edited in a target repo |
+| Planning · retrospective (`harness:plan-sprint` · `harness:plan-story` · `harness:retrospective`) | the **harness root** — the clone root `~/.harness-workspace` | the work is entirely in the ledger; nothing is edited in a target repo. The root is machine-fixed, so `lib/harness-root.sh` would answer the same anywhere — opening here only keeps the session out of a code tree |
 | Development (`harness:develop` and the verify skills it calls) | the **clone root of the target repo** — `~/.harness-workspace/<repo>` | the target repo's own `CLAUDE.md`, rules, skills, and hooks load; `EnterWorktree` makes the story worktree inside that clone. One session per (story, repo) |
 
 What loads automatically in both: the project `CLAUDE.md` of the directory the session opened in, and the plugin's SessionStart block (`hooks/session-context.md` — "절대 금지", ledger location, skills and roles, the hierarchy mapping, and where every other rule is owned). No hook primes a backend tool (`bd prime` on `beads` included). Parallel sessions split work **by story** — two sessions on the same (story, repo) are forbidden. Task claiming is `ledger.sh update <task ID> --claim --actor <value>`; the actor's source and the pickup rule are `harness:develop` section 1.
 
-**Every ledger call in this document is the adapter** — `bash "$(bash scripts/plugin-root.sh)/scripts/ledger.sh" <subcommand>`, abbreviated `ledger.sh …`. Which backend answers is `ledger.json`'s `backend`; where a step only exists for one backend, the backend is named.
+**Every ledger call in this document is the adapter** — `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh <subcommand>`, abbreviated `ledger.sh …`. Which backend answers is `ledger.json`'s `backend`; where a step only exists for one backend, the backend is named.
 
-1. See ready work with `ledger.sh ready`. A sprint in progress is read from `docs/sprints/<ID>/` (outside git — if missing or stale, `bash "$(bash scripts/plugin-root.sh)/scripts/board.sh" all` at the harness root).
+1. See ready work with `ledger.sh ready`. On a backend with no UI of its own, a sprint in progress is read from the projection `docs/sprints/<ID>/` under the harness root (outside git — if missing or stale, `bash ${CLAUDE_PLUGIN_ROOT}/scripts/board.sh all`); on `github`·`notion` the ledger's own board is that screen and nothing is rendered.
 2. Call the skill that fits the work (the cycle above).
-3. In a development session, `harness:develop` section 2 enters the worktree; inside it, `lib/harness-root.sh` finds the harness root through the wiring `ledger.sh wire-worktree` left (on `beads`, `.beads/redirect`). Before the worktree exists, the same helper reads `~/.harness-workspace/.harness-root` from the clone root, which `repo.sh` writes. Either way the marker of the root is `ledger.json`.
+3. In a development session, `harness:develop` section 2 enters the worktree. `lib/harness-root.sh` gives the same answer from anywhere — `HARNESS_ROOT`, else the clone root (`~/.harness-workspace`), whose marker is the `ledger.json` directly under it that `repo.sh root` writes. Worktree wiring (on `beads`, `.beads/redirect`) is a beads-backend matter and takes no part in finding the root.
 
 ## Unattended loop
 
@@ -39,16 +39,16 @@ What loads automatically in both: the project `CLAUDE.md` of the directory the s
 
 ## Documents go nowhere — projections are outside git
 
-The ledger **rides no branch** — on `beads` it is a single `.gitignore`d DB global across branches and worktrees, and on `github`·`notion` it is not in the tree at all — and `docs/sprints/` · `docs/backlog/` · `docs/adr/` are `.gitignore`d generated files that ride no branch either. What goes to a remote is the ledger (`bd dolt push` on `beads`; nothing to send on the other two, which are remote already), and the receiving side redraws with `board.sh all` from the `post-merge`·`post-checkout` hooks. Whichever tree you look at, its documents are that machine's projection of the ledger — there is no document-mismatch window between branches.
+The ledger **rides no branch** — on `beads` it is a single `.gitignore`d DB global across branches and worktrees, and on `github`·`notion` it is not in the tree at all — and the projections `docs/sprints/` · `docs/backlog/` · `docs/adr/`, where they exist at all, sit under the harness root, which is not a git tree. What goes to a remote is the ledger (`bd dolt push` on `beads`; nothing to send on the other two, which are remote already), and whoever wants the documents redraws them with `board.sh all` — a step a person or a procedure runs, since no git hook does it. Whichever tree you look at, its harness documents are that machine's projection of the ledger, so there is no document-mismatch window between branches.
 
 | Artifact | What the commit carries | Endpoint |
 |---|---|---|
-| **Planning** (sprint composition · story decomposition) | only registry changes (`sprints.json` · `rails.json`) — `plan-sprint` 6 · `plan-story` 7. With no change there is no commit and no PR; only ledger reflection remains | **PR creation** — a person merges |
+| **Planning** (sprint composition · story decomposition) | **nothing** — the registries are behind the adapter and the root's files are machine-local, so planning produces no diff in any repo. What is left is the ledger's own reflection (`plan-sprint` 6 · `plan-story` 7) | no PR — there is nothing to merge |
 | **Task close** (`verify-implement` 3) | the code on the development branch. No documents | **PR creation** — a person merges |
 
-**Ledger reflection differs by where the push happens.** At the **harness root**, `git push` runs the `pre-push` hook, which runs the plugin's `ledger-check.sh` in write mode — the ledger goes out with the push (exception one of `CLAUDE.md` "절대 금지"). In a **target repo**, no harness git hook is planted: the ledger reflection is an explicit step of the cycle close, and the steps, their order, scope, and failure handling are owned by `harness:develop` "사이클 종결" — not restated here.
+**Ledger reflection is an explicit step, never something a push carries.** No harness git hook exists, at the harness root or in a target repo, so the reflection happens where the cycle close says it does — the steps, their order, scope, and failure handling are owned by `harness:develop` "사이클 종결" and not restated here.
 
-## Remote reflection — the boundary is single-owned by the first item of `CLAUDE.md` "절대 금지"
+## Remote reflection — the boundary is single-owned by the first item of the session block's "절대 금지"
 
 What goes out without instruction and what needs approval is held by that item's **two exceptions**. The list is not repeated here — a copy would make this file say two things, and a stale copy is what the plugin's `rules-check.sh` R-REM catches.
 
@@ -110,7 +110,7 @@ bash $P/scripts/ledger-migrate.sh verify --plan plan.json --map map.txt --from <
 
 ## New clone, new harness, update
 
-- **A new clone of the harness root — make the ledger answer first.** `ledger.json` comes with the clone and its `backend` decides what "restore" means. The per-backend procedure (ledger restore · plugin install at user scope · `core.hooksPath` · target clones through `repo.sh restore`) is owned by `harness:setup` "2. B — Join an existing harness (from a clone)" and is not restated here. Until `ledger.sh list` is rc 0, every skill and gate is powerless.
+- **A new machine joining a standing harness — make the ledger answer first.** Nothing is cloned: the harness root is machine-local, so this machine writes its own `ledger.json` pointing at the ledger that already exists, and its `backend` decides what that takes. The per-backend procedure (the pointer · plugin install at user scope · target clones through `repo.sh add`·`restore`) is owned by `harness:setup` "2. B — Join an existing harness" and is not restated here. Until `ledger.sh list` is rc 0, every skill and gate is powerless.
 - **On `beads` the remote is the only ledger backup.** Lose `.beads/embeddeddolt/` and the sprint and judgment history is gone — projections are outside git and cannot restore the ledger. A ledger on one machine only is not a normal state. `github`·`notion` have no local copy to lose.
 - **Standing up a new harness**: `harness:setup` "1. A — New harness". The core is never copied into a project — the plugin is installed next to it.
 - **Updating a standing harness**: `harness:setup` "3. C — Update" (`claude plugin marketplace update skills` then `claude plugin update harness@skills`, then restart the session). Nothing at the harness root is overwritten by an update. Version and changelog of the core: [development.md](development.md) "Release".
