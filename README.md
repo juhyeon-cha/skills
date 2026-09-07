@@ -14,7 +14,7 @@ juhyeon-cha 의 Claude Code 스킬 플러그인 마켓플레이스. 플러그인
 
 설명은 각 플러그인의 `plugins/<이름>/.claude-plugin/plugin.json` 이 원본이다.
 
-- `harness` — 애자일 계층(스프린트→레일→스토리→마일스톤→태스크)으로 멀티 레포 개발을 자율 진행하는 에이전트 하네스 — 원장은 어댑터(github·beads·notion), 보완 스킬 triage(백로그 정리)·status(현황)·release(플러그인 릴리스)
+- `harness` — 애자일 계층(스프린트→레일→스토리→마일스톤→태스크)으로 멀티 레포 개발을 자율 진행하는 에이전트 하네스 — 원장은 어댑터(github·beads·notion), 보완 스킬 triage(백로그 정리)·status(현황)
 - `toolkit` — 여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기, 성과 기록을 쌓아 대시보드로 뽑기, 사고 기록을 회고 문서로 만들기, PR 본문 쓰기, 발견한 것을 GitHub 이슈로 등재하기, 열린 이슈를 골라 닫기, 에이전트가 읽는 문서를 훑어 낡은 문장 걷어내기
 
 ## harness 사용법
@@ -38,11 +38,10 @@ claude plugin install harness@skills               # scope 인자 없이 — 기
 (acceptance 판정과 마감) → `/harness:retrospective`(회고 — 실행 중 쌓인 피드백을 플러그인
 수정 제안으로).
 
-보완 스킬 셋은 순서 밖에서 부른다:
+보완 스킬 둘은 순서 밖에서 부른다:
 
 - `/harness:triage` — 스프린트에 속하지 않은 열린 항목을 훑어 중복·폐기·후보 순위를 표로 제안하고, 확인한 행만 적용한다. plan-sprint 앞에.
 - `/harness:status` — 활성 스프린트 · 스토리별 열린/닫힌 태스크 수 · 진행 중·막힘·미결정 항목을 한 화면으로. 읽기 전용.
-- `/harness:release` — 이 마켓플레이스의 플러그인 하나를 릴리스한다(변경 정리 → 버전 폭 결정 → CHANGELOG → plugin.json 버전 → validate → 커밋·태그, 로컬까지).
 
 구현·리뷰·판정은 서브에이전트 역할 셋(`harness:implementer` · `harness:reviewer` ·
 `harness:evaluator`)에 위임된다. 무인 반복이 필요할 만큼 태스크가 많으면 develop 이 Claude Code
@@ -107,6 +106,9 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
   버전은 건드리지 않는다.
 - **아직 아무도 쓰지 않는 플러그인은 버전을 올리지 않는다.** 첫 사용자가 생기기 전의
   변경은 전부 `0.1.0` 에 쌓는다. 올려 봐야 아무에게도 알리는 바가 없다.
+- **릴리스는 `/release` 로 한다** (`.claude/skills/release/SKILL.md`). 폭과 CHANGELOG 항목은
+  사람이 정하고, 그 뒤의 버전 갱신·validate·커밋·로컬 태그는
+  `bash scripts/release.sh <플러그인> <patch|minor|major>` 가 한다.
 
 ## 커밋
 

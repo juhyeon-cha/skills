@@ -82,7 +82,7 @@ The as-built rule list and each rule's limits are [guardrails.md](guardrails.md)
 ## Release
 
 - **What gets released is the plugin `harness@skills`** — nothing else in a harness carries a version number. The number has exactly one source — `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`. The history is `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md` and the tag is `harness-v<number>`; the marketplace reads the number from `plugin.json`.
-- **The procedure is owned by the `harness:release` skill** — the sweep from the previous tag, the bump width (decided by what an install has to do by hand), the entry, raising the number, `claude plugin validate --strict`, and the local commit and tag. It is not restated here.
+- **The procedure is owned by the skills repo's own skill, `.claude/skills/release/SKILL.md`** (`/release`) — the sweep from the previous tag, the bump width (decided by what an install has to do by hand), the entry, raising the number, `claude plugin validate --strict`, and the local commit and tag. It is not restated here. It is not shipped inside the plugin: releasing is work done in the skills repo, not in a harness root.
 - **Tag push and a GitHub release (`gh release create`) only on explicit user instruction.**
 
 ## Remote

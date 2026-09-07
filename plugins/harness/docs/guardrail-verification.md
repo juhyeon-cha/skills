@@ -133,7 +133,7 @@ Two places it backs off by design. **An unreadable oracle does not fall back to 
 
 ## 10. Release width — a confirmation step, no gate
 
-The width of a version bump is decided by **whether an install gets hand work** ([development.md](development.md) "Release"; the procedure is the `harness:release` skill). That judgment is natural language and **no gate sees it.** What exists is one confirmation command in that skill's sweep step: the diff of the plugin's `skills/setup/SKILL.md` since the previous tag (in the skills repo) — a new hand step in its update section is the definition of MAJOR.
+The width of a version bump is decided by **whether an install gets hand work** ([development.md](development.md) "Release"; the procedure is the skills repo's own skill, `.claude/skills/release/SKILL.md`). That judgment is natural language and **no gate sees it.** What exists is one confirmation command in that skill's sweep step: the diff of the plugin's `skills/setup/SKILL.md` since the previous tag (in the skills repo) — a new hand step in its update section is the definition of MAJOR.
 
 **This item is not one of the eight in 6-1** — that list is locked as a set with `docs/adr/natural-language.md` 6.4, and the both-way count in that section asserts it. Adding this place as a row would break the count. It stands apart in place, not in kind.
 
