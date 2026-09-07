@@ -69,7 +69,8 @@
 # 대상은 이 플러그인 트리 자신이다. 하네스 루트는 필요 없다 — 훅은 합성 JSON 만 먹고 원장을 읽지
 # 않는다(lib/harness-root.sh 를 부르는 것은 r_bd_root 의 차단 메시지뿐이고 ⑩ 이 HARNESS_ROOT 로 물린다).
 set -uo pipefail
-ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../plugins/harness" && pwd)"
+TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # 절대 경로로 못박는다 — 아래에서 CWD 를 플러그인 루트로 옮긴다
 cd "$ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $ROOT" >&2; exit 1; }
 # 훅 사본을 다른 앵커에 두고 GUARD_ROOT 를 재는 절(③④)이 있다 — 세션이 이 변수를 내보낸 채 돌리면
 # 사본이 전부 그 값을 앵커로 읽어 ④ 가 거짓 실패한다. 아래에서는 명시적으로 넘길 때만 쓴다.
@@ -2635,10 +2636,19 @@ step "기본 로그 경로가 훅과 계수 명령에서 같다" [ "$DEF_H" = "$
 # 그 자리에서 무너진다.
 # 실측 2026-08-27: 이 절을 넣기 전 guardrail-check 가 커밋마다 18줄, session-cleanup-check
 # 가 4줄을 실사용 로그에 넣고 있었다(둘 다 규칙별 차단 프로브라 "발화한 적 있다"로 읽힌다).
-# 집합은 훅 경로를 언급하는 checks/*.sh 에서 파생한다 — 손으로 고른 목록은 새 검사가
-# 늘 때 조용히 빠진다 (.claude/rules/agile.md 극성 반전).
-HOOKRUNNERS=$(grep -l 'hooks/guard\.sh' "$ROOT"/checks/*.sh)
+# 집합은 훅 경로를 언급하는 검사 전수에서 파생한다 — 손으로 고른 목록은 새 검사가
+# 늘 때 조용히 빠진다 (harness:develop "운영 규율" 극성 반전). **두 자리를 함께 판다**:
+# 배포되는 plugins/harness/checks/ 와 배포되지 않는 tests/harness/ 다. 뒤엣것을 빼면 이 검사
+# 자신이 집합에서 빠져 자기 격리를 아무도 단언하지 않는다.
+HOOKRUNNERS=$(grep -l 'hooks/guard\.sh' "$ROOT"/checks/*.sh "$TESTS_DIR"/*.sh)
 step "훅을 실행하는 검사 파생이 공허하지 않다" [ -n "$HOOKRUNNERS" ]
+# **자리마다** 1건 이상을 요구한다. 한 자리의 글롭이 죽어도 다른 자리의 결과가 남아 위 단언은 참이 되는데,
+# 그 침묵이 실제로 일어났다: 배포되는 자리와 배포되지 않는 자리로 갈린 직후 tests 쪽 글롭이 CWD 이동 뒤의
+# 상대 경로라 0건이었고, 이 검사 자신이 집합에서 빠진 채로 초록이었다.
+step "파생이 배포되는 자리(checks/)에서 1건 이상" \
+  bash -c 'printf "%s\n" "$1" | grep -q "^$2/checks/"' _ "$HOOKRUNNERS" "$ROOT"
+step "파생이 배포되지 않는 자리(tests/)에서 1건 이상" \
+  bash -c 'printf "%s\n" "$1" | grep -q "^$2/"' _ "$HOOKRUNNERS" "$TESTS_DIR"
 
 # **돌려야 할 변수도 손으로 적지 않는다** — 훅 소스에서 판다. 초판은 발화 로그 하나만
 # 요구했고, 훅에 두 번째 $HOME 쓰기(세션→actor 매핑, harness-qih)가 생겼을 때 그 격리가
@@ -2649,9 +2659,9 @@ HOOKENVS_ALL=$(sed -n 's/.*{\(HARNESS_[A-Z_]*\):-\$HOME[^}]*}.*/\1/p' "$HOOK" | 
 HOOKENVS="$HOOKENVS_ALL"
 echo "  훅이 \$HOME 에 쓰는 상태 파일의 환경 변수: [$(printf '%s ' $HOOKENVS)] (면제 없음)"
 step "그 환경 변수 파생이 공허하지 않다" [ -n "$HOOKENVS" ]
-# 면제 — 훅 경로를 실행이 아니라 **데이터로만** 드는 검사(rules-check 의 R-REM 면제표 항목).
+# 면제 — 훅 경로를 실행이 아니라 **데이터로만** 드는 검사(doc-rules-check 의 R-REM 면제표 항목).
 # 역방향 단언: 언급이 정확히 1건이고 그 줄이 배열 리터럴이다. 실행 줄이 생기면 면제가 깨진다.
-HOOKRUNNER_DATA_ONLY="rules-check.sh"
+HOOKRUNNER_DATA_ONLY="doc-rules-check.sh"
 for g in $HOOKRUNNERS; do
   if [ "$(basename "$g")" = "$HOOKRUNNER_DATA_ONLY" ]; then
     step "$(basename "$g") 는 훅 경로를 데이터로만 든다 (면제 역방향)" \

@@ -109,16 +109,7 @@ font embedded too.
 | Cannot write under the home directory | `add` rc=2 | Nothing is written elsewhere. Pass the reason to the user as is |
 | A required field is empty · `delta` has no symbol | `add` rc=2 | stderr says which field. Ask instead of inventing a value |
 
-## 4. Self-check
-
-```bash
-bash check.sh             # isolates with a temporary HOME and asserts the full path plus two failure paths
-bash check.sh <outdir>    # leaves the outputs behind (for a person to open)
-```
-
-Run as `root`, the "unwritable home" assertion bypasses the permission check and becomes meaningless.
-
-## 5. Ceilings left in place
+## 4. Ceilings left in place
 
 - **There is no command to edit or delete an accumulated record.** Edit `~/.brag/entries.jsonl`
   directly — JSON Lines, one entry per line, so an editor is enough. A delete command was left unbuilt

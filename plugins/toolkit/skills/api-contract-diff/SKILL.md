@@ -81,14 +81,3 @@ same thing.
 
 Samples for removed endpoints come from the **before** snapshot, everything else from the **after**
 one. Sample values are placeholders chosen from type names, not real data.
-
-## 4. Check
-
-```bash
-bash check.sh
-```
-
-With two synthetic snapshots it asserts counts for endpoint addition and removal, field addition,
-removal and type change, and impact propagation through a nested model, then checks that 5 kinds of
-input that must fail actually do (two missing files · key composition mismatch · framework mismatch ·
-too few arguments). No network needed.

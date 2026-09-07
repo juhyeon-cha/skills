@@ -8,7 +8,7 @@
 # 통과의 근거는 종료 코드다.
 
 set -uo pipefail
-HERE=$(cd "$(dirname "$0")" && pwd)
+HERE=$(cd "$(dirname "$0")/../../plugins/toolkit/skills/postmortem" && pwd)
 REPORT=$HERE/../html-report
 OUT=${1:-}
 T=$(mktemp -d)

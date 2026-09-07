@@ -31,7 +31,7 @@
 #   ① 함수를 하나 쓴다 — 이름은 `r_` 접두. 차단할 때 deny "<사유>", 그 외에는 return 0.
 #   ② RULES 에 "<도구이름 또는 *>:<함수이름>" 한 줄을 등재한다.
 #   ③ 규칙 블록은 아래 `RULES=()` **뒤에** 둔다. 앞에 두면 `RULES=()` 가 등재를 지운다.
-#   ①의 `r_` 접두와 ③의 배치를 checks/guard-check.sh ⑦ 이 역방향으로 단언한다 —
+#   ①의 `r_` 접두와 ③의 배치를 tests/harness/guard-check.sh ⑦ 이 역방향으로 단언한다 —
 #   함수를 정의해 놓고 등재를 빠뜨리거나 순서가 뒤집히면 게이트가 비-0 으로 깨진다.
 #   규칙 본문에서 **명령 형태를 정규식으로 열거하지 마라.** 그 접근은 스파이크에서
 #   세 번 연속 샜고(래퍼 `timeout`, 옵션 위치 `git -C`) 한 번은 경로 속 `.git` 덕에
@@ -149,7 +149,7 @@ if ! printf '%s' "$INPUT" | jq -e 'type == "object"' >/dev/null 2>&1; then
 fi
 
 # JSON 은 printf 로 먹인다 — echo 는 backslash 확장 셸에서 필드 안의 이스케이프를
-# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/development.md "Shell traps").
+# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/engineering.md "Shell traps").
 field() { printf '%s' "$INPUT" | jq -r "$1 // \"\"" 2>/dev/null; }
 
 TOOL_NAME="$(field '.tool_name')"
@@ -202,7 +202,7 @@ has_token() { printf '%s' "${2-$COMMAND}" | grep -Eqw -- "$1"; }
 # **목록은 손으로 적되, 게이트가 `<도구> --help` 파생과 대조한다.** 훅에서 직접
 # 파생하지 않는 이유는 비용이다 — 이 훅은 **모든 도구 호출마다** 도는데 훅 1회가
 # 56ms 이고 `bd --help` 가 32ms, `git --help` 가 5ms 다 [실측 2026-08-22, 각 5회 평균].
-# 대신 목록이 낡으면 checks/guard-check.sh 가 실패시킨다: 파생에 있는데 여기 없으면
+# 대신 목록이 낡으면 tests/harness/guard-check.sh 가 실패시킨다: 파생에 있는데 여기 없으면
 # 그것이 곧 미탐이므로 **파생 ⊆ 목록**을 단언하고, 파생 집합이 비면(파싱이 깨졌다는
 # 뜻이다) 그것도 실패로 읽는다. 새 옵션의 기본값은 "건너뛴다"여야 한다 — 목록에
 # 없으면 값이 하위 명령으로 읽히는 쪽이 기본값이 되므로 극성이 뒤집힌다.
@@ -376,7 +376,7 @@ sa_observe || :   # SA_OBSERVE_CALL — 관측 호출. 실패해도 판정은 �
 # 형식: "<도구이름 또는 *>:<함수이름>". 비어 있으면 아무것도 차단하지 않는다.
 # **이 선언은 모든 `RULES+=` 보다 위에 있어야 한다.** 아래로 내려가면 이미 쌓인 등재를
 # 전부 지우고, 규칙이 하나도 안 걸리는 훅이 rc=0 으로 조용히 통과한다. 이 줄은
-# checks/guard-check.sh 의 mkhook 이 삽입 앵커(`^RULES=()$`)로도 쓰므로 단독 유지한다.
+# tests/harness/guard-check.sh 의 mkhook 이 삽입 앵커(`^RULES=()$`)로도 쓰므로 단독 유지한다.
 RULES=()
 
 # ── 규칙 ─────────────────────────────────────────────────────────────
@@ -516,7 +516,7 @@ RULES+=("*:r_main_write")
 # 큰따옴표 안의 `$(` 는 명령 치환이라 경계로 남긴다 — `echo "$(rm -rf …)"` 의 rm 을 봐야 한다.
 # `bash -c "…"` 는 인용 안이 스크립트라 경계를 지우면 그 안의 쓰기가 가려진다 — 조각의 실행 낱말 앞에
 # 셸 래퍼가 서면(seg_shell_wrapped) 읽기로 보지 않는다.
-# 읽기 낱말 목록 — 여기 한 자리뿐이다. 게이트(checks/guard-check.sh ⑨)가 이 줄에서 파생해 낱말마다
+# 읽기 낱말 목록 — 여기 한 자리뿐이다. 게이트(tests/harness/guard-check.sh ⑨)가 이 줄에서 파생해 낱말마다
 # 통과를 단언하므로 시험 없는 낱말은 없다. 옵션에 따라 쓰기가 되는 낱말은 MC_WRITE_OPTS 에 그 옵션을 둔다.
 MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find"
 # 읽기 낱말이 쓰기가 되는 옵션 — `<낱말>:<정규식>`. 조각에 그 토큰이 있으면 읽기가 아니다.
@@ -697,7 +697,7 @@ RULES+=("Bash:r_main_shell")
 # 흔적이 거의 남지 않고 원격만 조용히 바뀐다. 되돌리기 비용이 이 훅이 다루는 것 중
 # 가장 크고, 되돌림 자체가 또 한 번의 원격 반영이라 승인 없이 시작할 수 없다.
 # 근거 문서(전부 설득이고 강제는 없었다): agents/implementer.md:27(=A3) ·
-# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36 · ../docs/development.md "Remote".
+# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36.
 #
 # **적용 대상은 서브에이전트 호출뿐이다.** 오케스트레이터는 사용자 지시를 받으면 실제로
 # push·PR 을 해야 한다. 판정 근거는 r_bd_root 와 같은 `agent_id`·`agent_type` 의 존재이고
@@ -1142,7 +1142,7 @@ for rule in ${RULES[@]+"${RULES[@]}"}; do
   # 매처 대조보다 **먼저** 둔다: 이번 호출에 디스패치되지 않는 항목의 오타도 잡아야
   # 규칙이 영영 꺼진 채 남지 않는다.
   declare -F "$fn" >/dev/null || deny "규칙 등록부가 깨졌다 — '$rule' 이 가리키는 함수 $fn 이 없다"
-  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (../docs/development.md).
+  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (../docs/engineering.md "Shell traps").
   [[ "$matcher" = "*" || "$matcher" = "$TOOL_NAME" ]] || continue
   "$fn"
 done

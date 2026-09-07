@@ -271,7 +271,7 @@
 3. **A/B attribution**: a copy with only that rule's registration removed — the same input is blocked by the original and passes in the copy.
 4. `bash checks/guardrail-check.sh` — the whole guardrail is alive.
 5. A new hook event goes into `hooks/hooks.json` in the same change (S2 compares it with the files both ways).
-6. Commit; the plugin gate (`claude plugin validate --strict`) and `scripts/check-all.sh` pass.
+6. Commit; the plugin gate (`claude plugin validate --strict`) and `tests/run-all.sh` pass.
 
 **Pass criteria**
 
@@ -279,7 +279,7 @@
 - **the copy actually differs**: `diff <original> <copy>` prints more than 0 lines
 - for the input that must pass (the false-positive boundary), the original `guard.sh` → rc 0
 - `bash checks/guardrail-check.sh` → rc 0, and non-zero for a copy with the registration removed
-- `bash checks/guard-check.sh` → rc 0
+- `bash tests/harness/guard-check.sh` → rc 0
 - `hooks/hooks.json` and `hooks/*.sh` agree both ways at the `<event>\t<matcher>\t<command>` grain (guardrail-check S2)
 - the new rule's checked set is non-empty — no path passes on 0 items
 - the rows for the new rule in [guardrails.md](guardrails.md) section 1 (what it blocks · what it cannot) land in the same story, and the limits that stay rc=0 get a pinned fixture in `guard-check.sh`

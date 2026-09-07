@@ -266,7 +266,7 @@ case "$cmd" in
     #      — 생성 응답만 비어 보이는 착시가 아니다
     #   ③ 그 상태의 `ledger.sh sprints --json` 이 rc 0 · `[]` · 아래 "iteration 이 하나도 없다"
     #      stderr 한 줄
-    # 시험용 project 는 지웠다. 픽스처(checks/ledger-adapter-check.sh 의 FAKE_GH_EMPTY_ITERATION)
+    # 시험용 project 는 지웠다. 픽스처(tests/harness/ledger-adapter-check.sh 의 FAKE_GH_EMPTY_ITERATION)
     # 는 여기서 본 모양을 옮긴 것이지 그 반대가 아니다.
     # ponytail: 필드는 first:100(GraphQL 한 페이지 상한)까지만 읽는다. 그 이상이면 이미 있는
     # 필드를 못 보고 하나 더 만들 수 있다 — sprints 의 같은 천장과 한 짝이다.
@@ -335,7 +335,7 @@ case "$cmd" in
     # **rc 0 에서는 다시 읽지 않는다.** 소속 조회가 item-add 직후에 신선한지는 미측정이고, 같은
     # 계열의 `gh project item-list` 는 직후에 새 항목을 내지 않는 것이 실측이다(머리 주석). 보고된
     # 성공을 낡을 수 있는 조회로 뒤집으면 흔한 경로에서 거짓 실패가 난다 — 그 대가가 이 자리가
-    # 고치는 실패보다 크다. 검사가 그 극성을 든다(checks/ledger-adapter-check.sh ④).
+    # 고치는 실패보다 크다. 검사가 그 극성을 든다(tests/harness/ledger-adapter-check.sh ④).
     add_err="$(gh project item-add "$PROJECT" --owner "$OWNER" --url "$url" 2>&1 >/dev/null)"; add_rc=$?
     [ "$add_rc" -eq 0 ] || in_project "$slug" "$num" \
       || die "이슈 $repo#$num 은 만들었지만 Project $PROJECT 소속이 아니다 (item-add rc=$add_rc, 소속을 다시 읽어도 없다) — project scope 또는 번호를 확인하라${add_err:+ · gh: $add_err}"

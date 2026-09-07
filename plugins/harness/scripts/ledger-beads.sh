@@ -238,7 +238,7 @@ esac
 #    중복 생성이 된다.
 #  · 완전 일치만으로는 `note <id> --json` 같은 쓰기 호출이 남고, `history --json`(커밋 레코드 배열)·
 #    `graph --json`(객체)처럼 이슈가 아닌 출력에 actor 를 심게 된다.
-# 두 형태 모두 checks/ledger-adapter-check.sh ③ 이 단언으로 든다.
+# 두 형태 모두 tests/harness/ledger-adapter-check.sh ③ 이 단언으로 든다.
 case "${1:-}" in
   show|list|ready|blocked|children|search|query)
     for a in "$@"; do
