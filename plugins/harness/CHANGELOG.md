@@ -9,7 +9,7 @@
 - **`repos.json` 이 셋으로 갈렸다.** 클론 목록(`name`·`url`)만 클론 루트 직속 머신 로컬로 남고, **게이트 명령·기본 브랜치·부트스트랩은 대상 레포 자신의 `.harness.json`** 이 소유한다. 이슈 라우팅은 없앴다 — `repo:` 라벨과 `ledger.json` 의 `owner` 로 `owner/name` 이 파생된다.
 - **`ledger.json` 이 클론 루트 직속 머신 로컬 한 파일**이고 `{backend, owner, project}` 셋이다. 그 자리에 있다는 사실이 곧 하네스 루트의 표지이며, `scripts/repo.sh root` 만 쓴다(가드가 손으로 쓰는 것을 막는다).
 
-### 하네스 루트가 클론 루트가 됐다 (`skills#151`)
+### 하네스 루트가 클론 루트가 됐다 (`skills#151`·`#153`)
 - **`lib/harness-root.sh` 의 탐색이 두 단계다** — `HARNESS_ROOT` → `${HARNESS_CLONE_ROOT:-~/.harness-workspace}` 직속의 `ledger.json`. CWD 를 거슬러 올라가지 않으므로 어디서 불러도 답이 같고, 못 찾으면 rc 1 과 stderr 한 줄이다(조용한 폴백 없음). `<클론루트>/.harness-root` 포인터 파일과 `repo.sh apply` 는 없앴다.
 - **`.beads/redirect` 는 beads 백엔드 안에서만 산다** — `ledger.sh wire-worktree` 가 쓰고 `bd` 가 읽는다. 루트 판별에는 쓰이지 않는다.
 - **`rules-check` 의 S12(하네스 루트 `.gitignore` 규약)가 폐기됐다** — 하네스 루트가 git 트리가 아니라 대조할 대상이 없다.
