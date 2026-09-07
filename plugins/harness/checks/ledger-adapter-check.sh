@@ -338,6 +338,15 @@ node_actor() { # <번호> <코멘트 nodes JSON>
   printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"actor 픽스처","state":"OPEN","body":"본문","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:task"},{"name":"repo:harness"}]},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":%s},"parent":null,"blockedBy":{"totalCount":0,"nodes":[]}}' \
     "$1" "$1" "$1" "$2"
 }
+# rails 픽스처 — rail: 라벨을 가진 epic. assignee 를 인자로 받는 것이 본 픽스처(node)와 다른 점이고,
+# 그것이 rails 의 값 산출을 가르는 축이다(양성·충돌·없음).
+# **본 픽스처와 갈라 둔다**(FAKE_GH_RAILS 로만 나온다): 같은 nodes 배열에 이 epic 들을 더하면
+# 위의 건수 단언(list 의 `length == 2`·`length == 3`, 경계의 id 목록)이 함께 깨져, epic 하나를
+# 더하는 일이 무관한 단언 넷을 고치는 일이 된다.
+rail_epic() { # <번호> <레일 id> <assignees nodes JSON>
+  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"레일 epic %s","state":"OPEN","body":"","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:epic"},{"name":"repo:harness"},{"name":"rail:%s"}]},"assignees":{"nodes":%s},"comments":{"nodes":[]},"parent":null,"blockedBy":{"totalCount":0,"nodes":[]},"projectItems":{"nodes":[{"project":{"number":4}}]}}' \
+    "$1" "$1" "$1" "$2" "$2" "$3"
+}
 N57='[{"name":"type:epic"},{"name":"repo:harness"},{"name":"status:blocked"}]'
 N58='[{"name":"type:feature"},{"name":"repo:harness"},{"name":"rail:r1"}]'
 N59='[{"name":"type:task"},{"name":"repo:harness"}]'
@@ -401,7 +410,22 @@ case "$1 $2" in
           echo '[{"data":{"user":{"projectV2":{"items":{"nodes":[{"content":{"repository":{"name":"harness"}}},{"content":{"repository":{"name":"harness"}}},{"content":{}}]}}}}}]'
         fi ;;
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
-      *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
+      # 레포 이슈 목록. FAKE_GH_RAILS 가 있으면 rails 전용 판으로 **갈아 끼운다** — 더하지 않는다.
+      # 본 픽스처의 건수·id 단언과 rails 의 값 산출 단언이 서로를 흔들지 않게 하는 자리다.
+      *"issues(first"*)
+        case "${FAKE_GH_RAILS:-}" in
+          # (a) 레일 둘이 각자 owner 를 갖는 정상 판.
+          ok) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+                "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 81 r2 '[{"login":"dongqdev"}]')" ;;
+          # (b) 한 레일(r1)의 epic 둘이 서로 다른 사람을 가리킨다.
+          conflict) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+                "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 82 r1 '[{"login":"dongqdev"}]')" ;;
+          # (c) rail: 라벨은 있는데 assignee 가 없는 epic(83). 같은 판에 owner 를 가진 레일(r1)을
+          #     함께 두어 "나머지 결과는 온전하다" 를 볼 수 있게 한다.
+          blank) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+                "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 83 r3 '[]')" ;;
+          *) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
+        esac ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
       # 없는 레포 — 등록부가 사라져 이름의 실재를 판정하는 것은 원격뿐이다(ledger-github.sh 머리 주석).
       *"r=nowhere"*) echo 'gh: Could not resolve to a Repository' >&2; exit 1 ;;
@@ -619,12 +643,25 @@ step "label add|remove → --add-label · --remove-label" \
 grun dolt push
 step "beads 전용 명령(dolt) → rc≠0" [ "$RC" -ne 0 ]
 # ── 등록부 질의 (skills#144) ──────────────────────────────────────────
-# rails 의 양성 경로는 이 픽스처로 세울 수 없다 — 실제 원장에서 봤다(커밋 메시지의 실측).
-# 여기서 못박는 것은 **owner 를 어디서 파생하지 않는가** 다: 58 은 rail:r1 에 assignee 가 있으나
-# epic 이 아니고, 70 은 rail:r1 인 task 이며 프로젝트 밖이다. 둘 중 하나라도 새면 [] 가 깨진다.
+# 음성 경로 — **owner 를 어디서 파생하지 않는가**: 58 은 rail:r1 에 assignee 가 있으나 epic 이
+# 아니고, 70 은 rail:r1 인 task 이며 프로젝트 밖이다. 둘 중 하나라도 새면 [] 가 깨진다.
 grun rails --json
 step "rails: epic 이 아닌 rail: 라벨(58 feature · 70 task)에서 owner 를 파생하지 않는다 → []" \
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e "length == 0" >/dev/null' _ "$RC" "$OUT"
+# 값 산출 (skills#183). 위의 [] 는 **없는 쪽**만 세운다 — owner 가 실제로 어디서 와서 어떤 모양으로
+# 나오는지는 여기서 못박는다. 판은 FAKE_GH_RAILS 가 갈아 끼운다(본 픽스처와 건수가 결합하지 않는다).
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_RAILS=ok HARNESS_ROOT="$GH" bash "$LEDGER" rails --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "rails 양성: id 는 epic 의 rail: 라벨이고 owner 는 그 epic 의 assignee 다 · 레일마다 한 항목이고 id 로 정렬된다" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ". == [{id:\"r1\",owner:\"juhyeon-cha\"},{id:\"r2\",owner:\"dongqdev\"}]" >/dev/null' _ "$RC" "$OUT"
+step "rails 양성: 아무 말도 남기지 않는다 (빠진 레일이 없다)" bash -c '[ -z "$1" ]' _ "$ERR"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_RAILS=conflict HARNESS_ROOT="$GH" bash "$LEDGER" rails --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "rails 충돌: 한 레일의 epic 들이 서로 다른 assignee 를 가리키면 rc≠0 이고 stderr 가 레일 id 와 두 사람을 다 든다 (하나를 골라 덮지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "r1=" && printf "%s" "$2" | grep -q dongqdev && printf "%s" "$2" | grep -q juhyeon-cha' _ "$RC" "$ERR"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_RAILS=blank HARNESS_ROOT="$GH" bash "$LEDGER" rails --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "rails assignee 없음: 그 레일(r3)은 빠지고 나머지(r1)는 온전하다 — rc 는 0 이다" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ". == [{id:\"r1\",owner:\"juhyeon-cha\"}]" >/dev/null' _ "$RC" "$OUT"
+step "rails assignee 없음: 조용히 사라지지 않는다 — stderr 가 그 epic 의 id 를 든다" \
+  bash -c 'printf "%s" "$1" | grep -q "harness#83"' _ "$ERR"
 grun sprints --json
 step "sprints: id 는 iteration 의 title 이고 status 는 iterations→active · completedIterations→closed" \
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ". == [{id:\"2026-S01\",status:\"closed\"},{id:\"2026-S02\",status:\"active\"}]" >/dev/null' _ "$RC" "$OUT"
@@ -894,8 +931,9 @@ step "sprints: Type 이 sprint 인 페이지가 0건 → rc 0 의 빈 배열이�
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q sprint' _ "$OUT" "$RC" "$ERR"
 # ── 스프린트 등재 (skills#181). 이 백엔드에서 스프린트는 같은 DB 의 페이지 한 장이므로 등재도
 #    페이지 한 장을 만드는 것이다 — **위 sprints 가 읽는 모양 그대로**여야 왕복이 성립한다.
-#    (계획 문서 몇 곳이 이 자리를 "select option" 이라 적었었다 — skills#182 가 고쳤다. select option
-#     에는 상태를 둘 데가 없어 sprints 가 그것을 내지 못했다. 읽는 자리와 같은 모양으로 쓴다.)
+#    (계획 문서 몇 곳이 이 자리를 "select option" 이라 적었었다 — skills#182 가 고쳤다. 낡은 것은
+#     그 서술이지 메커니즘이 아니다: Notion 에서 상태를 가질 수 있는 것은 페이지뿐이라, select
+#     option 을 더해도 sprints 는 그것을 내지 못한다. 읽는 자리와 같은 모양으로 쓴다.)
 : > "$NLOG"
 nreg 1 sprint-add 2026-S03
 step "sprint-add notion: Type=sprint · Name=<ID> · Status=open 페이지 한 장을 만든다 (sprints 가 읽는 모양)" \
