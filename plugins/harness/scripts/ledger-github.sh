@@ -137,6 +137,15 @@ fetch_issue() { # SLUG NUM → 원본 노드 JSON (없는 이슈면 gh 가 rc≠
   printf '%s' "$out" | jq -e '.data.repository.issue' >/dev/null 2>&1 || die "없는 id: $REPO#$2"
   printf '%s' "$out" | jq '.data.repository.issue'
 }
+# 이슈가 Project $PROJECT 에 실제로 들어 있는가 — **다시 읽어서** 답한다. 소속은 create 가
+# `gh project item-add` 의 종료 코드로 짐작하던 것이고, 그 짐작이 이슈는 만들어졌는데 rc 만
+# 비-0 인 부분 등재를 실패로 읽었다(skills#210 실측). 질의는 읽기 경로의 PROJECT_FIELD 하나다.
+in_project() { # SLUG NUM → 소속이면 rc 0
+  local o="${1%%/*}" r="${1##*/}" out
+  out="$(gh api graphql -f query="query(\$o:String!,\$r:String!,\$n:Int!){ repository(owner:\$o,name:\$r){ issue(number:\$n){ $PROJECT_FIELD } } }" -f o="$o" -f r="$r" -F n="$2" 2>/dev/null)" || return 1
+  printf '%s' "$out" | jq -e --arg p "$PROJECT" \
+    'any(.data.repository.issue.projectItems.nodes[]?; (.project.number | tostring) == $p)' >/dev/null 2>&1
+}
 node_id() { gh api "repos/$1/issues/$2" --jq .node_id; }
 db_id()   { gh api "repos/$1/issues/$2" --jq .id; }
 ensure_label() { gh label create "$2" -R "$1" --force >/dev/null 2>&1 || die "라벨 '$2' 를 $1 에 만들지 못했다"; }
@@ -317,8 +326,19 @@ case "$cmd" in
     [ "$rc" -eq 0 ] && [ -n "$url" ] || die "gh issue create 실패 ($slug)"
     num="${url##*/}"
     if [ -n "$parent" ]; then split_id "$parent"; add_sub_issue "$SLUG" "$NUM" "$slug" "$num"; fi
-    gh project item-add "$PROJECT" --owner "$OWNER" --url "$url" >/dev/null 2>&1 \
-      || die "이슈 $repo#$num 은 만들었지만 Project $PROJECT 에 넣지 못했다 — project scope 또는 번호를 확인하라"
+    # **item-add 의 rc≠0 은 "안 들어갔다" 가 아니라 "모른다" 다.** 그때는 죽지 말고 소속을
+    # **다시 읽어** 판정한다 (docs/guardrails.md 5-1 — 시도한 반영은 검사를 통과하지 못한다,
+    # 종료 코드가 아니라 다시 세어본 결과가 판정한다). 이슈는 이 줄 **앞에서** 이미 만들어지므로
+    # rc 하나로 죽으면 실재하는 등재가 실패로 기록된다 (skills#210 실측 ①② — 이 스토리를 쪼갤 때
+    # 실제로 그랬다). gh 의 stderr 도 버리지 않고 죽을 때 싣는다 — 버리면 진짜 사유(scope 부족·
+    # 번호 오류)가 영영 보이지 않는다 (같은 실측 ③).
+    # **rc 0 에서는 다시 읽지 않는다.** 소속 조회가 item-add 직후에 신선한지는 미측정이고, 같은
+    # 계열의 `gh project item-list` 는 직후에 새 항목을 내지 않는 것이 실측이다(머리 주석). 보고된
+    # 성공을 낡을 수 있는 조회로 뒤집으면 흔한 경로에서 거짓 실패가 난다 — 그 대가가 이 자리가
+    # 고치는 실패보다 크다. 검사가 그 극성을 든다(checks/ledger-adapter-check.sh ④).
+    add_err="$(gh project item-add "$PROJECT" --owner "$OWNER" --url "$url" 2>&1 >/dev/null)"; add_rc=$?
+    [ "$add_rc" -eq 0 ] || in_project "$slug" "$num" \
+      || die "이슈 $repo#$num 은 만들었지만 Project $PROJECT 소속이 아니다 (item-add rc=$add_rc, 소속을 다시 읽어도 없다) — project scope 또는 번호를 확인하라${add_err:+ · gh: $add_err}"
     if [ -n "$silent" ]; then echo "$repo#$num"; else echo "✓ Created issue: $repo#$num — $title"; fi
     ;;
 
