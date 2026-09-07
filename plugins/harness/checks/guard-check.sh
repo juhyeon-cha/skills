@@ -911,7 +911,7 @@ step "부정 대조군: 치환을 빼면 홈 표기가 통과한다 (rc=0)" [ "$
 # r_bd_root 는 서브에이전트의 원장 쓰기를 `HARNESS_ROOT=<하네스 루트> ledger.sh …` 형태로만
 # 인정하는데 하네스 루트는 클론 루트다 — 그 값이 이 규칙의 후보로 잡혀 **지명해도 막히고
 # 안 지명해도 막히는** 배반이 성립했다 (skills#209 실측 ③). 면제는 그 배반만 걷는다:
-# 값이 클론 루트와 정확히 같은 대입 하나. 아래가 면제의 양쪽이다 — 통과 하나와 차단 다섯.
+# 값이 클론 루트와 정확히 같은 대입 하나. 아래가 면제의 양쪽이다 — 통과 하나와 차단 여섯.
 MC_HR_SUB="$FX_LS note $FX_TASK \"메모\""
 runh "$HOOK" "$(j_sub "HARNESS_ROOT=$MCROOT $MC_HR_SUB" 'harness:implementer')" "HARNESS_CLONE_ROOT=$MCROOT"
 printf '  rc=%d  면제: HARNESS_ROOT=<클론 루트> ledger.sh note\n' "$GUARD_RC"
