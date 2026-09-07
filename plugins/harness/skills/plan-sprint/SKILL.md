@@ -18,8 +18,8 @@ Sources: user instruction, `ledger.sh ready`, the backlog (`ledger.sh list`), ex
 ## 3. Assign
 
 - Label the story epic with `sprint:<ID>` and `rail:<rail ID>`. **Use only rail IDs that `ledger.sh rails --json` answers** — when you need a rail that is absent, settle it with the user first.
-- Set the story's assignee to that rail's `owner`: `ledger.sh update <story ID> --assignee <owner>`. **A rail is one person**, so on `github`·`notion` the assignee *is* what makes the rail exist — the adapter derives the pair from the ledger, and two different assignees under one `rail:` label is what `board-check` names.
-- When the story already has children, confirm the labels were inherited with `ledger.sh list -l sprint:<ID> --all`.
+- Set the story's assignee to that rail's `owner`: `ledger.sh update <story ID> --assignee <owner>`. **A rail is one person**, so on `github`·`notion` the assignee *is* what makes the rail exist — the adapter derives the pair from the ledger, and two different assignees under one `rail:` label is what `board-check` names. **A story epic created with its `rail:` label already carries the assignee** — the adapter fills it from `ledger.sh rails` at creation, so this step is for a story that already existed (a backlog item being admitted) and for the first epic of a brand-new rail, which has no owner to read yet.
+- When the story already has children, confirm the labels reached them with `ledger.sh list -l sprint:<ID> --all`. **Inheritance happens at creation and never again**, so a story broken down before it was admitted has children without the `sprint:` label — add it to each of them (`ledger.sh label add <child ID> sprint:<ID>`). `board-check` names the ones that are missing it.
 
 ## 4. Delegate the breakdown
 

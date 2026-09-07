@@ -65,7 +65,14 @@ Build epic (story) → feature (milestone) → task per the session context bloc
 
 **Task size rule: one task = one acceptance = one or more commits.** When an acceptance is one passage in one file, merge the task into its neighbor.
 
-**In a multi-repo story, narrow every task to a single repo.** The `beads` backend hands a task every parent label at creation, so a task ends up with several `repo:` labels — left that way, develop cannot judge which worktree to delegate to and refuses to start. Right after creating the tasks, drop the labels for repos the task does not actually touch: `ledger.sh label remove <task ID> repo:<untouched repo>`. A task that genuinely has to change two repos is two tasks — split it on the repo boundary and join with `blocks`.
+**What a child inherits, on every backend.** `ledger.sh create --parent <parent>` copies the parent's `sprint:`, `rail:` and `repo:` labels onto the new issue — the adapter does it, so the rule is the same whichever backend the ledger runs on. Two consequences to plan around:
+
+- **`slug:` does not descend.** It belongs to the story alone, because it is the story's documentation directory name — handed down, milestones and tasks would claim the same path. A child needs no `slug:` label and must not be given one.
+- **A label given with `-l` wins over the inherited one, by prefix.** Naming any `repo:` label at creation drops every inherited `repo:`; the prefixes not named still come down.
+
+**In a multi-repo story, narrow every task to a single repo — at creation.** The parent hands a task all of the story's `repo:` labels, and left that way develop cannot judge which worktree to delegate to and refuses to start. Name the one repo the task actually touches in the `create` call: `-l repo:<name>`. Do not plan on trimming afterwards — on `github` a `create` carrying two `repo:` labels fails outright (that label is what routes the issue to a repo), so the narrowing has to happen in the same call. A task that genuinely has to change two repos is two tasks — split it on the repo boundary and join with `blocks`.
+
+**A story epic created with a `rail:` label gets that rail's assignee.** The adapter reads the owner from `ledger.sh rails` and fills it in, so no separate `update --assignee` follows. The first epic of a brand-new rail has no owner to read yet: it is created without an assignee and says so on stderr — give it one before `board-check` runs.
 
 **Registering several at once means the ids stay unpredicted.** The procedure is held by "여러 개를 한 번에 등재할 때" below.
 
