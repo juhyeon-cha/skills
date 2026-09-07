@@ -21,6 +21,20 @@ set -uo pipefail
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
 cd "$ROOT" || { echo "✗ 하네스 루트로 이동하지 못했다: $ROOT" >&2; exit 1; }
+
+# 이 검사는 검사용 스토리 bead 를 만들고(create --ephemeral) 끝나며 지운다(delete). 그 둘은
+# beads 전용 인자다 — --ephemeral 은 `bd list --all --json` 이 내지 않는 wisp 이슈를 만들고
+# (rules-check.sh:473-474 의 실측), delete 는 이슈를 실제로 지운다. github·notion 에는 대응물이
+# 둘 다 없다(github 은 close 만 된다). 어댑터에 --ephemeral 을 더하면 검사용 이슈가 실제
+# 원장(Projects v2 멤버십이 경계다)에 영구히 남고 지울 수단도 없으므로 더하지 않는다 —
+# beads 가 아닌 백엔드에서는 사유를 밝히고 건너뛴다. 조용히 죽으면 "건너뛴 것" 과 "실패한
+# 것" 이 구별되지 않는다.
+command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
+BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json" 2>/dev/null)"
+if [ "$BACKEND" != beads ]; then
+  echo "⊘ EnterWorktree 왕복 검사 전체를 건너뛴다 (backend=${BACKEND:-없음}) — 검사용 bead 의 'create --ephemeral' 과 'delete' 가 beads 전용 인자라 github·notion 에는 대응물이 없다. ①~⑥ 어느 절도 판정하지 않았다"
+  exit 0
+fi
 TMP=$(mktemp -d)
 BEAD=""
 GITC=(-c user.email=check@harness -c user.name=harness-check)
