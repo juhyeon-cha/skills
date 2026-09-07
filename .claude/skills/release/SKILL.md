@@ -34,6 +34,13 @@ install must be able to tell from the number alone whether `claude plugin update
 | MINOR | the plugin grew, an install touches nothing | a new skill, check, or subcommand |
 | MAJOR | an install has hand work | a renamed or removed skill people call by name; a new context file an install must create; a shape change of a file the install owns; a removed subcommand |
 
+**The setup-skill diff of step 1 looks one way — it is a pointer, not a judgment.** It catches hand
+work only when the setup skill was updated to say so; hand work that appeared without that edit is
+not caught, and an install that then updates on a narrow number has its gate break right after with
+no procedure to follow. So read the range for hand work directly, and treat an empty diff as "not
+found", never as "none". (No gate sees the width — the judgment is natural language, settled once
+per release over the whole range, so there is nothing for a commit to be compared against.)
+
 A plugin nobody has installed yet stays at its current number — raising it tells nobody anything.
 When the rule says MAJOR and you decide not to widen, write that judgment into the entry in one
 line; the next reader must not have to rediscover it.

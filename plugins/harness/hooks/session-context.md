@@ -40,17 +40,17 @@ Role definitions (3 — subagents, the Agent tool's `subagent_type`): `harness:i
 | Level | Ledger form | Convention |
 |---|---|---|
 | Sprint | label `sprint:<ID>` | ID format `YYYY-SNN`. Dates go on each story bead's `--due`. **The source of the status (`active`/`closed`) is the adapter — `ledger.sh sprints`** — closure is never judged from the count of closed issues. `board-check` sees that the registry and the labels match both ways |
-| Rail | label `rail:<ID>` | **A person.** One rail per assignee; one rail crosses several repos. Repo boundaries are `repo:` labels. **Only IDs the adapter answers to `ledger.sh rails`**, in the numbered form `r1`·`r2`. Child issues inherit it |
+| Rail | label `rail:<ID>` | **A person.** One rail per assignee; one rail crosses several repos. Repo boundaries are `repo:` labels. **Only IDs the adapter answers to `ledger.sh rails`**, in the numbered form `r1`·`r2`. Child issues inherit it — the adapter's `create` copies it from `--parent` on every backend, together with `sprint:` and `repo:` |
 | Story | `--type epic` | Names the repos involved with `repo:<name>` labels (several allowed). Carries a mandatory `slug:<rail ID>-<name>` label that becomes its documentation directory name — the rail-ID prefix keeps different people's slugs from colliding. Uniqueness is required within a sprint, and the renderer asserts it |
 | Milestone | `--type feature --parent <story ID>` | A stage inside a story. Order goes through `blocks` dependencies |
-| Task | `--type task --parent <milestone ID>` | The unit of execution. `--acceptance` is mandatory. **Exactly one `repo:` label** — when inheritance hands it several, plan-story keeps only the one it actually touches (`ledger.sh label remove`). With several, develop refuses to start |
+| Task | `--type task --parent <milestone ID>` | The unit of execution. `--acceptance` is mandatory. **Exactly one `repo:` label** — under a multi-repo story the parent hands down several, so name the one it actually touches at creation (`-l repo:<name>`, which wins over what is inherited). With several, develop refuses to start |
 
 Creation forms:
 
 ```bash
 ledger.sh create "<story title>" -t epic -l sprint:<sprint ID>,rail:<rail ID>,slug:<rail ID>-<slug>,repo:<repo>[,repo:<repo>]
 ledger.sh create "<milestone title>" -t feature --parent <story ID>
-ledger.sh create "<task title>" -t task --parent <milestone ID> --acceptance "<machine-judgeable completion criterion>"
+ledger.sh create "<task title>" -t task --parent <milestone ID> -l repo:<repo> --acceptance "<machine-judgeable completion criterion>"
 ```
 
 ## Rules owned elsewhere

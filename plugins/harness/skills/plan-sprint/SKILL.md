@@ -9,7 +9,20 @@ description: Sprint composition procedure. Use when opening a new sprint, assign
 
 The ID format is `YYYY-SNN` (4-digit year - S + 2-digit sequence). Read the existing IDs with `ledger.sh list --label-pattern 'sprint:*' --all --json -n 0` and take the next sequence for that year. When the sprint has dates, hang them on the stories with `--due`.
 
-**Once the ID is fixed, register it so that `ledger.sh sprints --json` answers `{"id": "<ID>", "status": "active"}`.** Where that registration lives is the backend's: on `github` it is a Projects v2 Iteration whose title is the ID, on `notion` a select property, on `beads` a key in the root's `sprints.json`. Check with `ledger.sh sprints --json` — that answer, not a count of closed issues, is the source of truth for whether a sprint is closed, and flipping it to `closed` at the end belongs to this same procedure (the mapping table in the session context block, sprint row). An unregistered ID gets blocked by `board-check`, which names it.
+**Once the ID is fixed, register it: `ledger.sh sprint-add <ID>`.** One command with the same argument on every backend — where the registration actually lands (a Projects v2 iteration, a Notion page, a key in a file) is the adapter's business, so this procedure does not split by backend. Then confirm the round trip: `ledger.sh sprints --json` has to answer `{"id": "<ID>", "status": "active"}`. An unregistered ID gets blocked by `board-check`, which names it.
+
+- **Registering an ID that is already there fails** (rc≠0, naming the ID) instead of overwriting. A typo cannot quietly replace a live sprint.
+- **On `github` the registration needs the project's ITERATION field**, and `ledger.sh init` is what creates it (idempotent — it leaves an existing field alone). With the field missing, `sprint-add` stops and says so; run `HARNESS_ROOT=<harness root> ledger.sh init` and register again.
+
+**Closing a sprint is not this command's job, and it is not symmetric across backends.** `sprint-add` only registers, and `ledger.sh sprints` only reads — there is no `sprint-close`, because `github` has no operation that closes an iteration at all. Flipping `active` → `closed` is the backend's:
+
+| Backend | How `closed` happens |
+|---|---|
+| `github` | By date, on its own — GitHub moves an iteration into `completedIterations` once its end date has passed, so there is nothing to run. To end one early, shorten that iteration in the GitHub UI |
+| `notion` | `ledger.sh update <sprint page ID> --status closed` — the sprint is a page, so its own Status carries the state |
+| `beads` | Change the `status` value for that key in the root's `sprints.json` |
+
+**On no backend does the state come from a count of closed issues.** That misreading was reverted once already (commit `f88d779`, recorded in the `doc` of `sprints.json`), and it holds on `github` too: the adapter derives `active`/`closed` from the two iteration lists GitHub itself keeps, and reads no issue to do it.
 
 ## 2. Collect story candidates
 
@@ -18,8 +31,8 @@ Sources: user instruction, `ledger.sh ready`, the backlog (`ledger.sh list`), ex
 ## 3. Assign
 
 - Label the story epic with `sprint:<ID>` and `rail:<rail ID>`. **Use only rail IDs that `ledger.sh rails --json` answers** — when you need a rail that is absent, settle it with the user first.
-- Set the story's assignee to that rail's `owner`: `ledger.sh update <story ID> --assignee <owner>`. **A rail is one person**, so on `github`·`notion` the assignee *is* what makes the rail exist — the adapter derives the pair from the ledger, and two different assignees under one `rail:` label is what `board-check` names.
-- When the story already has children, confirm the labels were inherited with `ledger.sh list -l sprint:<ID> --all`.
+- Set the story's assignee to that rail's `owner`: `ledger.sh update <story ID> --assignee <owner>`. **A rail is one person**, so on `github`·`notion` the assignee *is* what makes the rail exist — the adapter derives the pair from the ledger, and two different assignees under one `rail:` label is what `board-check` names. **A story epic created with its `rail:` label already carries the assignee** — the adapter fills it from `ledger.sh rails` at creation, so this step is for a story that already existed (a backlog item being admitted) and for the first epic of a brand-new rail, which has no owner to read yet.
+- When the story already has children, confirm the labels reached them with `ledger.sh list -l sprint:<ID> --all`. **Inheritance happens at creation and never again**, so a story broken down before it was admitted has children without the `sprint:` label — add it to each of them (`ledger.sh label add <child ID> sprint:<ID>`). `board-check` names the ones that are missing it.
 
 ## 4. Delegate the breakdown
 

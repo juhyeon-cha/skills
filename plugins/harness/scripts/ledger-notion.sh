@@ -388,6 +388,26 @@ case "$cmd" in
     done
     ;;
 
+  sprint-add)
+    # 스프린트 등재 — **아래 sprints 가 읽는 것과 같은 모양의 페이지 한 장**이다: Type=sprint ·
+    # Name=스프린트 ID · Status=open(sprints 가 active 로 접는다). ID 형식 판정과 중복 판정은
+    # ledger.sh 가 이미 했다.
+    # 계획 문서 몇 곳이 이 자리를 "select option" 이라고 적었었다(skills#182 가 고쳤다). 그것은 이
+    # 백엔드의 실제 읽기 경로가 아니었다 — 아래 sprints 주석이 적은 대로 **Notion 에서 상태를 가질
+    # 수 있는 것은 페이지뿐**이라 select option 을 더해도 sprints 는 그것을 내지 못한다.
+    # 읽는 자리와 같은 모양으로 쓴다.
+    # **마감은 이 명령이 하지 않는다** — `update <이 페이지 id> --status closed` 가 이 백엔드의 마감이다.
+    need_db
+    [ $# -eq 1 ] || die "sprint-add: 인자는 스프린트 ID 하나다"
+    body="$(jq -n --arg db "$DB" --arg t "$1" "$JQLIB"'
+      {parent:{database_id:$db},
+       properties:{Name:{title:($t|rt)}, Type:{select:{name:"sprint"}}, Status:{select:{name:"open"}}}}')" \
+      || die "sprint-add: 요청 본문을 만들지 못했다"
+    sid="$(napi POST pages "$body" | jq -r '.id // empty')" || exit 1
+    [ -n "$sid" ] || die "sprint-add: 페이지 생성 응답에 id 가 없다"
+    echo "✓ 스프린트 등재: $1 (notion: Type=sprint 페이지 $sid · Status=open → sprints 의 active)"
+    ;;
+
   # 등록부 질의 — 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2). beads 가 루트의
   # rails.json·sprints.json 을 읽는 자리에서 notion 은 원장 자신(페이지의 Labels·Assignee·Type·
   # Status)을 읽는다. wire-worktree·sync-check 와 달리 위(토큰 검사 앞)에 두지 않는다 — 그 둘은
@@ -452,7 +472,7 @@ case "$cmd" in
         # 응답의 code 를 들어 죽으므로 조용히 빈 배열이 되지는 않는다.
         out="$(list_json --all -t sprint -n 0)" || exit 1
         [ "$(printf '%s' "$out" | jq -r 'length')" != "0" ] \
-          || echo "ledger-notion: sprints: Type 이 sprint 인 페이지가 원장에 하나도 없다 — 빈 배열은 '스프린트가 없다' 이고 '읽지 못했다' 가 아니다 — 질의가 거부되면 napi 가 HTTP 상태를 들어 rc≠0 으로 죽는다 (스프린트는 ledger.sh create <YYYY-SNN> -t sprint 로 등재한다)" >&2
+          || echo "ledger-notion: sprints: Type 이 sprint 인 페이지가 원장에 하나도 없다 — 빈 배열은 '스프린트가 없다' 이고 '읽지 못했다' 가 아니다 — 질의가 거부되면 napi 가 HTTP 상태를 들어 rc≠0 으로 죽는다. 스프린트는 'ledger.sh sprint-add <YYYY-SNN>' 이 같은 DB 의 페이지 한 장으로 넣는다(Type=sprint · Name=스프린트 ID) — 그 절차는 harness:plan-sprint 1절이다" >&2
         printf '%s' "$out" | jq '[.[] | {id: .title, status: (if .status == "closed" then "closed" else "active" end)}] | sort_by(.id)' \
           || die "sprints: 출력을 만들지 못했다"
         ;;

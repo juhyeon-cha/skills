@@ -21,7 +21,7 @@ HARNESS_ROOT=<harness root> bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh sprints
 output** — the adapter's stderr as it stands, or `no active sprint` — followed by
 items 3 and 4 only (they do not depend on a sprint). Do not guess a sprint from labels: the registry
 the adapter answers is the only source of sprint state (session context block, mapping table), and
-what backs it — a Projects v2 Iteration, a Notion property, `sprints.json` on `beads` — is the
+what backs it — a Projects v2 Iteration, a Notion page of its own, `sprints.json` on `beads` — is the
 backend's business, not this procedure's.
 
 One read covers items 1, 2, and 5 and 6 — hold it as a file:

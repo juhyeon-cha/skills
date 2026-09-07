@@ -11,5 +11,8 @@
   `description` 이 원본이고, `.claude-plugin/marketplace.json` 의 그 항목과 `README.md` 가 그것을
   그대로 따른다. 게이트의 (d) 가 이걸 본다.
 - **릴리스 절차의 소유자는 루트 `.claude/skills/release/SKILL.md`(`/release`) 다.** 버전을 올리거나
-  릴리스할 때는 그 스킬을 따른다. 플러그인으로 배포하지 않는 이유와 버전 정책은 각각
-  `plugins/harness/docs/development.md` "Release" 절과 `README.md` "버전" 절에 있다.
+  릴리스할 때는 그 스킬을 따른다 — 릴리스는 이 레포에서 하는 일이지 하네스 루트에서 하는 일이
+  아니라, harness 플러그인 안에는 **릴리스하는 쪽의** 절차도 정책도 두지 않는다(버전의 출처 서술까지).
+  걷는 대상은 릴리스를 **하는** 쪽이 읽을 문장뿐이다. 릴리스를 **받는** 설치본이 읽어야 하는 문장은
+  플러그인 안에 있어야 한다 — `setup` 의 업데이트 절차가 그 예다. 버전 정책은 `README.md` "버전" 절에
+  있다.

@@ -74,6 +74,8 @@ missing=""
 for tok in $MEASURED; do
   printf '%s\n' "$HELP" | grep -qw -- "$tok" || missing="$missing $tok"
 done
+step "--help 가 스프린트 등재 하위 명령을 든다 (sprint-add <YYYY-SNN> · 세 백엔드가 같은 인자)" \
+  bash -c 'printf "%s" "$1" | grep -q "sprint-add <YYYY-SNN>"' _ "$HELP"
 step "--help 가 측정된 bd 하위 명령 전수를 덮는다 (측정 $(printf '%s\n' "$MEASURED" | grep -c .)개, 빠짐:${missing:- 없음})" [ -z "$missing" ]
 
 # ── has-ui 계약 (skills#152) ──────────────────────────────────────────
@@ -160,6 +162,19 @@ run "$FX" create "자식" -t task --parent "$P" -l repo:x,rail:r1 --acceptance "
 run "$FX" show "$C" --json
 step "create 의 -t·--parent·-l·--acceptance·--body-file 이 show --json 에 그대로 있다" \
   bash -c 'printf "%s" "$1" | jq -e --arg p "$2" ".[0] | .issue_type == \"task\" and .parent == \$p and (.labels | index(\"repo:x\") != null) and (.labels | index(\"rail:r1\") != null) and .acceptance_criteria == \"완료 조건\" and (.description | startswith(\"본문 첫 줄\"))" >/dev/null' _ "$OUT" "$P"
+
+# ── create 의 라벨 상속 (skills#179). 어댑터가 부모의 sprint:·rail:·repo: 를 물려주고 slug: 는
+#    물려주지 않는다. **beads 에서 보는 것은 "떼어지는가" 다** — bd 는 만들 때 부모 라벨을 통째로
+#    물려주므로, 계약 밖의 것을 어댑터가 걷어내지 않으면 slug: 가 하위로 새고 문서 경로가 겹친다.
+run "$FX" create "상속 부모" -t feature -l sprint:2026-S02,rail:r1,repo:skills,slug:r1-inherit --silent; IP="$OUT"
+run "$FX" create "상속 자식" -t task --parent "$IP" --silent; IC="$OUT"; ic_rc=$RC
+run "$FX" show "$IC" --json
+step "create --parent: sprint:·rail:·repo: 를 물려받고 slug: 는 물려받지 않는다" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e ".[0].labels | (index(\"sprint:2026-S02\") != null) and (index(\"rail:r1\") != null) and (index(\"repo:skills\") != null) and (index(\"slug:r1-inherit\") == null)" >/dev/null' _ "$OUT" "$ic_rc"
+run "$FX" create "명시 우선" -t task --parent "$IP" -l repo:other --silent; IE="$OUT"
+run "$FX" show "$IE" --json
+step "create --parent: -l 로 명시한 접두사가 이기고(repo:other) 명시 안 한 접두사는 물려받는다(rail:r1·sprint:)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0].labels | (index(\"repo:other\") != null) and (index(\"repo:skills\") == null) and (index(\"rail:r1\") != null) and (index(\"sprint:2026-S02\") != null)" >/dev/null' _ "$OUT"
 
 run "$FX" note "$C" "메모 하나"
 run "$FX" note "$C" --file "$TMP/body.txt"
@@ -255,6 +270,25 @@ step "rails: 등재된 레일 수와 출력 배열 길이가 같고 id·owner �
 run "$RG" sprints --json
 step "sprints: id 는 등재 키이고 status 는 active|closed 둘 중 하나다" \
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "map(.id) == [\"2026-S01\",\"2026-S02\"] and all(.status == \"active\" or .status == \"closed\")" >/dev/null' _ "$OUT" "$RC"
+# ── 스프린트 등재 (skills#181). 등재의 경계(ID 형식·중복·인자 수)는 ledger.sh 한 자리이고
+#    백엔드는 쓰기만 한다. 그래서 경계 단언은 여기 한 번만 세우고, 나머지 두 백엔드에서는
+#    **각자의 쓰기 모양**과 "중복은 그쪽에서도 rc≠0" 만 본다.
+#    아래 대조군 픽스처(status:진행중 등)가 이 파일을 덮기 **전에** 둔다 — 그 뒤에서는
+#    sprints 자체가 rc≠0 이라 등재의 왕복을 세울 수 없다.
+run "$RG" sprint-add 2026-S04
+step "sprint-add beads: sprints.json 에 키를 더하고 rc 0 · stdout 한 줄이 무엇에 썼는지 말한다" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | grep -q "2026-S04"' _ "$OUT" "$RC"
+run "$RG" sprints --json
+step "sprint-add beads: 등재 **뒤** sprints --json 이 그것을 active 로 낸다 (등재의 왕복)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "any(.[]; .id == \"2026-S04\" and .status == \"active\")" >/dev/null' _ "$OUT" "$RC"
+run "$RG" sprint-add 2026-S04
+step "sprint-add: 이미 있는 ID 를 다시 등재하면 rc≠0 이고 stderr 가 그 ID 를 든다 (조용히 덮어쓰지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "2026-S04"' _ "$RC" "$ERR"
+run "$RG" sprint-add 2026S04
+step "sprint-add: ID 형식이 YYYY-SNN 이 아니면 rc≠0 이고 stderr 가 그 형식을 든다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "YYYY-SNN"' _ "$RC" "$ERR"
+run "$RG" sprint-add 2026-S05 2026-S06
+step "sprint-add: 인자가 스프린트 ID 하나가 아니면 rc≠0" [ "$RC" -ne 0 ]
 # 등재가 0건인 것과 파일이 없는 것은 다른 상태다 — 앞은 rc 0 의 빈 배열, 뒤는 위에서 본 rc≠0.
 printf '{"rails":{}}\n' > "$RG/rails.json"
 run "$RG" rails --json
@@ -304,6 +338,15 @@ node_actor() { # <번호> <코멘트 nodes JSON>
   printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"actor 픽스처","state":"OPEN","body":"본문","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:task"},{"name":"repo:harness"}]},"assignees":{"nodes":[{"login":"juhyeon-cha"}]},"comments":{"nodes":%s},"parent":null,"blockedBy":{"totalCount":0,"nodes":[]}}' \
     "$1" "$1" "$1" "$2"
 }
+# rails 픽스처 — rail: 라벨을 가진 epic. assignee 를 인자로 받는 것이 본 픽스처(node)와 다른 점이고,
+# 그것이 rails 의 값 산출을 가르는 축이다(양성·충돌·없음).
+# **본 픽스처와 갈라 둔다**(FAKE_GH_RAILS 로만 나온다): 같은 nodes 배열에 이 epic 들을 더하면
+# 위의 건수 단언(list 의 `length == 2`·`length == 3`, 경계의 id 목록)이 함께 깨져, epic 하나를
+# 더하는 일이 무관한 단언 넷을 고치는 일이 된다.
+rail_epic() { # <번호> <레일 id> <assignees nodes JSON>
+  printf '{"id":"NODE_%s","databaseId":100%s,"number":%s,"title":"레일 epic %s","state":"OPEN","body":"","createdAt":"2026-09-05T00:00:00Z","updatedAt":"2026-09-05T00:00:00Z","closedAt":null,"repository":{"name":"harness"},"labels":{"nodes":[{"name":"type:epic"},{"name":"repo:harness"},{"name":"rail:%s"}]},"assignees":{"nodes":%s},"comments":{"nodes":[]},"parent":null,"blockedBy":{"totalCount":0,"nodes":[]},"projectItems":{"nodes":[{"project":{"number":4}}]}}' \
+    "$1" "$1" "$1" "$2" "$2" "$3"
+}
 N57='[{"name":"type:epic"},{"name":"repo:harness"},{"name":"status:blocked"}]'
 N58='[{"name":"type:feature"},{"name":"repo:harness"},{"name":"rail:r1"}]'
 N59='[{"name":"type:task"},{"name":"repo:harness"}]'
@@ -311,6 +354,9 @@ N59='[{"name":"type:task"},{"name":"repo:harness"}]'
 # 프로젝트에도 없다(레포 자신의 이슈가 이 모양이다). 라벨을 57~59 와 같은 계열로 두어 경계가
 # 새면 -t·-l 질의에도 걸리게 한다 — 걸리면 아래 단언이 떨어진다.
 N70='[{"name":"type:task"},{"name":"repo:harness"},{"name":"rail:r1"}]'
+# 63 — 상속의 부모. 계약이 가르는 네 접두사를 한 이슈에 다 담는다: sprint:·rail:·repo: 는 내려가고
+# slug: 는 내려가지 않는다(스토리 고유 — 물려주면 문서 디렉토리 이름이 겹친다).
+N63='[{"name":"type:epic"},{"name":"repo:harness"},{"name":"rail:r1"},{"name":"sprint:2026-S02"},{"name":"slug:r1-x"}]'
 PI70='[{"project":{"number":9}}]'
 PI71='[]'
 case "$1 $2" in
@@ -324,8 +370,12 @@ case "$1 $2" in
   "project create") echo '{"number":9}'; exit 0 ;;
   "api graphql")
     all="$*"
+    # 변수에 배열이 있는 뮤테이션(sprint-add 의 updateProjectV2Field)은 -f 로 실을 수 없어 본문이
+    # --input - 로 온다. 본문을 파일에 남겨 두어 단언이 variables 를 열어 볼 수 있게 한다.
+    case "$all" in *--input*) gqlbody="$(cat)"; printf '%s' "$gqlbody" > "$FAKE_GH_LOG.gql"; all="$all $gqlbody" ;; esac
     case "$all" in
       *addSubIssue*) echo '{"data":{"addSubIssue":{}}}' ;;
+      *updateProjectV2Field*) echo '{"data":{"updateProjectV2Field":{"projectV2Field":{"name":"Sprint"}}}}' ;;
       # ITERATION 필드 생성 — init 이 부르는 자리. gh project field-create 는 ITERATION 을
       # 지원하지 않아 이 뮤테이션이 유일한 통로다(M0 실측).
       *createProjectV2Field*) echo '{"data":{"createProjectV2Field":{"projectV2Field":{"name":"Sprint"}}}}' ;;
@@ -339,13 +389,16 @@ case "$1 $2" in
       # (2026-09-07, skills#167). 픽스처가 스스로를 근거로 삼지 않는다 — 실측을 옮긴 것이다.
       # 상태 필드가 없으므로 status 는 iterations(현재·미래)/completedIterations(종료일이 지난
       # 것) 두 목록에서만 갈린다. projectV2.id 는 init 이 뮤테이션에 넘길 node id 다.
+      # 필드 노드의 id 와 iteration 의 startDate·duration 은 **sprint-add 만** 읽는다(sprints 는
+      # title 뿐이다). 등재가 대체 API 라 되돌려 보낼 값이 여기서 나온다 — 없으면 sprint-add 가
+      # 새 iteration 의 시작일을 계산하지 못한다.
       *"fields(first"*)
         if [ -n "${FAKE_GH_NO_ITERATION:-}" ]; then
           echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{}]}}}}}'
         elif [ -n "${FAKE_GH_EMPTY_ITERATION:-}" ]; then
-          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[],"completedIterations":[]}}]}}}}}'
+          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","id":"PVTIF_x","configuration":{"duration":0,"iterations":[],"completedIterations":[]}}]}}}}}'
         else
-          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
+          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","id":"PVTIF_x","configuration":{"duration":14,"iterations":[{"title":"2026-S02","startDate":"2026-09-01","duration":14}],"completedIterations":[{"title":"2026-S01","startDate":"2026-08-18","duration":14}]}}]}}}}}'
         fi ;;
       # Projects v2 의 항목 — 읽기가 훑을 레포 목록의 출처다(등록부가 아니다). content 가
       # Issue 가 아닌 항목(draft)을 한 건 섞어 두어, 그것이 이름으로 새면 아래 단언이 떨어진다.
@@ -357,7 +410,22 @@ case "$1 $2" in
           echo '[{"data":{"user":{"projectV2":{"items":{"nodes":[{"content":{"repository":{"name":"harness"}}},{"content":{"repository":{"name":"harness"}}},{"content":{}}]}}}}}]'
         fi ;;
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
-      *"issues(first"*) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
+      # 레포 이슈 목록. FAKE_GH_RAILS 가 있으면 rails 전용 판으로 **갈아 끼운다** — 더하지 않는다.
+      # 본 픽스처의 건수·id 단언과 rails 의 값 산출 단언이 서로를 흔들지 않게 하는 자리다.
+      *"issues(first"*)
+        case "${FAKE_GH_RAILS:-}" in
+          # (a) 레일 둘이 각자 owner 를 갖는 정상 판.
+          ok) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+                "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 81 r2 '[{"login":"dongqdev"}]')" ;;
+          # (b) 한 레일(r1)의 epic 둘이 서로 다른 사람을 가리킨다.
+          conflict) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+                "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 82 r1 '[{"login":"dongqdev"}]')" ;;
+          # (c) rail: 라벨은 있는데 assignee 가 없는 epic(83). 같은 판에 owner 를 가진 레일(r1)을
+          #     함께 두어 "나머지 결과는 온전하다" 를 볼 수 있게 한다.
+          blank) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+                "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 83 r3 '[]')" ;;
+          *) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
+        esac ;;
       *"n=999"*) echo 'gh: Could not resolve to an Issue' >&2; exit 1 ;;
       # 없는 레포 — 등록부가 사라져 이름의 실재를 판정하는 것은 원격뿐이다(ledger-github.sh 머리 주석).
       *"r=nowhere"*) echo 'gh: Could not resolve to a Repository' >&2; exit 1 ;;
@@ -365,6 +433,10 @@ case "$1 $2" in
       *"n=70"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" ;;
       # 72 — blockedBy 가 first:N 에 잘린 응답. 조용히 자르면 ready 가 막힌 것을 열렸다고 낸다.
       *"n=72"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 72 절단 OPEN "$N59" null "")" ;;
+      # 58·63 — create --parent 가 라벨을 물려받으려고 직접 읽는 부모들. 이것이 없으면 아래 *) 가
+      # 57 을 내어 "부모의 라벨" 단언이 엉뚱한 이슈를 보게 된다.
+      *"n=58"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" ;;
+      *"n=63"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 63 상속부모 OPEN "$N63" null "")" ;;
       # 60 — ACTOR 코멘트가 하나. 뒤에 다른 note 가 더 붙어도 값이 살아야 한다.
       *"n=60"*) printf '{"data":{"repository":{"issue":%s}}}' \
         "$(node_actor 60 '[{"body":"메모"},{"body":"ACTOR: sess-abc123"},{"body":"두 번째 메모"}]')" ;;
@@ -420,10 +492,34 @@ step "create → 라벨 생성(type:task·repo·rail) → issue create(-R·-t·-
 step "create 의 본문이 <description>\\n\\n## Acceptance\\n\\n<acceptance> 형태다" \
   bash -c '[ "$(cat "$1")" = "$(printf "본문\n\n## Acceptance\n\n조건")" ]' _ "$LOG.body"
 grun create "x" -t task
-step "create 에 repo: 라벨이 없으면 rc≠0 (--parent 폴백 없음)" [ "$RC" -ne 0 ]
+step "create 에 repo: 라벨도 --parent 도 없으면 rc≠0 (레포를 정할 출처가 없다)" [ "$RC" -ne 0 ]
+# ── create 의 라벨 상속 (skills#179 · 스토리 skills#175 결정 1) ────────
+# **방향이 뒤집힌 자리다.** 종전 단언은 "--parent 만으로는 레포를 정하지 않는다 — repo: 라벨 0개는
+# rc≠0" 이었다(폴백 없음). 상속이 어댑터의 것이 된 뒤 그것은 폴백이 아니라 규칙이다 — 부모의
+# repo: 를 물려받는 것이 세 백엔드 공통이고, 좁히기는 `-l` 로 명시해 이기는 쪽이 맡는다.
+: > "$LOG"
 grun create "x" -t task --parent 'harness#58'
-step "create: --parent 만으로는 레포를 정하지 않는다 — repo: 라벨 0개는 rc≠0 이고 stderr 가 그 개수를 든다" \
-  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "repo: 라벨이 0개"' _ "$RC" "$ERR"
+step "create --parent: 부모(58)의 rail:·repo: 를 물려받아 -l 없이도 선다" \
+  bash -c '[ "$1" -eq 0 ] && grep -q -- "-l type:task,rail:r1,repo:harness$" "$2"' _ "$RC" "$LOG"
+: > "$LOG"
+grun create "x" -t task -l repo:skills --parent 'harness#58'
+step "create --parent: -l 로 명시한 접두사는 그쪽이 이기고(repo:skills) 명시 안 한 접두사는 물려받는다(rail:r1)" \
+  bash -c '[ "$1" -eq 0 ] && grep -q -- "-l type:task,repo:skills,rail:r1$" "$2"' _ "$RC" "$LOG"
+: > "$LOG"
+grun create "x" -t task --parent 'harness#63'
+step "create --parent: sprint:·rail:·repo: 는 물려받고 slug: 는 물려받지 않는다 (문서 경로가 겹친다)" \
+  bash -c '[ "$1" -eq 0 ] && grep -q -- "-l type:task,rail:r1,repo:harness,sprint:2026-S02$" "$2" && ! grep -q "slug:" "$2"' _ "$RC" "$LOG"
+: > "$LOG"
+grun create "x" -t task --parent 'harness#999'
+step "create --parent: 부모를 읽지 못하면 이슈를 만들지 않고 rc≠0 (상속할 라벨의 출처다)" \
+  bash -c '[ "$1" -ne 0 ] && ! grep -q "^issue create" "$2"' _ "$RC" "$LOG"
+# epic 의 assignee — 이 픽스처의 rails 는 [] 다(아래 rails 단언). 그래서 여기서 보는 것은 **없는
+# 쪽**이다: 그 레일의 첫 epic 이면 assignee 없이 만들되 조용히 넘어가지 않는다. 있는 쪽(owner 가
+# 실제로 들어가는 왕복)은 ⑤ notion 픽스처가 든다 — 그쪽 등록부 픽스처가 owner 를 갖는다.
+: > "$LOG"
+grun create "새 에픽" -t epic -l repo:harness,rail:r9
+step "create -t epic + rail: 인데 그 레일의 owner 가 없으면 assignee 없이 만들고 stderr 가 그 레일을 든다" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | grep -q "r9" && ! grep -q "^api -X PATCH" "$3"' _ "$RC" "$ERR" "$LOG"
 : > "$LOG"
 grun create "x" -t task -l repo:harness,repo:skills
 step "create: repo: 라벨 2개 → rc≠0 이고 stderr 가 그 개수를 든다 · 이슈를 만들지 않는다 (등록부가 사라진 자리를 메우는 판정)" \
@@ -547,12 +643,25 @@ step "label add|remove → --add-label · --remove-label" \
 grun dolt push
 step "beads 전용 명령(dolt) → rc≠0" [ "$RC" -ne 0 ]
 # ── 등록부 질의 (skills#144) ──────────────────────────────────────────
-# rails 의 양성 경로는 이 픽스처로 세울 수 없다 — 실제 원장에서 봤다(커밋 메시지의 실측).
-# 여기서 못박는 것은 **owner 를 어디서 파생하지 않는가** 다: 58 은 rail:r1 에 assignee 가 있으나
-# epic 이 아니고, 70 은 rail:r1 인 task 이며 프로젝트 밖이다. 둘 중 하나라도 새면 [] 가 깨진다.
+# 음성 경로 — **owner 를 어디서 파생하지 않는가**: 58 은 rail:r1 에 assignee 가 있으나 epic 이
+# 아니고, 70 은 rail:r1 인 task 이며 프로젝트 밖이다. 둘 중 하나라도 새면 [] 가 깨진다.
 grun rails --json
 step "rails: epic 이 아닌 rail: 라벨(58 feature · 70 task)에서 owner 를 파생하지 않는다 → []" \
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e "length == 0" >/dev/null' _ "$RC" "$OUT"
+# 값 산출 (skills#183). 위의 [] 는 **없는 쪽**만 세운다 — owner 가 실제로 어디서 와서 어떤 모양으로
+# 나오는지는 여기서 못박는다. 판은 FAKE_GH_RAILS 가 갈아 끼운다(본 픽스처와 건수가 결합하지 않는다).
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_RAILS=ok HARNESS_ROOT="$GH" bash "$LEDGER" rails --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "rails 양성: id 는 epic 의 rail: 라벨이고 owner 는 그 epic 의 assignee 다 · 레일마다 한 항목이고 id 로 정렬된다" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ". == [{id:\"r1\",owner:\"juhyeon-cha\"},{id:\"r2\",owner:\"dongqdev\"}]" >/dev/null' _ "$RC" "$OUT"
+step "rails 양성: 아무 말도 남기지 않는다 (빠진 레일이 없다)" bash -c '[ -z "$1" ]' _ "$ERR"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_RAILS=conflict HARNESS_ROOT="$GH" bash "$LEDGER" rails --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "rails 충돌: 한 레일의 epic 들이 서로 다른 assignee 를 가리키면 rc≠0 이고 stderr 가 레일 id 와 두 사람을 다 든다 (하나를 골라 덮지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "r1=" && printf "%s" "$2" | grep -q dongqdev && printf "%s" "$2" | grep -q juhyeon-cha' _ "$RC" "$ERR"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_RAILS=blank HARNESS_ROOT="$GH" bash "$LEDGER" rails --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "rails assignee 없음: 그 레일(r3)은 빠지고 나머지(r1)는 온전하다 — rc 는 0 이다" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ". == [{id:\"r1\",owner:\"juhyeon-cha\"}]" >/dev/null' _ "$RC" "$OUT"
+step "rails assignee 없음: 조용히 사라지지 않는다 — stderr 가 그 epic 의 id 를 든다" \
+  bash -c 'printf "%s" "$1" | grep -q "harness#83"' _ "$ERR"
 grun sprints --json
 step "sprints: id 는 iteration 의 title 이고 status 는 iterations→active · completedIterations→closed" \
   bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | jq -e ". == [{id:\"2026-S01\",status:\"closed\"},{id:\"2026-S02\",status:\"active\"}]" >/dev/null' _ "$RC" "$OUT"
@@ -594,6 +703,35 @@ step "init 멱등: 이미 있다는 사실을 필드 이름과 함께 한 줄로
   bash -c 'printf "%s" "$1" | grep -q "이미 있다" && printf "%s" "$1" | grep -q Sprint' _ "$OUT"
 step "init 멱등: project 가 이미 있으므로 project create 도 부르지 않는다" \
   bash -c '! grep -q "^project create" "$1"' _ "$LOG"
+
+# ── 스프린트 등재 (skills#181). GitHub 에는 "iteration 하나를 더한다" 는 API 가 없다 —
+#    updateProjectV2Field 의 iterationConfiguration 이 **iterations 전체를 대체한다**(입력의
+#    ProjectV2Iteration 에 id 가 없다). 그래서 여기서 못박는 것은 "새 것이 붙었는가" 만이 아니라
+#    **읽은 것을 전부 되돌려 보내는가** 다: 완료분을 빠뜨리면 닫힌 스프린트가 등록부에서 사라지고
+#    board-check 이 그 sprint: 라벨을 전부 미등재로 읽는다.
+: > "$LOG"; rm -f "$LOG.gql"
+grun sprint-add 2026-S03
+step "sprint-add github: updateProjectV2Field 로 ITERATION 필드에 title=<ID> iteration 을 더한다" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".variables.f == \"PVTIF_x\" and (.variables.it | map(.title)) == [\"2026-S01\",\"2026-S02\",\"2026-S03\"]" "$2" >/dev/null' _ "$RC" "$LOG.gql"
+step "sprint-add github: 완료분까지 전부 되돌려 보낸다 (대체 API 라 빠뜨리면 등록부에서 사라진다)" \
+  bash -c 'jq -e ".variables.it | length == 3 and all(.[]; has(\"startDate\") and has(\"duration\") and has(\"title\"))" "$1" >/dev/null' _ "$LOG.gql"
+step "sprint-add github: 새 iteration 은 마지막 것이 끝난 다음 날부터이고 기간은 필드의 것이다 (겹치지 않는다)" \
+  bash -c 'jq -e ".variables.it[2] == {title:\"2026-S03\", startDate:\"2026-09-15\", duration:14} and .variables.d == 14 and .variables.s == \"2026-08-18\"" "$1" >/dev/null' _ "$LOG.gql"
+# 뮤테이션을 불렀는지는 **본문 파일의 실재**로 본다 — 로그 줄($*)에는 --input 뒤의 본문이 없어
+# 뮤테이션 이름이 찍히지 않는다. 이름으로 grep 하면 불러도 통과하는 공허한 단언이 된다.
+: > "$LOG"; rm -f "$LOG.gql"
+grun sprint-add 2026-S02
+step "sprint-add github: 이미 있는 ID → rc≠0 · stderr 가 그 ID 를 든다 · 뮤테이션을 부르지 않는다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "2026-S02" && [ ! -f "$3" ]' _ "$RC" "$ERR" "$LOG.gql"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_NO_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" sprint-add 2026-S03 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "sprint-add github: ITERATION 필드가 없으면 rc≠0 이고 stderr 가 ledger.sh init 을 가리킨다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "ledger.sh init"' _ "$RC" "$ERR"
+# 갓 init 한 판 — 필드는 있고 iteration 이 0개다. 첫 스프린트는 오늘부터이고 기간은 필드의
+# duration 이 0 이라 2주로 간다. 날짜를 값으로 박지 않는다(오늘이 바뀐다) — 형식과 관계만 본다.
+: > "$LOG"; rm -f "$LOG.gql"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_EMPTY_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" sprint-add 2026-S01 2>"$TMP/err"); RC=$?
+step "sprint-add github: iteration 이 0개인 필드(갓 init)에도 선다 — 첫 것 하나뿐이고 시작일이 YYYY-MM-DD 다" \
+  bash -c '[ "$1" -eq 0 ] && jq -e "(.variables.it | length) == 1 and .variables.it[0].title == \"2026-S01\" and (.variables.it[0].startDate | test(\"^[0-9]{4}-[0-9]{2}-[0-9]{2}$\")) and .variables.it[0].duration == 14 and .variables.s == .variables.it[0].startDate" "$2" >/dev/null' _ "$RC" "$LOG.gql"
 
 grun rails --all
 step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
@@ -686,6 +824,21 @@ nrun create "제목" -t task -l repo:harness,rail:r1 --parent "$F" --acceptance 
 step "create --silent 가 새 페이지 id 만 낸다" [ "$OUT" = "n0000000-0000-0000-0000-00000000000e" ]
 step "create 의 POST /pages 본문: parent.database_id · Name · Type · Status=open · Labels · Acceptance · Description · Parent 관계" \
   bash -c 'jq -e --arg f "$2" ".parent.database_id == \"d0000000-0000-0000-0000-00000000000d\" and .properties.Name.title[0].text.content == \"제목\" and .properties.Type.select.name == \"task\" and .properties.Status.select.name == \"open\" and (.properties.Labels.multi_select | map(.name)) == [\"repo:harness\",\"rail:r1\"] and .properties.Acceptance.rich_text[0].text.content == \"조건\" and .properties.Description.rich_text[0].text.content == \"본문\" and .properties.Parent.relation[0].id == \$f" "$1" >/dev/null' _ "$(body_of POST pages)" "$F"
+# ── create 의 라벨 상속과 epic 의 assignee (skills#179) ───────────────
+# 위 create 는 `-l repo:harness,rail:r1` 을 직접 줬으므로 상속이 낼 것이 없다(명시가 이긴다).
+# 여기서는 -l 없이 만들어 **물려받는 쪽**을 본다.
+: > "$NLOG"
+nrun create "상속 자식" -t task --parent "$F" --silent
+step "create --parent: 부모(F)의 repo:·rail: 를 물려받는다 (백엔드가 무엇이든 같은 규칙)" \
+  bash -c '[ "$1" -eq 0 ] && jq -e "(.properties.Labels.multi_select | map(.name) | sort) == [\"rail:r1\",\"repo:harness\"]" "$2" >/dev/null' _ "$RC" "$(body_of POST pages)"
+# **assignee 의 양성 경로.** github 픽스처의 rails 는 [] 라 없는 쪽만 볼 수 있다 — 등록부가 owner 를
+# 갖는 것은 이 픽스처(FAKE_NOTION_REGISTRY=1 의 r1 → juhyeon-cha)뿐이라 여기서 든다.
+# (nreg 는 아래 등록부 절에서 정의되므로 여기서는 같은 환경을 그대로 편다)
+: > "$NLOG"
+OUT=$(PATH="$NPATH" FAKE_CURL_LOG="$NLOG" FAKE_NOTION_REGISTRY=1 NOTION_TOKEN="fake-token" HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" create "레일 에픽" -t epic -l rail:r1 --silent 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "create -t epic + rail: → 그 레일의 owner 가 assignee 로 들어간다 (출처는 rails --json)" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".properties.Assignee.rich_text[0].text.content == \"juhyeon-cha\"" "$2" >/dev/null' _ "$RC" "$(body_of PATCH "pages/n0000000-0000-0000-0000-00000000000e")"
+
 nrun show "$E" --json
 step "show --json 의 키가 bd 와 같다" \
   bash -c 'printf "%s" "$1" | jq -e ".[0] | keys | contains([\"id\",\"title\",\"status\",\"issue_type\",\"labels\",\"acceptance_criteria\",\"notes\",\"assignee\",\"parent\",\"description\",\"dependencies\"])" >/dev/null' _ "$OUT"
@@ -776,6 +929,20 @@ step "sprints: 계약의 status 는 둘뿐이다" \
 nreg "" sprints --json
 step "sprints: Type 이 sprint 인 페이지가 0건 → rc 0 의 빈 배열이고 stderr 가 그것이 '스프린트가 없다' 임을 밝힌다" \
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q sprint' _ "$OUT" "$RC" "$ERR"
+# ── 스프린트 등재 (skills#181). 이 백엔드에서 스프린트는 같은 DB 의 페이지 한 장이므로 등재도
+#    페이지 한 장을 만드는 것이다 — **위 sprints 가 읽는 모양 그대로**여야 왕복이 성립한다.
+#    (계획 문서 몇 곳이 이 자리를 "select option" 이라 적었었다 — skills#182 가 고쳤다. 낡은 것은
+#     그 서술이지 메커니즘이 아니다: Notion 에서 상태를 가질 수 있는 것은 페이지뿐이라, select
+#     option 을 더해도 sprints 는 그것을 내지 못한다. 읽는 자리와 같은 모양으로 쓴다.)
+: > "$NLOG"
+nreg 1 sprint-add 2026-S03
+step "sprint-add notion: Type=sprint · Name=<ID> · Status=open 페이지 한 장을 만든다 (sprints 가 읽는 모양)" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".parent.database_id == \"d0000000-0000-0000-0000-00000000000d\" and .properties.Type.select.name == \"sprint\" and .properties.Name.title[0].text.content == \"2026-S03\" and .properties.Status.select.name == \"open\"" "$2" >/dev/null' _ "$RC" "$(body_of POST pages)"
+: > "$NLOG"
+nreg 1 sprint-add 2026-S02
+step "sprint-add notion: 이미 있는 ID → rc≠0 · stderr 가 그 ID 를 든다 · 페이지를 만들지 않는다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "2026-S02" && ! grep -q "POST pages$" "$3"' _ "$RC" "$ERR" "$NLOG"
+
 nreg 1 rails --all
 step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
 
