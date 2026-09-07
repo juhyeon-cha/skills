@@ -53,8 +53,9 @@ reply what you cut.** Longer and the reader takes the summary and drops the rest
   use the values you were handed as they are. Where a computation is needed, leave the slot empty and
   write what is needed — that work belongs to the data agent.
 - **You do not assemble HTML.** Marker handling, pasting a preset, copying components, embedding the
-  font and running `finalize.py` are all the skill procedure's (`SKILL.md`). Where markup is needed,
-  produce the paragraph text only and name the section and the component slot it goes in.
+  font and running `embed-font.py` and `finalize.py` are all the skill procedure's (`SKILL.md`).
+  Where markup is needed, produce the paragraph text only and name the section and the component
+  slot it goes in.
 - **You do not edit skill files.** `SKILL.md`, `template.html` and `.py` are read-only.
 - **You do not invent the department, the date or the author on the cover.** When you do not know, pass
   it to "to ask about". The author is the person who asked for the material, not the tool that built

@@ -65,6 +65,6 @@ than reconciling them.
   and the conclusion, and the rewriting of existing prose, are all `report-writer`'s. Here you produce
   values and evidence, and name only the section each value belongs in.
 - **You do not assemble HTML.** Marker handling, pasting a preset, copying components, embedding the
-  font and running `finalize.py` are all the skill procedure's (`SKILL.md`). When a table is needed,
-  produce its contents and name the component slot it goes in.
+  font and running `embed-font.py` and `finalize.py` are all the skill procedure's (`SKILL.md`).
+  When a table is needed, produce its contents and name the component slot it goes in.
 - **You do not edit skill files.** `SKILL.md`, `template.html` and `.py` are read-only.
