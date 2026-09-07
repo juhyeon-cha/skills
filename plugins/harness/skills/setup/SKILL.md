@@ -7,49 +7,37 @@ description: Harness setup, join, and update procedures. Use when standing up a 
 
 This skill holds all three.
 
-- **A. New harness** — an empty directory becomes the harness root.
-- **B. Join an existing harness** — a new participant who uses the standing harness's ledger, `repos.json`, and `rails.json` as they are.
+- **A. New harness** — the first participant. There is no ledger yet, so this branch creates one.
+- **B. Join an existing harness** — a ledger already stands and this machine is pointed at it. Nothing is created in the ledger.
 - **C. Update** — bring the installed plugin up to the marketplace's edition, then check what the new edition needs from the root.
 
 Both the procedure and the verification differ per branch. **Decide the branch first and follow that section only.** Do not mix in commands from another section out of habit — calling A's `init` in B or C silently overwrites something different each time.
 
-A harness root is the clone root — the machine-local directory `~/.harness-workspace`, recognized by the `ledger.json` directly under it (section 0) — holding the context files of section 5 and nothing of the plugin. It is a plain directory, not a git repo of its own. **In transition**: section 1.1 (`git init`), section 1.5's `.gitignore` step, and all of section 2's "from a clone" framing (its opening and 2.1's `git clone <the root's url>`) still describe the older layout in which the root was its own git repo — a plain directory has no url to clone. Where they disagree with section 0 and section 5's table, those two are right; section 2's replacement procedure is not written yet (M4). The plugin (skills · role definitions · hooks · checks · scripts) is installed once per machine at user scope and is never copied into the root — `${CLAUDE_PLUGIN_ROOT}` below is its installed location.
+A harness root is the clone root — the machine-local directory `~/.harness-workspace`, recognized by the `ledger.json` directly under it (section 0) — holding the context files of section 5 and nothing of the plugin. **It is a plain directory, not a git repo**: nothing under it is committed, pushed, or cloned, and it carries no git hook of its own. That is why B does not start from a clone — every machine builds its own root, and what is shared between machines is the ledger, which is remote by nature on `github`·`notion` and a Dolt remote on `beads`. The plugin (skills · role definitions · hooks · checks · scripts) is installed once per machine at user scope and is never copied into the root — `${CLAUDE_PLUGIN_ROOT}` below is its installed location.
 
 ## 0. Branch decision — first action
 
 ```bash
-ls -d ~/.harness-workspace/ledger.json ~/.harness-workspace/repos.json 2>/dev/null   # the harness root is the clone root
-ls -d rails.json sprints.json .beads 2>/dev/null
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1 >/dev/null 2>&1 && echo "ledger: yes" || echo "ledger: no"
+ls -d ~/.harness-workspace/ledger.json 2>/dev/null    # the harness root marker — this machine's pointer to a ledger
 ```
 
-The harness root is the clone root (`~/.harness-workspace`), and `ledger.json` directly under it is the marker — so the first line, not the current directory, decides. "ledger: yes" means the backend named in `ledger.json` answers — for `beads` that is the local Dolt DB, for `github`·`notion` a reachable remote (a `notion` tree needs `NOTION_TOKEN` exported first, or the probe says "no" for a ledger that exists).
+`ledger.json` directly under `~/.harness-workspace` is the marker — the same file `lib/harness-root.sh` uses to recognize a harness root — so that path, not the current directory, decides. When it is absent, nothing on this machine points at a ledger and the second question is whether a ledger already exists elsewhere: **the coordinates of one** (for `github` the `owner` and the Projects v2 `project` number; for `notion` the `database_id`; for `beads` the ledger's remote url) either were handed to you or were not. Ask the user in one line if it was not said.
 
 | Observed | Branch |
 |---|---|
-| `~/.harness-workspace/ledger.json` no | Nothing stands on this machine yet → **A**, section 1 |
-| that file yes · ledger no | The ledger is named but this machine has no access to it yet → **B**, section 2 |
-| that file yes · ledger yes | A harness already in use on this machine. Update only → **C**, section 3 |
+| the marker is **absent** · you were **not** handed the coordinates of an existing ledger | You are the first participant. Create the ledger → **A**, section 1 |
+| the marker is **absent** · you **were** handed them | A ledger stands; point this machine at it → **B**, section 2 |
+| the marker is **present** | This machine already points at a ledger. Update only → **C**, section 3 |
 
-The discriminator is `ledger.json` — the same file `lib/harness-root.sh` uses to recognize a harness root.
+The three observations are mutually exclusive and cover every case: the marker is present or it is not, and when it is not, the coordinates were handed over or they were not.
 
-If no row of the table matches, do not guess your way forward — ask in one line. Picking the wrong branch falls toward the side that is expensive to undo (initializing a ledger over one that exists).
+**A present marker whose backend does not answer is still C, not B.** C's verification (3.3) runs `ledger.sh list` and fails loudly there; the fix is access on this machine (`gh auth`, `NOTION_TOKEN`, the Dolt remote), not a second setup. Re-running A or B over a marker that already exists is the expensive-to-undo direction — that is why the marker alone decides the third row.
 
 ## 1. A — New harness
 
-**The procedure cannot be delegated wholesale to an implementer subagent.** Ledger initialization (1.5), and the checks after it that require a ledger (`workspace-check` creates a bead for the check — `${CLAUDE_PLUGIN_ROOT}/checks/workspace-check.sh`), are blocked with rc=2 by `guard.sh`'s `r_impl_bd`. That rule's own block message says "원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다" — **that is the guardrail working as intended, and a human or an orchestrator session carries out this procedure.**
+**The procedure cannot be delegated wholesale to an implementer subagent.** Ledger initialization (1.4), and the checks after it that require a ledger (`workspace-check` creates a bead for the check — `${CLAUDE_PLUGIN_ROOT}/checks/workspace-check.sh`), are blocked with rc=2 by `guard.sh`'s `r_impl_bd`. That rule's own block message says "원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다" — **that is the guardrail working as intended, and a human or an orchestrator session carries out this procedure.**
 
-### 1.1 Make it a git repository and connect it to your own repo
-
-```bash
-git init
-git remote add origin <url of the owner's own private repo>
-```
-
-- **Creating the repo (`gh repo create`) and pushing are remote writes — do them only after explicit user approval.** Before approval, stop at `git init`: take the remote url from the user and do the `remote add` alone.
-- The harness is always a **standalone repo**. Do not plant it inside an existing project.
-
-### 1.2 Install the plugin
+### 1.1 Install the plugin
 
 The harness plugin is installed **once, at user scope** — it is not registered per harness tree or per target clone. Pass no scope: user is the default, and a project or local install writes `enabledPlugins` into the tree it is run in (the harness tree or a target clone) and shows up as a second registration in `~/.claude/plugins/installed_plugins.json`.
 
@@ -58,15 +46,15 @@ claude plugin marketplace add juhyeon-cha/skills   # once per machine; a no-op i
 claude plugin install harness@skills
 ```
 
-### 1.3 Interview
+### 1.2 Interview
 
 Follow section 4.
 
-### 1.4 Create the context files
+### 1.3 Create the context files
 
 Follow section 5 (`repos.json` · `rails.json` · `sprints.json` · `ledger.json` · `CLAUDE.md`).
 
-### 1.5 Ledger initialization
+### 1.4 Ledger initialization
 
 The ledger backend is one value — `backend` in `ledger.json` at the harness root (shape in section 5) — and the plugin's `scripts/ledger.sh` reads nothing else to choose it: no file, or a value outside `github`·`beads`·`notion`, and every ledger command dies with rc≠0. **The default for a new harness is `github`.** Backend-specific initialization is the adapter's `init`; setup writes `ledger.json` and calls it, nothing more:
 
@@ -110,7 +98,7 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
    Do the three below at once, after the remote repo **actually exists** and push has been approved. If approval has not come, defer all three — wiring without reflecting makes `ledger-check` fail with rc=1 (row ⓑ below).
 
    ```bash
-   URL=<the repo url attached in 1.1>
+   URL=<the url of the private repo that will carry the ledger — asked in the interview (section 4)>
    bd dolt remote add origin "git+$URL"                              # the ledger's Dolt remote
    grep -q '^sync\.remote:' .beads/config.yaml \
      || printf '\nsync.remote: "git+%s"\n' "$URL" >> .beads/config.yaml   # the restore source for other machines
@@ -120,7 +108,7 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
    - The `git+<git url>` form carries the ledger in that git remote's `refs/dolt/data` — no separate Dolt hosting needed.
    - `sync.remote` is **the source another machine restores this ledger from**. Section 2 (B)'s `ledger.sh bootstrap` reads that value **first**. Leaving it out does not block joining — the bootstrap help (`ledger.sh bootstrap --help`) describes an auto-detection fallback, "if git origin has `refs/dolt/data`, clone from there and wire origin", and finishing the three lines above makes that ref real (that fallback is what 2.1 leans on). The reason to write it anyway is to leave the restore source **explicit in the ledger config rather than inferred from the git remote's state**.
    - The `grep -q` guard above is for re-runs. Appending (`>>`) is not idempotent — run it twice and the `sync.remote` key is duplicated.
-   - Judge success by the **tracking reference**, not by `bd dolt push`'s rc: origin must be in `bd dolt remote list`, and 1.6's `ledger-check` must print "원격 반영 확인됨". **That check does not reflect anything itself** — if it prints "원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)", run this command once more.
+   - Judge success by the **tracking reference**, not by `bd dolt push`'s rc: origin must be in `bd dolt remote list`, and 1.5's `ledger-check` must print "원격 반영 확인됨". **That check does not reflect anything itself** — if it prints "원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)", run this command once more.
 
    These are the results `ledger-check` gives for the three ledger wiring states:
 
@@ -134,57 +122,55 @@ Prerequisites: an internal integration token exported as `NOTION_TOKEN` (never w
 #### all backends — from here on
 
 4. Confirm the backend answers: `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` rc 0 (an empty list is the correct output for a new ledger).
-5. Add these to `.gitignore`: `.claude/worktrees/` · `docs/sprints/` · `docs/backlog/` · `docs/adr/` (the three projections — the ledger is SSOT and board.sh renders them locally) · `.beads/interactions.jsonl` (the audit-log sidecar — the history lives in Dolt's events table, but this file grows on every ledger call and keeps the tree permanently dirty). **Never gitignore `ledger.json` · `repos.json` · `rails.json` · `sprints.json`** — they are the root's context, and a clone (section 2) inherits them only when they are committed.
-6. The plugin plants no git hook, here or in a target repo. Whether this root wires hooks of its own (a `pre-commit` that runs `${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh`, a `pre-push` that runs `${CLAUDE_PLUGIN_ROOT}/checks/ledger-check.sh` in write mode) is the root's decision — when it does, write where they live and how `core.hooksPath` is wired into the root's `CLAUDE.md`, because section 2 reads it there.
 
-### 1.6 Verification (A) — all measured
+That is the end of A's procedure: the plugin is installed (1.1), the context files including `ledger.json` are written (1.3), and the adapter's `init` has run (1.4). **There is nothing to commit and no git hook to wire** — the root is a plain directory (section 0), so it has no `.gitignore` contract, no remote, and no `core.hooksPath`. Gates are run by hand and by the target repos' own cycles, not by hooks under this root; `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md` holds where each one fires.
+
+### 1.5 Verification (A) — all measured
 
 | Run | Expected |
 |---|---|
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0. If this is blocked, everything after it is meaningless |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/guardrail-check.sh` | rc 0. If a "no `jq`" warning appeared, **the wiring was not checked** — install `jq` and run it again |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/workspace-check.sh` | rc 0 (it self-verifies with a temporary clone, so it passes even with no registered repo) |
-| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/board.sh all` | rc 0. Even with no story in the ledger, an empty table `docs/backlog/index.md` comes out — the projections are outside git, so do not commit them |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/board.sh all` | rc 0, and **what it means differs by backend.** On one with its own UI (`github`·`notion`) it draws nothing and says so in one line — the ledger's own screens are the projection. On `beads` it draws, and even with no story an empty table `docs/backlog/index.md` comes out. Either way the output is a machine-local file tree, not something to keep |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0. With no sprint yet, the ledger has **0 `sprint:` labels and the registry answers 0 entries**, so the two-way comparison passes with 0 on both sides. The registry comes from the adapter, so what it needs differs by backend: on `beads` **even an empty registry needs the `sprints.json` file itself to exist** — without it the adapter fails and this is rc=1 (section 5 creates it); on `github`·`notion` it is derived from the ledger and no registry file is read |
-| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/rules-check.sh` | rc 0. **S12 compares nothing right now** — it prints a `⊘` line and returns 0, because the root moved down to the clone root and the `.gitignore` contract it checked has no target left (dropping the subject is M4) |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/rules-check.sh` | rc 0 |
 | `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — the plugin is registered at user scope and nowhere else |
 
 #### backend: beads — one more row
 
 | Run | Expected |
 |---|---|
-| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/ledger-check.sh` | rc 0. **This call reflects nothing** — a remote write happens only when `LEDGER_CHECK_PUSH=1` turns it on. **If you did 1.5-2**, the pass phrase is `원격 반영 확인됨`. If `원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)` appears, the ledger moved further after 1.5-2's `bd dolt push`, so run that command once more (it is a remote write, so it is subject to user approval). **If you deferred 1.5-2 (its "If approval has not come, defer all three"), `건너뜀` is normal** — then write "the ledger exists on this machine only · 1.5-2 must be done after approval" into the **remaining manual items** in item 3 below. `건너뜀` has four causes, told apart by the stderr warning phrase: `원장에 Dolt 원격이 없다`(= 1.5-2 not run) · `dolt 미설치` · `임베디드 원장 없음` · `DB 디렉토리가 N개다`. The last three are not a deferral but **an unreachable judgment** — remove the cause and run it again |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/ledger-check.sh` | rc 0. **This call reflects nothing** — a remote write happens only when `LEDGER_CHECK_PUSH=1` turns it on. **If you did 1.4-2**, the pass phrase is `원격 반영 확인됨`. If `원격 반영 앞서 있음(반영하지 않음 — 쓰기 모드 아님)` appears, the ledger moved further after 1.4-2's `bd dolt push`, so run that command once more (it is a remote write, so it is subject to user approval). **If you deferred 1.4-2 (its "If approval has not come, defer all three"), `건너뜀` is normal** — then write "the ledger exists on this machine only · 1.4-2 must be done after approval" into the **remaining manual items** in item 2 below. `건너뜀` has four causes, told apart by the stderr warning phrase: `원장에 Dolt 원격이 없다`(= 1.4-2 not run) · `dolt 미설치` · `임베디드 원장 없음` · `DB 디렉토리가 N개다`. The last three are not a deferral but **an unreachable judgment** — remove the cause and run it again |
 
 Then:
 
-1. Make the first commit — the context files and `.gitignore`. Push only on explicit user instruction.
-2. **Ask the user to restart the session** (an agent cannot restart its own session). After the restart, confirm that the `harness:*` procedure skills load.
-3. Report the result: the list of files created, the check exit codes, and the remaining manual items.
+1. **Ask the user to restart the session** (an agent cannot restart its own session). After the restart, confirm that the `harness:*` procedure skills load.
+2. Report the result: the list of files created, the check exit codes, and the remaining manual items. **There is no commit here** — the root is not a git repo, and the target repos were not touched.
 
-## 2. B — Join an existing harness (from a clone)
+## 2. B — Join an existing harness
 
-The root's files came with the clone (`git clone` brought the context files), and the plugin's edition is whatever the marketplace serves — the root carries no copy of it. What you stand up here is what is **missing on this machine alone**: ledger access · the plugin · the target repo clones · (`beads` only) `beads.role` and the remote.
+The ledger already stands and you were handed its coordinates (section 0). **Nothing is cloned and nothing is inherited** — the harness root is a machine-local plain directory, so this machine builds its own, exactly as A does. The one difference from A is the whole point of this branch: **the ledger exists, so `ledger.sh init` is not run.** `ledger.json` is written to point at what is already there.
 
-`repos.json`·`rails.json`·`sprints.json`·`ledger.json`·`CLAUDE.md` are inherited. Do not run section 5's creation procedure.
+What you stand up: the plugin · a `ledger.json` pointing at the standing ledger · the target repo clones and their registry · (`beads` only) `beads.role` and the ledger remote. Section 5 owns the shapes of the context files, and B follows it too — with `ledger.json` filled from the coordinates you were handed rather than from an `init`.
 
-### 2.1 Restore the ledger
+### 2.1 Point this machine at the ledger
 
-`ledger.json` came with the clone; its `backend` decides what "restore" means here. Follow one branch.
+`ledger.json` is what makes `~/.harness-workspace` a harness root, and it is written by `scripts/repo.sh root`, never by hand. Its `backend` decides the rest. Follow one branch.
 
 #### backend: github
 
-**Nothing to restore** — the issues and the Projects v2 live on GitHub, so there is no local copy to bring back and nothing to write into `ledger.json`. What a second participant actually does is four things:
+The issues and the Projects v2 live on GitHub, so there is nothing local to restore. Three things:
 
-1. **Clone the harness root** (`git clone <the root's url>` and `cd` into it) — this is what section 2 means by "from a clone", and it is the prerequisite for everything below.
-2. **`ledger.json` came with that clone.** `owner` and `project` are already in it — do not run `ledger.sh init`. It is idempotent and would not make a second project while `project` is set, but it writes to the shared ledger's structure (it creates the `ITERATION` field when that is missing), and that belongs to whoever owns the root. If `sprints` dies naming a missing `ITERATION` field, say so to the root's owner rather than running `init` yourself — 1.5's github branch has the upgrade path.
-3. **`gh auth status` rc 0, with the `project` scope on the token** — `gh auth refresh -s project,read:project` if it is missing (1.5 has the same command and the `-h github.com` caveat for a non-interactive runner). The scope is not optional: the ledger's boundary is Projects v2 membership, so reads need it too, not just writes.
-4. **`HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0** (the `HARNESS_ROOT` prefix is 1.5's rule — the same discriminator gap applies to a clone). This is the whole restore: rc 0 with a row means this machine reads the same ledger as the others.
+1. **Write the pointer**: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh root --backend github --owner <the login you were handed>`, then put the **existing** `project` number into `~/.harness-workspace/ledger.json`. **Do not run `ledger.sh init`.** It is idempotent and would not make a second project while `project` is set, but it writes to the shared ledger's structure (it creates the `ITERATION` field when that is missing), and that belongs to whoever created the ledger. If `sprints` dies naming a missing `ITERATION` field, say so to that person rather than running `init` yourself — 1.4's github branch has the upgrade path.
+2. **`gh auth status` rc 0, with the `project` scope on the token** — `gh auth refresh -s project,read:project` if it is missing (1.4 has the same command and the `-h github.com` caveat for a non-interactive runner). The scope is not optional: the ledger's boundary is Projects v2 membership, so reads need it too, not just writes.
+3. **`HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0** (the `HARNESS_ROOT` prefix is 1.4's rule). This is the whole join: rc 0 with a row means this machine reads the same ledger as the others.
 
-If that `list` prints 0 rows while the target repos do have issues, `ledger.sh` says so on stderr — the `project` number in the inherited `ledger.json` is pointing somewhere else. Do not "fix" it by running `init`; ask whoever owns the root.
+If that `list` prints 0 rows while the target repos do have issues, `ledger.sh` says so on stderr — the `project` number you wrote is pointing somewhere else. Do not "fix" it by running `init`; ask whoever created the ledger.
 
 #### backend: notion
 
-Nothing to restore either. Export `NOTION_TOKEN` on this machine (the token never travels in the clone), then `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0 (the `HARNESS_ROOT` prefix is 1.5's rule — the same discriminator gap applies to a clone).
+Nothing to restore either. Write the pointer (`{"backend":"notion","database_id":"<the id you were handed>"}` — through `repo.sh root`, section 5), export `NOTION_TOKEN` on this machine (a token is never written into a file), then `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` rc 0 (the `HARNESS_ROOT` prefix is 1.4's rule).
 
 #### backend: beads
 
@@ -196,37 +182,30 @@ HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list             
 
 If that `list` is not rc 0, stop here — every step after it is meaningless.
 
-### 2.2 Install the plugin and restore the target repo clones
+### 2.2 Install the plugin and stand up the target repo clones
 
-The plugin is installed once at user scope (no scope argument — user is the default; see 1.2 for why). `repo.sh` registers nothing per clone.
+The plugin is installed once at user scope (no scope argument — user is the default; see 1.1 for why). `repo.sh` registers nothing per clone.
 
 ```bash
 claude plugin marketplace add juhyeon-cha/skills   # once per machine; a no-op if it is already added
 claude plugin install harness@skills
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh restore   # re-clone repos that are registered but have no clone
-bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh list      # confirm registration and clone existence together
 ```
 
-Not a single "클론 없음" may remain in `list`. **Do not call `repo.sh add`** — the registry already exists, and adding a repo is not joining but a separate decision.
+Then the clones. **The registry is machine-local and nothing brought it here**, so which path applies depends on whether `~/.harness-workspace/repos.json` already exists:
 
-### 2.3 The root's own git hooks
+```bash
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh add <url>   # no registry yet — register and clone in one go, per repo (section 5)
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh restore     # a registry is there but its clones are not (a rebuilt machine)
+bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh list        # confirm registration and clone existence together
+```
 
-The plugin plants no git hook. When the root's `CLAUDE.md` names hooks of its own (1.5-6), what a clone loses is **the local setting `core.hooksPath`, and that alone** — wire it by hand as that file says (`git config core.hooksPath <the hooks directory>`), and when someone else's real hook already sits in `.git/hooks`, do not overwrite it; move those hooks under that directory first. Do not compare paths by eye — the only question is **whether the hook git will actually call is the one the root names**: `git rev-parse --git-path hooks` prints the directory git uses.
+Not a single "클론 없음" may remain in `list`. Which repos to register is a question for whoever runs the harness — a repo that no story targets is not needed here.
 
-### 2.4 Set the beads role (backend: beads only)
+### 2.3 Set the beads role (backend: beads only)
 
 `git config beads.role maintainer` · `chmod 700 .beads`. Without the former, every ledger call spits a warning and dirties the output an agent has to parse. With `github`·`notion` there is no `.beads` and nothing to set.
 
-### 2.5 Add your own rail to `rails.json`
-
-**A rail is a person** — one rail per assignee. Joining is precisely the event of one rail being added.
-
-- Take the next number (`r1`·`r2`… in order) as the key and fill in `owner`. `description` is a memo for humans.
-- **Do not touch the existing rails' keys or `owner`.** A rail ID goes into document paths as the prefix of a story slug — change it and every past path and external link breaks.
-- This is **a file, not the ledger**. Nothing is left in the ledger.
-- **The commit/push boundary**: `rails.json` is a repo file, so go as far as a local commit. **Push is a remote reflection, so do it only on explicit user instruction.** But other participants cannot see my rail without a push, so ask in one line right after the commit whether to push now — defer without asking and a story using my `rail:` label trips `board-check` in someone else's tree.
-
-### 2.6 Verification (B) — all measured
+### 2.4 Verification (B) — all measured
 
 | Run | Expected |
 |---|---|
@@ -234,9 +213,10 @@ The plugin plants no git hook. When the root's `CLAUDE.md` names hooks of its ow
 | `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — user scope and nowhere else |
 | `bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh list` | 0 occurrences of "클론 없음" |
 | `git config beads.role` (backend: beads only) | `maintainer` |
-| `jq -e '.rails["<my rail ID>"].owner' rails.json` | rc 0, my name |
-| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0. Dying here means `rails.json` was edited wrong, or there is a `rail:` label that the registry does not have |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0. Dying here means there is a `rail:` or `sprint:` label the registry does not have — on `beads` fix the file (section 5), on `github`·`notion` the registry comes from the ledger and the label is what is wrong |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/guardrail-check.sh` | rc 0 |
+
+**A rail is a person**, so joining usually means one more rail exists. Where that is recorded is the backend's business, not this procedure's: on `beads` it is a key in the root's own `rails.json` (section 5), and on `github`·`notion` the adapter derives rails from the ledger's own stories, so there is nothing to write until a story carries your `rail:` label. Either way it is machine-local or remote — there is no file to commit or push here.
 
 Then **ask the user to restart the session** — hooks and permissions load at session start. After the restart, confirm that the `harness:*` procedure skills load.
 
@@ -279,7 +259,7 @@ A sprint in progress is `active`, one already finished is `closed`. If you do no
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/guardrail-check.sh` | rc 0 |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/rules-check.sh` | rc 0 |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/workspace-check.sh` | rc 0 |
-| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/board.sh all` | rc 0. Even with no story in the ledger, an empty table `docs/backlog/index.md` comes out — the projections are outside git, so do not commit them |
+| `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/board.sh all` | rc 0. On a backend with its own UI (`github`·`notion`) it draws nothing and says so in one line; on `beads` it draws, and even with no story an empty table `docs/backlog/index.md` comes out |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0 |
 | `HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0 |
 
@@ -298,11 +278,11 @@ jq -r '.plugins["harness@skills"][] | select(.scope != "user") | "\(.scope)\t\(.
 | while IFS=$'\t' read -r scope dir; do (cd "$dir" && claude plugin uninstall harness@skills --scope "$scope"); done
 ```
 
-Run the first command again and confirm the single `user` line. Then look at the file each removed registration lived in — `.claude/settings.json` of the tree for project scope, `.claude/settings.local.json` for local — and make sure `enabledPlugins["harness@skills"]` is gone; if the key is still there, delete it by hand. A change to the harness tree's tracked `settings.json` is a diff to commit.
+Run the first command again and confirm the single `user` line. Then look at the file each removed registration lived in — `.claude/settings.json` of the tree for project scope, `.claude/settings.local.json` for local — and make sure `enabledPlugins["harness@skills"]` is gone; if the key is still there, delete it by hand. **When that file is tracked by the tree it lives in — a target repo clone — the change is a diff to commit there.** The harness root is not a git repo, so nothing under it is ever committed.
 
 Then:
 
-1. Locally commit whatever 3.2 created or 3.4 changed (`sprints.json` · `settings.json`). Push only on explicit user instruction.
+1. Commit whatever 3.4 changed in a **target repo's** tracked `settings.json`, locally. Push only on explicit user instruction. What 3.2 created (`sprints.json`) sits in the machine-local root and is not committed anywhere.
 2. **Ask the user to restart the session** — the updated plugin, its hooks, and its permissions load at session start.
 
 ## 4. Interview (A only)
@@ -311,11 +291,11 @@ Ask the user (all at once):
 
 1. **Target repos** — the clone url, the name (omit it and it is taken from the url — it becomes the label `repo:<name>`), and the gate command (a single line run at the repo root that reports success or failure through its exit code). The default branch is auto-detected after cloning, so you need not ask.
 2. **The rail scheme** — the list of participants. A rail is a person, so there is one per assignee, and the IDs are numbers growing as `r1`·`r2`.
-3. **The work ledger** — the backend (`github` unless the user says otherwise · `beads` · `notion`) and what that backend needs: the GitHub login that owns the Projects v2 for `github`, the issue prefix for `beads`, the id of a page shared with the integration for `notion`.
+3. **The work ledger** — the backend (`github` unless the user says otherwise · `beads` · `notion`) and what that backend needs: the GitHub login that owns the Projects v2 for `github`, the issue prefix **and the url of the private repo that will carry the ledger** for `beads`, the id of a page shared with the integration for `notion`.
 
 ## 5. Creating the context files (A only)
 
-These five are not part of the plugin but **owned by the root**, so the plugin does not create them. The shapes below are the specification — build them from here rather than from another file. (B inherits all five. Beyond the one entry for its own rail in 2.5, B touches none of them.)
+These five are not part of the plugin but **owned by the root**, so the plugin does not create them. The shapes below are the specification — build them from here rather than from another file. **B builds them too** — nothing is inherited, because the root is machine-local (section 0); B's only difference is that `ledger.json` is filled from the coordinates of a ledger that already exists instead of from `ledger.sh init`.
 
 All five live directly under the clone root (= the harness root, section 0). Two of them are read by tools there, so their absence kills those tools with a non-zero exit immediately: without `repos.json`, `scripts/repo.sh` and `workspace-cleanup.sh` stop; without `ledger.json`, the harness root cannot be recognized at all and every `scripts/ledger.sh` call stops. **`rails.json`·`sprints.json` are backend-dependent** — `board.sh`·`board-check.sh` reach the two registries only through the adapter (`ledger.sh rails`·`sprints`) and open no file of their own. On `beads` the adapter reads exactly these two files, so without `rails.json` `board.sh`·`board-check.sh` stop and without `sprints.json` `board-check.sh`·`board.sh all` stop; on `github`·`notion` the adapter derives both registries from the ledger and neither file is opened. `CLAUDE.md` is not read by any script, but it is the top-level rule set an agent reads first every session — without it, work starts with no discipline.
 
@@ -447,7 +427,7 @@ If the root already has one, append only the harness sections; if not, write a n
 
 - **Status** — the work ledger (backend), the task loop, the orchestration means. The fact that this repo is development-language-neutral and that `repos.json` owns the build and test commands
 - **How To Work** — the session context block the harness plugin injects at SessionStart, the order of the procedure skills, where the role definitions are, the documents under the plugin's `docs/`
-- **Quick Reference** — `ledger.sh ready` · `ledger.sh list` · `ledger.sh show <id>`, `scripts/repo.sh add|list`, `scripts/board.sh all`, `EnterWorktree` (name = story ID) · `scripts/workspace-cleanup.sh <story ID>`; the root's own git hooks when it has them (1.5-6)
+- **Quick Reference** — `ledger.sh ready` · `ledger.sh list` · `ledger.sh show <id>`, `scripts/repo.sh add|list`, `scripts/board.sh all`, `EnterWorktree` · `scripts/workspace-cleanup.sh <story ID>`
 - **"절대 금지"** — remote reflection only on explicit instruction (**two exceptions**: the ledger reflection tied to `git push`, and the working-branch push and PR creation of a cycle closing with no unresolved decision — from merge onward it is explicit instruction) · no direct edits to a target repo's main checkout · **fixing the plugin core also only on explicit instruction** · no judging completion by impression. For each item, write **whether a gate enforces it** — where there is none, write "게이트 없음(설득뿐)". The full list of gates, their limits, and how to verify them is held by `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`
 
 **Do not drop the core-editing item.** This skeleton is **the only path by which that discipline enters a root's `CLAUDE.md`**. Write all three of the following together.

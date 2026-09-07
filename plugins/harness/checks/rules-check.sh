@@ -2,10 +2,10 @@
 # 게이트: 규약이 선언만 되고 강제되지 않던 단언들 (원장·설정·문서의 정적 검사).
 # **읽는 자리는 둘이고 검사 이름 줄마다 표지 하나가 붙는다** — 트리 · 하네스 루트 (harness-m8gg.8.4 ·
 # 관측 harness-ofwp):
-#   트리 표지 — 파일을 읽는 검사. 트리 파일(.gitignore)은 **검토 대상 트리** TREE — 호출
-#     CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리 — 에서, 플러그인 문서(스킬·역할·훅·주입 블록)는
-#     플러그인 트리 자신에서 읽는다. CWD 위에 ledger.json 이 없으면 TREE 는 하네스 루트다(플러그인
-#     디렉토리나 대상 레포 워크트리에서 부르는 종전 형태).
+#   트리 표지 — 파일을 읽는 검사. 대상은 **플러그인 트리 자신**(스킬·역할·훅·주입 블록)이다 —
+#     호출 CWD 가 어디든 같은 파일을 본다. 종전에는 여기에 "검토 대상 트리" 축이 하나 더 있었다
+#     (하네스 루트 레포의 .gitignore 를 보던 S12). 하네스 루트가 git 레포가 아니게 되면서 그
+#     대상이 없어졌고, 검사와 함께 축도 걷었다.
 #   하네스 루트 표지 — 원장을 ledger.sh 로 읽는 검사. 원장은 언제나 lib/harness-root.sh 가 낸 루트 HROOT
 #     의 것이다 — 하네스 클론의 워크트리에서 부르면 redirect 가 가리키는 본 루트다.
 #   둘을 가르지 않으면 워크트리에서 돌린 rc 0 이 검토 대상 트리가 아니라 본 루트의 .gitignore
@@ -14,8 +14,6 @@
 # 통과한 원장 검사는 검사가 아니다. 플러그인 문서만 보는 검사는 그대로 돈다.
 #   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [하네스 루트]
 #   R18 (harness:develop 멀티 레포) 등록부에 경로를 적지 않는다 — 키 집합 화이트리스트  [클론 루트]
-#   S12 (skills/setup/SKILL.md) 검토 대상 트리 .gitignore 의 필수·금지 항목과 실물 잔존 (세 대조) [트리]
-#       **지금은 건너뛴다 — 대상이 없다(check_s12 의 주석이 사유). 주제 폐기는 M4.**
 #   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [하네스 루트]
 #   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 (양방향)  [트리]
 #         — "PR 생성·원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가
@@ -39,11 +37,6 @@
 #       추가하면 이 검사가 실패하는 것이 의도다 (등재 없이 키가 늘지 않게).
 #   R-ACC 대상은 원장에서 파생한다 — 착수의 기계적 표시(status=in_progress)를 가진
 #         태스크 전수이며, 손으로 고른 id 목록이 없다.
-#   S12 검사할 항목을 스크립트에 적지 않고 **setup/SKILL.md 원문에서 파싱한다.**
-#       규약 문서에 항목을 더하면 검사가 자동으로 그것을 요구한다. 반대 방향의 대조는
-#       검토 대상 트리 .gitignore 실물의 유효 줄 전수에서 파생하고, **하네스 소유가 아닌 줄만** 사유와
-#       함께 면제표(S12_KEEP/S12_KEEP_WHY)에 등재한다 — 이것이 S12 의 유일한 손목록이다.
-#       면제 키가 실물에 존재하는지 역방향으로 단언한다 (0건 면제 = 낡은 면제).
 #   R-REM 후보는 스캔 경로 전체에서 패턴으로 파생하고, **남아야 하는 것만** 사유와 함께
 #       면제표에 등재한다. 면제 키가 실제 후보에 존재하는지 역방향으로 단언한다.
 #   C6  대상은 세션 블록 「절대 금지」 절의 **최상위 불릿 전수**를 원문에서 파싱한다 —
@@ -60,7 +53,7 @@
 #
 # **0건 파생의 취급이 검사마다 갈린다.** C6·R40 은 문자 그대로 실패로 읽는다(대상이 갓
 #   세팅한 트리에도 있다). S22·S24 는 갓 세팅한 트리에서 대상이 0건이라 그렇게 할 수
-#   없고(setup/SKILL.md 1.7 의 A 검증표가 rc 0 을 요구한다), R5 와 **같은 함수**를 쓴다 —
+#   없고(setup/SKILL.md 1.5 의 A 검증표가 rc 0 을 요구한다), R5 와 **같은 함수**를 쓴다 —
 #   `ledger_fields_ok`(파생이 의존하는 필드를 직접 단언한다). 그 대체가 못 잡는 것까지
 #   실측으로 그 함수의 주석에 적혀 있다. 사유는 각 검사의 주석이 든다.
 #   R-DATE·R-BEAD 모집단인 "항상 로드되는 파일 집합"은 플러그인에서는 주입 블록 하나다
@@ -89,7 +82,7 @@
 # 종료 코드는 파이프 밖에서 채집한다.
 set -uo pipefail
 
-CALLER_PWD="$PWD"   # 호출 CWD — 검토 대상 트리와 원장 루트를 여기서 파생한다(아래 cd 뒤에는 잃는다)
+CALLER_PWD="$PWD"   # 호출 CWD — 원장 루트를 여기서 파생한다(아래 cd 뒤에는 잃는다)
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 cd "$PLUGIN_ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $PLUGIN_ROOT" >&2; exit 1; }
 PLUGIN_ROOT="$PWD"   # 절대 경로로 못박는다 — 아래에서 호출 CWD 로 돌아가 부른다
@@ -109,37 +102,12 @@ need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 �
 }
 bdl() { HARNESS_ROOT="$HROOT" bash scripts/ledger.sh "$@"; }   # 원장은 언제나 하네스 루트의 것이다 — 어댑터로 읽는다(CWD 는 플러그인 루트)
 
-# 검토 대상 트리 TREE — 호출 CWD 에서 위로 처음 만나는 ledger.json 의 디렉토리.
-#
-# **클론 루트는 건너뛴다.** 원장 지정 파일이 클론 루트 직속으로 내려오면서(lib/harness-root.sh)
-# 그 자리의 ledger.json 은 "이 머신이 어느 원장에 붙는가" 를 말할 뿐 검토할 트리의 표지가 아니고,
-# 그 디렉토리는 git 트리도 아니다. 건너뛰지 않으면 클론 안에서 돌린 검사가 전부 그 디렉토리를
-# 검토 대상으로 잡아 .gitignore 를 찾지 못한다.
-#
-# 못 찾으면 **호출자가 선 git 트리의 최상단**이다 — 검토 대상 트리는 말 그대로 지금 서 있는 트리다.
-# 그것도 아니면 빈 값이고 need_tree 가 실패한다(조용히 통과하지 않는다).
 CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
-tree_of() {  # tree_of <디렉토리> — 위로 올라가며 ledger.json 을 찾는다. 없으면 rc 1
-  local d="$1"
-  while :; do
-    [[ "$d" != "$CLONE_ROOT" && -f "$d/ledger.json" ]] && { printf '%s\n' "$d"; return 0; }
-    [[ "$d" == / ]] && return 1
-    d="$(dirname "$d")"
-  done
-}
-TREE="$(tree_of "$CALLER_PWD")" || TREE="$(git -C "$CALLER_PWD" rev-parse --show-toplevel 2>/dev/null)" || TREE=""
-need_tree() {  # need_tree <검사이름> — 검토 대상 트리가 없으면(CWD 위에 ledger.json 이 없고 하네스 루트도 못 찾음) ✗ 를 내고 1
-  [[ -n "$TREE" ]] && return 0
-  echo "✗ $1 — 검토 대상 트리를 찾지 못했다 (CWD $CALLER_PWD 위에 ledger.json 도 git 트리도 없다). .gitignore 를 보는 검사라 건너뛰지 않고 실패한다 — 하네스 트리 안에서 돌려라"
-  return 1
-}
-echo "트리: ${TREE:-(없음)} · 원장 루트: ${HROOT:-(없음)}"
+echo "트리: $PLUGIN_ROOT (플러그인) · 원장 루트: ${HROOT:-(없음)}"
 
 # 등록부는 검토 대상 트리에 있지 않다 — 클론 루트 직속의 머신 로컬 파일이다(scripts/repo.sh 머리 주석).
 # 그래서 R18·R40 은 TREE 를 요구하지 않고, 워크트리에서 돌려도 같은 파일 하나를 본다.
 MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 재정의는 검사 스크립트용
-SETUP_SKILL="skills/setup/SKILL.md"
-GITIGNORE="$TREE/.gitignore"
 BLOCK="hooks/session-context.md"                   # SessionStart 주입 블록 — 플러그인의 유일한 상시 로드 문서
 
 fail=0
@@ -160,7 +128,7 @@ fail=0
 #     가진 스토리" 가 12건 → 0건. **R5 도 같이 통과한다** — 즉 이것은 S22·S24 가 R5 보다
 #     약해서 생긴 구멍이 아니라 세 검사가 공유하는 구멍이다].
 #     0건을 실패로 읽어 막을 수는 없다: 갓 세팅한 트리는 계층이 없어 같은 0건이고,
-#     setup/SKILL.md 1.7 의 A 검증표가 그 트리에서 rc 0 을 요구한다. 데이터만 보고
+#     setup/SKILL.md 1.5 의 A 검증표가 그 트리에서 rc 0 을 요구한다. 데이터만 보고
 #     "계층이 아직 없다"와 "키가 바뀌었다"를 가를 방법이 없어 **한계로 남긴다.**
 ledger_fields_ok() {  # ledger_fields_ok <검사이름> <원장JSON>
   local name="$1" json="$2" bad dangling
@@ -189,7 +157,7 @@ ledger_fields_ok() {  # ledger_fields_ok <검사이름> <원장JSON>
 #       스토리가 없으면 상속받을 repo: 라벨의 출처 자체가 없고 develop 이 위임하지도
 #       않는다. 면제 사유가 구조적 조건이므로 id 를 손으로 적지 않는다.
 # "대상 0건 조용한 통과" 대비: 대상 0건 자체를 실패로 만들면 갓 세팅한
-# 프로젝트가 무조건 막히므로(setup/SKILL.md 1.7 의 A 검증표가 검사 대상 0건 통과를 전제한다), 대신
+# 프로젝트가 무조건 막히므로(setup/SKILL.md 1.5 의 A 검증표가 검사 대상 0건 통과를 전제한다), 대신
 # **파생이 의존하는 필드를 직접 단언한다.** bd 의 JSON 스키마가 바뀌어 issue_type·id·parent
 # 가 사라지면 파생이 조용히 0건을 내놓는데, 그 경우를 여기서 잡는다. 대상 건수는 항상 출력해
 # 사람이 0건을 알아볼 수 있게 둔다.
@@ -313,156 +281,6 @@ check_r18() {
   fi
 
   [[ "$f" -eq 0 ]] && echo "✓ R18 $MANIFEST 키 집합이 허용 집합과 일치, 경로형 값 없음"
-  return "$f"
-}
-
-# ── S12: .gitignore 필수/금지 항목 + 실물 잔존 (세 대조) ─────────────
-# 검사 항목을 스크립트에 적지 않고 setup/SKILL.md 원문에서 파싱한다. 원문 형식:
-#   Add these to `.gitignore`: `A` · `B` · … . **Never gitignore `ledger.json` · `repos.json` · …**
-#   (setup/SKILL.md 이 영어 문서라 앵커도 영어다. 파서가 보는 것은 이 앵커 문자열과
-#    ** 강조 경계뿐이고, 판정 구조는 언어와 무관하다.)
-# 파싱이 실패하면 폴백으로 덮지 않고 명확히 실패한다 — 조용한 통과가 최악이다.
-#
-# **세 번째 대조 (2026-08-27, harness-dg0.6.37): 실물 → 규약 문장.** 위 둘은 규약 문장이
-#   든 항목만 본다 — 이 트리의 .gitignore 에 하네스 산출물이 새로 늘어도 규약 문장이
-#   그것을 안 들면 어느 검사도 안 본다. 실제로 그렇게 났다: 같은 스토리의 정지 가드
-#   태스크가 런타임 산출물 둘을 만들며 .gitignore 에만 넣고 setup 지시에는 안 넣어,
-#   **같은 커밋 안에서 한쪽 목록만 갱신됐다.** 새로 세우는 하네스는 그 둘을 커밋 대상으로
-#   잡는다. 그래서 대조를 실물 쪽에서도 건다.
-#
-# 극성 반전: 검사 대상을 손으로 고르지 않는다 — .gitignore 의 유효 줄 전수에서 파생하고,
-#   **하네스 소유가 아닌 줄만** 사유와 함께 아래 면제표에 등재한다. 새 줄의 기본값은
-#   "검사됨" 이다. 면제 키가 실물에 실제로 있는지 역방향으로 단언한다(0건 면제 = 낡은
-#   면제). 양쪽 파생(규약 문장의 필수 항목 · .gitignore 의 유효 줄)이 0건이면 실패다 —
-#   0건 통과는 "위반 없음" 이 아니라 "안 봤음" 이다.
-#
-# 자리 — rules-check 인가 guardrail-check 인가: **rules-check 이고, 이유는 겹침이다.**
-#   이 대조가 읽는 두 원본(setup/SKILL.md 의 규약 문장 · .gitignore 실물)은 S12 가 이미
-#   파싱해 들고 있다. guardrail-check 에 새 절을 세우면 같은 문장을 두 번 파싱하게 되고,
-#   규약 문장의 형식이 바뀔 때 고칠 파서가 둘이 된다. 성격으로도 이쪽이다 — 이것은 강제
-#   장치(훅·설치기)가 살아 있는지가 아니라 **두 문서 목록이 서로 맞는지**를 보는 문서
-#   규율이고, rules-check 이 그것을 본다.
-#   **대가를 적어 둔다: rules-check 은 커밋 훅에 배선돼 있지 않다**(위 "배선" 항목).
-#   guardrail-check 에 뒀다면 커밋마다 돌았을 것이다. 즉 이 검사는 **손으로 돌릴 때만**
-#   잡으며, 두 목록이 다시 갈라진 채로 커밋·push 되는 것을 막지 못한다. 그래도 겹침을
-#   택한 이유는 배선이 이 검사 하나 때문에 바뀔 문제가 아니기 때문이다 — 배선은
-#   rules-check 전체의 결정이고 ../docs/guardrails.md 3절이 소유한다.
-#
-# 한계: 이것은 **두 등재의 대조**다. .gitignore 가 실제로 그 경로를 무시하는지(git 이
-#   그렇게 동작하는지)는 보지 않는다.
-#
-# 면제표 — .gitignore 에 있으나 설치 절차 5항이 지시할 것이 **아닌** 줄.
-S12_KEEP=(
-  ".serena/"
-  ".dolt/"
-  "*.db"
-  ".beads-credential-key"
-  ".beads/proxieddb/"
-)
-S12_KEEP_WHY=(
-  "외부 도구(serena)의 로컬 캐시 — 하네스가 만들지 않으므로 설치 절차의 소유가 아니다"
-  "원장 초기화가 넣는다 (.gitignore 의 'Beads / Dolt files' 절 주석이 출처를 적는다) — 설치 절차 1.6 의 1항(ledger.sh init — beads 의 bd init)의 소유"
-  "원장 초기화가 넣는다 — 같은 항"
-  "원장 초기화가 넣는다 — 같은 항"
-  "원장 초기화가 넣는다 — 같은 항"
-)
-check_s12() {
-  local line req_part forbid_part required forbidden f=0 item
-  # **건너뛴다 — 대상이 없다.** 이 검사의 대상은 "하네스 루트 레포의 .gitignore" 인데, 하네스
-  # 루트가 클론 루트로 내려가면서 그 자리는 git 트리가 아니게 됐다. 그대로 두면 TREE 가 호출자가
-  # 선 대상 레포 워크트리로 잡혀 **모든 대상 레포에 하네스 설치 규약을 요구하는 오탐**이 된다
-  # (실측: skills 워크트리에서 ✗ 10줄).
-  # 주제 자체의 폐기(파서·면제표·setup 5항의 규약 문장을 함께 걷는다)는 M4 의 몫이다. 그때까지는
-  # 조용히 통과시키지 않고 사유를 밝히고 건너뛴다.
-  echo "⊘ S12 건너뜀 — 하네스 루트가 클론 루트로 내려가 .gitignore 계약의 대상이 없다 (주제 폐기는 M4)"
-  return 0
-  need_tree S12 || return 1
-  [[ -f "$SETUP_SKILL" ]] || { echo "✗ S12 — $SETUP_SKILL 이 없다 (검사 항목의 출처)"; return 1; }
-  [[ -f "$GITIGNORE" ]]   || { echo "✗ S12 — $GITIGNORE 이 없다"; return 1; }
-
-  line=$(grep -m1 'Add these to `\.gitignore`:' "$SETUP_SKILL")
-  if [[ -z "${line}" ]]; then
-    echo "✗ S12 — $SETUP_SKILL 에서 'Add these to \`.gitignore\`:' 문장을 찾지 못했다 — 규약이 옮겨갔거나 파서가 낡았다. 둘 중 하나를 고쳐라"
-    return 1
-  fi
-
-  # 파라미터 확장 ${x#*\*\*} 는 **매칭에 실패하면 입력을 그대로 반환한다.** 규약 문장에서
-  # ** 강조가 빠지면 금지 절이 필수 절과 같은 문자열이 돼 required==forbidden 으로 조용히
-  # 뒤집히고, 같은 실행이 방금 "요구"한 항목을 "금지 항목이 들어 있다"로 보고한다. 아래
-  # 빈 값 가드는 양쪽 다 비어 있지 않아 발동하지 않는다 (harness-pig). 확장 전에 못박는다.
-  if [[ "$(grep -o '\*\*' <<< "$line" | grep -c .)" -ne 2 ]]; then
-    echo "✗ S12 — 규약 문장에서 ** 강조 구간(금지 항목 절)을 찾지 못했다 — 필수/금지 경계가 없으므로 파싱하지 않는다. $SETUP_SKILL 의 강조를 되살리거나 이 파서를 고쳐라. 원문: $line"
-    return 1
-  fi
-
-  # 앵커 이후 ~ 첫 '**' 앞까지가 필수 항목, 그 뒤가 금지 항목 절.
-  # 패턴을 따옴표로 감싸 백틱이 명령 치환으로 해석되지 않게 한다 (${x#*word} 의 word 는
-  # 확장 대상이다). 최단 일치라 문장 뒤쪽의 'gitignore' 산문에는 걸리지 않는다.
-  req_part=${line#*'Add these to `.gitignore`:'}
-  forbid_part=${req_part#*\*\*}
-  forbid_part=${forbid_part%%\*\**}   # 닫는 ** 이후의 산문에도 백틱 토큰이 있다 — 강조 구간만 남긴다
-  req_part=${req_part%%\*\**}
-
-  required=$(printf '%s' "$req_part"    | grep -o '`[^`]*`' | tr -d '`')
-  forbidden=$(printf '%s' "$forbid_part" | grep -o '`[^`]*`' | tr -d '`')
-
-  if [[ -z "$required" || -z "$forbidden" ]]; then
-    echo "✗ S12 — 규약 문장을 파싱하지 못했다 (필수 항목 $(printf '%s' "$required" | grep -c . )건 / 금지 항목 $(printf '%s' "$forbidden" | grep -c . )건). 원문: $line"
-    return 1
-  fi
-
-  # .gitignore 의 유효 항목 = 주석·빈 줄을 뺀 줄 전체 (실물에서 파생)
-  local entries n_entries
-  entries=$(grep -v '^[[:space:]]*#' "$GITIGNORE" | sed 's/[[:space:]]*$//' | grep -v '^$')
-  n_entries=$(printf '%s' "$entries" | grep -c .)
-  if [[ "$n_entries" -eq 0 ]]; then
-    echo "✗ S12 — $GITIGNORE 에서 유효 항목을 0건 파생했다 — 0건 통과는 '위반 없음' 이 아니라 '안 봤음' 이다"
-    return 1
-  fi
-
-  while IFS= read -r item; do
-    [[ -z "$item" ]] && continue
-    if ! grep -qxF -- "$item" <<< "$entries"; then
-      echo "✗ S12 $GITIGNORE — 필수 항목 '$item' 이 없다 ($SETUP_SKILL 이 요구한다)"
-      f=1
-    fi
-  done <<< "$required"
-
-  while IFS= read -r item; do
-    [[ -z "$item" ]] && continue
-    if grep -qxF -- "$item" <<< "$entries"; then
-      echo "✗ S12 $GITIGNORE — 금지 항목 '$item' 이 들어 있다 ($SETUP_SKILL: 설치 기록이라 커밋해야 sync 가 드리프트를 판정한다)"
-      f=1
-    fi
-  done <<< "$forbidden"
-
-  # 역방향 단언: 면제 키가 실물에 하나씩 있는가. 0건 면제는 낡은 면제이고, 낡은 면제는
-  # 그 줄이 사라진 뒤에도 "검사됨" 으로 돌아오지 않게 막는다.
-  local i k residual
-  for i in "${!S12_KEEP[@]}"; do
-    k="${S12_KEEP[$i]}"
-    if ! grep -qxF -- "$k" <<< "$entries"; then
-      echo "✗ S12 면제 '${k}' 가 $GITIGNORE 에 없다 — 낡은 면제다. 면제표(S12_KEEP)에서 빼라 (등재 사유: ${S12_KEEP_WHY[$i]})"
-      f=1
-    fi
-  done
-
-  # 잔존 = 규약 문장에도 면제표에도 없는 .gitignore 줄. 한쪽에만 있는 항목이 여기 남는다.
-  residual="$entries"
-  while IFS= read -r item; do
-    [[ -z "$item" ]] && continue
-    residual=$(grep -vxF -- "$item" <<< "$residual")
-  done <<< "$required"
-  for k in "${S12_KEEP[@]}"; do
-    residual=$(grep -vxF -- "$k" <<< "$residual")
-  done
-  while IFS= read -r item; do
-    [[ -z "$item" ]] && continue
-    echo "✗ S12 $SETUP_SKILL — $GITIGNORE 의 '${item}' 을 규약 문장이 들지 않는다 (새로 세우는 하네스는 이것을 커밋 대상으로 잡는다). 문장에 더하거나, 하네스 소유가 아니면 사유와 함께 S12_KEEP 에 등재하라"
-    f=1
-  done <<< "$residual"
-
-  [[ "$f" -eq 0 ]] && echo "✓ S12 $GITIGNORE 필수 $(printf '%s' "$required" | grep -c .)건 존재 · 금지 $(printf '%s' "$forbidden" | grep -c .)건 부재 · 실물 ${n_entries}건 중 규약 문장 미등재 0건 (면제 ${#S12_KEEP[@]}건 전부 실재)"
   return "$f"
 }
 
@@ -899,7 +717,7 @@ ledger_json() {
 #   태스크는 저마다 한 레인으로 센다(엄격한 쪽 — claim 없는 in_progress 를 한 레인으로
 #   합치면 미탐이 된다). 자기 시험은 아래 check_s22 의 actor 픽스처 둘이 든다.
 # 한계 — **대상 0건을 실패로 읽지 않는다.** 갓 세팅한 트리는 스토리가 없어 파생이 0건이고,
-#   그것을 실패로 만들면 skills/setup/SKILL.md 1.7 의 A 검증표(`rules-check.sh` rc 0)가
+#   그것을 실패로 만들면 skills/setup/SKILL.md 1.5 의 A 검증표(`rules-check.sh` rc 0)가
 #   무조건 막힌다. 대신 **파생이 의존하는 필드를 직접 단언하고**(위 ledger_fields_ok — R5 와
 #   같은 함수를 쓴다) 대상 건수를 항상 출력한다. **그 단언이 무엇을 못 잡는지는 그 함수의
 #   주석이 실측으로 든다** — 요약하면 `parent` 키 이름 자체가 바뀌는 스키마 변경은 못 잡고,
@@ -1059,7 +877,7 @@ check_s22() {
 #   닫을 대상이 아니다.
 #
 # 한계 — **대상 0건을 실패로 읽지 않는다.** 사유와 대체는 위 S22 의 같은 항목과 같다
-#   (setup/SKILL.md 1.7 의 A 검증표 · 공유 단언 ledger_fields_ok). **그 단언이 `parent` 키
+#   (setup/SKILL.md 1.5 의 A 검증표 · 공유 단언 ledger_fields_ok). **그 단언이 `parent` 키
 #   이름 자체의 변경은 못 잡는다** — 이 검사의 파생이 전적으로 `parent` 위에 서므로 그때는
 #   "하위를 가진 스토리 0건" 으로 조용히 통과한다. 실측과 사유는 그 함수의 주석이 든다.
 # 한계 — **"닫아야 한다"까지만 말한다.** develop 4-1 의 통합 검증(멀티 레포)과 4-2 의 결과
@@ -1656,7 +1474,6 @@ check_rbudget() {
 
 check_r5  || fail=1
 check_r18 || fail=1
-check_s12 || fail=1
 check_racc || fail=1
 check_rrem || fail=1
 check_c6  || fail=1
