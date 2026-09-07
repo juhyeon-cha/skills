@@ -161,6 +161,19 @@ run "$FX" show "$C" --json
 step "create 의 -t·--parent·-l·--acceptance·--body-file 이 show --json 에 그대로 있다" \
   bash -c 'printf "%s" "$1" | jq -e --arg p "$2" ".[0] | .issue_type == \"task\" and .parent == \$p and (.labels | index(\"repo:x\") != null) and (.labels | index(\"rail:r1\") != null) and .acceptance_criteria == \"완료 조건\" and (.description | startswith(\"본문 첫 줄\"))" >/dev/null' _ "$OUT" "$P"
 
+# ── create 의 라벨 상속 (skills#179). 어댑터가 부모의 sprint:·rail:·repo: 를 물려주고 slug: 는
+#    물려주지 않는다. **beads 에서 보는 것은 "떼어지는가" 다** — bd 는 만들 때 부모 라벨을 통째로
+#    물려주므로, 계약 밖의 것을 어댑터가 걷어내지 않으면 slug: 가 하위로 새고 문서 경로가 겹친다.
+run "$FX" create "상속 부모" -t feature -l sprint:2026-S02,rail:r1,repo:skills,slug:r1-inherit --silent; IP="$OUT"
+run "$FX" create "상속 자식" -t task --parent "$IP" --silent; IC="$OUT"; ic_rc=$RC
+run "$FX" show "$IC" --json
+step "create --parent: sprint:·rail:·repo: 를 물려받고 slug: 는 물려받지 않는다" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e ".[0].labels | (index(\"sprint:2026-S02\") != null) and (index(\"rail:r1\") != null) and (index(\"repo:skills\") != null) and (index(\"slug:r1-inherit\") == null)" >/dev/null' _ "$OUT" "$ic_rc"
+run "$FX" create "명시 우선" -t task --parent "$IP" -l repo:other --silent; IE="$OUT"
+run "$FX" show "$IE" --json
+step "create --parent: -l 로 명시한 접두사가 이기고(repo:other) 명시 안 한 접두사는 물려받는다(rail:r1·sprint:)" \
+  bash -c 'printf "%s" "$1" | jq -e ".[0].labels | (index(\"repo:other\") != null) and (index(\"repo:skills\") == null) and (index(\"rail:r1\") != null) and (index(\"sprint:2026-S02\") != null)" >/dev/null' _ "$OUT"
+
 run "$FX" note "$C" "메모 하나"
 run "$FX" note "$C" --file "$TMP/body.txt"
 run "$FX" show "$C" --json
@@ -311,6 +324,9 @@ N59='[{"name":"type:task"},{"name":"repo:harness"}]'
 # 프로젝트에도 없다(레포 자신의 이슈가 이 모양이다). 라벨을 57~59 와 같은 계열로 두어 경계가
 # 새면 -t·-l 질의에도 걸리게 한다 — 걸리면 아래 단언이 떨어진다.
 N70='[{"name":"type:task"},{"name":"repo:harness"},{"name":"rail:r1"}]'
+# 63 — 상속의 부모. 계약이 가르는 네 접두사를 한 이슈에 다 담는다: sprint:·rail:·repo: 는 내려가고
+# slug: 는 내려가지 않는다(스토리 고유 — 물려주면 문서 디렉토리 이름이 겹친다).
+N63='[{"name":"type:epic"},{"name":"repo:harness"},{"name":"rail:r1"},{"name":"sprint:2026-S02"},{"name":"slug:r1-x"}]'
 PI70='[{"project":{"number":9}}]'
 PI71='[]'
 case "$1 $2" in
@@ -365,6 +381,10 @@ case "$1 $2" in
       *"n=70"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" ;;
       # 72 — blockedBy 가 first:N 에 잘린 응답. 조용히 자르면 ready 가 막힌 것을 열렸다고 낸다.
       *"n=72"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 72 절단 OPEN "$N59" null "")" ;;
+      # 58·63 — create --parent 가 라벨을 물려받으려고 직접 읽는 부모들. 이것이 없으면 아래 *) 가
+      # 57 을 내어 "부모의 라벨" 단언이 엉뚱한 이슈를 보게 된다.
+      *"n=58"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" ;;
+      *"n=63"*) printf '{"data":{"repository":{"issue":%s}}}' "$(node 63 상속부모 OPEN "$N63" null "")" ;;
       # 60 — ACTOR 코멘트가 하나. 뒤에 다른 note 가 더 붙어도 값이 살아야 한다.
       *"n=60"*) printf '{"data":{"repository":{"issue":%s}}}' \
         "$(node_actor 60 '[{"body":"메모"},{"body":"ACTOR: sess-abc123"},{"body":"두 번째 메모"}]')" ;;
@@ -420,10 +440,34 @@ step "create → 라벨 생성(type:task·repo·rail) → issue create(-R·-t·-
 step "create 의 본문이 <description>\\n\\n## Acceptance\\n\\n<acceptance> 형태다" \
   bash -c '[ "$(cat "$1")" = "$(printf "본문\n\n## Acceptance\n\n조건")" ]' _ "$LOG.body"
 grun create "x" -t task
-step "create 에 repo: 라벨이 없으면 rc≠0 (--parent 폴백 없음)" [ "$RC" -ne 0 ]
+step "create 에 repo: 라벨도 --parent 도 없으면 rc≠0 (레포를 정할 출처가 없다)" [ "$RC" -ne 0 ]
+# ── create 의 라벨 상속 (skills#179 · 스토리 skills#175 결정 1) ────────
+# **방향이 뒤집힌 자리다.** 종전 단언은 "--parent 만으로는 레포를 정하지 않는다 — repo: 라벨 0개는
+# rc≠0" 이었다(폴백 없음). 상속이 어댑터의 것이 된 뒤 그것은 폴백이 아니라 규칙이다 — 부모의
+# repo: 를 물려받는 것이 세 백엔드 공통이고, 좁히기는 `-l` 로 명시해 이기는 쪽이 맡는다.
+: > "$LOG"
 grun create "x" -t task --parent 'harness#58'
-step "create: --parent 만으로는 레포를 정하지 않는다 — repo: 라벨 0개는 rc≠0 이고 stderr 가 그 개수를 든다" \
-  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "repo: 라벨이 0개"' _ "$RC" "$ERR"
+step "create --parent: 부모(58)의 rail:·repo: 를 물려받아 -l 없이도 선다" \
+  bash -c '[ "$1" -eq 0 ] && grep -q -- "-l type:task,rail:r1,repo:harness$" "$2"' _ "$RC" "$LOG"
+: > "$LOG"
+grun create "x" -t task -l repo:skills --parent 'harness#58'
+step "create --parent: -l 로 명시한 접두사는 그쪽이 이기고(repo:skills) 명시 안 한 접두사는 물려받는다(rail:r1)" \
+  bash -c '[ "$1" -eq 0 ] && grep -q -- "-l type:task,repo:skills,rail:r1$" "$2"' _ "$RC" "$LOG"
+: > "$LOG"
+grun create "x" -t task --parent 'harness#63'
+step "create --parent: sprint:·rail:·repo: 는 물려받고 slug: 는 물려받지 않는다 (문서 경로가 겹친다)" \
+  bash -c '[ "$1" -eq 0 ] && grep -q -- "-l type:task,rail:r1,repo:harness,sprint:2026-S02$" "$2" && ! grep -q "slug:" "$2"' _ "$RC" "$LOG"
+: > "$LOG"
+grun create "x" -t task --parent 'harness#999'
+step "create --parent: 부모를 읽지 못하면 이슈를 만들지 않고 rc≠0 (상속할 라벨의 출처다)" \
+  bash -c '[ "$1" -ne 0 ] && ! grep -q "^issue create" "$2"' _ "$RC" "$LOG"
+# epic 의 assignee — 이 픽스처의 rails 는 [] 다(아래 rails 단언). 그래서 여기서 보는 것은 **없는
+# 쪽**이다: 그 레일의 첫 epic 이면 assignee 없이 만들되 조용히 넘어가지 않는다. 있는 쪽(owner 가
+# 실제로 들어가는 왕복)은 ⑤ notion 픽스처가 든다 — 그쪽 등록부 픽스처가 owner 를 갖는다.
+: > "$LOG"
+grun create "새 에픽" -t epic -l repo:harness,rail:r9
+step "create -t epic + rail: 인데 그 레일의 owner 가 없으면 assignee 없이 만들고 stderr 가 그 레일을 든다" \
+  bash -c '[ "$1" -eq 0 ] && printf "%s" "$2" | grep -q "r9" && ! grep -q "^api -X PATCH" "$3"' _ "$RC" "$ERR" "$LOG"
 : > "$LOG"
 grun create "x" -t task -l repo:harness,repo:skills
 step "create: repo: 라벨 2개 → rc≠0 이고 stderr 가 그 개수를 든다 · 이슈를 만들지 않는다 (등록부가 사라진 자리를 메우는 판정)" \
@@ -686,6 +730,21 @@ nrun create "제목" -t task -l repo:harness,rail:r1 --parent "$F" --acceptance 
 step "create --silent 가 새 페이지 id 만 낸다" [ "$OUT" = "n0000000-0000-0000-0000-00000000000e" ]
 step "create 의 POST /pages 본문: parent.database_id · Name · Type · Status=open · Labels · Acceptance · Description · Parent 관계" \
   bash -c 'jq -e --arg f "$2" ".parent.database_id == \"d0000000-0000-0000-0000-00000000000d\" and .properties.Name.title[0].text.content == \"제목\" and .properties.Type.select.name == \"task\" and .properties.Status.select.name == \"open\" and (.properties.Labels.multi_select | map(.name)) == [\"repo:harness\",\"rail:r1\"] and .properties.Acceptance.rich_text[0].text.content == \"조건\" and .properties.Description.rich_text[0].text.content == \"본문\" and .properties.Parent.relation[0].id == \$f" "$1" >/dev/null' _ "$(body_of POST pages)" "$F"
+# ── create 의 라벨 상속과 epic 의 assignee (skills#179) ───────────────
+# 위 create 는 `-l repo:harness,rail:r1` 을 직접 줬으므로 상속이 낼 것이 없다(명시가 이긴다).
+# 여기서는 -l 없이 만들어 **물려받는 쪽**을 본다.
+: > "$NLOG"
+nrun create "상속 자식" -t task --parent "$F" --silent
+step "create --parent: 부모(F)의 repo:·rail: 를 물려받는다 (백엔드가 무엇이든 같은 규칙)" \
+  bash -c '[ "$1" -eq 0 ] && jq -e "(.properties.Labels.multi_select | map(.name) | sort) == [\"rail:r1\",\"repo:harness\"]" "$2" >/dev/null' _ "$RC" "$(body_of POST pages)"
+# **assignee 의 양성 경로.** github 픽스처의 rails 는 [] 라 없는 쪽만 볼 수 있다 — 등록부가 owner 를
+# 갖는 것은 이 픽스처(FAKE_NOTION_REGISTRY=1 의 r1 → juhyeon-cha)뿐이라 여기서 든다.
+# (nreg 는 아래 등록부 절에서 정의되므로 여기서는 같은 환경을 그대로 편다)
+: > "$NLOG"
+OUT=$(PATH="$NPATH" FAKE_CURL_LOG="$NLOG" FAKE_NOTION_REGISTRY=1 NOTION_TOKEN="fake-token" HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" create "레일 에픽" -t epic -l rail:r1 --silent 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "create -t epic + rail: → 그 레일의 owner 가 assignee 로 들어간다 (출처는 rails --json)" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".properties.Assignee.rich_text[0].text.content == \"juhyeon-cha\"" "$2" >/dev/null' _ "$RC" "$(body_of PATCH "pages/n0000000-0000-0000-0000-00000000000e")"
+
 nrun show "$E" --json
 step "show --json 의 키가 bd 와 같다" \
   bash -c 'printf "%s" "$1" | jq -e ".[0] | keys | contains([\"id\",\"title\",\"status\",\"issue_type\",\"labels\",\"acceptance_criteria\",\"notes\",\"assignee\",\"parent\",\"description\",\"dependencies\"])" >/dev/null' _ "$OUT"
