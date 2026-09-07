@@ -648,7 +648,7 @@ case "$cmd" in
           || die "sprints: 사용자 $OWNER 의 Projects v2 $PROJECT 를 읽지 못했다 — 번호가 틀렸거나, owner 가 사용자가 아니다(조직 소유 project 에는 이 질의가 닿지 않는다)"
         cfg="$(printf '%s' "$out" | jq -c '[.data.user.projectV2.fields.nodes[] | select(.configuration != null)] | first // empty')" \
           || die "sprints: 필드 응답을 읽지 못했다"
-        [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 의 필드(첫 100개) 안에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다. 이 필드는 ledger.sh init 이 만든다(skills#167) — 이 루트에서 'HARNESS_ROOT=<루트> ledger.sh init' 을 다시 돌려라. 멱등이라 이미 있는 project 는 그대로 두고 없는 필드만 만든다. 만든 직후의 필드에는 iteration 이 하나도 없고(실측), 스프린트는 plan-sprint 가 iteration 으로 넣는다(title 이 스프린트 ID, YYYY-SNN)"
+        [ -n "$cfg" ] || die "sprints: Projects v2 $PROJECT 의 필드(첫 100개) 안에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트의 원본이 그 필드다. 빈 배열로 답하면 '스프린트가 없다' 와 구별되지 않아 board-check 가 모든 sprint: 라벨을 미등재로 읽는다. 이 필드는 ledger.sh init 이 만든다(skills#167) — 이 루트에서 'HARNESS_ROOT=<루트> ledger.sh init' 을 다시 돌려라. 멱등이라 이미 있는 project 는 그대로 두고 없는 필드만 만든다. 만든 직후의 필드에는 iteration 이 하나도 없고(실측), 스프린트는 'ledger.sh sprint-add <YYYY-SNN>' 이 iteration 으로 넣는다(title 이 스프린트 ID) — 그 절차는 harness:plan-sprint 1절이다"
         # 빈 배열이 나오는 판이 둘이고 **문면으로 갈린다.** 필드가 없으면 위에서 rc≠0 으로
         # 죽고(원장이 답할 수 없는 상태다), 필드는 있는데 iteration 이 0개면 여기서 rc 0 의 빈
         # 배열이다 — 갓 init 한 하네스가 그 모양이고 그것은 정상 상태다. 조용히 내면 둘이
@@ -657,7 +657,7 @@ case "$cmd" in
                                          (.configuration.completedIterations[] | {id: .title, status: "closed"})] | sort_by(.id)')" \
           || die "sprints: 출력을 만들지 못했다"
         [ "$(printf '%s' "$out" | jq -r 'length')" != "0" ] \
-          || echo "ledger-github: sprints: ITERATION 필드는 있는데 iteration 이 하나도 없다 — '스프린트가 없다' 이고 '필드가 없다' 가 아니다. 스프린트는 plan-sprint 가 그 필드에 iteration 으로 넣는다(title 이 스프린트 ID, YYYY-SNN)" >&2
+          || echo "ledger-github: sprints: ITERATION 필드는 있는데 iteration 이 하나도 없다 — '스프린트가 없다' 이고 '필드가 없다' 가 아니다. 스프린트는 'ledger.sh sprint-add <YYYY-SNN>' 이 그 필드에 iteration 으로 넣는다(title 이 스프린트 ID) — 그 절차는 harness:plan-sprint 1절이다" >&2
         printf '%s\n' "$out"
         ;;
     esac

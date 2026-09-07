@@ -241,7 +241,7 @@ The root owns the context files, so a plugin update does not create them — the
 HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh sprints --json || echo "the registry does not answer — see below"
 ```
 
-On `beads`, a missing answer means a missing `sprints.json`; create it in the shape from section 5. **If the ledger already has `sprint:` labels, register every one of those IDs** — `board-check` blocks both a label the registry does not have and a registration the ledger does not have (two-way). This command produces the IDs to register.
+On `beads`, a missing answer means a missing `sprints.json`; create it in the shape from section 5. **If the ledger already has `sprint:` labels, register every one of those IDs** with `ledger.sh sprint-add <ID>` (the file has to exist first — registering does not create it) — `board-check` blocks both a label the registry does not have and a registration the ledger does not have (two-way). This command produces the IDs to register.
 
 ```bash
 HARNESS_ROOT=$PWD bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list --all --json -n 0 | jq -r '[.[] | (.labels // [])[] | select(startswith("sprint:")) | sub("sprint:";"")] | unique | .[]'
