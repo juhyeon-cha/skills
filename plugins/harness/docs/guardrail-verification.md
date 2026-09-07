@@ -3,7 +3,7 @@
 > The **full list** of guardrails and gates (what is blocked) is [guardrails.md](guardrails.md).
 > This document is its pair: **how to confirm** (section 4) and **as-built observations** (sections 7–11).
 > **Section numbers continue from that document** — other documents and scripts point at "section 8" by number, so the numbers stay. Sections 1 · 2 · 3 · 5 · 5-1 · 6 · 6-1 are in guardrails.md, not here.
-> Structure: `architecture.md` at the harness root. Development rules: [development.md](development.md).
+> Structure: [architecture.md](architecture.md). Development rules: [development.md](development.md).
 > Paths written as `hooks/…` · `checks/…` · `scripts/…` are inside the plugin `harness@skills` (`${CLAUDE_PLUGIN_ROOT}`, `plugins/harness` in the skills repo); `docs/…` · `.beads/…` · `.claude/…` are harness-root-relative.
 
 ## 4. Verification — how the enforcement mechanisms are confirmed

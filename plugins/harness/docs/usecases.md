@@ -2,7 +2,7 @@
 
 > The harness's four value axes pinned as **the order a person actually walks**. Each usecase has an actor, steps, and pass criteria.
 >
-> Structure: `architecture.md` at the harness root. Procedure text: [operations.md](operations.md). Limits of the enforcement: [guardrails.md](guardrails.md). **Only scenarios and criteria are written here** — overlapping description is left to those documents.
+> Structure: [architecture.md](architecture.md). Procedure text: [operations.md](operations.md). Limits of the enforcement: [guardrails.md](guardrails.md). **Only scenarios and criteria are written here** — overlapping description is left to those documents.
 
 ## How to use this document
 

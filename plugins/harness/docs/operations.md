@@ -1,6 +1,6 @@
 # Operating flow (operations)
 
-> The order one sprint flows through, and what each step calls. Structure: `architecture.md` at the harness root. Enforcement mechanisms: [guardrails.md](guardrails.md).
+> The order one sprint flows through, and what each step calls. Structure: [architecture.md](architecture.md). Enforcement mechanisms: [guardrails.md](guardrails.md).
 
 ## Standard cycle
 

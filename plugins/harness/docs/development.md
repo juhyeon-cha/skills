@@ -1,8 +1,8 @@
 # Development rules (when changing the harness itself)
 
-> Rules for evolving the harness consistently. Structure: `architecture.md` at the harness root. Operation: [operations.md](operations.md).
+> Rules for evolving the harness consistently. Structure: [architecture.md](architecture.md). Operation: [operations.md](operations.md).
 >
-> **Where the code is.** The core (skills · agents · hooks · checks · scripts · lib) and these five documents (the plugin's `docs/`) are the plugin `harness@skills`, source `${CLAUDE_PLUGIN_ROOT}` (`plugins/harness` in the skills repo). The harness root holds `ledger.json` (which backend the ledger has), the ledger itself when the backend is `beads`, the registries, `CLAUDE.md`, `docs/architecture.md`, the git hooks under `.beads/hooks/`, and `scripts/plugin-root.sh`. A change to the core or to these documents is a story on the `skills` repo; a change to a registry, `architecture.md`, or a git hook is a story on the `harness` repo. Both follow the same flow: development session in the clone, `EnterWorktree`, PR. Paths written as `docs/…` · `.beads/…` · `.claude/…` · `scripts/plugin-root.sh` are relative to the harness root; `hooks/…` · `checks/…` · `lib/…` and the other `scripts/…` are plugin-relative.
+> **Where the code is.** The core (skills · agents · hooks · checks · scripts · lib) and these six documents (the plugin's `docs/`) are the plugin `harness@skills`, source `${CLAUDE_PLUGIN_ROOT}` (`plugins/harness` in the skills repo). **Every change to a harness rule, check, or document is therefore a story on the `skills` repo** — a development session in that clone, `EnterWorktree`, PR. What is left outside the plugin is two machine-local files under the clone root (`ledger.json` · `repos.json`, written by `scripts/repo.sh`), each target repo's own `.harness.json`, and the ledger — none of them a tree anyone commits a harness change into. Paths written as `hooks/…` · `checks/…` · `lib/…` · `docs/…` · `scripts/…` are plugin-relative unless the sentence says otherwise.
 
 ## Verdicts and gates
 
@@ -51,7 +51,7 @@ The as-built rule list and each rule's limits are [guardrails.md](guardrails.md)
 | Kind | Place | Why there |
 |---|---|---|
 | **Decision** — what was decided and why | a `decision` bead in the ledger, status `pinned` | rides no branch, so it reads the same from every tree. Supersession is not deletion but `ledger.sh supersede <old> --with <new>` keeping the lineage (a `beads`-only subcommand — on another backend the lineage is kept by the backend's own means) |
-| **Core document** — rules, structure, procedure | the plugin (`skills/` · `agents/` · `hooks/session-context.md`) for what every project shares; the plugin's `docs/` for the harness root's structure and rules (`architecture.md` alone stays at the harness root) | the plugin is what every install receives. Only sentences that change the next person's behavior |
+| **Core document** — rules, structure, procedure | the plugin (`skills/` · `agents/` · `hooks/session-context.md`) for what every project shares; the plugin's `docs/` for the harness's own structure and rules | the plugin is what every install receives. Only sentences that change the next person's behavior |
 | **Time-stamped record** — measurements, history, counts, dates | the **`note` of the bead** that produced the change | in a rule body it costs load every session. A rule keeps a one-line pointer (first item below) |
 | **Projection outside git** — the ledger drawn for people | `docs/sprints/` · `docs/backlog/` · `docs/adr/` — **three** | the ledger is the SSOT. All three are `.gitignore`d and one command, the plugin's `scripts/board.sh all`, draws them |
 

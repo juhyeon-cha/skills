@@ -3,7 +3,7 @@
 > The full list of the guardrails and gates the harness actually runs, each one's limits, and where they live.
 > The measurements themselves are in the ledger — a rule's measurements are the `note` of the task bead that made it, and the three decision documents are `decision` beads (`harness-bjj` · `harness-pl7` · `harness-dmy`, projected to `docs/adr/`). This document is the index.
 > **How each mechanism is verified, and the as-built observations, are in [guardrail-verification.md](guardrail-verification.md)** — section numbers continue from this file. This document holds **what is blocked** (sections 1 · 2 · 3 · 5 · 5-1 · 6 · 6-1).
-> Structure: `architecture.md` at the harness root. Development rules: [development.md](development.md).
+> Structure: [architecture.md](architecture.md). Development rules: [development.md](development.md).
 >
 > **Where the code is.** Every mechanism below except the `permissions.deny` list and the git hooks lives in the plugin `harness@skills` (`${CLAUDE_PLUGIN_ROOT}`, `plugins/harness` in the skills repo): `hooks/guard.sh` · `hooks/stop-resume.sh` · `checks/*.sh`. Paths written as `hooks/…` or `checks/…` are plugin-relative. The deny list is in the harness root's `.claude/settings.json`; the git hooks are in the harness root's `.beads/hooks/`. Paths written as `docs/…` · `.beads/…` · `.claude/…` are harness-root-relative.
 >
