@@ -22,7 +22,7 @@
 # set -e 를 쓰지 않는다 — 첫 실패에서 죽으면 나머지 사유가 보고되지 않는다.
 set -uo pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../plugins/harness" && pwd)"
 LEDGER="$PLUGIN_ROOT/scripts/ledger.sh"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
@@ -39,7 +39,7 @@ step() {
 has_text() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
 
 # run <루트> <인자…> — HARNESS_ROOT 를 픽스처로 물려 ledger.sh 를 돌리고 OUT·ERR·RC 에 채집한다.
-# rc 는 파이프 밖에서 잡는다 (../docs/development.md "Shell traps").
+# rc 는 파이프 밖에서 잡는다 (plugins/harness/docs/engineering.md "Shell traps").
 OUT=""; ERR=""; RC=0
 run() {
   local root="$1"; shift
@@ -512,7 +512,7 @@ step "create 에 repo: 라벨도 --parent 도 없으면 rc≠0 (레포를 정할
 # 판정은 `gh project item-add` 의 **종료 코드가 아니라 다시 읽은 소속**이다. 이슈는 item-add
 # 앞에서 이미 만들어지므로, rc 하나로 죽으면 실재하는 등재가 실패로 기록된다 — 이 스토리를
 # 쪼갤 때 실제로 그랬다(skills#210 실측 ①②③). 이 레포 자신의 교리이기도 하다
-# (../docs/guardrails.md 5-1 — 시도한 반영이 아니라 다시 세어본 결과가 판정한다).
+# (plugins/harness/docs/guardrails.md 5-1 — 시도한 반영이 아니라 다시 세어본 결과가 판정한다).
 grunenv() { # grunenv <VAR=값…> -- <ledger.sh 인자…>
   local -a e=()
   while [ $# -gt 0 ] && [ "$1" != "--" ]; do e+=("$1"); shift; done
@@ -533,14 +533,14 @@ step "정말 소속이 아니면 create 가 죽는다 (rc≠0)" [ "$RC" -ne 0 ]
 step "죽을 때 gh 자신의 stderr 가 메시지에 실린다 (>/dev/null 2>&1 로 버리지 않는다)" \
   has_text 'FAKEGH_MARKER' "$ERR"
 # 반대쪽 극성 — **rc 0 이면 다시 읽지 않는다.** 소속 조회가 item-add 직후에 신선한지는 미측정이고
-# (같은 계열의 item-list 는 직후에 새 항목을 내지 않는 것이 실측이다 — ../scripts/ledger-github.sh 머리 주석),
+# (같은 계열의 item-list 는 직후에 새 항목을 내지 않는 것이 실측이다 — plugins/harness/scripts/ledger-github.sh 머리 주석),
 # 보고된 성공을 낡을 수 있는 조회로 뒤집으면 흔한 경로에서 거짓 실패가 난다. 이 두 줄이 그 경계를 든다.
 : > "$LOG"; grunenv FAKE_GH_NOT_IN_PROJECT=1 -- create "제목" -t task -l repo:harness --silent
 step "item-add 가 rc 0 이면 소속을 다시 읽지 않는다 (통과 · projectItems 질의 0회)" \
   bash -c '[ "$1" -eq 0 ] && ! grep -q projectItems "$2"' _ "$RC" "$LOG"
 
 # 부정 대조군 — 판정 한 줄만 옛 형태(rc 만 본다)로 되돌린 어댑터 사본에서는 첫 픽스처가 죽는다
-# (../docs/development.md "Checking that a check is alive"). 사본이 비지 않고 원본과 다름을 먼저 단언한다.
+# (plugins/harness/docs/engineering.md "Checking that a check is alive"). 사본이 비지 않고 원본과 다름을 먼저 단언한다.
 NEGP="$TMP/negplug"; mkdir -p "$NEGP/scripts"
 cp "$PLUGIN_ROOT/scripts/ledger.sh" "$NEGP/scripts/ledger.sh"
 step "부정 대조군 전제: 소속 재확인이 어댑터에 1줄 실재한다" \

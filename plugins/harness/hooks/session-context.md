@@ -63,4 +63,4 @@ Rules kept out of the always-on block. Each is needed only while running its pro
 | "위임 메시지의 환경 스냅샷" · "장기 실행" | `harness:develop` |
 | "여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다" | `harness:plan-story` |
 | "재시도 카운터" | `harness:verify-code` |
-| "Checking that a check is alive" | `${CLAUDE_PLUGIN_ROOT}/docs/development.md` |
+| "Checking that a check is alive" | `${CLAUDE_PLUGIN_ROOT}/docs/engineering.md` |

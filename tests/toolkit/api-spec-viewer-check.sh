@@ -8,7 +8,7 @@
 # 스키마는 같은 폴더의 snapshot-schema.md 가 정의한다.
 
 set -uo pipefail
-HERE=$(cd "$(dirname "$0")" && pwd)
+HERE=$(cd "$(dirname "$0")/../../plugins/toolkit/skills/api-spec-viewer" && pwd)
 
 # 사용자 확정 샘플 (2026-08-29). 커밋을 고정해야 판정이 재현된다.
 SPRING_URL=https://github.com/spring-petclinic/spring-petclinic-microservices

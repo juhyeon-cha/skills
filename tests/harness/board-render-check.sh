@@ -21,7 +21,7 @@
 # set -e 를 쓰지 않는다 — 첫 실패에서 죽으면 나머지 경우의 결과가 보고되지 않는다.
 set -uo pipefail
 
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../plugins/harness" && pwd)"
 BOARD="$PLUGIN_ROOT/scripts/board.sh"
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
 

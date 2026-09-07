@@ -138,17 +138,7 @@ commit and the first audit record that saw the absence:
 | `causes` or `actions` empty | 2 | A retrospective with no cause, or nothing left to do, does not ship |
 | One of the three slots empty | 2 | stderr says which item and which slot. Ask rather than invent a filling |
 
-## 5. Self-check
-
-```bash
-bash check.sh            # runs both inputs, with and without times, through the whole path and asserts
-bash check.sh <outdir>   # keeps the outputs (for a person to open)
-```
-
-The 0 occurrences of `class="timeline"` in the timeless output are counted alongside the 1 in the
-timed one — the negative control that keeps 0 distinct from "the check never ran".
-
-## 6. Ceilings left in place
+## 5. Ceilings left in place
 
 - **Several incidents do not go into one document.** One incident, one document. For a document that
   sweeps several — a quarterly retrospective — use `html-report`'s status-report preset directly.

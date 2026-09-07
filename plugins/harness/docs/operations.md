@@ -50,7 +50,7 @@ The ledger **rides no branch** — on `beads` it is a single `.gitignore`d DB gl
 
 ## Remote reflection — the boundary is single-owned by the first item of the session block's "절대 금지"
 
-What goes out without instruction and what needs approval is held by that item's **two exceptions**. The list is not repeated here — a copy would make this file say two things, and a stale copy is what the plugin's `rules-check.sh` R-REM catches.
+What goes out without instruction and what needs approval is held by that item's **two exceptions**. The list is not repeated here — a copy would make this file say two things, and a stale copy is what the skills repo's `tests/harness/doc-rules-check.sh` R-REM catches before a release.
 
 ## Ledger maintenance — `dolt gc`, pull, push
 

@@ -1,0 +1,73 @@
+# Development rules (when changing the harness itself)
+
+> Rules for evolving the harness consistently. **This document does not ship** — only a session in the `skills` clone can act on it. What a cycle carries into any target repo (proving a gate is alive, shell traps, where a document goes) is the plugin's own [engineering.md](../plugins/harness/docs/engineering.md). Structure: [architecture.md](../plugins/harness/docs/architecture.md). Operation: [operations.md](../plugins/harness/docs/operations.md). What the harness is for, end to end: [usecases.md](usecases.md).
+>
+> **Where the code is.** The core (skills · agents · hooks · checks · scripts · lib) and the plugin's `docs/` are the plugin `harness@skills`, source `${CLAUDE_PLUGIN_ROOT}` (`plugins/harness` in the skills repo). **Every change to a harness rule, check, or document is therefore a story on the `skills` repo** — a development session in that clone, `EnterWorktree`, PR. What is left outside the plugin is each target repo's own `.harness.json` and the ledger — neither a tree anyone commits a harness change into. Paths written as `hooks/…` · `checks/…` · `lib/…` · `scripts/…` are plugin-relative unless the sentence says otherwise; `tests/…` · `docs/…` are repo-relative.
+
+## What belongs in the plugin, and what belongs in this repo
+
+**One question decides it: does the installed copy execute or read this file?** A marketplace install copies the whole `plugins/<name>/` tree, and there is no exclusion list in the manifest — so a file that ships is a file every install carries, forever, in every cached version.
+
+| Answer | Place | Examples |
+|---|---|---|
+| The installed copy runs or reads it | `plugins/<name>/` | skills · agents · hooks · `lib/` · `scripts/` · the checks a skill calls (`board-check` · `ledger-check` · `rules-check` · `workspace-check` · `guardrail-check` · `transcript-check`) · the docs a shipped file points at |
+| Only a session in this repo runs it | `tests/` | every check that hits plugin code with a fixture, and the toolkit skills' self-checks |
+| Only a person or agent developing the harness reads it | `docs/` | this file · `usecases.md` |
+
+Two judgement calls that look like exceptions and are not:
+
+- **A check that judges the shipped artifact's authoring is a build-time check.** The installed tree is immutable, so a verdict on it can only change before release. `tests/harness/doc-rules-check.sh` is the whole of that set — including `R-BEAD`, which reads the injection block (a tree) and judges it against **the author's** ledger: shipped, it would read every other harness's ledger as a wall of dead references.
+- **A document that shipped code points at, ships.** `guardrail-verification.md` is cited by section number from `hooks/guard.sh` · `hooks/stop-resume.sh` · `scripts/guard-log.sh` · `checks/guardrail-check.sh` for the ceilings those files state. Moving it would leave the ceiling unreadable exactly where someone debugging a hook needs it.
+
+## Verdicts and gates
+
+- **The commit gate is the target repo's own** — the `check` field of the skills repo's `.harness.json` (`bash scripts/check.sh`: `claude plugin validate --strict` per plugin · `shellcheck` over every `*.sh` under `plugins/` and `tests/` · the agent-doc-audit regression over both plugins' documents · the three-way description match).
+- **`tests/run-all.sh` is the development check set** and is run by hand — every `*.sh` under `tests/` at any depth (`run-all.sh` itself aside) plus every shipped `plugins/harness/checks/*.sh`, with the exemptions (`guard-check` too slow · `api-spec-viewer-check` needs the network · `transcript-check` judges outside the tree · `ledger-check` touches the remote) listed with reasons inside that file. The ledger-reading checks reach the ledger through the adapter `scripts/ledger.sh` and find the harness root through `lib/harness-root.sh`, whose marker is the committed `.harness.json`. `run-all.sh` runs every check **from the caller's cwd** (it only moves itself to the repo root), so tree-scoped checks judge the tree you stand in. To point a run at a fixture or a copy root, set `HARNESS_ROOT`. **What each check sees and the fail-open rules are held by [guardrails.md](../plugins/harness/docs/guardrails.md)** — enforcement talk lives in that one place.
+- **A check under `tests/` derives its target tree from its own location, never from `CLAUDE_PLUGIN_ROOT`.** That variable points at the *installed* copy in any session where the harness is installed, so honouring it would judge an already-released tree instead of the one being changed.
+
+## The development checks — `tests/`
+
+Same four columns as the shipped table in [guardrails.md](../plugins/harness/docs/guardrails.md) section 3. These never ship: each one hits plugin code with a fixture, so the verdict can only change before a release.
+
+| Check | Sees | Wired where | Run condition |
+|---|---|---|---|
+| `ledger-adapter-check.sh` | **The adapter itself** — ① boundary (no `.harness.json` · a `ledger.backend` outside the three → rc≠0 naming the cause; `--help` covers the whole set of `bd` subcommands the plugin actually calls, derived by grep from the tree; and the `has-ui` contract on all three backends — a UI name on one stdout line, or nothing, both rc 0, **reached without touching the ledger**, which is what lets `scripts/board.sh` decide whether to render) · ② `beads` read equivalence against `bd -C <root>`, byte for byte · ③ `beads` write round trip in a throwaway `bd init` fixture (the real ledger is never written) · ④ `github` offline against a fake `gh` · ⑤ `notion` offline against a fake `curl` | `tests/run-all.sh` | `jq`, and the harness root through `lib/harness-root.sh`. Live writes to GitHub and Notion are **not** here — those were walked by hand (`harness-m8gg.4.2`·`4.3`) |
+| `guard-check.sh` | `guard.sh` **inside** — per-rule false-positive and miss boundaries, the exemption lists in full, pinned limits (rc=0 for what cannot be blocked), registry integrity both ways, option lists derived from `--help` | not wired — `tests/run-all.sh` exempts it (slower than all other checks together; run by hand on a commit that changes `guard.sh`) | `gh`·`bd` in PATH (sets are derived from `--help` — without them the derivation is empty and rc=1) |
+| `workspace-cleanup-check.sh` | `workspace-cleanup.sh`'s paths — normal cleanup · uncommitted → refused even with `--force` · unpushed → refused, `--force` proceeds · fetch failure → untouched · leftover non-worktree directory · idempotence · a caller standing on a symlinked path · branch-delete failure still reports · other stories' worktrees preserved · a story whose `repo:` labels do not name this repo | `tests/run-all.sh` | a temporary clone. **On a backend other than `beads` rc 0 but the phrase says `⊘ … ①~⑪ 어느 절도 판정하지 않았다`** — same cause as `workspace-check.sh` in the shipped table (`⑪`'s `tag` is `beads`-only too). An unreadable `.harness.json` or a missing `ledger.backend` key is rc≠0, never a silent skip |
+| `board-render-check.sh` | `scripts/board.sh`'s two branches on fixtures — a backend with a UI of its own (`github`·`notion`) writes no file and says what it did not do; a backend without one (`beads`) keeps the zero-item verdicts (0 closed sprints → rc 0 with an empty index table; 0 active sprints → rc≠0) | `tests/run-all.sh` | a `beads` fixture, because the zero-item branch became unreachable on a backend with a UI |
+| `doc-rules-check.sh` | **The plugin tree's authoring** — R-REM stale sentences · **C6** the session block's 「절대 금지」 is alive and points at `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md` · **R-DATE** no date in the always-on block · **R-BEAD** every bead ID in the block exists in the ledger · **R-WAIT** single ownership of the human-wait signal list · **R-DUP** no verbatim copy of the block in skills or agents · **R-BUDGET** byte ceiling of the block | `tests/run-all.sh` | the tree comes from the script's own location, never `CLAUDE_PLUGIN_ROOT`. R-BEAD alone needs the ledger and fails loudly without a harness root; the other six run regardless. **R-REM derives its scan set with `find` over the plugin tree** and asserts the three files it must see are in the set, so a derivation that comes back empty or narrowed fails loudly |
+| `api-contract-diff-check.sh` · `brag-check.sh` · `postmortem-check.sh` · `api-spec-viewer-check.sh` | each toolkit skill's Python through its whole path plus its failure paths, on synthetic input | `tests/run-all.sh` (the last one exempted — it fetches two sample repos at fixed commits) | `python3`. The three offline ones need nothing else |
+
+`shell-lint.sh` is not here because it no longer exists: the repo gate `scripts/check.sh` (b) runs `shellcheck --severity=warning --exclude=SC2317` over every `*.sh` under `plugins/` and `tests/` — a wider set, the same flags, the same exemption.
+
+## Adding a hook rule — the plugin's `hooks/guard.sh`
+
+The as-built rule list and each rule's limits are [guardrails.md](../plugins/harness/docs/guardrails.md) section 1. What is here is **the convention for whoever adds a rule** — in the plugin source, `${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh`.
+
+- **One rule = one function + one `RULES` line, and the function name has the `r_` prefix.** Entry form is `"<tool name or *>:<function name>"`; the dispatcher matches against `tool_name` and calls only what matches. Block with `deny "<reason>"` (exit code 2 + stderr), pass with `return 0`.
+- **Rule blocks come *after* the `RULES=()` declaration.** Above it, `RULES=()` wipes every registration already made and a hook with no rule at all passes silently with rc=0. It happened once. The `r_` prefix and this placement are derived from the source and asserted by `tests/harness/guard-check.sh`'s `registry_intact`, so a name outside the prefix is caught by the gate too.
+- **A rule body does not enumerate command shapes with regexes.** In the spike that approach leaked three times in a row (wrapper `timeout 5 git push`, option position `git -C repo worktree add`) and once matched **by accident** through a `.git` inside a path. Inverted polarity — the presence of the subcommand token only — caught all eight as intended. So the skeleton offers `has_token` alone, and false positives (`git log --grep worktree` blocks too) are the price of that trade.
+- **Every rule added gets a blocking case and a passing case in `tests/harness/guard-check.sh`.** Blocking cases alone cannot tell a dead rule; passing cases alone pass a rule that blocks nothing. Both are needed because of a measurement — one rule exiting through `deny` means the remaining rules never run for that call, so a wrongly blocking earlier rule leaves the later rules unverified yet green. The passing case is the only net for that.
+- **Tree judgment uses the payload, not an anchor.** `GUARD_ROOT` is the plugin root (`CLAUDE_PLUGIN_ROOT`, else the script's own parent) and no rule uses it to judge a tree — it appears only in internal-error messages and to locate `lib/harness-root.sh`. Relative paths are folded against the payload `cwd`. Role rules compare `agent_type` against `harness:<name>` only.
+- **No rule-injection point in the shipped hook.** An early version sourced a file named by an environment variable, claiming rules could only be added. False — sourcing is just bash and can redefine anything; a two-line file (`RULES=()` and `deny() { return 0; }`) let `git push origin master` through with rc=0. The sourcing path is gone; the gate tests rule removal by inserting into a **copy** right after `RULES=()`, and asserts first that the copy differs from the original.
+
+## Skills and role definitions
+
+- A skill carries delegation, signal handling, and order only. Role discipline (path check, full-text gate judgment, the forbidden list) is owned by the plugin's `agents/` definitions — never the same rule in two places.
+- No absolute path is **baked** into a core file. The harness root is what `lib/harness-root.sh` prints, or `HARNESS_ROOT`.
+- **The harness root travels in the delegation message.** The worktree is `<repo clone>/.claude/worktrees/<worktree name>/`, and a subagent that is handed no root cannot call `ledger.sh` at all — `HARNESS_ROOT=<harness root>` is the only thing that points it at this harness. A new role or skill that forgets that slot breaks silently.
+- Skills and agents reference each other and the plugin's own files through `${CLAUDE_PLUGIN_ROOT}` — the runtime substitutes it with the install path in skill and agent bodies.
+
+## Plugin boundary
+
+- **Core** (shared by every project): the plugin — `skills/` · `agents/` · `hooks/` · `checks/` · `scripts/` · `lib/` · `docs/` · `.claude-plugin/plugin.json`. Nothing in it names a project, a path under a home directory, or a person.
+- **Per-repo context** (committed by the target repo, never by the plugin): `.harness.json` at the repo root — the gate command, the default branch, the bootstrap command, and the ledger coordinates. That file is the harness-root discriminator, so cloning the repo is what attaches the harness. The rail and sprint registries are **not** files the core knows — they are the adapter's `rails`·`sprints` answers, backed by whatever the backend keeps. Projections are outside git and belong to neither side.
+- **What the plugin cannot carry, a person does.** `permissions.deny` and `permissions.allow` are settings, not plugin components — a tree that needs them puts them in its own `.claude/settings.json`. The plugin itself is enabled by neither — it is installed at **user scope**, so nothing in a project registers it. **The harness plants no git hook anywhere.**
+
+## Remote
+
+Local commits are free. Tag push · merge · release publishing only on explicit user instruction, and an approval is valid for that one time. **Working-branch push and PR creation are automatic only as the product of a cycle close** — only when no decision is unresolved in that cycle (exception two of the session block's "절대 금지"). Ledger reflection is an explicit step of that close, not something a git hook rides on (`bd dolt push` on `beads`; on `github`·`notion` the ledger is already remote and there is nothing to send).
+
+## Release
+
+`/release` (the repo skill `.claude/skills/release/SKILL.md`) owns the procedure; the version policy is the "버전" section of `README.md`.

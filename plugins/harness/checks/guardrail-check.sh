@@ -37,7 +37,7 @@
 # 막아 준 것을 "이 규칙이 산다"로 오독한다 — 규칙 7개가 겹치는 판정 지점을 공유하므로
 # 실제로 일어나는 오독이다 (guard.sh 의 "등재 순서로 메시지를 고른다" 주석 참조).
 #
-# checks/guard-check.sh 와의 경계: 그쪽은 guard.sh **안**을 판다 (규칙별 오탐·미탐 경계,
+# tests/harness/guard-check.sh 와의 경계: 그쪽은 guard.sh **안**을 판다 (규칙별 오탐·미탐 경계,
 # 면제 목록 전수, 한계의 박제). 이 게이트는 그 위에서 **표면이 사라졌는가**만 본다.
 # 규칙 하나에 시험 1건씩이고, 대신 guard-check.sh 가 못 보는 것을 본다: hooks.json 배선·
 # 검사 스크립트 실물·정지 가드의 발화.
@@ -93,7 +93,7 @@ trap 'rm -rf "$TMP"' EXIT
 # 발화 로그를 임시 경로로 돌린다. S1 은 규칙마다 훅에 합성 stdin 을 먹이므로(규칙 7종 ×
 # 프로브·A/B 사본) 기본 경로에 그대로 쓰면 실사용 계수가 합성 발화로 오염된다. "그 규칙이
 # 발화한 적 있는가" 를 기계값으로 만드는 것이 그 로그의 존재 이유인데, 게이트 자신이 그 값을
-# 위조한다. checks/guard-check.sh 가 같은 이유로 같은 형태를 쓴다.
+# 위조한다. tests/harness/guard-check.sh 가 같은 이유로 같은 형태를 쓴다.
 export HARNESS_GUARD_LOG="$TMP/guard-log.tsv"
 # 세션→actor 매핑도 같은 이유로 돌린다. 기본 경로가 `$HOME/.claude/harness-session-actor.tsv`
 # 라 돌리지 않으면 이 게이트의 합성 claim 이 **실사용 매핑에 섞이고**, 정지 가드가 그것을
@@ -235,7 +235,7 @@ step "머리주석의 S 목록 줄 수가 실제 표면 수와 같다 (${listed_
 section "S1 훅 규칙 (${HOOK})"
 
 # 집합 파생. guard.sh 가 "규칙 함수는 r_ 접두" 를 계약으로 선언하고
-# checks/guard-check.sh ⑦ 이 그 계약(전원 등재·접두 준수)을 단언한다. 여기서는 그
+# tests/harness/guard-check.sh ⑦ 이 그 계약(전원 등재·접두 준수)을 단언한다. 여기서는 그
 # 집합을 그대로 받아 **차단 동작**을 본다.
 RULE_SET=()
 while IFS= read -r fn; do [[ -n "$fn" ]] && RULE_SET+=("$fn"); done < <(
@@ -340,7 +340,7 @@ done
 # 아니다 — 규칙 집합을 함수 정의(`^r_…()`)에서 파므로, 등재 줄만 지운 사본에서도 그 규칙은
 # 집합에 남고 면제로 통과한다. 시험이 있는 규칙은 그 상태가 위 A/B 에서 rc=0 으로 시끄럽게
 # 죽는데, 면제된 규칙만 그 검출을 잃는다 [실측 2026-08-23: RULES+= 줄만 지운 사본이 이
-# 게이트를 rc=0 으로 통과했다 — guard-check.sh 는 check-all 의 면제라 아무도 못 본다].
+# 게이트를 rc=0 으로 통과했다 — guard-check.sh 는 러너의 면제라 아무도 못 본다].
 # 그래서 면제 키마다 등재의 실재를 **정적으로** 단언한다. 앞으로 생길 면제도 함께 덮는다.
 registered_in() {  # registered_in <규칙함수> <훅파일>
   grep -E '^RULES\+=' "$2" | grep -q "\"[^\"]*:$1\""
@@ -975,7 +975,7 @@ STUB
   stop_case IDLE s-sc-ghnull false "$FX_SC_GH_NULL"; SCOPE_FX+=("github 모양 actor=null→통과")
   step "사거리 ⑥: actor 가 null 이면 assignee 로 새지 않는다 (막지 않는다)" [ -z "$SOUT" ]
 
-  # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/development.md "Checking that a check is alive").
+  # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/engineering.md "Checking that a check is alive").
   step "사거리 픽스처 집합이 비지 않았다 (${#SCOPE_FX[@]}종: ${SCOPE_FX[*]:-없음})" \
     [ "${#SCOPE_FX[@]}" -ge 6 ]
 
