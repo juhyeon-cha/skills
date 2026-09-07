@@ -242,9 +242,12 @@ while IFS= read -r fn; do [[ -n "$fn" ]] && RULE_SET+=("$fn"); done < <(
   grep -Eo '^r_[A-Za-z0-9_]+\(\)' "$HOOK" | sed 's/()$//' | sort -u)
 step "규칙 집합이 파생됐다 (${#RULE_SET[@]}개)" [ "${#RULE_SET[@]}" -gt 0 ]
 
-CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"   # guard.sh 와 같은 표현
 IMPL_T="harness:implementer"; GR_R="harness:reviewer"                     # agent_type 의 실측 형식 (M0)
-MAIN_PATH="$CLONE_ROOT/_probe-repo/README.md"                  # 어휘 판정이라 실재하지 않아도 된다
+# 본 체크아웃 판정의 판별자는 **실재하는 `.harness.json`** 이다(guard.sh 의 mc_locate) — 어휘
+# 판정만으로는 대상 레포를 알 수 없으므로 픽스처 레포를 실제로 만든다. 파일 자신은 없어도 된다.
+mkdir -p "$TMP/_probe-repo"
+printf '{"ledger":{"backend":"beads"}}\n' > "$TMP/_probe-repo/.harness.json"
+MAIN_PATH="$TMP/_probe-repo/README.md"
 
 # 규칙마다 **차단돼야 하는** 입력 하나. 형식: "<규칙>|<PreToolUse 이벤트 JSON>".
 # 이 표는 손으로 적지만 **집합이 아니라 시험 데이터**다 — 어느 규칙을 검사할지는
@@ -487,13 +490,13 @@ if [[ ! -f "$LEDGER" ]]; then
   fail=1
 else
   LTMP="$TMP/ledger"
-  # 픽스처 루트 둘 — 판별자 ledger.json(backend beads)을 갖춘다. `root` 는 .beads/redirect 로 `up` 의 원장을
+  # 픽스처 루트 둘 — 판별자 .harness.json(backend beads)을 갖춘다. `root` 는 .beads/redirect 로 `up` 의 원장을
   # 가리키는 사본 루트(워크트리·검사 사본과 같은 배선)라 자기 아래에는 embeddeddolt 가 없다 — 원장 위치를
   # bd 에게 묻지 않고 루트 아래 경로를 조립하면 여기서 원장을 놓친다(harness-js9 의 형태). `norepo` 는
   # 원장이 정말 없는 트리다. ledger-check.sh 는 인자 루트를 HARNESS_ROOT 로 어댑터에 넘긴다.
   mkdir -p "$LTMP/bin" "$LTMP/up/.beads/embeddeddolt/db" "$LTMP/root/.beads" "$LTMP/norepo"
-  printf '{"backend":"beads"}\n' > "$LTMP/root/ledger.json"
-  printf '{"backend":"beads"}\n' > "$LTMP/norepo/ledger.json"
+  printf '{"ledger":{"backend":"beads"}}\n' > "$LTMP/root/.harness.json"
+  printf '{"ledger":{"backend":"beads"}}\n' > "$LTMP/norepo/.harness.json"
   printf '%s\n' "$LTMP/up/.beads" > "$LTMP/root/.beads/redirect"
 
   # dolt 스텁 — 원격 있음 · 계보 공유 · ahead 는 $LTMP/ahead 파일이 정한다.
@@ -564,7 +567,7 @@ STUB
   step "배선 루트: redirect 너머의 원장을 대상으로 판정에 도달한다 (rc=0)" [ "$LRC" -eq 0 ]
   step "배선 루트: 반영 여부를 실제로 판정했다고 말한다" has_text "원격 반영 확인됨" "$LOUT"
 
-  # ② 원장이 정말 없는 **클론**(ledger.json 은 있으나 bd 가 원장을 못 낸다) — 건너뛰고 rc=0.
+  # ② 원장이 정말 없는 **클론**(.harness.json 은 있으나 bd 가 원장을 못 낸다) — 건너뛰고 rc=0.
   #    ①의 수정이 이것을 깨지 않는다. 진짜 git 저장소로 만든다 — "저장소이긴 한데 원장이 없다"를 밟는다.
   fxgit init -q "$LTMP/norepo" 2>/dev/null
   LOUT=$(env PATH="$LTMP/bin:/usr/bin:/bin" BD_STUB_MISS=1 bash "$LEDGER" "$LTMP/norepo" 2>&1); LRC=$?
@@ -657,7 +660,7 @@ fi
 # 쌓인다.** "그 경로가 발화한 적 있는가"를 기계값으로 만드는 것이 그 로그의 존재 이유인데
 # 게이트가 그 값을 스스로 망친다 (S1·S6 이 같은 이유로 같은 형태를 쓴다). 원장 조회는 PATH
 # 앞의 스텁이 받고, 하네스 루트는 HARNESS_ROOT 로 물린 합성 루트다(lib/harness-root.sh 의 첫
-# 출처 — 판별자 ledger.json 만 갖춘다) — 진짜 bd·원장을 물리면 판정이 그 머신의 원장
+# 출처 — 판별자 .harness.json 만 갖춘다) — 진짜 bd·원장을 물리면 판정이 그 머신의 원장
 # 상태에 흔들려 재현되지 않는다.
 section "S7 정지 가드 (${STOPHOOK}) — 배선된 그 파일이 실제로 발화하는가"
 if [[ ! -f "$STOPHOOK" ]]; then
@@ -666,7 +669,7 @@ if [[ ! -f "$STOPHOOK" ]]; then
 else
   PTMP="$TMP/stopguard"
   mkdir -p "$PTMP/bin" "$PTMP/proj" "$PTMP/data" "$PTMP/hroot"
-  printf '{"backend":"beads"}\n' > "$PTMP/hroot/ledger.json"   # 판별자 — 훅의 오라클은 어댑터(ledger.sh)를 거쳐 PATH 앞의 스텁 bd 에 닿는다
+  printf '{"ledger":{"backend":"beads"}}\n' > "$PTMP/hroot/.harness.json"   # 판별자 — 훅의 오라클은 어댑터(ledger.sh)를 거쳐 PATH 앞의 스텁 bd 에 닿는다
   SDATA="$PTMP/data"
   SLOG="$SDATA/stop-resume.log"
   SORACLE="$PTMP/oracle"

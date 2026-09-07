@@ -1,5 +1,10 @@
 {
-  "doc": "하네스가 이 레포를 다루는 방법. 이 레포가 소유한다 — 하네스 루트가 아니라 여기 있어야 클론마다 갈리지 않는다. check: 게이트 명령(레포 루트 기준) — 하네스는 종료 코드만 본다. default_branch: 워크트리를 자르는 기준 브랜치. bootstrap: 워크트리 생성 직후 그 안에서 1회 실행할 준비 명령(선택, 없으면 키를 두지 않는다).",
+  "doc": "하네스가 이 레포를 다루는 방법. 이 레포가 소유하고 커밋한다 — 이 파일이 곧 하네스 루트의 판별자이고(lib/harness-root.sh), 레포를 클론하는 것만으로 하네스가 붙는다. check: 게이트 명령(레포 루트 기준) — 하네스는 종료 코드만 본다. default_branch: 워크트리를 자르는 기준 브랜치. bootstrap: 워크트리 생성 직후 그 안에서 1회 실행할 준비 명령(선택, 없으면 키를 두지 않는다). ledger: 원장 좌표 — backend 는 github|beads|notion 하나이고 나머지 키는 백엔드가 정한다(github: owner·project · notion: database_id · beads: 없음).",
   "check": "bash scripts/check.sh",
-  "default_branch": "main"
+  "default_branch": "main",
+  "ledger": {
+    "backend": "github",
+    "owner": "juhyeon-cha",
+    "project": 5
+  }
 }

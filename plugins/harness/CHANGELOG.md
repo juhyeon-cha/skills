@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.1.1 — 2026-09-07
+
+**폭 판단 — PATCH 로 낸다. 판정 기준으로는 MAJOR 였고, 넓히지 않기로 한 판단이다** (2026-09-07 사용자 결정). MAJOR 방아쇠가 셋이다 — ⓐ 설치본이 소유하던 파일 둘(`~/.harness-workspace/ledger.json` · `repos.json`)의 폐기 ⓑ 설치본이 손으로 해야 하는 이전 작업(아래 "설치본이 할 일") ⓒ 하위 명령 제거(`scripts/repo.sh` 전체). **번호를 믿지 말고 아래 "설치본이 할 일" 을 그대로 밟아라** — 옛 배치 그대로 두면 `lib/harness-root.sh` 가 루트를 못 찾아 **모든 원장 호출이 rc≠0** 이 된다. 번호만 보고 `claude plugin update` 로 끝내면 그 다음 게이트부터 전부 깨진다.
+
+### 하네스가 도는 데 필요한 절차가 둘이다 (사용자 결정 2026-09-07)
+
+**① 플러그인 설치 ② `.harness.json` 이 있는 레포 클론.** 그 밖에 만들 파일도, 돌릴 명령도 없다.
+
+- **`lib/harness-root.sh` 의 탐색이 `HARNESS_ROOT` → CWD 에서 위로 거슬러 처음 만나는 `.harness.json` 이다.** 판별자가 대상 레포의 **추적 파일**이 되어, 클론하는 것만으로 하네스가 붙고 클론을 어디에 두든 답이 같다. 워크트리는 자기 체크아웃에 사본을 가지므로 자기 자신이 루트다.
+- **원장 좌표가 `.harness.json` 의 `ledger` 객체로 들어갔다** — `{backend, owner, project}`(github) · `{backend, database_id}`(notion) · `{backend}`(beads). 한 하네스의 레포들은 같은 객체를 저마다 커밋해 들고 있고, 그것이 그들을 한 하네스로 묶는다. `ledger.sh init` 은 `ledger.project`·`ledger.database_id` 를 그 파일에 써 넣는다.
+- **`~/.harness-workspace` 라는 층이 없어졌다.** 클론 위치 고정 · 머신 로컬 등록부 · 그 층을 지키던 가드 규칙이 함께 사라졌다.
+
+### 걷어낸 것
+
+- **`scripts/repo.sh`** (`root`·`add`·`restore`·`list`·`remove`·`check`) 와 그 게이트 `checks/repo-check.sh`. 레포 등록이라는 개념 자체가 없다 — 스토리의 `repo:` 라벨이 레포를 가리키고, 사람이 그 클론에서 세션을 연다.
+- **`repos.json`** 과 그것을 보던 `rules-check` 의 **R18·R40**.
+- **`scripts/ledger-migrate.sh`** 와 `checks/ledger-migrate-check.sh`. beads→github 1회성 이전 도구이고, 그 입력(`ledger.json`·`repos.json`)이 없어졌다. `docs/operations.md` 의 "원장 이전" 절도 함께 걷었다.
+- `HARNESS_CLONE_ROOT` 환경 변수. 가드도 검사도 읽지 않는다.
+
+### 가드의 본 체크아웃 경계가 경로 고정에서 판별자로 바뀌었다
+
+- `hooks/guard.sh` 의 `mc_locate` 가 경로에서 위로 거슬러 처음 만나는 `.harness.json` 의 디렉토리를 레포 루트로 잡고, 그 루트가 `.claude/worktrees/` 를 지나면 워크트리로 보아 통과시킨다. 클론이 어디 있든 규칙이 따라간다.
+- 판별을 파일시스템에 맡기므로 대소문자 표기로 새지 않는다 — 종전의 소문자 접기가 필요 없어졌다.
+- `r_main_shell` 의 꼬리 붙은 경로 복구가 고정 루트 문자열 대신 **토큰의 `/` 마다 그 뒤를 절대 경로로 다시 보는** 방식이다.
+- **잃은 것 하나 — 레포를 담은 상위 디렉토리는 못 막는다.** 종전에는 클론 루트라는 고정 층이 있어 `rm -rf <클론루트>` 를 막았다. 판별자가 그 디렉토리에 없으므로 판정할 근거가 없다. `docs/guardrails.md` 1절이 그 한계를 들고, `guard-check` ⑨ 가 그 rc=0 을 고정한다.
+
+### 그 밖
+
+- `scripts/workspace-cleanup.sh` 는 **서 있는 레포 하나**를 정리한다. 원장의 자리(`HARNESS_ROOT`)와 정리 대상(호출자의 CWD)을 따로 낸다 — 멀티 레포 스토리는 레포마다 한 번씩 부른다.
+- `rules-check` 의 **S22** 도 이 레포의 워크트리만 센다. 다른 `repo:` 라벨의 칸은 `·` 줄로 드러내고 판정하지 않는다 — 레포마다 게이트를 돌리면 전수가 덮인다.
+- `beads` 백엔드의 원장 DB 와 `rails.json`·`sprints.json` 은 **`.harness.json` 을 가진 레포**의 루트에 산다. 여러 레포가 한 원장을 쓰면 하나를 원장의 집으로 삼고 나머지는 `bd` 자신의 `.beads/redirect` 로 붙는다.
+
+### 설치본이 할 일 (머신마다 한 번)
+
+1. **대상 레포마다 `.harness.json` 에 `ledger` 객체를 넣고 커밋한다.** 값은 옛 `~/.harness-workspace/ledger.json` 의 내용 그대로다(`backend`·`owner`·`project` → `ledger.backend`·`ledger.owner`·`ledger.project`). 워크트리에서 고치고 커밋하라 — 가드가 본 체크아웃 쓰기를 막는다.
+2. 확인: 각 클론 안에서 `bash ${CLAUDE_PLUGIN_ROOT}/lib/harness-root.sh` 가 그 클론을 내고, `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -n 1` 이 rc 0 이다.
+3. `~/.harness-workspace/ledger.json`·`repos.json`·`.harness-root` 는 이제 아무도 읽지 않는 잔재다. 클론을 그 디렉토리에 계속 두어도 무방하다 — 위치는 자유다.
+
 ## 2.1.0 — 2026-09-07
 
 **폭 판단 — MINOR 로 낸다. 판정 기준으로는 MAJOR 였고, 넓히지 않기로 한 판단이다** (2026-09-07 사용자 결정). MAJOR 방아쇠가 셋이다 — ⓐ 설치본이 만들어야 하는 새 컨텍스트 파일(클론 루트 직속의 원장 지정 파일) ⓑ 이름으로 부르던 스킬 제거(`harness:release`) ⓒ 설치본이 소유한 파일의 형태 변경(`repos.json`). 넓히지 않은 근거는 **이 판을 만든 머신에서 아래 "설치본이 할 일" 이 이미 끝나 있다**는 것 하나뿐이다. **다른 머신에서 올린다면 번호를 믿지 말고 그 절을 그대로 밟아라** — 옛 배치 그대로 두면 `lib/harness-root.sh` 가 루트를 못 찾아 **모든 원장 호출이 rc≠0** 이 된다.

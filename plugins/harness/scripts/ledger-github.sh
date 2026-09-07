@@ -2,7 +2,7 @@
 # GitHub 백엔드 — 이슈 · sub-issue(계층) · blocked-by(순서) · 라벨 · 코멘트 · Projects v2(멀티 레포 묶음).
 # ledger.sh 가 부른다(직접 부르지 않는다). 명령 문면은 harness-m8gg.3.1 의 실측 그대로다.
 #
-# ledger.json = {"backend":"github","owner":"<o>","project":<n>}
+# .harness.json 의 ledger = {"backend":"github","owner":"<o>","project":<n>}
 #   owner   Projects v2 의 소유자(사용자 login). **이슈가 사는 레포의 소유자도 이 값이다.**
 #   project Projects v2 번호. 없으면 create 가 item-add 를 건너뛰지 않고 rc≠0 이다 — `ledger.sh init` 이 만든다.
 #
@@ -56,21 +56,21 @@ set -uo pipefail
 die() { echo "ledger-github: $*" >&2; exit 1; }
 
 # 워크트리 배선 — 이 백엔드는 워크트리에 아무것도 두지 않는다. 이슈는 원격에 있고 루트는
-# HARNESS_ROOT 또는 ~/.harness-workspace/ledger.json(lib/harness-root.sh)으로 찾는다. gh 없이도 답한다.
-[ "${1:-}" = "wire-worktree" ] && { echo "ledger-github: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트 직속의 ledger.json 으로 찾는다"; exit 0; }
+# HARNESS_ROOT 또는 위로 거슬러 찾은 .harness.json(lib/harness-root.sh)으로 정한다. gh 없이도 답한다.
+[ "${1:-}" = "wire-worktree" ] && { echo "ledger-github: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 위로 거슬러 찾은 .harness.json 으로 정한다"; exit 0; }
 # 원격 반영 검사 — 이슈가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (github 백엔드: 이슈가 원격 자체다)"; exit 0; }
 # 사람이 읽는 자기 UI — 갖는다. scripts/board.sh 가 이것으로 렌더 여부를 정한다(코어는 백엔드
 # 이름을 열거하지 않는다). 위 둘과 같이 gh 검사 앞에 둔다 — 답이 상수라 원장에 닿지 않는다.
 [ "${1:-}" = "has-ui" ] && { echo "GitHub 의 이슈·Projects 화면"; exit 0; }
-OWNER="$(jq -r '.owner // empty' "$LEDGER_CONFIG")"
-PROJECT="$(jq -r '.project // empty' "$LEDGER_CONFIG")"
-[ -n "$OWNER" ] || die "$LEDGER_CONFIG 에 owner 가 없다"
+OWNER="$(jq -r '.ledger.owner // empty' "$LEDGER_CONFIG")"
+PROJECT="$(jq -r '.ledger.project // empty' "$LEDGER_CONFIG")"
+[ -n "$OWNER" ] || die "$LEDGER_CONFIG 에 ledger.owner 가 없다"
 command -v gh >/dev/null 2>&1 || die "gh 가 PATH 에 없다 — GitHub 백엔드는 gh 로 원장에 닿는다"
 gh auth status >/dev/null 2>&1 || die "gh 인증이 없다 — 사람이 gh auth login 을 먼저 한다"
 
 # ── 레포·id ───────────────────────────────────────────────────────────
-slug_of() { # <repo 이름> → owner/name — owner 는 ledger.json 이 정한다(등록부를 읽지 않는다)
+slug_of() { # <repo 이름> → owner/name — owner 는 .harness.json 의 ledger 가 정한다
   [ -n "$1" ] || die "레포 이름이 비었다"
   printf '%s/%s\n' "$OWNER" "$1"
 }
@@ -190,9 +190,9 @@ list_json() { # 옵션을 파싱해 정규화된 JSON 배열을 낸다. 상태 �
   # 레포 목록의 출처가 없으면 여기서 죽는다 — `for name in $(repos_all)` 안의 실패는 명령 치환에 갇혀 빈 루프가
   # 되고 "이슈 0건" 으로 rc 0 이 났다(harness-m8gg.4 verify-code 2차의 관찰). 실패를 삼키지 않는다.
   local names
-  [ -n "$PROJECT" ] || die "list: $LEDGER_CONFIG 에 project 가 없다 — 읽기의 경계가 Projects v2 소속이라 번호 없이는 무엇이 원장인지 정할 수 없다 (ledger.sh init 이 만든다)"
+  [ -n "$PROJECT" ] || die "list: $LEDGER_CONFIG 에 ledger.project 가 없다 — 읽기의 경계가 Projects v2 소속이라 번호 없이는 무엇이 원장인지 정할 수 없다 (ledger.sh init 이 만든다)"
   names="$(repos_all)" || die "list: Project $PROJECT (owner $OWNER) 의 항목을 읽지 못했다 — 이슈가 사는 레포 목록의 출처다"
-  [ -n "$names" ] || echo "ledger-github: Project $PROJECT (owner $OWNER) 에 이슈 항목이 0건이다 — 훑을 레포가 없다. $LEDGER_CONFIG 의 project 번호를 확인하라." >&2
+  [ -n "$names" ] || echo "ledger-github: Project $PROJECT (owner $OWNER) 에 이슈 항목이 0건이다 — 훑을 레포가 없다. $LEDGER_CONFIG 의 ledger.project 번호를 확인하라." >&2
   for name in $names; do
     o="$(slug_of "$name")"; r="${o##*/}"; o="${o%%/*}"
     page="$(gh api graphql --paginate --slurp -f query="query(\$o:String!,\$r:String!,\$endCursor:String){ repository(owner:\$o,name:\$r){ issues(first:100, after:\$endCursor, states:$states){ nodes{ $FIELDS $PROJECT_FIELD } pageInfo{hasNextPage endCursor} } } }" -f o="$o" -f r="$r" 2>/dev/null)" \
@@ -200,7 +200,7 @@ list_json() { # 옵션을 파싱해 정규화된 JSON 배열을 낸다. 상태 �
     nodes="$(printf '%s' "$page" | jq '[.[].data.repository.issues.nodes[]]')" \
       || die "list: $o/$r 의 응답을 읽지 못했다"
     seen=$((seen + $(printf '%s' "$nodes" | jq 'length')))
-    # 경계: Projects v2 소속. 번호는 문자열로 견줘 ledger.json 의 project 가 수가 아니어도 죽지 않는다.
+    # 경계: Projects v2 소속. 번호는 문자열로 견줘 ledger.project 가 수가 아니어도 죽지 않는다.
     nodes="$(printf '%s' "$nodes" | jq --arg p "$PROJECT" 'map(select(any(.projectItems.nodes[]?; (.project.number | tostring) == $p)))')" \
       || die "list: $o/$r 의 project 소속을 판정하지 못했다"
     kept=$((kept + $(printf '%s' "$nodes" | jq 'length')))
@@ -210,7 +210,7 @@ list_json() { # 옵션을 파싱해 정규화된 JSON 배열을 낸다. 상태 �
   # 없는(또는 틀린) project 번호는 조용히 "이슈 0건" 이 된다 — 0건은 정상 상태와 구별되지 않으므로
   # 그 사실을 stderr 로 밝힌다. rc 는 0 이다: 갓 만든 빈 프로젝트도 같은 모양이라 실패로 읽을 수 없다.
   if [ "$kept" -eq 0 ] && [ "$seen" -gt 0 ]; then
-    echo "ledger-github: Project $PROJECT 에 든 이슈가 0건이다 — 등재 레포의 이슈 ${seen}건은 전부 프로젝트 밖이다. $LEDGER_CONFIG 의 project 번호를 확인하라." >&2
+    echo "ledger-github: Project $PROJECT 에 든 이슈가 0건이다 — 등재 레포의 이슈 ${seen}건은 전부 프로젝트 밖이다. $LEDGER_CONFIG 의 ledger.project 번호를 확인하라." >&2
   fi
   [ -n "$pattern" ] && re="$(glob_to_re "$pattern")"
   printf '%s' "$out" | jq --arg labels "$labels" --arg re "$re" --arg status "$status" --arg type "$type" --arg parent "$parent" --arg all "$all" --argjson limit "$limit" '
@@ -236,7 +236,7 @@ case "$cmd" in
     if [ -z "$PROJECT" ]; then
       PROJECT="$(gh project create --owner "$OWNER" --title "$title" --format json 2>/dev/null | jq -r '.number // empty')"
       [ -n "$PROJECT" ] || die "Projects v2 를 만들지 못했다 — 토큰에 project scope 가 없으면 사람이 일반 터미널에서 'gh auth refresh -h github.com -s project,read:project' 를 돌린다"
-      tmp="$(mktemp)"; jq --argjson n "$PROJECT" '.project = $n' "$LEDGER_CONFIG" > "$tmp" && mv "$tmp" "$LEDGER_CONFIG"
+      tmp="$(mktemp)"; jq --argjson n "$PROJECT" '.ledger.project = $n' "$LEDGER_CONFIG" > "$tmp" && mv "$tmp" "$LEDGER_CONFIG"
     fi
     gh project view "$PROJECT" --owner "$OWNER" --format json >/dev/null 2>&1 \
       || die "Project $PROJECT (owner $OWNER) 를 읽지 못했다 — 번호가 틀렸거나 project scope 가 없다: 'gh auth refresh -h github.com -s project,read:project'"
@@ -310,7 +310,7 @@ case "$cmd" in
         *) die "create: 모르는 인자 '$1'" ;;
       esac
     done
-    [ -n "$PROJECT" ] || die "$LEDGER_CONFIG 에 project 가 없다 — 이슈를 Projects v2 에 넣지 못하므로 만들지 않는다 (ledger.sh init 이 만든다)"
+    [ -n "$PROJECT" ] || die "$LEDGER_CONFIG 에 ledger.project 가 없다 — 이슈를 Projects v2 에 넣지 못하므로 만들지 않는다 (ledger.sh init 이 만든다)"
     # 이슈가 살 레포는 `repo:` 라벨 정확히 하나가 정한다. 등록부가 사라져 이름의 실재를 여기서
     # 확인할 수 없으므로(머리 주석), 애매한 입력 — 0개(레포를 모른다) · 2개 이상(어느 쪽인지
     # 모른다) — 을 세워서 막는다. --parent 로 넘겨받던 폴백은 없앴다: 부모의 레포를 조용히
@@ -550,7 +550,7 @@ case "$cmd" in
     # **실제 GitHub 왕복으로 확인하지 않았다** — 판정은 아래 오프라인 픽스처뿐이다.
     [ $# -eq 1 ] || die "sprint-add: 인자는 스프린트 ID 하나다"
     sid="$1"
-    [ -n "$PROJECT" ] || die "sprint-add: $LEDGER_CONFIG 에 project 가 없다 — 스프린트가 사는 ITERATION 필드가 그 프로젝트에 있다 (ledger.sh init 이 만든다)"
+    [ -n "$PROJECT" ] || die "sprint-add: $LEDGER_CONFIG 에 ledger.project 가 없다 — 스프린트가 사는 ITERATION 필드가 그 프로젝트에 있다 (ledger.sh init 이 만든다)"
     fq='query($o:String!,$n:Int!){ user(login:$o){ projectV2(number:$n){ fields(first:100){ nodes{
           ... on ProjectV2IterationField { id configuration {
             duration
@@ -612,7 +612,7 @@ case "$cmd" in
     for a in "$@"; do [ "$a" = --json ] || die "$cmd: 모르는 인자 '$a' (사용: $cmd --json)"; done
     # 두 질의 모두 project 번호 없이는 답할 수 없다 — rails 는 읽기의 경계(Projects v2 소속)로,
     # sprints 는 Iteration 필드가 사는 곳으로 쓴다. 어느 키가 문제인지 이름으로 든다.
-    [ -n "$PROJECT" ] || die "$cmd: $LEDGER_CONFIG 에 project 가 없다 (없거나 JSON 을 읽지 못했다) — rails 는 읽기의 경계가 Projects v2 소속이고 sprints 는 그 프로젝트의 Iteration 필드에서 나온다 (ledger.sh init 이 만든다)"
+    [ -n "$PROJECT" ] || die "$cmd: $LEDGER_CONFIG 에 ledger.project 가 없다 (없거나 JSON 을 읽지 못했다) — rails 는 읽기의 경계가 Projects v2 소속이고 sprints 는 그 프로젝트의 Iteration 필드에서 나온다 (ledger.sh init 이 만든다)"
     case "$cmd" in
       rails)
         # owner 의 출처는 **epic 의 assignee** 하나뿐이다 — task 의 assignee 는 claim 실행자의

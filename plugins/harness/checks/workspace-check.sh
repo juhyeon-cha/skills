@@ -6,7 +6,7 @@
 # 그 위에 PostToolUse 훅(hooks/enter-worktree.sh)을 표본 payload 로 돌린 뒤 scripts/workspace-cleanup.sh
 # 로 되돌린다.
 #   ① 훅 — .beads/redirect 가 하네스 원장을 가리키고, 클론 exclude 에 .beads 가 등재되며,
-#      워크트리에서 부른 lib/harness-root.sh 가 그 배선을 따라 하네스 루트를 낸다
+#      워크트리에서 부른 lib/harness-root.sh 가 워크트리 자신을 하네스 루트로 낸다
 #   ② 부트스트랩 폴백 — 자기 EnterWorktree 훅이 없는 레포에서 1회 실행 + 형제 마커, 재진입은 마커로
 #      건너뛰고, 마커가 없으면 재시도한다
 #   ③ 자기 EnterWorktree 훅을 가진 레포에서는 bootstrap 을 돌리지 않는다
@@ -14,9 +14,9 @@
 #   ⑤ 하네스 루트를 못 찾으면 rc=2 이고 stderr 가 "원장 배선 실패" 를 든다 — PostToolUse 훅 실패는
 #      도구 호출을 막지 않고 exit 2 의 stderr 만 Claude 에게 실리므로, 그 출구와 문구가 유일한 신호다
 #   ⑥ cleanup — git worktree list 에서 경로가 사라지고 브랜치 worktree-<이름> 와 마커도 없다
-# 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려 실제
-# ~/.harness-workspace 는 건드리지 않는다. 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 갓 만든
-# 헬퍼는 클론 루트 직속 ledger.json 에 기대는데, 그 파일은 이 머신의 상태다.
+# 임시 bare origin + 클론을 임시 디렉토리 안에 만들어 이 머신의 어느 레포도 건드리지 않는다.
+# 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 픽스처 클론의 원장 좌표는 검사용이 아니라
+# 이 머신의 실원장이어야 검사용 bead 를 만들 수 있다.
 set -uo pipefail
 # 하네스 루트(원장의 자리 — 검사용 bead 를 만든다)는 lib/harness-root.sh 가 낸다. 못 찾으면 rc=1.
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
@@ -31,10 +31,10 @@ cd "$ROOT" || { echo "✗ 하네스 루트로 이동하지 못했다: $ROOT" >&2
 # beads 가 아닌 백엔드에서는 사유를 밝히고 건너뛴다. 조용히 죽으면 "건너뛴 것" 과 "실패한
 # 것" 이 구별되지 않는다.
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
-BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json")" \
-  || { echo "✗ ledger.json 을 읽지 못했다: $ROOT/ledger.json" >&2; exit 1; }
+BACKEND="$(jq -r '.ledger.backend // empty' "$ROOT/.harness.json")" \
+  || { echo "✗ .harness.json 을 읽지 못했다: $ROOT/.harness.json" >&2; exit 1; }
 [ -n "$BACKEND" ] \
-  || { echo "✗ ledger.json 에 backend 키가 없다: $ROOT/ledger.json" >&2; exit 1; }
+  || { echo "✗ .harness.json 에 ledger.backend 키가 없다: $ROOT/.harness.json" >&2; exit 1; }
 if [ "$BACKEND" != beads ]; then
   echo "⊘ EnterWorktree 왕복 검사 전체를 건너뛴다 (backend=$BACKEND) — 검사용 bead 의 'create --ephemeral' 과 'delete' 가 beads 전용 인자라 github·notion 에는 대응물이 없다. ①~⑥ 어느 절도 판정하지 않았다"
   exit 0
@@ -42,7 +42,7 @@ fi
 TMP=$(mktemp -d)
 BEAD=""
 GITC=(-c user.email=check@harness -c user.name=harness-check)
-export HARNESS_CLONE_ROOT="$TMP/clones"
+CLONES="$TMP/clones"      # 픽스처 클론의 자리 — 고정 규약이 아니라 이 검사의 임시 디렉토리다
 HOOK="$PLUGIN_ROOT/hooks/enter-worktree.sh"
 
 # 원장은 어댑터로 — 검사용 bead 의 생성·삭제(--ephemeral·delete 는 beads 전용 인자다).
@@ -64,21 +64,20 @@ is_repo() { git -C "$1" rev-parse --git-dir >/dev/null 2>&1; }
 # ── 준비: bare origin, 등록 대상 클론 ──
 git init -q "$TMP/seed"
 SEED_BRANCH=$(git -C "$TMP/seed" symbolic-ref --short HEAD)
-# 게이트 명령·기본 브랜치·부트스트랩은 대상 레포가 소유한다 — seed 의 추적 파일로 둔다
-# (scripts/repo.sh 머리 주석). bootstrap 은 무시되는 경로에 실행 표식을 남긴다 — 실행 횟수를
-# 게이트가 세고, 정리가 그것으로 막히지 않게.
+# 게이트 명령·기본 브랜치·부트스트랩·원장 좌표는 대상 레포가 소유한다 — seed 의 추적 파일로
+# 둔다. 그 파일이 곧 하네스 루트의 판별자라, 클론과 워크트리가 저마다 사본을 갖는다.
+# bootstrap 은 무시되는 경로에 실행 표식을 남긴다 — 실행 횟수를 게이트가 세고, 정리가 그것으로
+# 막히지 않게.
 jq -n --arg b "$SEED_BRANCH" \
-  '{check: "true", default_branch: $b, bootstrap: "mkdir -p node_modules && echo ran >> node_modules/BOOT_MARK"}' \
+  '{check: "true", default_branch: $b, bootstrap: "mkdir -p node_modules && echo ran >> node_modules/BOOT_MARK", ledger: {backend: "beads"}}' \
   > "$TMP/seed/.harness.json"
 ( cd "$TMP/seed" && printf 'node_modules/\n' > .gitignore && echo one > a.txt \
   && git add . && git "${GITC[@]}" commit -qm first )
 DEFAULT_BRANCH=$(git -C "$TMP/seed" symbolic-ref --short HEAD)
 git clone -q --bare "$TMP/seed" "$TMP/origin.git"
-mkdir -p "$HARNESS_CLONE_ROOT"
-git clone -q "$TMP/origin.git" "$HARNESS_CLONE_ROOT/wscheck" 2>/dev/null
-CLONE="$HARNESS_CLONE_ROOT/wscheck"
-
-jq -n '{repos: [{name: "wscheck", url: "unused-in-this-check"}]}' > "$TMP/manifest.json"
+mkdir -p "$CLONES"
+git clone -q "$TMP/origin.git" "$CLONES/wscheck" 2>/dev/null
+CLONE="$CLONES/wscheck"
 
 BEAD=$(ledger create "wscheck: EnterWorktree 왕복 게이트용" -t task --ephemeral -l "repo:wscheck" --silent)
 [[ -n "$BEAD" ]] || { echo "  ✗ FAILED: 검사용 bead 생성" ; exit 1; }
@@ -93,12 +92,11 @@ mk_tree() { git -C "$CLONE" "${GITC[@]}" worktree add -q -b "worktree-$BEAD" "$W
 run_hook() {
   local cwd="$1"; shift
   printf '{"session_id":"wscheck","hook_event_name":"PostToolUse","tool_name":"EnterWorktree","cwd":"%s"}' "$cwd" \
-    | env HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$@" bash "$HOOK"
+    | env HARNESS_ROOT="$ROOT" "$@" bash "$HOOK"
 }
-# cleanup 도 HARNESS_ROOT 로 물린다 — 이 검사가 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌렸으므로
-# lib/harness-root.sh 의 클론 루트 폴백이 임시 디렉토리를 가리킨다. 하네스 루트를 CWD 로 부르면(check-all 경유)
-# redirect 도 없어 루트를 못 찾았다 (실측 2026-09-06, harness-m8gg.8.2).
-run_cl() { HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD"; }
+# cleanup 은 원장(HARNESS_ROOT)과 정리 대상(서 있는 자리)을 따로 받는다 — 원장은 이 머신의
+# 실원장이어야 검사용 bead 를 읽고, 정리 대상은 픽스처 클론이어야 한다. 그래서 클론 안에서 부른다.
+run_cl() { (cd "$CLONE" && HARNESS_ROOT="$ROOT" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh" "$BEAD"); }
 
 echo "── ① 훅: 원장 배선 ──"
 mk_tree
@@ -110,13 +108,14 @@ step "redirect 가 하네스 원장을 가리킨다" [ "$(cat "$WT/.beads/redire
 step "가리키는 곳이 실재한다"           [ -d "$(cat "$WT/.beads/redirect" 2>/dev/null)" ]
 step "클론 exclude 에 .beads 등재"      grep -qxF ".beads" "$CLONE/.git/info/exclude"
 step "클론 exclude 에 .claude/worktrees/ 등재" grep -qxF ".claude/worktrees/" "$CLONE/.git/info/exclude"
-# 재진입 경로 — HARNESS_ROOT 없이 부른 루트 탐색기는 **배선을 따라가지 않는다.** 답은 클론 루트
-# 직속의 ledger.json 하나이고, 워크트리 안에서 부르든 밖에서 부르든 같다(lib/harness-root.sh).
-step "클론 루트에 ledger.json 이 없으면 워크트리에서도 rc≠0 (배선으로 폴백하지 않는다)" \
-  bash -c '! (cd "$1" && env -u HARNESS_ROOT bash "$2/lib/harness-root.sh" >/dev/null 2>&1)' _ "$WT" "$PLUGIN_ROOT"
-printf '{"backend":"beads"}\n' > "$HARNESS_CLONE_ROOT/ledger.json"
-step "클론 루트 직속 ledger.json 이 있으면 워크트리에서도 그 디렉토리를 낸다" \
-  [ "$(cd "$WT" && env -u HARNESS_ROOT bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" = "$HARNESS_CLONE_ROOT" ]
+# 재진입 경로 — HARNESS_ROOT 없이 부른 루트 탐색기는 **배선을 따라가지 않는다.** 답은 위로
+# 거슬러 처음 만나는 .harness.json 이고, 워크트리는 자기 사본을 가지므로 자기 자신이 답이다.
+step "워크트리에서 부른 루트 탐색기는 워크트리 자신을 낸다" \
+  [ "$(cd "$WT" && env -u HARNESS_ROOT bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" = "$WT" ]
+step "본 체크아웃에서 부르면 클론 자신을 낸다" \
+  [ "$(cd "$CLONE" && env -u HARNESS_ROOT bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>/dev/null)" = "$CLONE" ]
+step ".harness.json 이 없는 자리에서는 rc≠0 (조용히 폴백하지 않는다)" \
+  bash -c '! (cd "$1" && env -u HARNESS_ROOT bash "$2/lib/harness-root.sh" >/dev/null 2>&1)' _ "$TMP" "$PLUGIN_ROOT"
 step "워크트리 git status 가 비어 있다 (배선이 untracked 로 뜨지 않는다)" [ -z "$(git -C "$WT" status --short)" ]
 
 echo "── ② 부트스트랩 폴백 ──"
@@ -144,7 +143,7 @@ rm -rf "$WT/.claude"
 echo "── ④ cwd 가 워크트리 밖 ──"
 run_hook "$CLONE" 2>/dev/null; rc=$?
 step "rc=0"                            [ "$rc" -eq 0 ]
-step "클론 루트에 redirect 를 만들지 않는다" [ ! -e "$CLONE/.beads/redirect" ]
+step "본 체크아웃에 redirect 를 만들지 않는다" [ ! -e "$CLONE/.beads/redirect" ]
 
 echo "── ⑤ 하네스 루트를 못 찾는다 ──"
 rm -rf "$WT/.beads"

@@ -67,7 +67,7 @@ HARNESS_ROOT=<harness root> ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list --statu
 |---|---|---|
 
 On the `github` backend the assignee is a GitHub login, not the actor value — say so in the column
-header when `ledger.json` says `github` (`harness:develop` 3-0 holds the reason).
+header when `.harness.json` says `ledger.backend` is `github` (`harness:develop` 3-0 holds the reason).
 
 ## 4. Blocked
 

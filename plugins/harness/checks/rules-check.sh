@@ -7,18 +7,16 @@
 #     (하네스 루트 레포의 .gitignore 를 보던 S12). 하네스 루트가 git 레포가 아니게 되면서 그
 #     대상이 없어졌고, 검사와 함께 축도 걷었다.
 #   하네스 루트 표지 — 원장을 ledger.sh 로 읽는 검사. 원장은 언제나 lib/harness-root.sh 가 낸 루트 HROOT
-#     의 것이다 — 하네스 클론의 워크트리에서 부르면 redirect 가 가리키는 본 루트다.
+#     의 것이다 — 워크트리에서 부르면 워크트리 자신의 `.harness.json` 이 그 루트다.
 #   둘을 가르지 않으면 워크트리에서 돌린 rc 0 이 검토 대상 트리가 아니라 본 루트의 .gitignore
 #   에 대한 판정이 된다. 시작할 때 "트리: … · 원장 루트: …" 한 줄로 두 자리를 stdout 에 낸다.
 # 하네스 루트를 못 찾으면 원장을 보는 검사는 **조용히 건너뛰지 않고 실패한다**(rc≠0) — 원장 없이
 # 통과한 원장 검사는 검사가 아니다. 플러그인 문서만 보는 검사는 그대로 돈다.
 #   R5  (harness:develop 운영 규율) 태스크의 repo: 라벨은 정확히 1개                       [하네스 루트]
-#   R18 (harness:develop 멀티 레포) 등록부에 경로를 적지 않는다 — 키 집합 화이트리스트  [클론 루트]
 #   R-ACC (harness:develop 운영 규율) acceptance 없는 태스크는 착수(in_progress)하지 않는다   [하네스 루트]
 #   R-REM (세션 블록 절대 금지 · ADR cycle-close(harness-dmy) 6.5) 낡은 문장의 잔존 (양방향)  [트리]
 #         — "PR 생성·원격 반영은 전부 명시 지시 대상" 주장이 예외 둘 등재 뒤에도 남아 있는가
 #   C6  (세션 블록 「절대 금지」) 절이 살아 있고 강제 장치의 자리(${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md)를 가리킨다 [트리]
-#   R40 (harness:develop 멀티 레포) 등록부의 이름 ↔ 클론 디렉토리 실재 (양방향)      [클론 루트]
 #   S22 (harness:develop 3-0) 한 워크트리에 두 태스크를 동시에 위임하지 않는다               [하네스 루트]
 #   S24 (harness:develop 4-2) 하위가 전부 종료 상태인데 열려 있는 스토리                    [하네스 루트]
 #   R-DATE (harness-dg0.6.30) 주입 블록에 YYYY-MM-DD 날짜가 없다                             [트리]
@@ -32,9 +30,6 @@
 #
 # 극성 반전(harness:develop 운영 규율): 검사 대상을 손으로 나열하지 않는다.
 #   R5  대상은 bd 원장의 태스크 전수에서 파생한다 (면제는 아래 사유 참조).
-#   R18 관측 키는 등록부 실물(클론 루트 직속)에서 파생하고 허용 집합과 양방향 대조한다.
-#       허용 집합만이 손으로 적힌 목록이며 그것이 곧 화이트리스트다 — 새 키를
-#       추가하면 이 검사가 실패하는 것이 의도다 (등재 없이 키가 늘지 않게).
 #   R-ACC 대상은 원장에서 파생한다 — 착수의 기계적 표시(status=in_progress)를 가진
 #         태스크 전수이며, 손으로 고른 id 목록이 없다.
 #   R-REM 후보는 스캔 경로 전체에서 패턴으로 파생하고, **남아야 하는 것만** 사유와 함께
@@ -43,15 +38,12 @@
 #       0건이면 실패다. 항목별 게이트 표기는 M1 이 블록에서 뺐다(harness-lzs3.2.3 — 강제 장치의
 #       목록·한계는 ../docs/guardrails.md 가 단일 소유한다) — 그래서 이 검사가 보는 것은
 #       그 포인터가 절에 살아 있는가다. 면제 칸을 두지 않는다.
-#   R40 두 집합을 **각각의 출처에서** 파생한다(등재부 = 클론 루트 직속 repos.json · 클론 = 파일시스템)
-#       — 한쪽에서만 파생하면 그 방향의 어긋남만 보인다. 클론 루트 쪽에서 레포가 아닌
-#       디렉토리만 사유와 함께 면제하고, 면제 키의 실재를 역방향으로 단언한다.
 #   S22 원장 쪽(동시 in_progress)과 파일시스템 쪽(그 스토리의 워크트리 수)에서 각각 파생해
 #       비둘기집으로 판정한다 — 손으로 적은 스토리 면제가 없다.
 #   S24 대상은 **하위를 가진 epic 전수**이고, 종료 상태 집합(closed·blocked·deferred)만
 #       손으로 적힌 목록이다. bd 의 계산이 규율과 반대라 그 집합을 이 검사가 직접 든다.
 #
-# **0건 파생의 취급이 검사마다 갈린다.** C6·R40 은 문자 그대로 실패로 읽는다(대상이 갓
+# **0건 파생의 취급이 검사마다 갈린다.** C6 은 문자 그대로 실패로 읽는다(대상이 갓
 #   세팅한 트리에도 있다). S22·S24 는 갓 세팅한 트리에서 대상이 0건이라 그렇게 할 수
 #   없고(setup/SKILL.md 1.5 의 A 검증표가 rc 0 을 요구한다), R5 와 **같은 함수**를 쓴다 —
 #   `ledger_fields_ok`(파생이 의존하는 필드를 직접 단언한다). 그 대체가 못 잡는 것까지
@@ -97,17 +89,13 @@ HROOT_ERR=""
 [[ -n "$HROOT" ]] || HROOT_ERR="$(cd "$CALLER_PWD" && bash "$PLUGIN_ROOT/lib/harness-root.sh" 2>&1 >/dev/null | head -1)"
 need_hroot() {  # need_hroot <검사이름> — 하네스 루트가 없으면 ✗ 를 내고 1
   [[ -n "$HROOT" ]] && return 0
-  echo "✗ $1 — 하네스 루트를 찾지 못했다 (${HROOT_ERR:-lib/harness-root.sh rc≠0}). 원장·등록부를 보는 검사라 건너뛰지 않고 실패한다 — 스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
+  echo "✗ $1 — 하네스 루트를 찾지 못했다 (${HROOT_ERR:-lib/harness-root.sh rc≠0}). 원장을 보는 검사라 건너뛰지 않고 실패한다 — 스토리 워크트리 안에서 돌리거나 HARNESS_ROOT 를 지정하라"
   return 1
 }
 bdl() { HARNESS_ROOT="$HROOT" bash scripts/ledger.sh "$@"; }   # 원장은 언제나 하네스 루트의 것이다 — 어댑터로 읽는다(CWD 는 플러그인 루트)
 
-CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
 echo "트리: $PLUGIN_ROOT (플러그인) · 원장 루트: ${HROOT:-(없음)}"
 
-# 등록부는 검토 대상 트리에 있지 않다 — 클론 루트 직속의 머신 로컬 파일이다(scripts/repo.sh 머리 주석).
-# 그래서 R18·R40 은 검토 대상 트리를 요구하지 않고, 워크트리에서 돌려도 같은 파일 하나를 본다.
-MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 재정의는 검사 스크립트용
 BLOCK="hooks/session-context.md"                   # SessionStart 주입 블록 — 플러그인의 유일한 상시 로드 문서
 
 fail=0
@@ -207,81 +195,6 @@ check_r5() {
 
   echo "✓ R5 태스크 repo: 라벨 정확히 1개 (대상 ${covered}건)"
   return 0
-}
-
-# ── R18: 등록부 키 집합 화이트리스트 + 경로형 값 금지 ────────────────
-# 허용 집합. 여기가 화이트리스트다 — 등록부에 새 키가 생기면 이 검사가 실패한다.
-# default_branch·check·bootstrap 은 **대상 레포 자신의 `.harness.json`** 으로 옮겼다
-# (scripts/repo.sh 머리 주석). 전환 기간에 옛 항목이 남아 있는 등록부를 실패로 읽지 않도록
-# 선택 키에 둔다 — 새로 쓰는 자리(repo.sh cmd_add)는 name·url 둘만 쓴다.
-R18_REQUIRED=(name url)
-R18_OPTIONAL=(default_branch check bootstrap)
-R18_TOP_REQUIRED=(repos)
-R18_TOP_OPTIONAL=(doc)
-check_r18() {
-  local f=0 allowed top_allowed extra missing entry_fail
-  if [[ ! -f "$MANIFEST" ]]; then
-    echo "✗ R18 — $MANIFEST 이 없다"
-    return 1
-  fi
-  jq empty "$MANIFEST" 2>/dev/null || { echo "✗ R18 — $MANIFEST 이 유효한 JSON 이 아니다"; return 1; }
-
-  allowed=$(printf '%s\n' "${R18_REQUIRED[@]}" "${R18_OPTIONAL[@]}" | jq -R . | jq -sc .)
-  top_allowed=$(printf '%s\n' "${R18_TOP_REQUIRED[@]}" "${R18_TOP_OPTIONAL[@]}" | jq -R . | jq -sc .)
-
-  # 최상위 키 — 관측 집합에서 파생해 허용 밖을 잡는다.
-  extra=$(jq -r --argjson a "$top_allowed" 'keys[] | select(. as $k | $a | index($k) | not)' "$MANIFEST")
-  while IFS= read -r k; do
-    [[ -z "$k" ]] && continue
-    echo "✗ R18 $MANIFEST — 허용되지 않은 최상위 키 '$k' (허용: ${R18_TOP_REQUIRED[*]} ${R18_TOP_OPTIONAL[*]})"
-    f=1
-  done <<< "$extra"
-  for k in "${R18_TOP_REQUIRED[@]}"; do
-    jq -e --arg k "$k" 'has($k)' "$MANIFEST" >/dev/null || { echo "✗ R18 $MANIFEST — 필수 최상위 키 '$k' 가 없다"; f=1; }
-  done
-
-  jq -e '(.repos // []) | type == "array" and length > 0' "$MANIFEST" >/dev/null \
-    || { echo "✗ R18 $MANIFEST — repos 가 비었거나 배열이 아니다 (대상 0건은 통과가 아니다)"; return 1; }
-
-  # 각 항목의 관측 키를 실물에서 파생 → 허용 밖 / 필수 누락 양방향
-  entry_fail=$(jq -r --argjson allowed "$allowed" --argjson req "$(printf '%s\n' "${R18_REQUIRED[@]}" | jq -R . | jq -sc .)" '
-    .repos | to_entries[] | . as $e
-    | ($e.value | keys) as $obs
-    | (($obs - $allowed) | map("EXTRA\t\($e.key)\t\(.)")) + (($req - $obs) | map("MISSING\t\($e.key)\t\(.)"))
-    | .[]' "$MANIFEST")
-  if [[ -n "$entry_fail" ]]; then
-    while IFS=$'\t' read -r kind idx key; do
-      [[ -z "$kind" ]] && continue
-      local name; name=$(jq -r --argjson i "$idx" '.repos[$i].name // "(name 없음)"' "$MANIFEST")
-      if [[ "$kind" == "EXTRA" ]]; then
-        echo "✗ R18 $MANIFEST repos[$idx] ($name) — 허용되지 않은 키 '$key' (허용: ${R18_REQUIRED[*]} ${R18_OPTIONAL[*]})"
-        echo "    경로를 적으려는 것이라면 멈춰라 — 클론 위치는 ~/.harness-workspace/<name> 으로 고정이다 (scripts/repo.sh 가 관리)"
-      else
-        echo "✗ R18 $MANIFEST repos[$idx] ($name) — 필수 키 '$key' 가 없다"
-      fi
-      f=1
-    done <<< "$entry_fail"
-  fi
-
-  # 경로형 값 금지: url 을 제외한 값이 '/' 로 시작하거나 '~/' 를 포함하면 손으로 적은 경로다.
-  local pathy
-  pathy=$(jq -r '
-    .repos | to_entries[] | . as $e
-    | $e.value | to_entries[]
-    | select(.key != "url")
-    | select((.value | type) == "string")
-    | select((.value | test("^/")) or (.value | test("~/")))
-    | "\($e.key)\t\(.key)\t\(.value)"' "$MANIFEST")
-  if [[ -n "$pathy" ]]; then
-    while IFS=$'\t' read -r idx key val; do
-      [[ -z "$key" ]] && continue
-      echo "✗ R18 $MANIFEST repos[$idx].$key — 절대 경로형 값이다: $val"
-      f=1
-    done <<< "$pathy"
-  fi
-
-  [[ "$f" -eq 0 ]] && echo "✓ R18 $MANIFEST 키 집합이 허용 집합과 일치, 경로형 값 없음"
-  return "$f"
 }
 
 
@@ -578,93 +491,6 @@ check_c6() {
   return "$f"
 }
 
-# ── R40: 등록부의 이름 ↔ 클론 디렉토리 실재 (양방향) ─────────────────
-# 규칙 원문(harness:develop 멀티 레포): "레포 등록과 클론은 scripts/repo.sh add
-# <url> 이 함께 한다. 클론 위치는 ~/.harness-workspace/<이름> 으로 고정"
-#
-# **양방향이다 — 두 집합을 각각의 출처에서 파생한다.** scripts/repo.sh 의 cmd_list 는
-#   `jq -r '.repos[].name'` 로 **등재부에서만** 파생해 클론 부재를 출력하고 rc 는 항상 0
-#   이므로(repo.sh:170-189), 그것을 비-0 으로 바꾸는 것만으로는 절반이다. "클론은 있는데
-#   등재가 없다" 쪽은 클론 루트에서 새로 파생해야 보인다.
-#     방향 A  등재에 있는데 클론이 없다  → 세션을 열 클론이 없다(EnterWorktree 를 부를 자리가 없다)
-#     방향 B  클론은 있는데 등재가 없다  → 게이트 명령(check)의 출처가 없는 트리가 남는다
-#
-# 0건 파생은 실패다. 양쪽 다 문자 그대로 적용한다. 명시적으로 실패시키는 이유는 **루트
-#   경로가 어긋났을 때**(오타·HARNESS_CLONE_ROOT 오설정) 방향 B 가 조용히 0건이 되어
-#   "불일치 없음"으로 읽히는 것을 가르기 위해서다.
-#
-# 극성 반전: 클론 루트의 디렉토리는 전수 파생하고, **레포가 아닌 것만** 사유와 함께
-#   R40_KEEP 에 등재한다. 면제 키가 실제 클론 루트에 존재하는지 역방향으로 단언한다 —
-#   없어진 면제는 낡은 면제다. 등재된 레포 이름을 면제로 쓰는 것도 함께 막는다(그러면
-#   방향 A 가 그 레포를 안 본다). 지금 이 머신의 클론 루트에는 등재 밖 디렉토리가 없어
-#   목록이 비어 있고, 그것이 정상이다 — 등재할 사유가 없다.
-#
-# 부정 대조군: HARNESS_CLONE_ROOT 로 가짜 루트를 준다 — 등재된 이름 하나가 빠진 루트는
-#   방향 A 로, 등재에 없는 이름이 든 루트는 방향 B 로 각각 비-0 이어야 한다. **두 방향을
-#   따로 흔들어야** 한 방향만 살아 있는 판을 잡는다(한쪽만 흔들면 나머지 방향은 0건인
-#   채로 통과하고, 그 통과가 "봤는데 문제없음"으로 읽힌다).
-R40_CLONE_ROOT="$CLONE_ROOT"
-R40_KEEP=()   # 클론 루트 안의 **레포가 아닌** 디렉토리. 등재할 때 사유를 함께 적는다
-check_r40() {
-  local names dirs missing extra n_names n_dirs k f=0
-
-  [[ -f "$MANIFEST" ]] || { echo "✗ R40 — $MANIFEST 이 없다 (등재부의 출처)"; return 1; }
-  names=$(jq -r '.repos[]?.name // empty' "$MANIFEST" | sort)
-  n_names=$(printf '%s' "$names" | grep -c . )
-  if [[ "$n_names" -eq 0 ]]; then
-    echo "✗ R40 — $MANIFEST 에서 레포 이름을 0건 파생했다. 등재부가 비었거나 스키마가 바뀌었다 (위 R18 도 함께 볼 것)"
-    return 1
-  fi
-
-  if [[ ! -d "$R40_CLONE_ROOT" ]]; then
-    echo "✗ R40 — 클론 루트 $R40_CLONE_ROOT 가 없다. 등재 ${n_names}건 전부가 클론 없음이다 — scripts/repo.sh restore 로 복구하라 (루트 경로가 틀린 것이면 HARNESS_CLONE_ROOT 를 확인하라)"
-    return 1
-  fi
-  # 클론 루트의 직속 디렉토리 전수. basename 만 취한다.
-  dirs=$(find "$R40_CLONE_ROOT" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sed 's|.*/||' | sort)
-  n_dirs=$(printf '%s' "$dirs" | grep -c . )
-  if [[ "$n_dirs" -eq 0 ]]; then
-    echo "✗ R40 — 클론 루트 $R40_CLONE_ROOT 에서 디렉토리를 0건 파생했다. 루트가 비었거나 경로가 어긋났다 — 0건 파생은 '불일치 없음'이 아니라 '안 봤음'이다"
-    return 1
-  fi
-
-  # 역방향 단언 ①: 면제 키가 실제 클론 루트에 있는가. 없으면 낡은 면제다.
-  for k in ${R40_KEEP[@]+"${R40_KEEP[@]}"}; do
-    if ! grep -qxF -- "$k" <<< "$dirs"; then
-      echo "✗ R40 면제 '$k' 가 클론 루트($R40_CLONE_ROOT)에 없다 — 낡은 면제다. R40_KEEP 에서 빼라"
-      f=1
-    fi
-  done
-  # 역방향 단언 ②: 면제는 방향 B 에서만 걷어낸다. 등재된 이름을 면제로 가리면 방향 A 가 죽는다.
-  for k in ${R40_KEEP[@]+"${R40_KEEP[@]}"}; do
-    if grep -qxF -- "$k" <<< "$names"; then
-      echo "✗ R40 면제 '$k' 가 $MANIFEST 에 등재된 이름이다 — 면제는 '레포가 아닌 디렉토리'에만 쓴다. 등재된 레포를 면제하면 방향 A 가 그 레포를 안 본다"
-      f=1
-    fi
-  done
-
-  missing=$(comm -23 <(printf '%s\n' "$names") <(printf '%s\n' "$dirs"))
-  extra=$(comm -13 <(printf '%s\n' "$names") <(printf '%s\n' "$dirs"))
-  for k in ${R40_KEEP[@]+"${R40_KEEP[@]}"}; do extra=$(printf '%s\n' "$extra" | grep -vxF -- "$k"); done
-
-  while IFS= read -r k; do
-    [[ -z "$k" ]] && continue
-    echo "✗ R40 방향A — '$k' 는 $MANIFEST 에 등재됐는데 $R40_CLONE_ROOT/$k 클론이 없다. 세션을 열 클론이 없어 워크트리를 만들 수 없다 (EnterWorktree 를 부를 자리가 없다)"
-    echo "    조치: scripts/repo.sh restore — 등재부에 있는데 클론이 없는 레포를 다시 클론한다"
-    f=1
-  done <<< "$missing"
-
-  while IFS= read -r k; do
-    [[ -z "$k" ]] && continue
-    echo "✗ R40 방향B — $R40_CLONE_ROOT/$k 가 있는데 $MANIFEST 에 '$k' 등재가 없다. 등록부에 없는 클론이다 — 스토리의 repo: 라벨이 가리킬 자리가 없다"
-    echo "    조치: 대상 레포면 scripts/repo.sh add <url> --name $k 로 등재하고, 레포가 아니면 사유와 함께 이 검사의 R40_KEEP 에 등재하라"
-    f=1
-  done <<< "$extra"
-
-  [[ "$f" -eq 0 ]] && echo "✓ R40 등재 ${n_names}건 ↔ 클론 루트 ${n_dirs}건 양방향 일치 (면제 ${#R40_KEEP[@]}건)"
-  return "$f"
-}
-
 # ── 원장 JSON 의 출처 ─────────────────────────────────────────────────
 # 부정 대조군은 이 파일을 갈아끼워 판정만 흔든다 — 원장 자체를 흔들면 되돌리기 비용이 크고,
 # 다른 세션이 같은 원장을 쓰고 있다. 아래 S22·S24 만 쓴다 (R5·R-ACC 는 손대지 않는다 —
@@ -696,7 +522,7 @@ ledger_json() {
 #   손으로 적은 면제(스토리 ID 하나)로 덮지 않은 **1차 이유는 그것이 지금의 상태를 못 박는
 #   것이기 때문이다** — 병렬은 끝나는데 면제는 남아, 정상 상태로 돌아온 다음 사람이 없는
 #   위반을 면제받은 채로 간다. 이 레포에서는 그 낡음이 게이트로도 드러난다(역방향 단언을
-#   **가변 집합**에 거는 관례라 낡은 면제 키가 실패한다 — 위 R40 의 R40_KEEP 이 그 형태다).
+#   **가변 집합**에 거는 관례라 낡은 면제 키가 실패한다).
 #   **뒤엣것은 관례에 기댄 부수 효과이지 논거가 아니다**: 정적 집합에 거는 면제는 낡아도
 #   실패하지 않는다. 이 판정의 근거는 실제 자원(워크트리)을 세는 쪽이 옳다는 것 하나다.
 #
@@ -734,7 +560,12 @@ ledger_json() {
 #   in_progress 2건을 넣은 사본은 비-0 이어야 한다. 사본의 실재와 원본과의 차이를 먼저
 #   단언하고, **넣은 줄이 실제로 파생 집합에 들어오는지**도 함께 봐라(실재·차이는 대조군
 #   성립의 필요조건이지 충분조건이 아니다 — 위 R-REM 의 같은 항목이 든 실측 참조).
-S22_CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
+# **판정 범위는 이 레포 하나다.** 하네스는 다른 레포의 클론이 어디 있는지 알지 못하므로
+# (고정 클론 루트를 없앴다) 다른 repo: 라벨의 칸은 워크트리를 셀 수 없다 — 0 으로 세면
+# 없는 위반을 만들어 낸다. 그래서 그 칸은 판정하지 않고 `.` 줄로 드러낸다. 멀티 레포
+# 스토리는 레포마다 게이트를 돌리므로(harness:develop "멀티 레포") 합치면 전수가 덮인다.
+S22_ROOT="${HROOT%%/.claude/worktrees/*}"     # 워크트리에서 돌려도 본 체크아웃을 본다
+S22_REPO="${S22_ROOT##*/}"
 # 스토리 ID 로 만들어진 워크트리 수. 이름은 ID 가 아니라 **ID 를 변환한 것**이라 lib/worktree-name.sh
 # 로 파생한다 — ID 를 그대로 쓰면 github 백엔드(`<repo>#<번호>`)에서 실재하는 워크트리를 0개로
 # 세어 검출이 통째로 꺼진다 (harness#79 의 세 번째 사례가 여기였다). 병렬 진행은
@@ -745,10 +576,10 @@ S22_CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
 #   (scripts/workspace-cleanup.sh)은 잔여가 실재하는 상태라는 뜻이다.
 #   좁히려면 각 레포 클론에서 `git worktree list` 를 파생으로 써야 하는데, 그러면 이 검사가
 #   클론마다 git 을 실행하게 된다(지금은 파일시스템만 본다).
-s22_wt_count() {  # s22_wt_count <레포> <스토리ID>
-  local d="$S22_CLONE_ROOT/$1/.claude/worktrees" n=0 p wtname
+s22_wt_count() {  # s22_wt_count <스토리ID>
+  local d="$S22_ROOT/.claude/worktrees" n=0 p wtname
   [[ -d "$d" ]] || { echo 0; return 0; }
-  wtname="$(bash "$PLUGIN_ROOT/lib/worktree-name.sh" "$2")" || { echo 0; return 0; }
+  wtname="$(bash "$PLUGIN_ROOT/lib/worktree-name.sh" "$1")" || { echo 0; return 0; }
   for p in "$d/$wtname" "$d/$wtname"-*; do [[ -d "$p" ]] && n=$((n + 1)); done
   echo "$n"
 }
@@ -786,7 +617,11 @@ s22_judge() {  # s22_judge <원장JSON> → 판정 줄 출력, rc = 위반 여�
 
   while IFS=$'\t' read -r story repo cnt lanes ids; do
     [[ -z "$story" ]] && continue
-    wt=$(s22_wt_count "$repo" "$story")
+    if [[ "$repo" != "$S22_REPO" ]]; then
+      echo "  · S22 $story (repo:$repo) — 이 레포('$S22_REPO')가 아니라 워크트리를 셀 수 없다. 판정하지 않는다 — 그 레포의 클론에서 게이트를 돌려라: $ids"
+      continue
+    fi
+    wt=$(s22_wt_count "$story")
     # 레인이 하나면 공유할 상대가 없다 — 워크트리 수와 무관하게 위반이 아니다(actor 픽스처는 워크트리 0).
     if [[ "$lanes" -ge 2 && "$lanes" -gt "$wt" ]]; then
       echo "✗ S22 $story (repo:$repo) — 동시 in_progress ${cnt}건이 actor ${lanes}명인데 이 스토리의 워크트리는 ${wt}개다: $ids"
@@ -801,10 +636,11 @@ s22_judge() {  # s22_judge <원장JSON> → 판정 줄 출력, rc = 위반 여�
 }
 check_s22() {
   local json rc n_task n_epic n_vp f=0
-  # 자기 판정 시험 — 실원장과 무관한 합성 원장. 레포 이름은 클론 루트에 없는 것이라 워크트리 0.
+  # 자기 판정 시험 — 실원장과 무관한 합성 원장. 레포는 **이 레포**여야 판정에 들어오고
+  # (다른 레포는 위에서 건너뛴다), 스토리 fx-s 의 워크트리는 실재하지 않으므로 계수는 0 이다.
   local fx_s='{"id":"fx-s","issue_type":"epic","status":"in_progress"}'
   local fx_plain fx_marked
-  fx_plain="[$fx_s,{\"id\":\"fx-a\",\"issue_type\":\"task\",\"status\":\"in_progress\",\"parent\":\"fx-s\",\"labels\":[\"repo:fx-none\"]},{\"id\":\"fx-b\",\"issue_type\":\"task\",\"status\":\"in_progress\",\"parent\":\"fx-s\",\"labels\":[\"repo:fx-none\"]}]"
+  fx_plain="[$fx_s,{\"id\":\"fx-a\",\"issue_type\":\"task\",\"status\":\"in_progress\",\"parent\":\"fx-s\",\"labels\":[\"repo:$S22_REPO\"]},{\"id\":\"fx-b\",\"issue_type\":\"task\",\"status\":\"in_progress\",\"parent\":\"fx-s\",\"labels\":[\"repo:$S22_REPO\"]}]"
   fx_marked=$(printf '%s' "$fx_plain" | jq -c '(.[] | select(.issue_type == "task")).notes = "구현 기록\n\nVERIFY_PENDING: 0000000"')
   if [[ -z "$fx_marked" || "$fx_plain" == "$fx_marked" ]]; then
     echo "✗ S22 자기 시험 — 표시 픽스처가 만들어지지 않았거나 원본과 같다 (jq 변형 실패). 판정 시험이 공허하다"
@@ -1001,9 +837,7 @@ check_rdate() {
 #
 # 면제 — 패턴이 걷어 오지만 원장 ID 가 아닌 토큰. 파일시스템 이름이라 원장에 없는 것이
 # 정상이다. 각 키가 실제 후보에 잡히는지 역방향으로 단언한다.
-RBEAD_KEEP=(
-  "harness-workspace"  # ~/.harness-workspace — 대상 레포 클론 루트의 디렉토리 이름
-)
+RBEAD_KEEP=()
 # 패턴 자기 시험 — 주입 블록은 bead 참조를 하나도 안 가질 수 있다(가리키는 문서다). 그때 후보 0건은
 # '위반 없음' 인데, 패턴이 죽어도 같은 0건이라 구분되지 않는다. 합성 문자열로 패턴이 산 것을 먼저 못박는다.
 RBEAD_PATTERN='harness-[0-9a-z]+(\.[0-9]+)*'
@@ -1483,11 +1317,9 @@ check_rbudget() {
 }
 
 check_r5  || fail=1
-check_r18 || fail=1
 check_racc || fail=1
 check_rrem || fail=1
 check_c6  || fail=1
-check_r40 || fail=1
 check_s22 || fail=1
 check_s24 || fail=1
 check_rdate || fail=1
