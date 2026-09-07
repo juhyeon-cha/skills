@@ -149,6 +149,23 @@ case "${1:-}" in
     shift
     sync_check "$@"
     ;;
+  sprint-add)
+    # 스프린트 등재 — 이 백엔드의 등록부는 <루트>/sprints.json 이라 키를 하나 더한다.
+    # ID 형식 판정과 중복 판정은 ledger.sh 가 이미 했다(세 백엔드 공통 경계) — 여기는 쓰기만 한다.
+    # **파일이 없으면 만들지 않는다**: 등록부가 통째로 없는 판을 쓰기가 조용히 메우면, sprints 가
+    # 그 부재를 rc≠0 으로 드는 계약(아래 rails|sprints 주석)이 무의미해진다.
+    # status 는 active 다. **마감은 이 명령이 하지 않는다** — 이 파일의 status 를 손으로 고치는 것이
+    # 이 백엔드의 마감이고, sprints 는 읽기만 한다.
+    sid="${2:-}"
+    f="$LEDGER_ROOT/sprints.json"
+    [ -r "$f" ] && [ -w "$f" ] || { echo "ledger-beads sprint-add: $f 가 없다(또는 쓸 수 없다) — 이 백엔드에서 등록부의 원본이 그 파일이다. 없는 등록부를 등재가 만들지는 않는다(setup 5절이 만든다)" >&2; exit 1; }
+    tmp="$(mktemp)" || { echo "ledger-beads sprint-add: 임시 파일을 만들지 못했다" >&2; exit 1; }
+    jq --arg s "$sid" '.sprints[$s] = {status: "active"}' "$f" > "$tmp" \
+      || { rm -f "$tmp"; echo "ledger-beads sprint-add: $f 를 갱신하지 못했다 (JSON 이 깨졌는가)" >&2; exit 1; }
+    mv "$tmp" "$f" || { rm -f "$tmp"; echo "ledger-beads sprint-add: $f 를 바꿔치지 못했다" >&2; exit 1; }
+    echo "✓ 스프린트 등재: $sid (beads: $f 에 status=active)"
+    exit 0
+    ;;
   rails|sprints)
     # 등록부 질의 — bd 하위 명령이 아니라 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2).
     # 이 백엔드의 자기 계층은 **원장 루트의 JSON 파일 둘**이다: <루트>/rails.json · sprints.json.

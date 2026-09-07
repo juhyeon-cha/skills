@@ -74,6 +74,8 @@ missing=""
 for tok in $MEASURED; do
   printf '%s\n' "$HELP" | grep -qw -- "$tok" || missing="$missing $tok"
 done
+step "--help 가 스프린트 등재 하위 명령을 든다 (sprint-add <YYYY-SNN> · 세 백엔드가 같은 인자)" \
+  bash -c 'printf "%s" "$1" | grep -q "sprint-add <YYYY-SNN>"' _ "$HELP"
 step "--help 가 측정된 bd 하위 명령 전수를 덮는다 (측정 $(printf '%s\n' "$MEASURED" | grep -c .)개, 빠짐:${missing:- 없음})" [ -z "$missing" ]
 
 # ── has-ui 계약 (skills#152) ──────────────────────────────────────────
@@ -268,6 +270,25 @@ step "rails: 등재된 레일 수와 출력 배열 길이가 같고 id·owner �
 run "$RG" sprints --json
 step "sprints: id 는 등재 키이고 status 는 active|closed 둘 중 하나다" \
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "map(.id) == [\"2026-S01\",\"2026-S02\"] and all(.status == \"active\" or .status == \"closed\")" >/dev/null' _ "$OUT" "$RC"
+# ── 스프린트 등재 (skills#181). 등재의 경계(ID 형식·중복·인자 수)는 ledger.sh 한 자리이고
+#    백엔드는 쓰기만 한다. 그래서 경계 단언은 여기 한 번만 세우고, 나머지 두 백엔드에서는
+#    **각자의 쓰기 모양**과 "중복은 그쪽에서도 rc≠0" 만 본다.
+#    아래 대조군 픽스처(status:진행중 등)가 이 파일을 덮기 **전에** 둔다 — 그 뒤에서는
+#    sprints 자체가 rc≠0 이라 등재의 왕복을 세울 수 없다.
+run "$RG" sprint-add 2026-S04
+step "sprint-add beads: sprints.json 에 키를 더하고 rc 0 · stdout 한 줄이 무엇에 썼는지 말한다" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | grep -q "2026-S04"' _ "$OUT" "$RC"
+run "$RG" sprints --json
+step "sprint-add beads: 등재 **뒤** sprints --json 이 그것을 active 로 낸다 (등재의 왕복)" \
+  bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "any(.[]; .id == \"2026-S04\" and .status == \"active\")" >/dev/null' _ "$OUT" "$RC"
+run "$RG" sprint-add 2026-S04
+step "sprint-add: 이미 있는 ID 를 다시 등재하면 rc≠0 이고 stderr 가 그 ID 를 든다 (조용히 덮어쓰지 않는다)" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "2026-S04"' _ "$RC" "$ERR"
+run "$RG" sprint-add 2026S04
+step "sprint-add: ID 형식이 YYYY-SNN 이 아니면 rc≠0 이고 stderr 가 그 형식을 든다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "YYYY-SNN"' _ "$RC" "$ERR"
+run "$RG" sprint-add 2026-S05 2026-S06
+step "sprint-add: 인자가 스프린트 ID 하나가 아니면 rc≠0" [ "$RC" -ne 0 ]
 # 등재가 0건인 것과 파일이 없는 것은 다른 상태다 — 앞은 rc 0 의 빈 배열, 뒤는 위에서 본 rc≠0.
 printf '{"rails":{}}\n' > "$RG/rails.json"
 run "$RG" rails --json
@@ -340,8 +361,12 @@ case "$1 $2" in
   "project create") echo '{"number":9}'; exit 0 ;;
   "api graphql")
     all="$*"
+    # 변수에 배열이 있는 뮤테이션(sprint-add 의 updateProjectV2Field)은 -f 로 실을 수 없어 본문이
+    # --input - 로 온다. 본문을 파일에 남겨 두어 단언이 variables 를 열어 볼 수 있게 한다.
+    case "$all" in *--input*) gqlbody="$(cat)"; printf '%s' "$gqlbody" > "$FAKE_GH_LOG.gql"; all="$all $gqlbody" ;; esac
     case "$all" in
       *addSubIssue*) echo '{"data":{"addSubIssue":{}}}' ;;
+      *updateProjectV2Field*) echo '{"data":{"updateProjectV2Field":{"projectV2Field":{"name":"Sprint"}}}}' ;;
       # ITERATION 필드 생성 — init 이 부르는 자리. gh project field-create 는 ITERATION 을
       # 지원하지 않아 이 뮤테이션이 유일한 통로다(M0 실측).
       *createProjectV2Field*) echo '{"data":{"createProjectV2Field":{"projectV2Field":{"name":"Sprint"}}}}' ;;
@@ -355,13 +380,16 @@ case "$1 $2" in
       # (2026-09-07, skills#167). 픽스처가 스스로를 근거로 삼지 않는다 — 실측을 옮긴 것이다.
       # 상태 필드가 없으므로 status 는 iterations(현재·미래)/completedIterations(종료일이 지난
       # 것) 두 목록에서만 갈린다. projectV2.id 는 init 이 뮤테이션에 넘길 node id 다.
+      # 필드 노드의 id 와 iteration 의 startDate·duration 은 **sprint-add 만** 읽는다(sprints 는
+      # title 뿐이다). 등재가 대체 API 라 되돌려 보낼 값이 여기서 나온다 — 없으면 sprint-add 가
+      # 새 iteration 의 시작일을 계산하지 못한다.
       *"fields(first"*)
         if [ -n "${FAKE_GH_NO_ITERATION:-}" ]; then
           echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{}]}}}}}'
         elif [ -n "${FAKE_GH_EMPTY_ITERATION:-}" ]; then
-          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[],"completedIterations":[]}}]}}}}}'
+          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","id":"PVTIF_x","configuration":{"duration":0,"iterations":[],"completedIterations":[]}}]}}}}}'
         else
-          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","configuration":{"iterations":[{"title":"2026-S02"}],"completedIterations":[{"title":"2026-S01"}]}}]}}}}}'
+          echo '{"data":{"user":{"projectV2":{"id":"PVT_x","fields":{"nodes":[{},{"name":"Sprint","id":"PVTIF_x","configuration":{"duration":14,"iterations":[{"title":"2026-S02","startDate":"2026-09-01","duration":14}],"completedIterations":[{"title":"2026-S01","startDate":"2026-08-18","duration":14}]}}]}}}}}'
         fi ;;
       # Projects v2 의 항목 — 읽기가 훑을 레포 목록의 출처다(등록부가 아니다). content 가
       # Issue 가 아닌 항목(draft)을 한 건 섞어 두어, 그것이 이름으로 새면 아래 단언이 떨어진다.
@@ -639,6 +667,35 @@ step "init 멱등: 이미 있다는 사실을 필드 이름과 함께 한 줄로
 step "init 멱등: project 가 이미 있으므로 project create 도 부르지 않는다" \
   bash -c '! grep -q "^project create" "$1"' _ "$LOG"
 
+# ── 스프린트 등재 (skills#181). GitHub 에는 "iteration 하나를 더한다" 는 API 가 없다 —
+#    updateProjectV2Field 의 iterationConfiguration 이 **iterations 전체를 대체한다**(입력의
+#    ProjectV2Iteration 에 id 가 없다). 그래서 여기서 못박는 것은 "새 것이 붙었는가" 만이 아니라
+#    **읽은 것을 전부 되돌려 보내는가** 다: 완료분을 빠뜨리면 닫힌 스프린트가 등록부에서 사라지고
+#    board-check 이 그 sprint: 라벨을 전부 미등재로 읽는다.
+: > "$LOG"; rm -f "$LOG.gql"
+grun sprint-add 2026-S03
+step "sprint-add github: updateProjectV2Field 로 ITERATION 필드에 title=<ID> iteration 을 더한다" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".variables.f == \"PVTIF_x\" and (.variables.it | map(.title)) == [\"2026-S01\",\"2026-S02\",\"2026-S03\"]" "$2" >/dev/null' _ "$RC" "$LOG.gql"
+step "sprint-add github: 완료분까지 전부 되돌려 보낸다 (대체 API 라 빠뜨리면 등록부에서 사라진다)" \
+  bash -c 'jq -e ".variables.it | length == 3 and all(.[]; has(\"startDate\") and has(\"duration\") and has(\"title\"))" "$1" >/dev/null' _ "$LOG.gql"
+step "sprint-add github: 새 iteration 은 마지막 것이 끝난 다음 날부터이고 기간은 필드의 것이다 (겹치지 않는다)" \
+  bash -c 'jq -e ".variables.it[2] == {title:\"2026-S03\", startDate:\"2026-09-15\", duration:14} and .variables.d == 14 and .variables.s == \"2026-08-18\"" "$1" >/dev/null' _ "$LOG.gql"
+# 뮤테이션을 불렀는지는 **본문 파일의 실재**로 본다 — 로그 줄($*)에는 --input 뒤의 본문이 없어
+# 뮤테이션 이름이 찍히지 않는다. 이름으로 grep 하면 불러도 통과하는 공허한 단언이 된다.
+: > "$LOG"; rm -f "$LOG.gql"
+grun sprint-add 2026-S02
+step "sprint-add github: 이미 있는 ID → rc≠0 · stderr 가 그 ID 를 든다 · 뮤테이션을 부르지 않는다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "2026-S02" && [ ! -f "$3" ]' _ "$RC" "$ERR" "$LOG.gql"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_NO_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" sprint-add 2026-S03 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "sprint-add github: ITERATION 필드가 없으면 rc≠0 이고 stderr 가 ledger.sh init 을 가리킨다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "ledger.sh init"' _ "$RC" "$ERR"
+# 갓 init 한 판 — 필드는 있고 iteration 이 0개다. 첫 스프린트는 오늘부터이고 기간은 필드의
+# duration 이 0 이라 2주로 간다. 날짜를 값으로 박지 않는다(오늘이 바뀐다) — 형식과 관계만 본다.
+: > "$LOG"; rm -f "$LOG.gql"
+OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_EMPTY_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" sprint-add 2026-S01 2>"$TMP/err"); RC=$?
+step "sprint-add github: iteration 이 0개인 필드(갓 init)에도 선다 — 첫 것 하나뿐이고 시작일이 YYYY-MM-DD 다" \
+  bash -c '[ "$1" -eq 0 ] && jq -e "(.variables.it | length) == 1 and .variables.it[0].title == \"2026-S01\" and (.variables.it[0].startDate | test(\"^[0-9]{4}-[0-9]{2}-[0-9]{2}$\")) and .variables.it[0].duration == 14 and .variables.s == .variables.it[0].startDate" "$2" >/dev/null' _ "$RC" "$LOG.gql"
+
 grun rails --all
 step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
 
@@ -835,6 +892,19 @@ step "sprints: 계약의 status 는 둘뿐이다" \
 nreg "" sprints --json
 step "sprints: Type 이 sprint 인 페이지가 0건 → rc 0 의 빈 배열이고 stderr 가 그것이 '스프린트가 없다' 임을 밝힌다" \
   bash -c '[ "$2" -eq 0 ] && printf "%s" "$1" | jq -e "length == 0" >/dev/null && printf "%s" "$3" | grep -q sprint' _ "$OUT" "$RC" "$ERR"
+# ── 스프린트 등재 (skills#181). 이 백엔드에서 스프린트는 같은 DB 의 페이지 한 장이므로 등재도
+#    페이지 한 장을 만드는 것이다 — **위 sprints 가 읽는 모양 그대로**여야 왕복이 성립한다.
+#    (계획 문서 몇 곳이 이 자리를 "select option" 이라 적었는데, select option 에는 상태를 둘 데가
+#     없어 sprints 가 그것을 내지 못한다. 읽는 자리와 같은 모양으로 쓴다.)
+: > "$NLOG"
+nreg 1 sprint-add 2026-S03
+step "sprint-add notion: Type=sprint · Name=<ID> · Status=open 페이지 한 장을 만든다 (sprints 가 읽는 모양)" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".parent.database_id == \"d0000000-0000-0000-0000-00000000000d\" and .properties.Type.select.name == \"sprint\" and .properties.Name.title[0].text.content == \"2026-S03\" and .properties.Status.select.name == \"open\"" "$2" >/dev/null' _ "$RC" "$(body_of POST pages)"
+: > "$NLOG"
+nreg 1 sprint-add 2026-S02
+step "sprint-add notion: 이미 있는 ID → rc≠0 · stderr 가 그 ID 를 든다 · 페이지를 만들지 않는다" \
+  bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q "2026-S02" && ! grep -q "POST pages$" "$3"' _ "$RC" "$ERR" "$NLOG"
+
 nreg 1 rails --all
 step "rails: --json 밖의 인자 → rc≠0" [ "$RC" -ne 0 ]
 

@@ -511,6 +511,78 @@ case "$cmd" in
     done
     ;;
 
+  sprint-add)
+    # 스프린트 등재 — ITERATION 필드에 iteration 하나를 더한다(title 이 스프린트 ID). ID 형식
+    # 판정과 중복 판정은 ledger.sh 가 이미 했다.
+    #
+    # **GitHub 에는 "iteration 하나를 더한다" 는 API 가 없다.** 있는 것은
+    # `updateProjectV2Field(iterationConfiguration:{duration, startDate, iterations})` 하나이고
+    # 그것은 **iterations 전체를 대체한다**(GitHub GraphQL 스키마: ProjectV2Iteration 입력에 id 가
+    # 없다 — docs.github.com/en/graphql/reference/projects 의 UpdateProjectV2FieldInput ·
+    # ProjectV2IterationFieldConfigurationInput · ProjectV2Iteration, 2026-09-07 확인).
+    # 그래서 **읽은 것을 전부 되돌려 보내고 새 것 하나를 뒤에 붙인다** — completedIterations 까지
+    # 함께 싣는다. 빠뜨리면 닫힌 스프린트가 등록부에서 사라지고 board-check 가 그 sprint: 라벨을
+    # 전부 미등재로 읽는다.
+    # **천장**: 대체이므로 항목↔iteration 연결은 보존되지 않는다(GitHub 커뮤니티 보고). 이 하네스는
+    # 항목에 iteration 값을 넣지 않는다 — 스프린트 소속은 `sprint:` 라벨이고, 플러그인 트리에
+    # updateProjectV2ItemFieldValue 호출이 0건이다(실측 grep). 사람이 GitHub UI 에서 손으로 넣은
+    # 값이 있으면 그것은 잃는다.
+    # **실제 GitHub 왕복으로 확인하지 않았다** — 판정은 아래 오프라인 픽스처뿐이다.
+    [ $# -eq 1 ] || die "sprint-add: 인자는 스프린트 ID 하나다"
+    sid="$1"
+    [ -n "$PROJECT" ] || die "sprint-add: $LEDGER_CONFIG 에 project 가 없다 — 스프린트가 사는 ITERATION 필드가 그 프로젝트에 있다 (ledger.sh init 이 만든다)"
+    fq='query($o:String!,$n:Int!){ user(login:$o){ projectV2(number:$n){ fields(first:100){ nodes{
+          ... on ProjectV2IterationField { id configuration {
+            duration
+            iterations{ title startDate duration }
+            completedIterations{ title startDate duration } } } } } } } }'
+    fout="$(gh api graphql -f query="$fq" -f o="$OWNER" -F n="$PROJECT" 2>&1)" \
+      || die "sprint-add: Projects v2 $PROJECT (owner $OWNER) 의 필드를 읽지 못했다 — $fout"
+    fld="$(printf '%s' "$fout" | jq -c '[.data.user.projectV2.fields.nodes[]? | select(.configuration != null)] | first // empty')" \
+      || die "sprint-add: 필드 응답을 읽지 못했다 — $fout"
+    [ -n "$fld" ] || die "sprint-add: Projects v2 $PROJECT 의 필드(첫 100개) 안에 ITERATION 필드가 없다 — 이 백엔드에서 스프린트가 사는 자리가 그 필드다. 이 필드는 ledger.sh init 이 만든다(멱등): 'HARNESS_ROOT=<루트> ledger.sh init'"
+    fid="$(printf '%s' "$fld" | jq -r '.id // empty')"
+    [ -n "$fid" ] || die "sprint-add: ITERATION 필드의 node id 를 읽지 못했다"
+    # 기간은 필드가 이미 쓰는 값을 그대로 쓴다. 갓 만든 필드는 duration 이 0 이라(skills#167 실측)
+    # 그때만 2주를 쓴다 — GitHub UI 의 기본값이 2주다.
+    dur="$(printf '%s' "$fld" | jq -r '.configuration.duration // 0')"
+    case "$dur" in ''|*[!0-9]*|0) dur=14 ;; esac
+    exist="$(printf '%s' "$fld" | jq -c '[(.configuration.completedIterations[]?), (.configuration.iterations[]?)]
+                                          | map({title, startDate, duration}) | sort_by(.startDate)')" \
+      || die "sprint-add: 지금 iteration 목록을 읽지 못했다"
+    # 새 iteration 은 **마지막 것이 끝난 다음 날**부터다 — 겹치면 GitHub 이 어느 쪽을 현재로 볼지
+    # 이 코드가 정하지 못한다. 하나도 없으면 오늘부터다.
+    # date 는 BSD(-j -v)와 GNU(-d) 두 문면을 다 시도하고, 둘 다 실패하면 죽는다 — 빈 값을 Date! 에
+    # 실어 보내면 GraphQL 오류 문면이 원인을 가린다.
+    if [ "$(printf '%s' "$exist" | jq -r 'length')" = "0" ]; then
+      start="$(date -u '+%Y-%m-%d')"
+    else
+      ls="$(printf '%s' "$exist" | jq -r '.[-1].startDate')"
+      ld="$(printf '%s' "$exist" | jq -r '.[-1].duration')"
+      start="$(date -u -j -v+"${ld}"d -f '%Y-%m-%d' "$ls" '+%Y-%m-%d' 2>/dev/null)" \
+        || start="$(date -u -d "$ls + $ld days" '+%Y-%m-%d' 2>/dev/null)" || start=""
+    fi
+    case "$start" in
+      [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;;
+      *) die "sprint-add: 새 iteration 의 시작일을 계산하지 못했다 ('$start') — date 가 BSD(-j -v)도 GNU(-d)도 아니다" ;;
+    esac
+    iters="$(printf '%s' "$exist" | jq -c --arg t "$sid" --arg s "$start" --argjson d "$dur" \
+      '. + [{title: $t, startDate: $s, duration: $d}]')" || die "sprint-add: 보낼 iteration 목록을 만들지 못했다"
+    cstart="$(printf '%s' "$iters" | jq -r '.[0].startDate')"
+    mq='mutation($f:ID!,$d:Int!,$s:Date!,$it:[ProjectV2Iteration!]!){
+          updateProjectV2Field(input:{fieldId:$f, iterationConfiguration:{duration:$d, startDate:$s, iterations:$it}}){
+            projectV2Field { ... on ProjectV2IterationField { name } } } }'
+    # 변수에 배열이 있어 `gh api graphql -f` 로는 실을 수 없다(스칼라만 받는다) — 본문을 통째로
+    # 만들어 --input - 로 넘긴다.
+    req="$(jq -n --arg q "$mq" --arg f "$fid" --argjson d "$dur" --arg s "$cstart" --argjson it "$iters" \
+      '{query: $q, variables: {f: $f, d: $d, s: $s, it: $it}}')" || die "sprint-add: 요청 본문을 만들지 못했다"
+    mout="$(printf '%s' "$req" | gh api graphql --input - 2>&1)" \
+      || die "sprint-add: iteration 을 더하지 못했다 — $mout (토큰에 project scope 가 없으면 'gh auth refresh -h github.com -s project,read:project')"
+    printf '%s' "$mout" | jq -e '.data.updateProjectV2Field.projectV2Field' >/dev/null 2>&1 \
+      || die "sprint-add: 뮤테이션이 200 을 냈지만 응답에 필드가 없다 — $mout"
+    echo "✓ 스프린트 등재: $sid (github: Projects v2 $PROJECT 의 ITERATION 필드에 iteration — 시작 $start · ${dur}일)"
+    ;;
+
   # 등록부 질의 — 이 백엔드가 자기 계층으로 답한다(스토리 skills#105 결정 2). beads 가 루트의
   # rails.json·sprints.json 을 읽는 자리에서 github 은 원장 자신(라벨·assignee·Projects v2)을 읽는다.
   # wire-worktree·sync-check 와 달리 위(gh 검사 앞)에 두지 않는다 — 그 둘은 gh 에 닿지 않는 상수

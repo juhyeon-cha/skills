@@ -66,6 +66,16 @@ usage() {
   sprints --json             스프린트 전체 — 출력 JSON 은 [{id, status}] 배열. status 는 active | closed
                              (beads: <루트>/sprints.json · github: Projects v2 Iteration 필드, id 는 iteration 의 title ·
                               notion: Type 이 sprint 인 페이지, id 는 Name 이고 status 는 Status select)
+  sprint-add <YYYY-SNN>      스프린트를 등록부에 세운다 — 등재 **뒤** `sprints --json` 이 그 id 를 낸다.
+                             세 백엔드가 같은 인자 하나(스프린트 ID)를 받는다. 출력은 stdout 한 줄
+                             ("✓ 스프린트 등재: <ID> …" — 뒤에 백엔드가 무엇에 썼는지가 붙는다).
+                             **이미 있는 ID 를 다시 주면 rc≠0** 이고 stderr 가 그 ID 를 든다(덮어쓰지 않는다).
+                             **마감(active→closed)은 이 명령이 하지 않는다** — 백엔드의 몫이고 `sprints` 는
+                             읽기만 한다 (github: 종료일이 지나면 completedIterations 로 자동 · notion:
+                             `update <스프린트 페이지 id> --status closed` · beads: <루트>/sprints.json 의 status)
+                             (beads: <루트>/sprints.json 에 키 · github: ITERATION 필드에 iteration 하나
+                              (title 이 ID) — 필드가 없으면 rc≠0 이고 `ledger.sh init` 을 가리킨다 ·
+                              notion: Type 이 sprint 인 페이지 한 장)
   help | --help
 
 beads 전용 (github · notion 은 rc≠0):
@@ -208,6 +218,26 @@ if [ "${1:-}" = create ]; then
   fi
   if [ -n "$c_silent" ]; then printf '%s\n' "$new_id"; else printf '✓ Created issue: %s — %s\n' "$new_id" "$c_title"; fi
   exit 0
+fi
+
+# ── sprint-add 의 경계 (스토리 skills#175 결정 2) ─────────────────────
+# 형식 판정과 중복 판정은 여기 한 자리다 — 백엔드는 쓰기만 한다. 중복을 백엔드마다 보면
+# "덮어쓰지 않는다" 가 셋 중 하나에서 조용히 빠질 수 있고, 그 판은 등록부가 틀린 채로 통과한다.
+# **마감(active→closed)은 이 명령이 하지 않는다.** github 에는 iteration 을 닫는 조작 자체가 없고
+# (종료일이 지나면 GitHub 이 completedIterations 로 옮긴다), 그것을 세 백엔드 공통 명령으로
+# 흉내 내려면 날짜를 거꾸로 고쳐 써야 한다 — 그 쓰기는 iterations 전체 대체라 되돌리기 비용이 크다.
+# 그래서 `sprints` 는 읽기만 하고 마감은 백엔드의 몫으로 둔다(usage 의 sprint-add 줄이 그 셋을 든다).
+if [ "${1:-}" = sprint-add ]; then
+  [ $# -eq 2 ] || ldie "sprint-add: 인자는 스프린트 ID 하나다 (사용: sprint-add <YYYY-SNN>)"
+  case "$2" in
+    [0-9][0-9][0-9][0-9]-S[0-9][0-9]) ;;
+    *) ldie "sprint-add: 스프린트 ID 형식은 YYYY-SNN 이다: '$2'" ;;
+  esac
+  cur="$(run_backend sprints --json)" \
+    || ldie "sprint-add: 지금 등재를 읽지 못해 중복인지 판정할 수 없다 — 위 stderr 가 사유다 (덮어쓸 위험이 있으므로 쓰지 않는다)"
+  if printf '%s' "$cur" | jq -e --arg s "$2" 'any(.[]; .id == $s)' >/dev/null 2>&1; then
+    ldie "sprint-add: '$2' 는 이미 등재돼 있다 — 조용히 덮어쓰지 않는다 (지금 등재: $(printf '%s' "$cur" | jq -r 'map(.id) | join(", ")'))"
+  fi
 fi
 
 LEDGER_ROOT="$ROOT" LEDGER_CONFIG="$CFG" exec bash "$PLUGIN_ROOT/scripts/ledger-$backend.sh" "$@"
