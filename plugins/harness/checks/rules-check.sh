@@ -728,8 +728,10 @@ ledger_json() {
 #   단언하고, **넣은 줄이 실제로 파생 집합에 들어오는지**도 함께 봐라(실재·차이는 대조군
 #   성립의 필요조건이지 충분조건이 아니다 — 위 R-REM 의 같은 항목이 든 실측 참조).
 S22_CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
-# 스토리 ID 로 만들어진 워크트리 수. harness:develop 2절은 EnterWorktree 의 name 을 `<스토리ID>`
-# 로 두게 하고, 병렬 진행은 `<스토리ID>-<접미>` 를 함께 쓴다 — 둘 다 같은 스토리의 워크트리다.
+# 스토리 ID 로 만들어진 워크트리 수. 이름은 ID 가 아니라 **ID 를 변환한 것**이라 lib/worktree-name.sh
+# 로 파생한다 — ID 를 그대로 쓰면 github 백엔드(`<repo>#<번호>`)에서 실재하는 워크트리를 0개로
+# 세어 검출이 통째로 꺼진다 (harness#79 의 세 번째 사례가 여기였다). 병렬 진행은
+# `<그 이름>-<접미>` 를 함께 쓴다 — 둘 다 같은 스토리의 워크트리다.
 # 한계 — **`git worktree list` 가 아니라 디렉토리 실재를 센다.** 정리되지 않은 잔여
 #   디렉토리(git 은 모르는데 파일시스템에는 남은 것)가 분모를 부풀려 **검출을 약화**시킨다.
 #   미탐 쪽이라 안전한 방향이라 그대로 두지만, 이 레포에 정리 스크립트가 둘 있다는 것
@@ -737,9 +739,10 @@ S22_CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
 #   좁히려면 각 레포 클론에서 `git worktree list` 를 파생으로 써야 하는데, 그러면 이 검사가
 #   클론마다 git 을 실행하게 된다(지금은 파일시스템만 본다).
 s22_wt_count() {  # s22_wt_count <레포> <스토리ID>
-  local d="$S22_CLONE_ROOT/$1/.claude/worktrees" n=0 p
+  local d="$S22_CLONE_ROOT/$1/.claude/worktrees" n=0 p wtname
   [[ -d "$d" ]] || { echo 0; return 0; }
-  for p in "$d/$2" "$d/$2"-*; do [[ -d "$p" ]] && n=$((n + 1)); done
+  wtname="$(bash "$PLUGIN_ROOT/lib/worktree-name.sh" "$2")" || { echo 0; return 0; }
+  for p in "$d/$wtname" "$d/$wtname"-*; do [[ -d "$p" ]] && n=$((n + 1)); done
   echo "$n"
 }
 # **검증 대기(VERIFY_PENDING)는 동시 위임이 아니다.** 배치 모드(develop 3절)는 구현이 끝난

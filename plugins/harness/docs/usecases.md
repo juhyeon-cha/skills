@@ -11,7 +11,7 @@
 - **Criteria are hypotheses; measurements live in the ledger.** The walk-throughs that produced these criteria are the notes of `harness-dg0.1.2` and later story beads — quote from there, do not copy them here.
 - **Every ledger call below is the adapter.** `ledger.sh …` is short for `bash "$(<plugin>)/scripts/ledger.sh" …`; subcommands, arguments, and JSON keys are `bd`'s. Which backend answers is `backend` in the harness root's `ledger.json` — the criteria below hold on all three unless a step names one, and this harness runs `beads`.
 - Judgment commands run **from the place the actor's session opened** unless stated: the harness root for planning and retrospective, the target clone or its worktree for development. Inside a story worktree the harness root is found through the worktree wiring; from a clone root, and anywhere the wiring is absent, prefix the call with `HARNESS_ROOT=<harness root>`.
-- Placeholders: `<story ID>` · `<task ID>` · `<sprint ID>` (`YYYY-SNN`) · `<repo>` · `<clone>` (= `~/.harness-workspace/<repo>`) · `<worktree>` (= `<clone>/.claude/worktrees/<story ID>`) · `<harness root>` · `<plugin>` (= `bash <harness root>/scripts/plugin-root.sh`).
+- Placeholders: `<story ID>` · `<task ID>` · `<sprint ID>` (`YYYY-SNN`) · `<repo>` · `<clone>` (= `~/.harness-workspace/<repo>`) · `<worktree name>` (= what `<plugin>/lib/worktree-name.sh <story ID>` prints — **not the story ID**, which a `github` ID's `#` makes unusable as a name) · `<worktree>` (= `<clone>/.claude/worktrees/<worktree name>`) · `<harness root>` · `<plugin>` (= `bash <harness root>/scripts/plugin-root.sh`).
 
 ## Index
 
@@ -51,7 +51,7 @@
 
 - `jq -r '.repos[].name' ~/.harness-workspace/repos.json | grep -qx '<repo>'` → rc 0
 - `[ -d <clone>/.git ]` → rc 0 (run through `repo.sh list`, since a Bash command string carrying the clone path is blocked by `r_main_shell`)
-- `git -C <worktree> rev-parse --abbrev-ref HEAD` prints `worktree-<story ID>`
+- `git -C <worktree> rev-parse --abbrev-ref HEAD` prints `worktree-<worktree name>`
 - `grep -qx '.claude/worktrees/' <clone>/.git/info/exclude && grep -qx '.beads' <clone>/.git/info/exclude` → rc 0, and the target repo's `.gitignore` is unchanged: `git -C <clone> status --porcelain .gitignore` prints 0 lines
 - on the `beads` backend, `cat <worktree>/.beads/redirect` prints `<harness root>/.beads` and `ledger.sh where` inside the worktree prints that ledger; on `github`·`notion` there is nothing to wire, and the criterion is instead that `ledger.sh list -n 1` from inside the worktree is rc 0
 - `bash "$(<plugin>)/checks/workspace-check.sh"` → rc 0
@@ -74,7 +74,7 @@
 
 - `bash "$(<plugin>)/checks/rules-check.sh"` → rc 0 (R5: exactly one `repo:` label per task; S22: no more actors than worktrees per (story, repo))
 - `ledger.sh show <story ID>` notes carry one `ACTOR: <repo> <value>` line per repo
-- both worktrees: `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<story ID>`
+- both worktrees: `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<worktree name>`
 - every repo's `check` in step 6 → rc 0
 - `ledger.sh show <story ID>` notes carry one line per repo with that repo's exit code
 - the cycle close is per repo: one PR per repo, and a repo whose own rules ask a person before push stops at step 1 of "사이클 종결" without blocking the other
@@ -97,11 +97,11 @@
 
 **Pass criteria**
 
-- both worktrees exist and differ: `[ -d <clone>/.claude/worktrees/<S1> ] && [ -d <clone>/.claude/worktrees/<S2> ]` → rc 0 (or two clones, if the stories touch different repos)
+- both worktrees exist and differ: `[ -d <clone>/.claude/worktrees/<S1's worktree name> ] && [ -d <clone>/.claude/worktrees/<S2's worktree name> ]` → rc 0 (or two clones, if the stories touch different repos)
 - session 2 claiming session 1's task under another actor is refused: `ledger.sh update <S1's task ID> --claim --actor sess-<session 2>` → non-zero, output contains `already claimed`
 - `ledger.sh show <task ID>` assignee equals that session's actor value
 - **both** sides: `bash "$(<plugin>)/checks/board-check.sh"` → rc 0 from their worktrees (the ledger change of one does not break the other's check)
-- `git -C <worktree> log --oneline -1` of each points at a commit on a different `worktree-<ID>` branch
+- `git -C <worktree> log --oneline -1` of each points at a commit on a different `worktree-<worktree name>` branch
 - the stop guard scopes to each session's own actor: a session that closed its own work stops without pushback while the other's tasks are still `in_progress`
 
 ### UC-4. A new session picks up an interrupted cycle
@@ -156,8 +156,8 @@
 **Steps**
 
 1. Confirm the PR state: `gh pr view <number> --json state,mergeCommit`.
-2. **Before** cleanup, look for a merge omission: `git -C <clone> fetch --prune` then `git -C <clone> diff --stat origin/<default branch> worktree-<story ID>` (run from inside the worktree without the clone path in the command string — `r_main_shell`).
-3. `bash "$(<plugin>)/scripts/workspace-cleanup.sh" <story ID>` — fetch --prune → uncommitted/unpushed check → remove the worktree → delete the local `worktree-<story ID>` branch → delete the bootstrap marker. No hand-typed removal commands (no gate — the script alone owns the order).
+2. **Before** cleanup, look for a merge omission: `git -C <clone> fetch --prune` then `git -C <clone> diff --stat origin/<default branch> worktree-<worktree name>` (run from inside the worktree without the clone path in the command string — `r_main_shell`).
+3. `bash "$(<plugin>)/scripts/workspace-cleanup.sh" <story ID>` — fetch --prune → uncommitted/unpushed check → remove the worktree → delete the local `worktree-<worktree name>` branch → delete the bootstrap marker. No hand-typed removal commands (no gate — the script alone owns the order).
 4. Read the stdout `<repo>\t<removed path>` lines.
 
 **Pass criteria**
@@ -166,7 +166,7 @@
 - 3 → rc 0
 - `[ ! -d <worktree> ]` → rc 0
 - `ls -a <clone>/.claude/worktrees/` does not list `<story ID>`
-- `git -C <clone> branch --list 'worktree-<story ID>'` prints 0 lines
+- `git -C <clone> branch --list 'worktree-<worktree name>'` prints 0 lines
 - the reverse path: with uncommitted changes in the worktree, 3 → non-zero and `[ -d <worktree> ]` → rc 0 (not removed, `--force` included)
 
 ---
@@ -205,14 +205,14 @@
 2. `bash "$(<plugin>)/scripts/board.sh" all` at the harness root redraws the local projections (outside git).
 3. Commit the code on **this branch**. No documents.
 4. **Ledger checks by hand** — the target repo has no harness git hook: `bash "$(<plugin>)/checks/board-check.sh"` and `bash "$(<plugin>)/checks/ledger-check.sh"` (read mode) from the worktree.
-5. **With no unresolved decision, without instruction**: `git push -u origin worktree-<story ID>`, then **the backend's ledger reflection as an explicit step** (`beads`: `bd -C <harness root> dolt push`; `github`·`notion`: nothing to do), then `ledger-check` again. With an unresolved decision and no approval, stop after 4. The PR after this push and **the merge a person does** follow the same boundary as UC-7 (`harness:develop` "사이클 종결").
+5. **With no unresolved decision, without instruction**: `git push -u origin worktree-<worktree name>`, then **the backend's ledger reflection as an explicit step** (`beads`: `bd -C <harness root> dolt push`; `github`·`notion`: nothing to do), then `ledger-check` again. With an unresolved decision and no approval, stop after 4. The PR after this push and **the merge a person does** follow the same boundary as UC-7 (`harness:develop` "사이클 종결").
 
 **Pass criteria**
 
 - `ledger.sh show <task ID>` status == `closed`, and `close_reason` contains the commit hash and the gate exit code
 - `bash "$(<plugin>)/checks/board-check.sh"` → rc 0
 - the commit of step 3 carries no projection: `git show --name-only --format= HEAD | grep -c '^docs/'` prints 0
-- 5 → the tip of `git ls-remote origin refs/heads/worktree-<story ID>` == `git rev-parse HEAD`
+- 5 → the tip of `git ls-remote origin refs/heads/worktree-<worktree name>` == `git rev-parse HEAD`
 - after the explicit ledger reflection, `ledger-check` prints `원격 반영 확인됨` (or, where the backend has nothing to send, `원격 반영 대상 없음`) — the same criterion as UC-7; rc 0 alone proves nothing
 - **must not be blocked**: another story's branch in progress in the same sprint does not make step 5 non-zero
 
@@ -238,7 +238,7 @@
 - for every name in `jq -r '.repos[].name' ~/.harness-workspace/repos.json`, `… repo.sh list` reports the clone present and the harness root `<harness root>` — there is no plugin row, and its absence is what `repo-check.sh` ④ asserts
 - `bash "$(<plugin>)/lib/harness-root.sh"` prints `~/.harness-workspace` — that directory is the harness root, and its `ledger.json` is the marker
 - `bash "$(<plugin>)/checks/board-check.sh"` → rc 0 (the restored ledger matches the committed registries)
-- 7 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<story ID>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints the harness ledger)
+- 7 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<worktree name>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints the harness ledger)
 - the failure path is judged too: on `beads`, if the ledger was never pushed, 2 fails with `remote at that url contains no Dolt data` (non-zero), and `ledger.sh list` being non-zero in that state is normal
 
 ---

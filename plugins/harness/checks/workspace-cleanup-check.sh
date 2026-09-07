@@ -15,6 +15,12 @@
 #      일시적으로 안 보이는(볼륨 언마운트) 남의 등록까지 지운다. 그 지점을 스토리로 좁혔다
 #   ⑪ 등록부에 없는 repo: 라벨 → rc=1
 #
+# **⓪ 스토리 ID → 워크트리 이름 변환**은 위 ①~⑪ 앞에 서고 **백엔드와 무관하게 돈다** —
+# lib/worktree-name.sh 는 원장에 닿지 않는 순수 변환이라 아래 backend 게이트에 걸릴 이유가 없다.
+# 그 자리를 **단독으로** 판정하는 곳이 여기다: cleanup 이 경로를 바르게 만드는지는 ①~⑪ 이 보지만,
+# 그 절들은 backend=beads 에서만 돌고 beads 의 ID 는 변환이 무해해서 **어긋남이 드러나지 않는다**
+# (harness#79 가 그 결함이 beads 에서 안 보였던 이유로 든 것과 같은 사정이다).
+#
 # **⑪ 은 bead 에 등록부에 없는 라벨을 붙인다 — 그 뒤의 모든 절은 rc 가 1 로 고정된다.**
 # rc 를 보는 절은 전부 ⑪ 앞에 둔다. 뒤에 붙이면 그 절의 rc 단언이 조용히 오염된다
 # (실측 2026-08-22: ⑩ 을 뒤에 뒀더니 rc=0 단언이 실패했다).
@@ -37,13 +43,38 @@ cd "$ROOT" || { echo "✗ 하네스 루트로 이동하지 못했다: $ROOT" >&2
 # beads 가 아닌 백엔드에서는 사유를 밝히고 건너뛴다. 조용히 죽으면 "건너뛴 것" 과 "실패한
 # 것" 이 구별되지 않는다. ⑪ 이 쓰는 tag 도 같은 이유로 beads 전용이다.
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
+
+fail=0
+step() {
+  local label="$1"; shift
+  if "$@"; then echo "  ✓ ${label}"; else echo "  ✗ FAILED: ${label}"; fail=1; fi
+}
+
+# ── ⓪ 스토리 ID → 워크트리 이름 (백엔드 무관) ────────────────────────
+echo "── ⓪ 스토리 ID → 워크트리 이름 ──"
+wtname() { bash "$PLUGIN_ROOT/lib/worktree-name.sh" "$1"; }
+step "github 형식: 'skills#105' → 'skills-105' (도구의 name 이 '#' 을 안 받는다)" \
+  [ "$(wtname 'skills#105')" = "skills-105" ]
+step "beads 형식: 'harness-abc' → 그대로 (변환이 무해하다 — 어긋남이 여기서 안 드러났다)" \
+  [ "$(wtname 'harness-abc')" = "harness-abc" ]
+step "beads 의 dotted id: 'harness-0r2.1.10' → 그대로 (점·숫자는 허용 문자다)" \
+  [ "$(wtname 'harness-0r2.1.10')" = "harness-0r2.1.10" ]
+step "인자 없이 부르면 rc≠0 (빈 이름을 내면 클론 루트를 지우러 간다)" \
+  bash -c '! bash "$1" 2>/dev/null' _ "$PLUGIN_ROOT/lib/worktree-name.sh"
+# 순파생하는 자리가 이 변환을 **실제로 부르는가** — 부르지 않고 ID 를 그대로 쓰면 github 에서
+# 없는 경로를 뒤져 rc 0 을 내고 실물이 남는다. 그 형태 자체를 없앤 것을 여기서 못박는다.
+step "workspace-cleanup.sh 에 ID 직접 파생(worktrees/\$STORY · worktree-\$STORY)이 0건" \
+  bash -c '! grep -qE "worktrees/\$STORY|worktree-\$STORY" "$1"' _ "$PLUGIN_ROOT/scripts/workspace-cleanup.sh"
+step "workspace-cleanup.sh 가 lib/worktree-name.sh 를 부른다" \
+  grep -q "lib/worktree-name.sh" "$PLUGIN_ROOT/scripts/workspace-cleanup.sh"
+
 BACKEND="$(jq -r '.backend // empty' "$ROOT/ledger.json")" \
   || { echo "✗ ledger.json 을 읽지 못했다: $ROOT/ledger.json" >&2; exit 1; }
 [ -n "$BACKEND" ] \
   || { echo "✗ ledger.json 에 backend 키가 없다: $ROOT/ledger.json" >&2; exit 1; }
 if [ "$BACKEND" != beads ]; then
-  echo "⊘ workspace-cleanup 검사 전체를 건너뛴다 (backend=$BACKEND) — 검사용 bead 의 'create --ephemeral' 과 'delete' 가 beads 전용 인자라 github·notion 에는 대응물이 없다. ①~⑪ 어느 절도 판정하지 않았다"
-  exit 0
+  echo "⊘ ①~⑪ 을 건너뛴다 (backend=$BACKEND) — 검사용 bead 의 'create --ephemeral' 과 'delete' 가 beads 전용 인자라 github·notion 에는 대응물이 없다. **판정한 것은 ⓪ 뿐이다**"
+  exit "$fail"
 fi
 
 TMP=$(mktemp -d)
@@ -59,11 +90,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-fail=0
-step() {
-  local label="$1"; shift
-  if "$@"; then echo "  ✓ ${label}"; else echo "  ✗ FAILED: ${label}"; fail=1; fi
-}
 has_text() { case "$2" in *"$1"*) return 0;; *) return 1;; esac; }
 no_branch() { ! git -C "$CLONE" show-ref --verify --quiet "refs/heads/worktree-$BEAD"; }
 has_branch() { git -C "$CLONE" show-ref --verify --quiet "refs/heads/worktree-$BEAD"; }

@@ -2,7 +2,7 @@
 # 스토리 워크트리 정리기 — EnterWorktree + hooks/enter-worktree.sh 가 만든 것의 대칭.
 # 사용법: scripts/workspace-cleanup.sh <story-id> [--force]
 #
-# 생성이 불변식(브랜치 worktree-<ID>·기준 origin 최신·exclude 등재·원장 배선·부트스트랩 마커)을
+# 생성이 불변식(브랜치 worktree-<워크트리 이름>·기준 origin 최신·exclude 등재·원장 배선·부트스트랩 마커)을
 # 소유하듯, 정리도 불변식을 소유한다. develop 스킬 4-4 가 손절차로 적어 두었던 것을
 # 이 스크립트가 가져온다:
 #   ① 원격 참조 갱신 (fetch --prune)  ② 미커밋·미푸시 검사(있으면 중단)
@@ -75,8 +75,14 @@ rm -f "$BD_ERR"
 REPOS=$(printf '%s' "$SHOW_JSON" | jq -r '.[0].labels[]? | select(startswith("repo:")) | sub("^repo:"; "")')
 [[ -n "$REPOS" ]] || { echo "오류: ${STORY} 에 repo:* 라벨이 없다" >&2; exit 1; }
 
-# EnterWorktree 는 name=<ID> 를 브랜치 worktree-<ID> 로 만든다 (실측 2026-09-05, claude -p — 도구는 브랜치 이름을 받지 않는다).
-BRANCH="worktree-$STORY"
+# 워크트리 이름은 **스토리 ID 가 아니라** ID 를 변환한 것이다 — 변환의 자리는 lib/worktree-name.sh
+# 하나이고 여기서 그것을 부른다. ID 를 그대로 경로에 넣으면 github 백엔드(`<repo>#<번호>`)에서
+# 없는 경로를 뒤져 "이미 정리된 상태" 로 rc 0 을 내고 실물은 남는다 (harness#79, 실측 2건).
+# EnterWorktree 는 name=<그 이름> 을 브랜치 worktree-<그 이름> 으로 만든다
+# (실측 2026-09-05, claude -p — 도구는 브랜치 이름을 받지 않는다).
+WTNAME="$(bash "$PLUGIN_ROOT/lib/worktree-name.sh" "$STORY")" \
+  || { echo "오류: 스토리 ID 를 워크트리 이름으로 바꾸지 못했다: '$STORY'" >&2; exit 1; }
+BRANCH="worktree-$WTNAME"
 fail=0
 
 # 호출자가 서 있는 디렉토리를 지우지 않는다 — 지운 뒤 그 셸의 CWD 는 존재하지 않는
@@ -103,8 +109,8 @@ while IFS= read -r name; do
     echo "오류: '$name' 의 클론이 없다: $repo — 정리할 대상이 없다" >&2; fail=1; continue
   fi
 
-  dest="$repo/.claude/worktrees/$STORY"
-  marker="$repo/.claude/worktrees/.bootstrapped-$STORY"
+  dest="$repo/.claude/worktrees/$WTNAME"
+  marker="$repo/.claude/worktrees/.bootstrapped-$WTNAME"   # 훅이 같은 이름으로 만든다 (hooks/enter-worktree.sh)
 
   if inside "$dest"; then
     echo "오류: 호출자가 '$name' 의 정리 대상 워크트리 안에 서 있다 ($CALLER_PWD) — 밖에서 실행하라" >&2
@@ -201,12 +207,12 @@ while IFS= read -r name; do
   # 관리 항목만 남아 있다. prune 은 실체 없는 항목만 건드리지만 **레포 전역**이다:
   # 이 스토리 밖의 워크트리도 실체가 일시적으로 안 보이면(외부·네트워크 볼륨 언마운트)
   # 그 등록까지 함께 사라지고, 볼륨이 돌아오면 그 디렉토리는 고아가 된다. 스크립트의
-  # 나머지는 전부 $STORY 로 좁혀져 있으므로 여기도 좁힌다 — 고아 등록이 **우리 것뿐일
+  # 나머지는 전부 이 스토리의 워크트리로 좁혀져 있으므로 여기도 좁힌다 — 고아 등록이 **우리 것뿐일
   # 때만** 돌리고, 남의 것이 섞여 있으면 손대지 않고 알린다 (정리는 급한 일이 아니다).
   repo_phys=$(cd "$repo" && pwd -P)
   orphans=$(git -C "$repo" worktree list --porcelain | sed -n 's/^worktree //p' \
             | while IFS= read -r w; do [[ -e "$w" ]] || printf '%s\n' "$w"; done)
-  others=$(printf '%s\n' "$orphans" | grep -vxF -e "$dest" -e "$repo_phys/.claude/worktrees/$STORY")
+  others=$(printf '%s\n' "$orphans" | grep -vxF -e "$dest" -e "$repo_phys/.claude/worktrees/$WTNAME")
   if [[ -z "$others" ]]; then
     git -C "$repo" worktree prune >&2
   else

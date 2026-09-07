@@ -462,7 +462,7 @@ mc_locate() {
 mc_deny_root() {
   [ -n "$MC_SUB" ] && return 0
   [ -n "$MC_REPO" ] || deny "클론 루트 자체 금지 — $1 은 클론 루트($CLONE_ROOT) 그 자체다. 지우거나 옮기면 모든 레포의 클론·워크트리·미커밋 변경이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크다. 이 층은 scripts/repo.sh 가 소유한다."
-  deny "클론 루트 직속 금지 — $1 은 클론 루트($CLONE_ROOT) 바로 아래다. 레포 체크아웃 루트이거나 그 옆의 파일이며, 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/<레포>/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree(name=<스토리ID>)로 만든다."
+  deny "클론 루트 직속 금지 — $1 은 클론 루트($CLONE_ROOT) 바로 아래다. 레포 체크아웃 루트이거나 그 옆의 파일이며, 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/<레포>/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(name 은 lib/worktree-name.sh <스토리ID> 가 내는 이름이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
 }
 
 # 이 호출이 **파일 쓰기**인가 — 아래 두 규칙(r_main_write·r_grader_write)의 공통 판정.
@@ -498,7 +498,7 @@ r_main_write() {
   mc_locate "$p" || return 0
   case "$MC_SUB" in .claude/worktrees/*/*) return 0 ;; esac
   mc_deny_root "$p"
-  deny "본 체크아웃 쓰기 금지 — $MC_PATH 는 대상 레포 '$MC_REPO' 의 본 체크아웃 안이다. 쓰기는 스토리 워크트리 안에서만 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree(name=<스토리ID>)로 만든다."
+  deny "본 체크아웃 쓰기 금지 — $MC_PATH 는 대상 레포 '$MC_REPO' 의 본 체크아웃 안이다. 쓰기는 스토리 워크트리 안에서만 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(name 은 lib/worktree-name.sh <스토리ID> 가 내는 이름이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
 }
 # 매처가 `*` 인 이유는 위 w_path 주석에 있다 — 도구 이름을 여기 나열하면 그 목록이 곧
 # 허용 목록이 되어, 나열되지 않은 쓰기 도구가 기본값 "검사 안 됨"으로 샌다.
@@ -674,7 +674,7 @@ r_main_shell() {
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0
     mc_deny_root "$cand"
-    deny "본 체크아웃 경로 금지 — 명령에 $MC_PATH 가 들어 있다. 대상 레포 '$MC_REPO' 의 본 체크아웃은 직접 건드리지 않는다(읽기 전용 명령만으로 된 명령 — ls·cat·grep·git status 등 — 은 통과한다. 파일 리다이렉션이나 그 밖의 명령이 하나라도 섞이면 막힌다). 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree(name=<스토리ID>)로 만든다."
+    deny "본 체크아웃 경로 금지 — 명령에 $MC_PATH 가 들어 있다. 대상 레포 '$MC_REPO' 의 본 체크아웃은 직접 건드리지 않는다(읽기 전용 명령만으로 된 명령 — ls·cat·grep·git status 등 — 은 통과한다. 파일 리다이렉션이나 그 밖의 명령이 하나라도 섞이면 막힌다). 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<스토리ID>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(name 은 lib/worktree-name.sh <스토리ID> 가 내는 이름이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
   done < <(printf '%s' "$cmd" | grep -oE "[~/][^[:space:]\"'\`;|&()<>]*"
            printf '%s' "$cmd" | grep -oE "(^|[[:space:]])\.\.?/[^[:space:]\"'\`;|&()<>]*" | sed 's/^[[:space:]]//')
 }
