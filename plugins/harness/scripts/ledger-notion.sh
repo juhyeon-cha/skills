@@ -51,6 +51,9 @@ die() { echo "ledger-notion: $*" >&2; exit 1; }
 [ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트 직속의 ledger.json 으로 찾는다"; exit 0; }
 # 원격 반영 검사 — 페이지가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (notion 백엔드: 페이지가 원격 자체다)"; exit 0; }
+# 사람이 읽는 자기 UI — 갖는다. scripts/board.sh 가 이것으로 렌더 여부를 정한다(코어는 백엔드
+# 이름을 열거하지 않는다). 위 둘과 같이 토큰 검사 앞에 둔다 — 답이 상수라 원장에 닿지 않는다.
+[ "${1:-}" = "has-ui" ] && { echo "Notion 의 데이터베이스 화면"; exit 0; }
 DB="$(jq -r '.database_id // empty' "$LEDGER_CONFIG")"
 [ -n "${NOTION_TOKEN:-}" ] || die "NOTION_TOKEN 환경 변수가 없다 — 통합 토큰을 환경 변수로만 준다(파일에 두지 않는다)"
 command -v curl >/dev/null 2>&1 || die "curl 이 PATH 에 없다 — Notion 백엔드는 REST 로 원장에 닿는다"

@@ -131,6 +131,12 @@ case "${1:-}" in
     fi
     exec bd -C "$LEDGER_ROOT" init --prefix "$prefix"
     ;;
+  has-ui)
+    # 사람이 읽는 자기 UI — 갖지 않는다. 원장이 로컬 Dolt DB 라 사람이 읽을 화면이 없고,
+    # scripts/board.sh 의 투영이 그 자리를 메운다. 빈 출력이 "없다" 다 (rc 0).
+    # bd 로 흘리지 않으려고 여기서 잡는다 — 아래 exec 로 가면 `bd has-ui` 가 되어 rc≠0 이다.
+    exit 0
+    ;;
   wire-worktree)
     wt="${2:-}"
     [ -n "$wt" ] && [ -d "$wt" ] || { echo "ledger-beads wire-worktree: 실재하는 <워크트리 절대 경로> 가 필요하다 ('${wt}')" >&2; exit 1; }

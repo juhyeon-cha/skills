@@ -5,6 +5,8 @@
 #       scripts/board.sh adr                              → docs/adr/
 #       scripts/board.sh all                              → 등록부(어댑터의 sprints)의 스프린트 전부 + backlog + adr
 # 산출물은 git 밖이다(.gitignore) — 원장이 SSOT 이고 이 트리는 사람이 로컬에서 읽는 투영이다.
+# **백엔드가 사람이 읽는 자기 UI 를 가지면 이 렌더러는 아무것도 하지 않는다** (rc 0 + 무엇을 하지
+# 않았는지 한 줄). 판단은 어댑터의 has-ui 가 하고 이 파일은 백엔드 이름을 알지 않는다 — 아래 그 자리.
 # post-merge·post-checkout 훅이 `all` 을 불러 pull·checkout 뒤 다시 그린다.
 # 출력(스프린트·백로그):
 #   index.md                     — 대상의 스토리 표
@@ -34,15 +36,8 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && p
 
 TARGET="${1:?사용법: scripts/board.sh <스프린트ID>|backlog|adr|all (스프린트 ID 형식: YYYY-SNN)}"
 if [[ "$TARGET" == "all" ]]; then
-  ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
-  # 스프린트 등록부는 어댑터가 낸다 — 백엔드가 무엇이든 [{id, status}] 다 (scripts/ledger.sh).
-  SPRINT_IDS="$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" sprints --json | jq -r '.[].id')" \
-    || { echo "스프린트 등록부를 읽지 못했다 (어댑터의 sprints)" >&2; exit 1; }
-  for id in $SPRINT_IDS; do bash "$0" "$id" || exit 1; done
-  bash "$0" backlog || exit 1
-  exec bash "$0" adr
-fi
-if [[ "$TARGET" == "backlog" ]]; then
+  MODE="all"
+elif [[ "$TARGET" == "backlog" ]]; then
   MODE="backlog"; NAME="backlog"; TITLE="백로그"; FRONTMATTER="backlog: true"
 elif [[ "$TARGET" == "adr" ]]; then
   MODE="adr"; NAME="adr"; TITLE="결정 기록 (ADR)"; FRONTMATTER="adr: true"
@@ -55,6 +50,30 @@ fi
 
 # 하네스 루트는 lib/harness-root.sh 가 낸다 — 스크립트 위치로 파생하지 않는다 (플러그인은 하네스 루트 밖에 산다).
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
+
+# ── 자기 UI 를 갖는 백엔드에서는 그리지 않는다 ────────────────────────
+# 이 파일 머리가 적듯 산출물은 **사람이 로컬에서 읽는 투영**이다. 백엔드에 사람이 읽는 화면이
+# 이미 있으면 같은 것을 두 벌 들게 되고, 그 둘은 렌더를 돌린 시점만큼 어긋난다.
+# **어느 백엔드가 UI 를 갖는지 여기서 이름으로 가르지 않는다** — 어댑터의 has-ui 가 답한다.
+# 코어가 백엔드 이름을 열거하면 백엔드가 늘 때마다 이 파일을 고쳐야 하고, 그 판단의 원본이
+# 어댑터 밖으로 샌다. rc≠0 은 "답하지 못했다" 이므로 그리지 않고 실패한다 — 답을 못 받은 것을
+# "UI 없음" 으로 읽으면 원장을 못 읽는 판에서 조용히 렌더로 들어간다.
+UI="$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" has-ui)" \
+  || { echo "백엔드가 UI 보유 여부에 답하지 못했다 (어댑터의 has-ui) — 그리지 않는다" >&2; exit 1; }
+if [[ -n "$UI" ]]; then
+  echo "board.sh: '$TARGET' 를 그리지 않았다 — 이 백엔드는 자기 UI($UI)를 갖는다. docs/sprints/·docs/backlog/·docs/adr/ 아래 파일을 만들지도 지우지도 않았다 (원장이 SSOT 이고 이 트리는 그 투영이라, UI 가 있으면 중복이다)"
+  exit 0
+fi
+
+if [[ "$MODE" == "all" ]]; then
+  # 스프린트 등록부는 어댑터가 낸다 — 백엔드가 무엇이든 [{id, status}] 다 (scripts/ledger.sh).
+  SPRINT_IDS="$(HARNESS_ROOT="$ROOT" bash "$PLUGIN_ROOT/scripts/ledger.sh" sprints --json | jq -r '.[].id')" \
+    || { echo "스프린트 등록부를 읽지 못했다 (어댑터의 sprints)" >&2; exit 1; }
+  for id in $SPRINT_IDS; do bash "$0" "$id" || exit 1; done
+  bash "$0" backlog || exit 1
+  exec bash "$0" adr
+fi
+
 if [[ "$MODE" == "sprint" ]]; then
   OUT="$ROOT/docs/sprints/$NAME"
 else

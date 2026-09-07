@@ -60,6 +60,9 @@ die() { echo "ledger-github: $*" >&2; exit 1; }
 [ "${1:-}" = "wire-worktree" ] && { echo "ledger-github: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트 직속의 ledger.json 으로 찾는다"; exit 0; }
 # 원격 반영 검사 — 이슈가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (github 백엔드: 이슈가 원격 자체다)"; exit 0; }
+# 사람이 읽는 자기 UI — 갖는다. scripts/board.sh 가 이것으로 렌더 여부를 정한다(코어는 백엔드
+# 이름을 열거하지 않는다). 위 둘과 같이 gh 검사 앞에 둔다 — 답이 상수라 원장에 닿지 않는다.
+[ "${1:-}" = "has-ui" ] && { echo "GitHub 의 이슈·Projects 화면"; exit 0; }
 OWNER="$(jq -r '.owner // empty' "$LEDGER_CONFIG")"
 PROJECT="$(jq -r '.project // empty' "$LEDGER_CONFIG")"
 [ -n "$OWNER" ] || die "$LEDGER_CONFIG 에 owner 가 없다"

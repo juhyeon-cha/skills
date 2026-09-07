@@ -46,6 +46,12 @@ usage() {
   label add|remove <id> <라벨>
   wire-worktree <워크트리 절대 경로>   워크트리에 원장을 배선한다 — hooks/enter-worktree.sh 가 부른다
                              (beads: <워크트리>/.beads/redirect · github·notion: 배선할 것이 없다, rc 0)
+  has-ui                     이 백엔드가 **사람이 읽는 자기 UI** 를 갖는가 — scripts/board.sh 가 부른다.
+                             갖는 백엔드는 그 UI 이름을 stdout 한 줄로 내고, 갖지 않는 백엔드는 아무것도
+                             내지 않는다 (둘 다 rc 0 · rc≠0 은 "답하지 못했다" 다). 답이 상수라 백엔드에
+                             닿지 않는다 — gh·토큰 없이도 답한다
+                             (beads: 없음 — 로컬 Dolt DB 라 사람이 읽는 화면이 board.sh 의 투영뿐이다 ·
+                              github: 이슈·Projects 화면 · notion: 데이터베이스 화면)
   sync-check [--push]        원장이 원격과 어긋났는가 — checks/ledger-check.sh 가 부른다
                              (beads: Dolt 원격 대조, --push 면 앞선 커밋 반영 · github·notion: "원격 반영 대상 없음" rc 0)
   rails --json               레일 전체 — 출력 JSON 은 [{id, owner}] 배열. owner 는 레일 담당자
