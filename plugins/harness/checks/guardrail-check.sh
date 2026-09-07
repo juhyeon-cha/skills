@@ -245,6 +245,12 @@ step "규칙 집합이 파생됐다 (${#RULE_SET[@]}개)" [ "${#RULE_SET[@]}" -g
 CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"   # guard.sh 와 같은 표현
 IMPL_T="harness:implementer"; GR_R="harness:reviewer"                     # agent_type 의 실측 형식 (M0)
 MAIN_PATH="$CLONE_ROOT/_probe-repo/README.md"                  # 어휘 판정이라 실재하지 않아도 된다
+# 채점자 규칙의 차단 자리. r_grader_write 는 skills#225 이후 **대상 트리 안**만 막으므로
+# 트리 밖($TMP)은 더 이상 차단이 아니다. 워크트리 경로를 쓰는 이유는 **A/B 귀속**이다 —
+# r_main_write 는 `.claude/worktrees/*/*` 를 통과시키고 r_grader_write 는 그것도 막으니,
+# 이 입력의 rc=2 는 오직 r_grader_write 때문이다. 트리 안 다른 자리(본 체크아웃)를 쓰면
+# r_main_write 에 먼저 걸려 "그 규칙 등재만 뺀 사본에서 rc 0" 이 거짓이 된다.
+WT_PATH="$CLONE_ROOT/_probe-repo/.claude/worktrees/_probe-wt/README.md"
 
 # 규칙마다 **차단돼야 하는** 입력 하나. 형식: "<규칙>|<PreToolUse 이벤트 JSON>".
 # 이 표는 손으로 적지만 **집합이 아니라 시험 데이터**다 — 어느 규칙을 검사할지는
@@ -253,7 +259,7 @@ PROBES=(
   "r_main_write|{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$MAIN_PATH\"}}"
   "r_main_shell|{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo x > $MAIN_PATH\"}}"
   "r_remote|{\"tool_name\":\"Bash\",\"agent_type\":\"$IMPL_T\",\"tool_input\":{\"command\":\"git push origin master\"}}"
-  "r_grader_write|{\"tool_name\":\"Write\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"file_path\":\"$TMP/probe.txt\"}}"
+  "r_grader_write|{\"tool_name\":\"Write\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"file_path\":\"$WT_PATH\"}}"
   "r_grader_shell|{\"tool_name\":\"Bash\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"command\":\"git commit -m probe\"}}"
   "r_impl_bd|{\"tool_name\":\"Bash\",\"agent_type\":\"$IMPL_T\",\"tool_input\":{\"command\":\"bd -C $TMP close probe-1\"}}"
   "r_bd_root|{\"tool_name\":\"Bash\",\"agent_id\":\"sess-probe\",\"tool_input\":{\"command\":\"bd close probe-1\"}}"
