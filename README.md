@@ -88,7 +88,7 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
 { "name": "<이름>", "source": "./plugins/<이름>", "description": "<한 줄 설명>" }
 ```
 
-3. `bash scripts/check.sh` 를 돌린다 — 종료 코드 0 이어야 한다. 이것이 이 레포의 게이트다: `claude plugin validate --strict`(마켓플레이스와 `plugins/*/` 각각) · `plugins/` 아래 `*.sh` 전수 shellcheck · agent-doc-audit 회귀(기준 1·4, `HARNESS_ROOT` 가 있으면 6 도) · 플러그인 설명이 `plugin.json` · `marketplace.json` · 이 README 에서 같은지.
+3. `bash scripts/check.sh` 를 돌린다 — 종료 코드 0 이어야 한다. 이것이 이 레포의 게이트다: `claude plugin validate --strict`(마켓플레이스와 `plugins/*/` 각각) · `plugins/`·`tests/` 아래 `*.sh` 전수 shellcheck · agent-doc-audit 회귀(기준 1·4, `HARNESS_ROOT` 가 있으면 6 도) · 플러그인 설명이 `plugin.json` · `marketplace.json` · 이 README 에서 같은지.
 
 설명은 `plugin.json` 이 원본이다. `marketplace.json` 과 README 의 설명은 거기에 맞춘다.
 

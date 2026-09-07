@@ -35,12 +35,13 @@ Write a new gate in the **inverted-polarity** form (`harness:develop` "운영 �
 
 ## Where a document goes
 
-**Pick the place from this table before creating a document.** If none of the four fits, it is not a document yet but an unsorted memo.
+**Pick the place from this table before creating a document.** If none of the five fits, it is not a document yet but an unsorted memo.
 
 | Kind | Place | Why there |
 |---|---|---|
 | **Decision** — what was decided and why | a `decision` bead in the ledger, status `pinned` | rides no branch, so it reads the same from every tree. Supersession is not deletion but `ledger.sh supersede <old> --with <new>` keeping the lineage (a `beads`-only subcommand — on another backend the lineage is kept by the backend's own means) |
-| **Core document** — rules, structure, procedure | the plugin (`skills/` · `agents/` · `hooks/session-context.md`) for what every project shares; the plugin's `docs/` for the harness's own structure and rules | the plugin is what every install receives. Only sentences that change the next person's behavior |
+| **Core document** — rules, structure, procedure **an install reads** | the plugin (`skills/` · `agents/` · `hooks/session-context.md` · `docs/`) | the plugin is what every install receives. Only sentences that change the next person's behavior |
+| **Document only the people building the tool read** | the source repo, outside the plugin (for the harness: the skills repo's `docs/`) | an install copies the plugin tree whole and cannot leave a file out, so a document it never opens is weight it carries forever. The test is the same one the code takes: **does the installed copy read it?** |
 | **Time-stamped record** — measurements, history, counts, dates | the **`note` of the bead** that produced the change | in a rule body it costs load every session. A rule keeps a one-line pointer (first item below) |
 | **Projection outside git** — the ledger drawn for people | `docs/sprints/` · `docs/backlog/` · `docs/adr/` — **three** | the ledger is the SSOT. All three are `.gitignore`d and one command, the plugin's `scripts/board.sh all`, draws them |
 

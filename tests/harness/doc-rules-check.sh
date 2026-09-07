@@ -96,7 +96,7 @@ fail=0
 #     들여쓰지 않으면 잔존 1, rc=1 (verify-code 1회차 reviewer 의 A/B).
 #   그래서 **접기는 "과검출 방향이라 안전" 하지 않다** — 이 주석의 초판이 그렇게 적었고
 #   거짓이었다. 흡수 경로는 앵커 면제가 걸린 자리에서만 열리는데, 지금 그 자리가 하필
-#   편집이 잦은 ../docs/usecases.md:262·:263·:298 과 ../docs/operations.md:53 이다.
+#   편집이 잦은 docs/usecases.md:262·:263·:298 과 plugins/harness/docs/operations.md:53 이다.
 #   물리 줄 훑기가 그것을 막는다 — 심은 줄은 그 자신이 앵커를 갖지 않으므로 물리 훑기의
 #   잔존으로 남는다.
 #
@@ -137,7 +137,7 @@ fail=0
 #     여덟을 고치는 동안 새 문장(setup:179·212·359·367 · retrospective:27 ·
 #     guard-check:1373 · usecases:263·298·299)과 bd 투영(docs/backlog)이 들어왔다.
 #   - **이 검사**(접기 + 아래 면제표 + docs/backlog 제외)를 0ae4895 에 돌리면 잔존
-#     **1줄** — ../docs/operations.md:47 뿐이었다. 그 절이 CLAUDE.md 가 소유한 목록을
+#     **1줄** — plugins/harness/docs/operations.md:47 뿐이었다. 그 절이 CLAUDE.md 가 소유한 목록을
 #     복제해, 같은 파일이 여섯 줄 위에서 "종점은 PR" 이라고 적고 아래에서 그 반대를
 #     적고 있었다. 이 커밋이 그 절을 포인터로 바꿔 **0줄**로 만든다.
 #     [측정: 2026-08-27, bash 3.2.57(1) / macOS Darwin 25.6.0, CWD = 이 레포 루트]
@@ -209,12 +209,20 @@ check_rrem() {
   s1="(PR|풀 리퀘스트)[^|]{0,60}($ko_e|$en_e)|($ko_e|$en_e)[^|]{0,60}PR"
   s2="(원격 반영|GitHub 반영|[Rr]emote reflection|GitHub reflection)[^|]{0,60}($ko_e|$en_e)|($ko_e|$en_e)[^|]{0,60}(원격 반영|GitHub 반영|[Rr]emote reflection|GitHub reflection)"
 
-  # 스캔 대상은 플러그인 트리에서 파생한다 — 트리 아래 .md·.sh 전부. git 으로 파생하지 않는다:
-  # 설치 캐시(~/.claude/plugins/cache/…)는 git 트리가 아니라 ls-files 가 0건을 내고, 그러면 아래
-  # 대상 단언이 실패한다(harness-m8gg.8.1). 플러그인 루트에서 부르므로 경로는 플러그인 상대다.
-  # 대상은 플러그인 트리뿐이다 — 이 검사 자신과 tests/ 는 그 밖이라 자기 인용 면제가 필요 없다.
+  # 스캔 대상은 **두 자리**에서 파생한다. git 으로 파생하지 않는다: 설치 캐시
+  # (~/.claude/plugins/cache/…)는 git 트리가 아니라 ls-files 가 0건을 내고, 그러면 아래 대상
+  # 단언이 실패한다(harness-m8gg.8.1). 플러그인 루트에서 부르므로 경로는 플러그인 상대다.
+  #   ① 플러그인 트리 — 아래 .md·.sh 전부
+  #   ② 레포의 에이전트가 읽는 문서 — docs/ · CLAUDE.md · README.md · 레포 루트 스킬.
+  #      배포되지 않는다고 낡은 문장이 허용되는 것이 아니고, 실제로 이 검사의 기준값이 든 파일
+  #      (docs/usecases.md · docs/development.md)이 바로 여기로 나갔다. ①만 보면 그 파일들에
+  #      같은 주장이 다시 들어와도 "잔존 0" 이 된다.
+  #   tests/ 는 넣지 않는다 — 이 검사 자신이 낡은 문장을 인용해 서술하므로 자기 인용이 후보가 된다.
   files=$(find . -type f \( -name '*.md' -o -name '*.sh' \) 2>/dev/null | sed 's|^\./||' | sort)
   while IFS= read -r p; do [[ -n "$p" ]] && flist+=("$p"); done <<< "$files"
+  repo_files=$(find ../../docs ../../.claude/skills -type f -name '*.md' 2>/dev/null | sort)
+  while IFS= read -r p; do [[ -n "$p" ]] && flist+=("$p"); done <<< "$repo_files"
+  for p in ../../CLAUDE.md ../../README.md; do [[ -f "$p" ]] && flist+=("$p"); done
   [[ -n "${R_REM_SCAN_EXTRA:-}" ]] && flist+=("$R_REM_SCAN_EXTRA")
 
   # 대상 단언 — 검사가 **무엇을 보는지** 못박는다. 파생이 조용히 좁아지면(경로 오타,
@@ -223,7 +231,9 @@ check_rrem() {
     echo "✗ R-REM — 스캔 대상 파생이 0건이다 (플러그인 루트 $PLUGIN_ROOT). find 가 죽었으면 잔존 0 은 '위반 없음' 이 아니라 '안 봤음' 이다" >&2
     return 1
   fi
-  for k in "hooks/session-context.md" "skills/develop/SKILL.md" "skills/plan-story/SKILL.md"; do
+  # 두 자리를 각각 못박는다 — 한쪽 파생이 죽어도 다른 쪽 파일 수에 묻혀 위 0건 가드를 지나간다.
+  for k in "hooks/session-context.md" "skills/develop/SKILL.md" "skills/plan-story/SKILL.md" \
+           "../../docs/usecases.md" "../../docs/development.md" "../../CLAUDE.md"; do
     if ! printf '%s\n' "${flist[@]}" | grep -qxF -- "$k"; then
       echo "✗ R-REM — 스캔 대상에 '$k' 가 없다 (${#flist[@]}건 파생). 파생이 좁아졌으면 잔존 0 은 '위반 없음' 이 아니라 '안 봤음' 이다"
       return 1
@@ -279,7 +289,7 @@ check_rrem() {
 # ── C6: 세션 블록 「절대 금지」 절 — 살아 있고, 강제 장치의 자리를 가리킨다 ────────
 # 종전 규칙(CLAUDE.md :30 "각 항목에 그것을 강제하는 게이트가 있는지를 함께 적는다")의 항목별
 # 표기는 M1 이 주입 블록에서 뺐다(harness-lzs3.2.3) — 강제 장치의 전수 목록·한계는 하네스 루트
-# ../docs/guardrails.md 가 단일 소유하고, 블록은 그 자리를 **가리키기만** 한다. 상시 비용(바이트)이
+# plugins/harness/docs/guardrails.md 가 단일 소유하고, 블록은 그 자리를 **가리키기만** 한다. 상시 비용(바이트)이
 # 그 결정의 표적이었다. 그래서 이 검사가 보는 것은 둘이다:
 #   ① `## 절대 금지` 절의 **최상위 불릿 전수**가 0건이 아니다 — 절이 옮겨가거나 파서가 낡으면
 #      0건 파생이 '위반 없음' 이 아니라 '안 봤음' 이므로 실패로 읽는다.

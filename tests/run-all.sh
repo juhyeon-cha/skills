@@ -50,19 +50,24 @@ skipped=0
 
 # 대상 전수. 이름을 손으로 적지 않는다. 두 집합을 각각 파생하고 **각각 공허하지 않은지** 본다 —
 # 합쳐서 세면 한쪽이 통째로 비어도 다른 쪽의 수에 묻힌다.
-TEST_FILES=$(find tests -mindepth 2 -maxdepth 2 -type f -name '*.sh' 2>/dev/null | sort)
-[ -n "$TEST_FILES" ] || { echo "✗ tests/*/*.sh 가 0개다 — 빈 집합에 대한 검사는 통과가 아니라 검사 안 함이다"; exit 1; }
+TEST_FILES=$(find tests -type f -name '*.sh' ! -name 'run-all.sh' 2>/dev/null | sort)
+[ -n "$TEST_FILES" ] || { echo "✗ tests 아래 *.sh 가 0개다 — 빈 집합에 대한 검사는 통과가 아니라 검사 안 함이다"; exit 1; }
 SHIPPED_FILES=$(find plugins/harness/checks -maxdepth 1 -type f -name '*.sh' 2>/dev/null | sort)
 [ -n "$SHIPPED_FILES" ] || { echo "✗ plugins/harness/checks/*.sh 가 0개다 — 빈 집합에 대한 검사는 통과가 아니라 검사 안 함이다"; exit 1; }
 FILES="$TEST_FILES
 $SHIPPED_FILES"
 
-# 역방향 단언 — 면제 키가 실재하는가. 사라진 파일의 면제는 아무것도 안 하면서 참이 된다.
+# 역방향 단언 — 면제 키가 **파생 집합에 있는가**. 실재만 보면 파생 밖으로 나간 파일의 면제가
+# 살아 있는 것처럼 보이고(그 파일은 애초에 돌지 않는다), 면제 수와 실제 건너뛴 수가 갈린다.
 skip_paths=""
 while IFS='|' read -r path why; do
   [ -n "${path:-}" ] || continue
-  if [ ! -f "$path" ]; then
-    echo "✗ 면제 목록의 '$path' 가 실재하지 않는다 — 실재하지 않는 키의 면제는 검사를 조용히 지운다"
+  if ! printf '%s\n' "$FILES" | grep -qxF -- "$path"; then
+    if [ -f "$path" ]; then
+      echo "✗ 면제 목록의 '$path' 가 파생 집합 밖이다 — 면제할 것도 없이 이미 안 돌고 있다. 파생을 고치거나 면제를 빼라"
+    else
+      echo "✗ 면제 목록의 '$path' 가 실재하지 않는다 — 실재하지 않는 키의 면제는 검사를 조용히 지운다"
+    fi
     fail=1
     continue
   fi
@@ -91,10 +96,19 @@ fi
 rm -f "$hroot_err"
 
 # ① 문법 — shellcheck 가 없는 환경에서도 이것만은 돈다(shellcheck 전수는 레포 게이트 scripts/check.sh (b) 다).
-for f in plugins/harness/scripts/*.sh plugins/harness/checks/*.sh plugins/harness/hooks/*.sh plugins/harness/lib/*.sh tests/run-all.sh tests/*/*.sh; do
-  bash -n "$f" || { echo "✗ 문법 오류: $f"; fail=1; }
-done
-echo "  ✓ 문법 (bash -n) — plugins/harness 의 scripts·checks·hooks·lib · tests"
+# 대상은 **실물 전수**에서 파생한다. 손으로 적은 디렉토리 목록은 새 자리가 생길 때 조용히 빠지고,
+# 빈 디렉토리를 적어 두면 확장되지 않은 글롭이 그대로 bash -n 에 넘어가 엉뚱한 문구로 죽는다.
+SH_ALL=$(find plugins tests -type f -name '*.sh' 2>/dev/null | sort)
+n_sh=$(printf '%s' "$SH_ALL" | grep -c .)
+if [ "$n_sh" -eq 0 ]; then
+  echo "✗ plugins·tests 아래 *.sh 가 0개다 — 빈 집합에 대한 문법 검사는 통과가 아니라 검사 안 함이다"
+  fail=1
+else
+  for f in $SH_ALL; do
+    bash -n "$f" || { echo "✗ 문법 오류: $f"; fail=1; }
+  done
+  echo "  ✓ 문법 (bash -n) — plugins·tests 아래 *.sh ${n_sh}개"
+fi
 
 # ② 플러그인 JSON 의 유효성 — 훅 배선과 매니페스트.
 if jq empty plugins/harness/hooks/hooks.json plugins/harness/.claude-plugin/plugin.json 2>&1; then

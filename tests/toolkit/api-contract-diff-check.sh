@@ -4,7 +4,7 @@
 #
 #   check.sh
 #
-# 스냅샷 스키마는 ../api-spec-viewer/snapshot-schema.md 가 정의한다.
+# 스냅샷 스키마는 plugins/toolkit/skills/api-spec-viewer/snapshot-schema.md 가 정의한다.
 
 set -uo pipefail
 HERE=$(cd "$(dirname "$0")/../../plugins/toolkit/skills/api-contract-diff" && pwd)

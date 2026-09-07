@@ -43,7 +43,7 @@
 #      (⑫ 와 같은 판정 지점에 다른 허용 목록이 붙는다 — 겹침은 등재 순서로 메시지를 고른다).
 #      전수 시험 위에 **대상 단언**이 하나 더 붙는다 — 정정 보존이 기대는 하위 명령들을
 #      이름으로 못박는다. 전수 시험은 개수의 하한만 지키므로 파생이 얇아지면 그 경로만
-#      조용히 빠지는데 rc 는 그대로 0 이다 (근거는 ../docs/guardrails.md 1-2 절)
+#      조용히 빠지는데 rc 는 그대로 0 이다 (근거는 plugins/harness/docs/guardrails.md 1-2 절)
 #   (⑭ A6·⑭-2 R23·⑮ A7·⑰ A8 은 그 규칙들 — r_bd_body·r_core_write·r_bead_leak — 과 함께 뺐다.
 #    플러그인 재구조화가 남긴 규칙은 앵커와 무관한 불변식 넷뿐이다. 근거는 훅 머리주석.)
 #   ⑯ S16 — 규칙 발화가 **규칙 이름과 함께** 로그에 남고, 통과도 한 줄 남아 "발화 0" 과
@@ -70,7 +70,7 @@
 # 않는다(lib/harness-root.sh 를 부르는 것은 r_bd_root 의 차단 메시지뿐이고 ⑩ 이 HARNESS_ROOT 로 물린다).
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../plugins/harness" && pwd)"
-TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # 절대 경로로 못박는다 — 아래에서 CWD 를 플러그인 루트로 옮긴다
+TESTS_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"   # tests 전체. 절대 경로로 못박는다 — 아래에서 CWD 를 플러그인 루트로 옮긴다
 cd "$ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $ROOT" >&2; exit 1; }
 # 훅 사본을 다른 앵커에 두고 GUARD_ROOT 를 재는 절(③④)이 있다 — 세션이 이 변수를 내보낸 채 돌리면
 # 사본이 전부 그 값을 앵커로 읽어 ④ 가 거짓 실패한다. 아래에서는 명시적으로 넘길 때만 쓴다.
@@ -172,7 +172,7 @@ FX_Q_BDCLOSE="${qfx_cmd[3]}"
 FX_Q_BDCREATE="${qfx_cmd[4]}"
 FX_Q_BDUPDATE="${qfx_cmd[5]}"
 
-# rc 는 파이프 밖에서 채집한다 (../docs/development.md "Shell traps").
+# rc 는 파이프 밖에서 채집한다 (plugins/harness/docs/engineering.md "Shell traps").
 GUARD_RC=0
 GUARD_OUT=""
 runh() {  # runh <훅경로> <json> [env...]
@@ -887,7 +887,7 @@ step "대조: 레포와 접두만 같은 형제 경로는 통과한다" [ "$GUAR
 # **못 막는 것 — 레포를 담은 상위 디렉토리.** 종전에는 클론 루트라는 고정 층이 있어
 # `rm -rf <클론루트>` 를 막았다. 그 층을 없앤 대가로, 레포들의 부모를 지우는 조작은 하네스가
 # 판정할 근거가 없다(판별자가 그 디렉토리에 없다). 하위를 훑어 찾는 방법은 비용이 무한정이라
-# 두지 않았다 — ../docs/guardrails.md "못 막는 것" 이 이 rc=0 을 한계로 든다.
+# 두지 않았다 — plugins/harness/docs/guardrails.md "못 막는 것" 이 이 rc=0 을 한계로 든다.
 runm "$(j_bash "rm -rf $MCROOT")"
 step "한계(못 막음, rc=0 고정): 레포를 담은 상위 디렉토리 삭제" [ "$GUARD_RC" -eq 0 ]
 
@@ -906,7 +906,7 @@ for c in "${HOME_FORMS[@]}"; do
 done
 
 # ── 부정 대조군. 통과(rc=0)는 "검사했고 문제없음"과 "검사가 실행되지 않음"을 구분하지
-# 못한다 (../docs/development.md "Checking that a check is alive"). 각 수정만 뺀 사본에서 같은 입력이
+# 못한다 (plugins/harness/docs/engineering.md "Checking that a check is alive"). 각 수정만 뺀 사본에서 같은 입력이
 # 통과하는지 본다. 제거 전에 대상 줄이 실재하는지 먼저 단언한다 — 오타로 0줄을 지우면
 # 사본이 원본과 같아져 대조군이 조용히 무의미해진다.
 # 워크트리 예외 — mc_locate 가 워크트리 모양의 루트를 통과시키는 한 줄. 빼면 워크트리 안의
@@ -1442,7 +1442,7 @@ gh_is_exempt() { case " $GH_EXEMPT_SRC " in *" $1 "*) return 0 ;; esac; return 1
 # 면제 목록에 없는 다른 낱말과 똑같이 차단이라 전수 시험이 그대로 판정한다.
 gh_leaked=""; gh_blocked_read=""; gh_checked=0
 # 파이프로 먹이면 함수가 서브셸에서 돌아 아래 카운터가 전부 버려진다(빈 문자열 = 통과).
-# here-string 으로 먹여 현재 셸에서 돌린다 (../docs/development.md "Shell traps").
+# here-string 으로 먹여 현재 셸에서 돌린다 (plugins/harness/docs/engineering.md "Shell traps").
 gh_sweep() {  # gh_sweep <접두>  — stdin 으로 하위 명령 목록을 받는다
   local prefix="$1" s
   while read -r s; do
@@ -1831,7 +1831,7 @@ done
 
 # ── 통과: 검증용 명령 (acceptance ③). **이 배열이 이 규칙의 어려운 지점이다** — 두 역할
 #    정의가 "검증용 명령 실행은 허용된다"를 명시하므로, 여기가 막히면 리뷰·판정 자체가
-#    불가능해진다. 게이트 명령 두 줄('npm test' · check-all)은 게이트 명령의 예시다 — .harness.json
+#    불가능해진다. 게이트 명령 두 줄('npm test' · 레포 게이트)은 게이트 명령의 예시다 — .harness.json
 #    은 하네스 루트의 프로젝트 맥락이라 플러그인 검사가 대조하지 않는다.
 declare -a GR_ALLOW=(
   'git status'
@@ -1847,7 +1847,7 @@ declare -a GR_ALLOW=(
   "bd show $FX_TASK"
   'bd ready'
   'npm test'
-  'bash scripts/check-all.sh'
+  'bash scripts/check.sh'
   'bash checks/guard-check.sh'
   'pwd'
   'ls -l hooks/'
@@ -2288,7 +2288,7 @@ step "전수 시험이 공허하지 않다 (차단 기대가 40건 이상)" [ "$
 #    `.claude/rules/agile.md` 의 정정 보존은 원장의 note 가 덮이지 않는다를 전제하는데,
 #    실측상 그것은 원장 도구의 성질이 아니라 이 규칙의 결과다 — bd 에는 notes 를 고치고
 #    지우는 하위 명령이 여럿 있고 append 전용인 것은 `note` 뿐이다 (근거 명령과 측정
-#    환경은 ../docs/guardrails.md 1-2 절).
+#    환경은 plugins/harness/docs/guardrails.md 1-2 절).
 #
 #    위 전수 시험만으로는 부족하다. 그것은 BD_ALL(= `bd --help` 파생)을 돌며 **개수**의
 #    하한만 지키므로, bd 가 이름을 바꾸거나 도움말 서식이 달라져 아래 이름들이 파생
@@ -2640,7 +2640,7 @@ step "기본 로그 경로가 훅과 계수 명령에서 같다" [ "$DEF_H" = "$
 # 늘 때 조용히 빠진다 (harness:develop "운영 규율" 극성 반전). **두 자리를 함께 판다**:
 # 배포되는 plugins/harness/checks/ 와 배포되지 않는 tests/harness/ 다. 뒤엣것을 빼면 이 검사
 # 자신이 집합에서 빠져 자기 격리를 아무도 단언하지 않는다.
-HOOKRUNNERS=$(grep -l 'hooks/guard\.sh' "$ROOT"/checks/*.sh "$TESTS_DIR"/*.sh)
+HOOKRUNNERS=$(grep -rl 'hooks/guard\.sh' "$ROOT/checks" "$TESTS_ROOT")
 step "훅을 실행하는 검사 파생이 공허하지 않다" [ -n "$HOOKRUNNERS" ]
 # **자리마다** 1건 이상을 요구한다. 한 자리의 글롭이 죽어도 다른 자리의 결과가 남아 위 단언은 참이 되는데,
 # 그 침묵이 실제로 일어났다: 배포되는 자리와 배포되지 않는 자리로 갈린 직후 tests 쪽 글롭이 CWD 이동 뒤의
@@ -2648,7 +2648,7 @@ step "훅을 실행하는 검사 파생이 공허하지 않다" [ -n "$HOOKRUNNE
 step "파생이 배포되는 자리(checks/)에서 1건 이상" \
   bash -c 'printf "%s\n" "$1" | grep -q "^$2/checks/"' _ "$HOOKRUNNERS" "$ROOT"
 step "파생이 배포되지 않는 자리(tests/)에서 1건 이상" \
-  bash -c 'printf "%s\n" "$1" | grep -q "^$2/"' _ "$HOOKRUNNERS" "$TESTS_DIR"
+  bash -c 'printf "%s\n" "$1" | grep -q "^$2/"' _ "$HOOKRUNNERS" "$TESTS_ROOT"
 
 # **돌려야 할 변수도 손으로 적지 않는다** — 훅 소스에서 판다. 초판은 발화 로그 하나만
 # 요구했고, 훅에 두 번째 $HOME 쓰기(세션→actor 매핑, harness-qih)가 생겼을 때 그 격리가
@@ -2659,15 +2659,23 @@ HOOKENVS_ALL=$(sed -n 's/.*{\(HARNESS_[A-Z_]*\):-\$HOME[^}]*}.*/\1/p' "$HOOK" | 
 HOOKENVS="$HOOKENVS_ALL"
 echo "  훅이 \$HOME 에 쓰는 상태 파일의 환경 변수: [$(printf '%s ' $HOOKENVS)] (면제 없음)"
 step "그 환경 변수 파생이 공허하지 않다" [ -n "$HOOKENVS" ]
-# 면제 — 훅 경로를 실행이 아니라 **데이터로만** 드는 검사(doc-rules-check 의 R-REM 면제표 항목).
-# 역방향 단언: 언급이 정확히 1건이고 그 줄이 배열 리터럴이다. 실행 줄이 생기면 면제가 깨진다.
-HOOKRUNNER_DATA_ONLY="doc-rules-check.sh"
+# 면제 — 훅 경로를 실행이 아니라 **데이터로만** 드는 파일. 지금 둘이다:
+#   doc-rules-check.sh  R-REM 면제표의 배열 항목
+#   run-all.sh          면제 사유 문장이 "guard.sh 를 고치는 커밋에서 손으로 돌린다" 고 적는다
+# 역방향 단언은 이름표가 아니라 **판정**이다: 그 파일에 훅을 실행하는 줄이 0 이어야 한다.
+# 이름만 보고 넘기면 면제된 파일에 나중에 실행 줄이 생겨도 조용하다 — 실사용 로그가 합성
+# 발화로 위조되는 그 구멍이 정확히 여기로 다시 열린다.
+HOOKRUNNER_DATA_ONLY="doc-rules-check.sh run-all.sh"
+# 실행으로 읽는 형태: 인터프리터·exec 뒤에, 또는 명령 치환 안에서 훅 경로가 나오는 줄.
+HOOK_EXEC_RE='(^|[;&|(`]|\$\()[[:space:]]*(bash|sh|zsh|env|exec)[^#]*hooks/guard\.sh'
 for g in $HOOKRUNNERS; do
-  if [ "$(basename "$g")" = "$HOOKRUNNER_DATA_ONLY" ]; then
-    step "$(basename "$g") 는 훅 경로를 데이터로만 든다 (면제 역방향)" \
-      bash -c '[ "$(grep -c "hooks/guard\.sh" "$1")" -eq 1 ] && grep -q "^ *\"hooks/guard\.sh\"" "$1"' _ "$g"
-    continue
-  fi
+  case " $HOOKRUNNER_DATA_ONLY " in
+    *" $(basename "$g") "*)
+      step "$(basename "$g") 는 훅 경로를 데이터로만 든다 — 실행 줄 0 (면제 역방향)" \
+        bash -c '! grep -qE "$2" "$1"' _ "$g" "$HOOK_EXEC_RE"
+      continue
+      ;;
+  esac
   for v in $HOOKENVS; do
     step "$(basename "$g") 가 $v 를 임시 경로로 돌린다" grep -q "^export $v=" "$g"
   done
@@ -2750,7 +2758,7 @@ step "A/B 대조: 원본은 같은 입력에서 로그를 남긴다" [ -s "$LG" 
 # 났다 — 로깅이 story 브랜치에만 있어 배선된 다른 트리의 훅이 아무것도 안 남겼고,
 # 계수 명령은 그것을 "훅이 한 번도 돌지 않았다" 로 냈다 (harness-dg0.6.33). 전역 원장과
 # 달리 **훅 코드는 트리 안에 있어 브랜치를 탄다.** 두 상태를 각각 재현해 문구로 가른다.
-# 계수를 근거로 쓸 수 있는 조건은 ../docs/guardrail-verification.md 11절이 든다.
+# 계수를 근거로 쓸 수 있는 조건은 plugins/harness/docs/guardrail-verification.md 11절이 든다.
 echo "── ⑱ 계수 명령의 부재 판정 — 훅 미실행 vs 로깅 없는 판 발화 ──"
 S17="$TMP/s17"
 mkdir -p "$S17/withlog/hooks" "$S17/nolog/hooks"

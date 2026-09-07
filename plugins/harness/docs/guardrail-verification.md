@@ -31,7 +31,7 @@ These two documents are the full list, so they carry numbers. **The only ones th
 
 | Class | Example | Treatment |
 |---|---|---|
-| **current-tree claim** | the counts in the headings of [guardrails.md](guardrails.md) sections 1 · 2 · 3 · the surface count in its front matter | **no machine compares them** — the plugin's `guardrail-check.sh` compares its own header's surface count against its section labels, not this document. When a rule or check is added, the heading here is edited by hand in the same change, and the `rules-check` C6 pointer is what keeps the session block pointing here |
+| **current-tree claim** | the counts in the headings of [guardrails.md](guardrails.md) sections 1 · 2 · 3 · the surface count in its front matter | **no machine compares them** — the plugin's `guardrail-check.sh` compares its own header's surface count against its section labels, not this document. When a rule or check is added, the heading here is edited by hand in the same change, and the `doc-rules-check` C6 pointer is what keeps the session block pointing here |
 | **frozen point-in-time observation** | transcript file counts · ledger record counts · violation counts | the value and its date go to the ledger note of the bead that measured it; the document keeps the conclusion and the bead pointer. When a flowing value is evidence, write movement and ratios rather than absolutes (section 8 ceiling 3 · section 9) |
 | **inline self-enumeration** | "6 kinds (inline interpreters · script smuggling · …)" in [guardrails.md](guardrails.md) section 2 | the value and the enumeration sit together, so a mismatch shows in the text. No machine comparison |
 
