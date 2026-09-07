@@ -15,7 +15,7 @@ The delegation message gives, on its first line, **the harness root absolute pat
 
 **Tool calls that do not depend on each other go out in one response.** One tool per response costs one model round trip each — reading several files, lookups that do not read each other's output, checking several paths all go together. **Split only when one call's output is the next call's input.**
 
-> **Why this discipline lives in the role definition rather than in the main session**: a subagent runs on its own system prompt — the parallel-call instruction given to the main conversation **does not reach this role.** Delete it here and nothing replaces it. Evidence: `harness-flf`.
+> A subagent runs on its own system prompt — the main conversation's parallel-call instruction **does not reach this role**, so deleting it here replaces it with nothing (`harness-flf`).
 
 ## Procedure
 
