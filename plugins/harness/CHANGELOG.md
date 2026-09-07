@@ -1,8 +1,25 @@
 # Changelog
 
-## Unreleased — 하네스 루트 레포 폐기 (스토리 `skills#105`)
+## 2.1.0 — 2026-09-07
 
-**폭 판단 — MAJOR.** 설치본이 손으로 할 일이 있다(아래 "설치본이 할 일"). 하네스 루트가 git 레포에서 **클론 루트 직속의 평범한 디렉토리**로 내려갔고, 등록부가 원장 어댑터 뒤로 들어갔으며, 하네스가 심던 git 훅 넷이 사라졌다. 옛 배치 그대로 두면 `lib/harness-root.sh` 가 루트를 못 찾아 **모든 원장 호출이 rc≠0** 이 된다.
+**폭 판단 — MINOR 로 낸다. 판정 기준으로는 MAJOR 였고, 넓히지 않기로 한 판단이다** (2026-09-07 사용자 결정). MAJOR 방아쇠가 셋이다 — ⓐ 설치본이 만들어야 하는 새 컨텍스트 파일(클론 루트 직속의 원장 지정 파일) ⓑ 이름으로 부르던 스킬 제거(`harness:release`) ⓒ 설치본이 소유한 파일의 형태 변경(`repos.json`). 넓히지 않은 근거는 **이 판을 만든 머신에서 아래 "설치본이 할 일" 이 이미 끝나 있다**는 것 하나뿐이다. **다른 머신에서 올린다면 번호를 믿지 말고 그 절을 그대로 밟아라** — 옛 배치 그대로 두면 `lib/harness-root.sh` 가 루트를 못 찾아 **모든 원장 호출이 rc≠0** 이 된다.
+
+### 어댑터가 라벨 상속과 스프린트 등재를 맡는다 (스토리 `skills#175`)
+- **`ledger.sh create --parent` 이 부모의 `sprint:`·`rail:`·`repo:` 를 물려주고 `slug:` 는 빼놓는다.** `-l` 로 준 것이 접두사 단위로 이긴다. `-t epic -l rail:<id>` 를 주면 그 레일의 owner 가 assignee 로 들어간다. 상속은 **디스패처 한 자리**(`ledger.sh`)에 있어 세 백엔드가 같게 행동한다 — 종전에는 `beads` 만 `bd` 를 통해 물려받고 `github`·`notion` 은 안 물려받아, 분해할 때 라벨을 손으로 붙여야 했다.
+- **`ledger.sh sprint-add <YYYY-SNN>` 이 섰다.** 형식·중복·인자 수 검사는 디스패처가, 쓰기만 백엔드가 한다 — `github` 은 Projects v2 의 ITERATION 필드에 기존 iteration 을 보존한 채 덧붙이고, `beads` 는 `sprints.json`, `notion` 은 페이지다. 종전에 `github` 에는 스프린트를 등재할 경로가 아예 없었다.
+- `plan-story`·`plan-sprint`·`session-context.md` 가 백엔드를 갈라 적지 않고 어댑터 하위 명령을 부른다.
+- `ledger-adapter-check` 가 `github` 의 `rails` 값 산출을 오프라인으로 판정한다(정상·충돌·assignee 없음 셋). 종전에는 음성 경로만 있어 커버리지가 0 이었다.
+
+### github 원장의 `ready` 가 GraphQL 한 번이다 (PR `#158`)
+- 이미 도는 질의에 `blockedBy` 를 얹어 의존을 함께 실어 온다. `show`·`ready` 가 이슈마다 부르던 의존 조회가 사라져 **`gh` 호출 수가 열린 항목 수가 아니라 등재 레포 수에만 비례한다.**
+- 폴백을 두지 않았다 — `blockedBy` 가 없는 응답은 "의존 없음" 이 아니라 실패다. `totalCount` 가 받은 노드 수보다 크면 두 수를 stderr 에 싣고 죽는다(조용히 자르면 막힌 것을 열렸다고 낸다).
+
+### 릴리스가 플러그인 밖으로 나갔다 (PR `#164` · 스토리 `skills#175`)
+- **`harness:release` 스킬이 없어졌다.** 릴리스는 마켓플레이스 레포에서 하는 일이지 하네스 루트에서 하는 일이 아니다 — 절차의 소유자는 skills 레포의 `/release` 다. 절차 스킬은 10 → **9** 개.
+- 플러그인 안에 릴리스 절차·정책 서술이 **0건**이다 — 버전의 출처 서술까지 걷었다. **릴리스를 받는 쪽 문장은 남는다** — `setup` 3.C 의 업데이트 절차가 그 예다.
+
+### 하네스 루트 레포 폐기 (스토리 `skills#105`)
+하네스 루트가 git 레포에서 **클론 루트 직속의 평범한 디렉토리**로 내려갔고, 등록부가 원장 어댑터 뒤로 들어갔으며, 하네스가 심던 git 훅 넷이 사라졌다. 아래 다섯 절이 그 내역이다.
 
 ### 등록부가 어댑터 인터페이스 뒤로 갔다 (`skills#141`~`#150`)
 - **`ledger.sh rails --json` → `[{id, owner}]` · `ledger.sh sprints --json` → `[{id, status}]`.** 코어(`board.sh`·`board-check.sh`·`status` 스킬)는 이 둘만 알고 등록부 파일을 열지 않는다. 파생은 백엔드의 몫이다 — `github` 은 epic 의 `rail:` 라벨 + assignee 와 Projects v2 Iteration 필드, `notion` 은 페이지 속성, `beads` 는 하네스 루트의 `rails.json`·`sprints.json`.
@@ -31,7 +48,8 @@
 2. **등록부를 새 자리로 옮긴다.** 대상 레포마다 `bash ${CLAUDE_PLUGIN_ROOT}/scripts/repo.sh add <url>` — `~/.harness-workspace/repos.json` 에 `name`·`url` 로만 등재된다. 이미 클론이 있으면 그 자리를 그대로 쓴다.
 3. **대상 레포에 `.harness.json` 을 만든다.** 그 레포 루트에 `{"check": "<게이트 명령>", "default_branch": "<기본 브랜치>"}`(필요하면 `bootstrap`). **그 레포에 커밋한다** — 하네스가 소유하는 파일이 아니다. 없으면 `repo.sh check <이름>` 이 경로를 들고 rc≠0 이다(폴백 없음).
 4. **옛 하네스 루트를 정리한다.** 그 디렉토리의 `ledger.json`·`repos.json`·`rails.json`·`sprints.json`·`.claude/settings.json`·`scripts/plugin-root.sh` 와 `.beads/hooks/` 의 git 훅 넷은 이 판이 읽지 않는다. `beads` 를 계속 쓴다면 `.beads/` 의 원장 자체는 남긴다. `core.hooksPath` 를 그 훅 디렉토리로 물려 뒀다면 해제한다(`git config --unset core.hooksPath`).
-5. **`permissions.deny` 를 옮긴다.** 옛 하네스 루트의 `.claude/settings.json` 에 있던 비밀 파일 차단 10줄은 하네스가 들어 줄 자리가 없어졌다 — 세션을 여는 트리(대상 레포 클론) 자신의 `.claude/settings.json` 에 넣는다.
+5. **`harness:release` 를 부르던 자리를 바꾼다.** 그 스킬은 이 판에 없다 — 플러그인 릴리스는 skills 마켓플레이스 레포에서 그 레포의 `/release` 로 한다. 하네스 루트에서 부를 일이 아니다.
+6. **`permissions.deny` 를 옮긴다.** 옛 하네스 루트의 `.claude/settings.json` 에 있던 비밀 파일 차단 10줄은 하네스가 들어 줄 자리가 없어졌다 — 세션을 여는 트리(대상 레포 클론) 자신의 `.claude/settings.json` 에 넣는다.
 
 **전환 기간에는 양쪽 자리가 함께 선다.** 새 자리의 파일을 만들어도 옛 자리를 지우지 않으면 이전 판 설치본과 새 판이 같은 원장을 함께 본다 — 그것이 이 개편을 수행한 스토리가 실제로 돈 방식이다. **옛 자리는 이 판이 설치본이 된 것을 확인한 뒤 4번으로 한 번에 치운다.** 무엇을 언제 치울지의 목록은 원장 `skills#151` 의 note 에 있다.
 
