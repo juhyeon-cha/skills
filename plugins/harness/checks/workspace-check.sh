@@ -13,7 +13,7 @@
 #   ④ cwd 가 워크트리 밖이면 아무것도 만들지 않고 rc=0
 #   ⑤ 하네스 루트를 못 찾으면 rc=2 이고 stderr 가 "원장 배선 실패" 를 든다 — PostToolUse 훅 실패는
 #      도구 호출을 막지 않고 exit 2 의 stderr 만 Claude 에게 실리므로, 그 출구와 문구가 유일한 신호다
-#   ⑥ cleanup — git worktree list 에서 경로가 사라지고 브랜치 worktree-<id> 와 마커도 없다
+#   ⑥ cleanup — git worktree list 에서 경로가 사라지고 브랜치 worktree-<이름> 와 마커도 없다
 # 임시 bare origin + 클론으로 상황을 만들고 HARNESS_CLONE_ROOT 를 임시 디렉토리로 돌려 실제
 # ~/.harness-workspace 는 건드리지 않는다. 훅·cleanup 의 하네스 루트는 HARNESS_ROOT 로 물린다 — 갓 만든
 # 헬퍼는 클론 루트 직속 ledger.json 에 기대는데, 그 파일은 이 머신의 상태다.
@@ -102,7 +102,7 @@ run_cl() { HARNESS_ROOT="$ROOT" REPOS_MANIFEST="$TMP/manifest.json" "$PLUGIN_ROO
 
 echo "── ① 훅: 원장 배선 ──"
 mk_tree
-step "준비: 트리가 worktree-<id> 브랜치로 만들어졌다" [ "$(git -C "$WT" branch --show-current)" = "worktree-$BEAD" ]
+step "준비: 트리가 worktree-<이름> 브랜치로 만들어졌다" [ "$(git -C "$WT" branch --show-current)" = "worktree-$BEAD" ]
 ERRF="$TMP/hook-err.txt"
 run_hook "$WT" 2>"$ERRF"; rc=$?
 step "훅 rc=0"                        [ "$rc" -eq 0 ]
@@ -161,7 +161,7 @@ step "cleanup rc=0"                    [ "$rc" -eq 0 ]
 step "stdout 이 이름+경로 형식"         [ "$OUT" = "$(printf 'wscheck\t%s' "$WT")" ]
 step "worktree list 에 경로가 없다"     bash -c '! git -C "$1" worktree list --porcelain | grep -qxF "worktree $2"' _ "$CLONE" "$WT"
 step "디렉토리도 없다"                  [ ! -e "$WT" ]
-step "브랜치 worktree-<id> 가 없다"     bash -c '! git -C "$1" show-ref --verify --quiet "refs/heads/worktree-$2"' _ "$CLONE" "$BEAD"
+step "브랜치 worktree-<이름> 가 없다"     bash -c '! git -C "$1" show-ref --verify --quiet "refs/heads/worktree-$2"' _ "$CLONE" "$BEAD"
 step "마커가 없다"                      [ ! -e "$MARKER" ]
 step "클론은 남아 있다"                 is_repo "$CLONE"
 

@@ -9,12 +9,12 @@
 - **`repos.json` 이 셋으로 갈렸다.** 클론 목록(`name`·`url`)만 클론 루트 직속 머신 로컬로 남고, **게이트 명령·기본 브랜치·부트스트랩은 대상 레포 자신의 `.harness.json`** 이 소유한다. 이슈 라우팅은 없앴다 — `repo:` 라벨과 `ledger.json` 의 `owner` 로 `owner/name` 이 파생된다.
 - **`ledger.json` 이 클론 루트 직속 머신 로컬 한 파일**이고 `{backend, owner, project}` 셋이다. 그 자리에 있다는 사실이 곧 하네스 루트의 표지이며, `scripts/repo.sh root` 만 쓴다(가드가 손으로 쓰는 것을 막는다).
 
-### 하네스 루트가 클론 루트가 됐다 (`skills#151`~`#153`)
+### 하네스 루트가 클론 루트가 됐다 (`skills#151`)
 - **`lib/harness-root.sh` 의 탐색이 두 단계다** — `HARNESS_ROOT` → `${HARNESS_CLONE_ROOT:-~/.harness-workspace}` 직속의 `ledger.json`. CWD 를 거슬러 올라가지 않으므로 어디서 불러도 답이 같고, 못 찾으면 rc 1 과 stderr 한 줄이다(조용한 폴백 없음). `<클론루트>/.harness-root` 포인터 파일과 `repo.sh apply` 는 없앴다.
 - **`.beads/redirect` 는 beads 백엔드 안에서만 산다** — `ledger.sh wire-worktree` 가 쓰고 `bd` 가 읽는다. 루트 판별에는 쓰이지 않는다.
 - **`rules-check` 의 S12(하네스 루트 `.gitignore` 규약)가 폐기됐다** — 하네스 루트가 git 트리가 아니라 대조할 대상이 없다.
 
-### 투영과 git 훅 (`skills#156`·`#157`)
+### 투영과 git 훅 (`skills#152`·`#153`)
 - **자기 UI 를 갖는 백엔드에서는 `board.sh` 가 아무것도 그리지 않는다.** 판단은 어댑터의 새 하위 명령 `has-ui` 가 하고, 코어는 백엔드 이름을 알지 않는다. `github`·`notion` 에서는 rc 0 과 "무엇을 하지 않았는지" 한 줄이다.
 - **하네스는 이제 어디에도 git 훅을 심지 않는다.** 하네스 루트의 `pre-commit`(board-check) · `pre-push`(사라지는 추적 파일 + ledger-check 쓰기 모드) · `post-merge`·`post-checkout`(투영 렌더) 넷이 존재 이유와 함께 사라졌다. `board-check`·`ledger-check` 와 원장 반영은 **사이클 종결의 명시 단계**다(`harness:develop` "사이클 종결"). `LEDGER_CHECK_PUSH=1` 은 남지만 자동으로 켜는 자리가 없다.
 

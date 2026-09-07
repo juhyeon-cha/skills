@@ -216,7 +216,7 @@ Applies when diagnosing a cause and proposing an action. Not to plain observatio
 
 ## 대상 레포의 관례 — 어디에 적혀 있는가
 
-**The list of places where a target repo's rules are written is single-owned here.** The session stands at the harness root and subagents inherit that CWD, so the target repo's `CLAUDE.md`, rules, and skills are **never loaded automatically.** The only way is to read them directly where they are needed.
+**The list of places where a target repo's rules are written is single-owned here.** Roles run as subagents in the story worktree, each with its own context — **do not count on the target repo's `CLAUDE.md`, rules, or skills being loaded for them.** The only way is to read them directly where they are needed.
 
 **Four places**, relative to that repo's worktree:
 

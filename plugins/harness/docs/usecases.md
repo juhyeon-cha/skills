@@ -233,8 +233,8 @@
 - for every name in `jq -r '.repos[].name' ~/.harness-workspace/repos.json`, `… repo.sh list` reports the clone present and the harness root `<harness root>` — there is no plugin row, and its absence is what `repo-check.sh` ④ asserts
 - `bash <plugin>/lib/harness-root.sh` prints `~/.harness-workspace` — that directory is the harness root, and its `ledger.json` is the marker
 - `bash <plugin>/checks/board-check.sh` → rc 0 (the ledger's structure matches the registries the adapter derives)
-- 7 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<worktree name>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints the harness ledger)
-- the failure path is judged too: on `beads`, if the ledger was never pushed, 2 fails with `remote at that url contains no Dolt data` (non-zero), and `ledger.sh list` being non-zero in that state is normal
+- 6 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<worktree name>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints the harness ledger)
+- the failure path is judged too: on `beads`, if the ledger was never pushed, 3 fails with `remote at that url contains no Dolt data` (non-zero), and `ledger.sh list` being non-zero in that state is normal
 
 ---
 
