@@ -83,14 +83,13 @@ if ! git diff --cached --quiet; then
   exit 1
 fi
 
-BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# 어느 브랜치에 서 있는지는 보지 않는다 — **어디로 push 하는지**만 본다. 워크트리는 본 체크아웃이
+# 든 기본 브랜치를 꺼낼 수 없으므로(git 이 막는다) "기본 브랜치 위에 있어라" 를 전제로 걸면
+# 워크트리에서 릴리스할 길이 없어지고, 본 체크아웃에서 하라는 뜻이 되어 하네스의 "본 체크아웃을
+# 직접 건드리지 않는다" 와 부딪힌다. 고아 태그를 막는 데 필요한 것은 그 전제가 아니라 아래 둘이다 —
+# HEAD 가 origin/<기본> 을 담고 있을 것, 그리고 **머지를 거치지 않고 그 브랜치로 바로 push 할 것.**
 DEFAULT=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
 [ -n "$DEFAULT" ] || DEFAULT=main
-if [ "$BRANCH" != "$DEFAULT" ]; then
-  echo "✗ 릴리스는 기본 브랜치($DEFAULT)에서 한다 — 지금은 '$BRANCH' 다" >&2
-  echo "  브랜치에서 태그를 달면 스쿼시 머지가 그 커밋을 버려 태그가 고아가 된다 (skills#45)" >&2
-  exit 1
-fi
 
 if ! git fetch --quiet origin "$DEFAULT"; then
   echo "✗ origin/$DEFAULT 를 못 가져왔다 — push 할 수 있는지 확인할 수 없다" >&2
@@ -102,7 +101,12 @@ if ! git merge-base --is-ancestor "origin/$DEFAULT" HEAD; then
   exit 1
 fi
 
+AHEAD=$(git rev-list --count "origin/$DEFAULT..HEAD")
 echo "· $NAME $CUR → $NEXT ($BUMP), 태그 $TAG, push 대상 origin/$DEFAULT"
+if [ "$AHEAD" -gt 0 ]; then
+  echo "· 이 릴리스 커밋과 함께 아래 $AHEAD 개도 origin/$DEFAULT 로 올라간다:"
+  git log --oneline "origin/$DEFAULT..HEAD" | sed 's/^/    /'
+fi
 
 # ── (1) 버전 갱신 · validate ──────────────────────────────────────────
 BACKUP=$(mktemp) || { echo "✗ 임시 파일을 만들지 못했다" >&2; exit 1; }
@@ -152,9 +156,9 @@ fi
 
 # ── (4) push — 커밋과 태그를 한 번에 ──────────────────────────────────
 # --atomic: 둘 다 올라가거나 둘 다 안 올라간다. 태그만 올라간 상태가 곧 고아 태그다.
-if ! git push --atomic origin "$DEFAULT" "$TAG"; then
+if ! git push --atomic origin "HEAD:refs/heads/$DEFAULT" "$TAG"; then
   echo "✗ push 에 실패했다. 커밋 $COMMIT 과 태그 $TAG 는 로컬에 남아 있다" >&2
-  echo "  다시 하려면: git pull --rebase origin $DEFAULT && git push --atomic origin $DEFAULT $TAG" >&2
+  echo "  다시 하려면: git pull --rebase origin $DEFAULT && git push --atomic origin HEAD:$DEFAULT $TAG" >&2
   echo "  되돌리려면: git tag -d $TAG && git reset --hard HEAD^" >&2
   exit 1
 fi

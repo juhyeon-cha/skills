@@ -69,14 +69,18 @@ It computes the next number, checks the preconditions, raises `version` in
 `plugins/<name>/.claude-plugin/plugin.json`, runs `claude plugin validate --strict` on both the
 marketplace and the plugin, commits, tags `<name>-v<version>`, and pushes both. **Everything that
 changes state comes after the preconditions**, so a refusal at that stage leaves nothing behind, and
-a validate failure restores the original `plugin.json`. Two of those preconditions exist for the
-push: it refuses to run outside the default branch, and it refuses when the remote is ahead.
+a validate failure restores the original `plugin.json`. One precondition exists for the push: it
+refuses when the remote is ahead. **Which branch you stand on is not checked** — a worktree cannot
+check out the branch the main checkout holds, so requiring it would leave the main checkout as the
+only place to release, and the harness forbids working there. What keeps the tag off a discarded
+commit is not the branch name but the push target.
 
 **rc≠0: read what it printed and fix that.** Do not do the steps by hand instead — the script is
 where the version, the CHANGELOG heading, and the tag name are held to one number.
 
-**The script pushes the commit and the tag to the default branch itself — no branch, no PR.**
-Running it is the instruction to do that, so nothing further is asked. A branch would go through a
+**The script pushes the commit and the tag straight to the default branch (`HEAD:<default branch>`) — no PR.**
+Running it is the instruction to do that, so nothing further is asked. It prints every commit that
+will travel with the release commit, so read that list before it goes. A branch would go through a
 squash merge, and a squash merge throws away the commit the tag sits on: the tag then names a commit
 on no branch, and the next release's sweep in step 1 starts from a range that does not exist. Two
 tags are already in that state.
