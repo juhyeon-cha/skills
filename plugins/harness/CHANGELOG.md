@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.1.2 — 2026-09-08
+
+**폭 판단 — PATCH 로 낸다 (2026-09-08 사용자 지시). 판정 기준으로는 MAJOR 다.** 방아쇠 둘 —
+ⓐ **`scripts/check-all.sh` 가 배포물에서 빠졌다**(개발 검사 5종과 함께 `tests/` 로 갔다, #232).
+이름으로 부르던 설치본은 그 명령을 못 찾는다. 배포물 안에 살아 있는 포인터는 0건이라 문서를 따라
+가면 막다른 길은 없다 — 외운 명령만 사라진다. ⓑ **아래 2.1.1 항목이 태그 없이 지나가, 그 판의
+손 작업이 아직 모든 2.1.0 설치본 앞에 있다.**
+
+> **번호를 믿지 말고 2.1.1 항목의 "설치본이 할 일" 을 그대로 밟아라.** 옛 배치 그대로 두면
+> `lib/harness-root.sh` 가 루트를 못 찾아 모든 원장 호출이 rc≠0 이 된다.
+
+**2.1.1 은 태그가 없었다.** `plugin.json` 과 CHANGELOG 는 2.1.1 이 됐는데 `harness-v2.1.1` 태그가
+서지 않았고, 그 뒤 PR 둘(#232·#240)이 번호를 안 올린 채 플러그인을 바꿨다. 이 판이 그 누적에
+번호를 붙인다 — 훑은 범위는 마지막으로 선 태그 `harness-v2.1.0` 부터다.
+
+### 가드가 취지 크기로 좁아졌다 (skills#217)
+
+- **`r_grader_write` 가 대상 트리 안만 본다.** 종전에는 채점자(reviewer·evaluator)의 트리 밖 쓰기를
+  전부 막아 스크래치패드조차 못 썼다. 역할 정의 셋도 가드와 **같은 경계를 말하게** 고쳤다 —
+  문서와 훅이 어긋나면 변화가 관측되지 않는다.
+- **`r_grader_shell` 의 git 읽기 면제에 낱말 쌍 둘을 더했다.** `git remote get-url` 류가 막히던 자리다.
+  원인은 서브커맨드만 읽던 면제 판정이고, 명령 치환(`$( )`)이 아니다.
+- **`guard-log.sh` 에 `rows` 하위 명령이 생겼다** — 회차별 일곱 열(시각·회차·에이전트·도구·규칙·
+  분류 가능성·명령)을 TSV 로 내고 rc 를 여섯 갈래로 가른다. **"차단 0건" 과 "못 셌다" 가 한 값이
+  되지 않게 하는 것**이 요점이다. 회고 스킬이 이것으로 오탐률을 읽고, 그 읽기의 천장 일곱 개를
+  `docs/guardrail-verification.md` §11 이 든다.
+- **모르는 `GUARD_CHECK_SCOPE` 값이 조용히 좁은 집합을 통과시키던 구멍**을 닫았다(rc 2 로 죽는다).
+
+### 배포되는 것과 배포되지 않는 것이 자리로 갈렸다 (#232)
+
+- `checks/` 에는 **설치본이 실제로 부르는 6종만** 남았다 — `board-check` · `guardrail-check` ·
+  `ledger-check` · `rules-check` · `transcript-check` · `workspace-check`.
+- **빠진 것**: `scripts/check-all.sh` · `checks/guard-check.sh` · `board-render-check.sh` ·
+  `ledger-adapter-check.sh` · `shell-lint.sh` · `workspace-cleanup-check.sh` ·
+  `docs/development.md` · `docs/usecases.md`. 전부 하네스를 **개발하는** 쪽만 읽거나 돌리는 것이라
+  skills 레포의 `tests/`·`docs/` 로 갔다.
+
+### 그 밖
+
+- 가드의 `-f` 우회를 막고, R-REM 문서를 영어로, 낡은 주석과 setup 지시를 맞췄다 (#190).
+- 원장 어댑터가 라벨 상속과 스프린트 등재를 맡는다 (#216, `scripts/ledger-github.sh`).
+
 ## 2.1.1 — 2026-09-07
 
 **폭 판단 — PATCH 로 낸다. 판정 기준으로는 MAJOR 였고, 넓히지 않기로 한 판단이다** (2026-09-07 사용자 결정). MAJOR 방아쇠가 셋이다 — ⓐ 설치본이 소유하던 파일 둘(`~/.harness-workspace/ledger.json` · `repos.json`)의 폐기 ⓑ 설치본이 손으로 해야 하는 이전 작업(아래 "설치본이 할 일") ⓒ 하위 명령 제거(`scripts/repo.sh` 전체). **번호를 믿지 말고 아래 "설치본이 할 일" 을 그대로 밟아라** — 옛 배치 그대로 두면 `lib/harness-root.sh` 가 루트를 못 찾아 **모든 원장 호출이 rc≠0** 이 된다. 번호만 보고 `claude plugin update` 로 끝내면 그 다음 게이트부터 전부 깨진다.
