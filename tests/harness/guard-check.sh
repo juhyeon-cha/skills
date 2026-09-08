@@ -970,44 +970,83 @@ step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_HOL
 runh "$NEG_HOLD" "$(j_bash "rm -rf $MCROOT")"
 step "부정 대조군: 그 줄을 되돌리면 클론 루트 삭제가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
-# ── bd 지정 면제가 **조각 밖으로 새지 않는다** (skills#239 리뷰 MUST FIX ①) ────────────
-# `bd -C <경로> ` 면제는 `-C` 라는 철자를 벗긴다 — `git`·`gh` 도 쓰는 철자다. 조각을 가려
-# **읽기만** 하고 치환을 명령 문자열 전체에 하면, 같은 철자를 쓰는 **다른 조각**의 후보까지
-# 함께 사라진다. 그러면 허용된 `bd … note` 를 앞에 붙이는 것만으로 C3(본 체크아웃 보호)와
-# 클론 루트 차단이 한 번에 우회된다 [실측 2026-09-08: 아래 셋이 전부 rc=0 이었다].
-# 통과 픽스처(위 (f)·아래 단독형)만으로는 이 부류가 안 잡힌다 — 대조가 여기 필요한 이유다.
+# ── bd 원장 지정의 면제가 **그 등장 밖으로 새지 않는다** (skills#239 1·2·3회차) ────────
+# 이 부류는 세 회차 동안 두 번 샜고, 두 번 다 **명령 문자열을 벗긴** 탓이었다:
+#   1회차 `623ec82` 명령 **전체**에서 `-C <경로> ` 치환 → `&&`·`;`·`|` 로 이은 다른 조각이 샜다
+#   2회차 `e605e67` **조각 안**에서 전역 치환      → 역따옴표가 조각 경계가 아니라 같은 조각 안이 샜다
+# 3회차는 벗기지 않는다 — 후보를 모을 때 그 **등장만** 건너뛴다(mc_cand_tokens). 아래 목록은
+# 두 회차가 실제로 샌 형태를 전부 든다. 통과 픽스처(위 (f)·아래 단독형)만으로는 이 부류가
+# 안 잡히므로 대조가 여기 있어야 한다. 구분자마다 한 줄씩 두는 이유도 같다 — 벗김의 사거리는
+# 구분자마다 달랐고, 한둘만 두면 다음 구분자에서 또 샌다.
 declare -a BD_LEAK_LABEL=() BD_LEAK_CMD=()
 BD_LEAK_LABEL+=("&& 로 이은 뒤 조각이 본 체크아웃을 건드린다")
 BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT/repo checkout -- .")
 BD_LEAK_LABEL+=("; 로 이은 뒤 조각이 본 체크아웃을 건드린다")
-BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x ; git -C $MCROOT/repo checkout -- .")
-BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — git clean -fdx")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x ; git -C $MCROOT/repo reset --hard")
+BD_LEAK_LABEL+=("| 로 이은 뒤 조각이 본 체크아웃을 건드린다")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x | git -C $MCROOT/repo checkout -- .")
+BD_LEAK_LABEL+=("역따옴표 안의 다른 명령 (2회차가 놓친 것)")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`")
+BD_LEAK_LABEL+=("\$( ) 안의 다른 명령")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x \$(git -C $MCROOT/repo checkout -- .)")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — && git clean -fdx")
 BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x && git -C $MCROOT clean -fdx")
-BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — rm -rf")
-BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x && rm -rf $MCROOT")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — ; rm -rf")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x ; rm -rf $MCROOT")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — | git clean -fdx")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x | git -C $MCROOT clean -fdx")
+BD_LEAK_LABEL+=("역따옴표가 클론 루트를 겨눈다 — rm -rf")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x \`rm -rf $MCROOT\`")
+BD_LEAK_LABEL+=("\$( ) 가 클론 루트를 겨눈다 — git clean -fdx")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x \$(git -C $MCROOT clean -fdx)")
+BD_LEAK_LABEL+=("bd 조각이 **뒤**에 온다 — 본 체크아웃")
+BD_LEAK_CMD+=("git -C $MCROOT/repo checkout -- . && bd -C $MCROOT/repo note $FX_TASK x")
+BD_LEAK_LABEL+=("bd 조각이 **뒤**에 온다 — 클론 루트")
+BD_LEAK_CMD+=("rm -rf $MCROOT && bd -C $MCROOT note $FX_TASK x")
+BD_LEAK_LABEL+=("-C 가 셋 이상")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo -C $MCROOT note $FX_TASK x && git -C $MCROOT/repo checkout -- .")
+BD_LEAK_LABEL+=("bd 조각이 둘")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x && bd -C $MCROOT/repo note $FX_TASK y && rm -rf $MCROOT")
 BD_LEAK_LABEL+=("--db 표기도 같다")
 BD_LEAK_CMD+=("bd --db $MCROOT/repo note $FX_TASK x && rm -rf $MCROOT/repo")
+BD_LEAK_LABEL+=("--directory 표기 + 역따옴표")
+BD_LEAK_CMD+=("bd --directory $MCROOT note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`")
+BD_LEAK_LABEL+=("bd 없는 단독형 — 본 체크아웃")
+BD_LEAK_CMD+=("git -C $MCROOT/repo checkout -- .")
 for i in "${!BD_LEAK_LABEL[@]}"; do
   runh "$HOOK" "$(j_sub "${BD_LEAK_CMD[$i]}" 'harness:implementer')"
   printf '  rc=%d  %s\n' "$GUARD_RC" "${BD_LEAK_LABEL[$i]}"
-  step "bd 면제가 조각 밖으로 새지 않는다: ${BD_LEAK_LABEL[$i]}" [ "$GUARD_RC" -eq 2 ]
+  step "bd 면제가 그 등장 밖으로 새지 않는다: ${BD_LEAK_LABEL[$i]}" [ "$GUARD_RC" -eq 2 ]
 done
 # 대조 — 면제 자신은 살아 있어야 한다. 이 둘이 rc=2 로 뒤집히면 A4 가 요구하는 지명이
 # 그 자체로 막히는 배반이 다시 서고, guardrail-check S1 의 A/B 귀속이 무너진다.
-for c in "bd -C $MCROOT note $FX_TASK x" "bd -C $MCROOT/repo note $FX_TASK x"; do
+for c in "bd -C $MCROOT note $FX_TASK x" "bd -C $MCROOT/repo note $FX_TASK x" \
+         "bd --directory $MCROOT note $FX_TASK x" "bd --db $MCROOT note $FX_TASK x"; do
   runh "$HOOK" "$(j_sub "$c" 'harness:implementer')"
   printf '  rc=%d  면제 단독형: %s\n' "$GUARD_RC" "$c"
   step "면제 단독형은 통과한다: $c" [ "$GUARD_RC" -eq 0 ]
 done
-# A/B 귀속 — 조각을 가르는 한 줄을 무력화한 사본에서 위 우회가 되살아난다.
+# A/B 귀속 ① — 건너뛰기를 **조각의 실행 낱말과 무관**하게 푼 사본에서 우회가 되살아난다.
+# 그 사본이 **다른 이유로 죽지 않았음**을 함께 든다(클론 루트 삭제는 여전히 rc=2).
 NEG_BDSEG="$TMP/guard-bd-allseg.sh"
-step "부정 대조군 전제: 조각 판별이 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'if [ "$(seg_exec_word "$seg")" = bd ]; then' "$HOOK")" -eq 1 ]
-awk 'index($0,"if [ \"$(seg_exec_word \"$seg\")\" = bd ]; then") { print "    if true; then"; next } { print }' \
-  "$HOOK" > "$NEG_BDSEG"; chmod +x "$NEG_BDSEG"
-step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BDSEG"
+step "부정 대조군 전제: 실행 낱말 조건이 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'bd:-C|bd:--directory|bd:--db)' "$HOOK")" -eq 1 ]
+sed 's/bd:-C|bd:--directory|bd:--db)/*:-C|*:--directory|*:--db)/' "$HOOK" > "$NEG_BDSEG"; chmod +x "$NEG_BDSEG"
+step "부정 대조군 ① 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BDSEG"
 runh "$NEG_BDSEG" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT/repo checkout -- ." 'harness:implementer')"
-step "부정 대조군: 면제를 모든 조각에 풀면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+step "부정 대조군 ①: 건너뛰기를 모든 조각에 풀면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+runh "$NEG_BDSEG" "$(j_bash "rm -rf $MCROOT")"
+step "부정 대조군 ①: 그 사본이 다른 이유로 죽지 않았다 (클론 루트 삭제는 rc=2)" [ "$GUARD_RC" -eq 2 ]
+# A/B 귀속 ② — 역따옴표를 조각 경계에서 뺀 사본에서 2회차가 놓친 형태가 되살아난다.
+NEG_BT="$TMP/guard-no-backtick.sh"
+step "부정 대조군 전제: 역따옴표 경계가 훅에 1줄 실재한다" \
+  [ "$(grep -cF '[;|(`]' "$HOOK")" -eq 1 ]
+sed 's/\[;|(`\]/[;|(]/' "$HOOK" > "$NEG_BT"; chmod +x "$NEG_BT"
+step "부정 대조군 ② 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BT"
+runh "$NEG_BT" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`" 'harness:implementer')"
+step "부정 대조군 ②: 역따옴표가 경계가 아니면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+runh "$NEG_BT" "$(j_bash "rm -rf $MCROOT")"
+step "부정 대조군 ②: 그 사본이 다른 이유로 죽지 않았다 (클론 루트 삭제는 rc=2)" [ "$GUARD_RC" -eq 2 ]
 
 # ── `$HOME` 표기 (harness-0ig). mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 이 `$HOME`
 # 뒤 슬래시부터 잡아 엉뚱한 절대 경로를 만들었다 — 틸드는 막히고 `$HOME` 은 새는 비대칭.

@@ -165,7 +165,8 @@ COMMAND_RAW="$(field '.tool_input.command')"    # Bash — 인용부호를 걷�
 # 실행하는데 낱말 판정(has_token 의 -w)은 그 글자에 막혀 **미탐**이었다 [실측 2026-08-28,
 # implementer: 둘 다 rc=0 — 리뷰 #6]. 리터럴 `\n`·`\t` 는 먼저
 # 공백으로 되돌린다(걷어내면 `\n/path` 가 `n/path` 로 붙어 경로 추출이 어긋난다).
-# 역따옴표는 남긴다(판정 재료로 쓰는 규칙은 지금 없다 — 걷어내면 뒤의 경로 추출이 어긋난다).
+# 역따옴표는 남긴다 — 걷어내면 뒤의 경로 추출이 어긋나고, cmd_segments 가 그것을 명령 치환의
+# 경계로 읽는다(그 함수 주석).
 strip_quotes() { sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g"; }
 COMMAND="$(printf '%s' "$COMMAND_RAW" | strip_quotes)"
 FILE_PATH="$(field '.tool_input.file_path')" # Write·Edit·Read 계열
@@ -241,7 +242,7 @@ subcmds_after() {  # subcmds_after <도구> <값-받는 옵션 목록> [건초�
 
 # ── 실행 위치 ───────────────────────────────────────────────────────
 # 규칙은 낱말의 **존재**가 아니라 **실행되는 자리**를 본다. 명령 문자열을 조각으로 나누고
-# (경계: `;` `&&` `||` `|` `(` `$(` 개행) 조각의 **첫 실행 낱말**을 그 조각이 실행하는 명령으로
+# (경계: `;` `&&` `||` `|` `(` `$(` 역따옴표 개행) 조각의 **첫 실행 낱말**을 그 조각이 실행하는 명령으로
 # 읽는다. 앞에 붙는 것은 건너뛴다 — `VAR=값` · 옵션(`-x`) · 숫자(`timeout 5` 의 5) · 래퍼
 # (timeout env nice sudo bash sh zsh — `bash -c "bd …"` 의 실행은 bd 다) · 명령 앞에 서는 셸
 # 키워드(if then else elif while until do — `if git push; then` 의 실행은 git 이고 `do cat f` 는 cat 이다).
@@ -253,7 +254,11 @@ subcmds_after() {  # subcmds_after <도구> <값-받는 옵션 목록> [건초�
 # `[` 는 낱말로 남긴다 — tr 이 지우면 `[ -f <경로> ]` 의 첫 실행 낱말이 경로의 basename 이 된다
 # (MC_READ_CMDS 의 `[` 가 그래서 죽어 있었다 — harness-m8gg.8.5 note).
 EXEC_WRAPPERS="timeout env nice sudo bash sh zsh if then else elif while until do"
-cmd_segments() { printf '%s\n' "${1-$COMMAND}" | sed -E 's/\|\||&&|[;|(]|\$\(/\n/g'; }
+# **역따옴표는 `$(` 와 같은 경계다.** 둘 다 명령 치환이고, 그 안의 낱말은 바깥 조각이 아니라
+# **자기 명령**으로 실행된다. 경계로 읽지 않으면 `echo \`git push\`` 의 실행 낱말이 echo 가 되고
+# (r_remote 미탐), `bd -C <루트> note x \`git -C <본 체크아웃> checkout -- .\`` 의 git 이 bd 조각
+# 안에 든 것으로 읽힌다 [skills#239 2회차의 누출 — 실측 rc=0].
+cmd_segments() { printf '%s\n' "${1-$COMMAND}" | sed -E 's/\|\||&&|[;|(`]|\$\(/\n/g'; }
 seg_exec_word() {  # seg_exec_word <조각> → 첫 실행 낱말 (없으면 빈 줄)
   printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=[-' '\n' \
     | awk -v w="$EXEC_WRAPPERS" '
@@ -499,6 +504,50 @@ mc_holds_trees() {
   [ -n "$MC_TREES" ]
 }
 
+# 하네스 루트의 **두 모양** — 자기 `.harness.json` 을 가진 레포 트리(그 레포가 하네스 루트인
+# 배치)이거나, 트리들을 품은 클론 루트다. 원장 지정(`HARNESS_ROOT=` · `bd -C`)의 값이 이것일
+# 때만 그 등장을 r_main_shell 의 후보에서 뺀다 — 뒤쪽이 빠지면 `HARNESS_ROOT=<클론 루트>
+# ledger.sh …` 가 그 자체로 클론 루트 차단에 걸려 **지명해도 막히고 안 지명해도 막히는**
+# 배반이 선다 (skills#209 실측 ③ 과 같은 부류).
+# MC_HOLDER·MC_TREES 를 덮는다 — 부르는 자리는 그 값을 아직 읽지 않는다(mc_holds_trees 주석).
+mc_is_harness_root() {  # mc_is_harness_root <경로>
+  local n
+  [ -n "$1" ] || return 1
+  n="$(mc_norm "$1")" || return 1
+  [ -f "$n/.harness.json" ] || mc_holds_trees "$n"
+}
+
+# 후보 경로 토큰을 낸다 — 한 줄에 하나. **명령 문자열을 변형하지 않는다.**
+#
+# 앞 두 회차는 `-C <경로> ` 를 명령에서 **지워** 후보를 사라지게 했고 두 번 다 샜다: 1회차는
+# 명령 전체에 치환해 `&&`·`;` 로 이은 **다른 조각**의 후보까지 지웠고(skills#211 → 실측 rc=0),
+# 2회차는 조각 안으로 좁혔지만 역따옴표가 조각 경계가 아니라 **같은 조각 안**의 다른 명령까지
+# 지웠다(skills#239 2회차 → 실측 rc=0). 벗김에는 **사거리**가 있어 매번 다른 구분자에서 샌다.
+# 건너뛰기에는 사거리가 없다 — 판정이 **등장 단위**라 다른 등장에 닿지 못한다. 이 레포가 세 번
+# 기록한 "명령 형태를 문자열 수술로 다루면 샌다"(이 파일 머리말 · ../docs/guardrails.md 1절)의 방향이다.
+#
+# 건너뛰는 조건은 둘 다 설 때뿐이다: (a) 그 조각의 실행 낱말이 `bd` 이고 (b) 그 등장이 원장 지정
+# 옵션(`-C`·`--directory`·`--db`) 바로 뒤이며 값이 하네스 루트다. `ledger.sh` 쪽 지정 표기
+# (`HARNESS_ROOT=`)는 부르는 쪽이 먼저 걷는다 — 그쪽 사유는 r_main_shell 의 그 절에 있다.
+mc_cand_tokens() {  # mc_cand_tokens <명령>
+  local seg w prev tok
+  while IFS= read -r seg; do
+    w="$(seg_exec_word "$seg")"
+    prev=""
+    while IFS= read -r tok; do
+      # 빈 토큰(연속 공백)은 낱말이 아니다 — 건너뛰되 prev 는 그대로 둔다(셸의 낱말 나누기와 같다).
+      # **개행을 붙여 흘린다** — 붙이지 않으면 조각의 **마지막 토큰**이 read 의 비-0 과 함께 버려져
+      # 후보에서 통째로 빠진다(`rm -rf <클론 루트>` 가 그 자리다).
+      [ -n "$tok" ] || continue
+      case "$w:$prev" in
+        bd:-C|bd:--directory|bd:--db) mc_is_harness_root "$tok" && { prev="$tok"; continue; } ;;
+      esac
+      printf '%s\n' "$tok"
+      prev="$tok"
+    done < <(printf '%s\n' "$seg" | tr ' \t' '\n\n')
+  done < <(cmd_segments "$1")
+}
+
 # 이 호출이 **파일 쓰기**인가 — 아래 두 규칙(r_main_write·r_grader_write)의 공통 판정.
 #
 # 도구 **이름 목록**으로 판정하지 않는다. 이름 목록은 허용 목록 극성이라 목록에 없는
@@ -698,7 +747,7 @@ mc_all_readonly() {
 }
 
 r_main_shell() {
-  local cand cmd tail hit hrn prev tok seg bdcmd
+  local cand cmd tail hit hr
   # `$HOME`·`${HOME}` 을 먼저 펼친다. mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 은
   # `$HOME` 뒤의 슬래시부터 잡아 엉뚱한 절대 경로를
   # 만든다 — 그래서 틸드는 막히고 `$HOME` 은 새는 비대칭이 생겼다. 셸이 실제로 펼칠
@@ -717,50 +766,25 @@ r_main_shell() {
   # `.` 은 한 글자만 다른 남의 경로까지 함께 벗기고, `[` 은 sed 를 죽여 후보를 통째로 없앤다
   # (그 순간 이 규칙은 무엇이든 통과시킨다). 인용한 셸 치환은 값을 리터럴로 읽어 그 부류가 없다 —
   # 게이트 ⑨ 의 "원장 지정 대입의 면제" 절이 메타문자 루트로 그 차이를 못박는다.
-  # 판별자는 **하네스 루트의 두 모양**이다 — 자기 `.harness.json` 을 가진 레포 트리(그 레포가
-  # 하네스 루트인 경우)이거나, 트리들을 품은 클론 루트(아래 mc_holds_trees 가 보는 층)다.
-  # 뒤쪽이 빠지면 `HARNESS_ROOT=<클론 루트> ledger.sh …` 가 그 자체로 아래 클론 루트 차단에
-  # 걸려 **지명해도 막히고 안 지명해도 막히는** 배반이 다시 선다 (skills#209 실측 ③ 과 같은 부류).
+  # 판별자는 **하네스 루트의 두 모양**이다 — mc_is_harness_root 가 든다.
+  #
+  # **이 하나만 벗김으로 남는다.** bd 쪽 지정 표기(`-C`·`--directory`·`--db`)는 아래
+  # mc_cand_tokens 가 **건너뛰기**로 바꿨는데(skills#239 3회차), 이쪽은 그대로 둔다. 벗김이
+  # 두 회차 샌 원인은 `-C` 라는 철자를 `git`·`gh` 도 쓴다는 것 — 지울 문자열이 남의 명령에도
+  # 서 있어 사거리가 생겼다. `HARNESS_ROOT=` 는 그 부류가 없다: 지울 문자열이 변수 이름으로
+  # 고정돼 있고, 그 대입이 어느 조각에 서든 값이 하네스 루트인 **원장 지명 그 자체**라
+  # 지워도 남의 후보가 되지 않는다. 명령의 나머지 후보는 손대지 않으므로
+  # `HARNESS_ROOT=<루트> rm -rf <루트>` 의 뒤쪽 등장은 그대로 남아 계속 막힌다(게이트 ⑨).
+  # 실측된 누출이 없는 자리를 함께 고치면 게이트의 부정 대조군 둘(메타문자 루트로 "정규식을
+  # 쓰지 마라"를 못박는 쪽)을 근거 없이 다시 써야 한다 — 그래서 두었다.
   while IFS= read -r hr; do
-    [ -n "$hr" ] || continue
-    hrn="$(mc_norm "$hr")"
-    [ -f "$hrn/.harness.json" ] || mc_holds_trees "$hrn" || continue
+    mc_is_harness_root "$hr" || continue
     cmd="${cmd//"HARNESS_ROOT=$hr "/}"
   done < <(printf '%s' "$cmd" | tr ' \t' '\n\n' | sed -n 's/^HARNESS_ROOT=//p')
-  # bd 쪽 지정 표기도 같은 면제다 — `bd -C <하네스 루트> …`(·`--directory`·`--db`, ledger_root_given
-  # 이 인정하는 그 셋). 클론 루트가 곧 하네스 루트인 배치에서는 이것이 없으면 A4 가 요구하는 지명이
-  # 아래 클론 루트 차단에 걸린다 [실측 2026-09-08: guardrail-check S1 의 r_impl_bd 프로브
-  # `bd -C <TMP> close probe-1` 이 클론 루트 메시지로 막혀 A/B 귀속이 뒤집혔다].
-  # **토큰을 읽는 것도 벗기는 것도 `bd` 가 실행되는 조각 안에서다.** 위 `HARNESS_ROOT=` 면제는
-  # 벗길 문자열이 그 변수 이름으로 고정돼 명령 전체에 치환해도 남의 후보를 건드리지 않지만,
-  # `-C <경로> ` 는 `git`·`gh` 도 쓰는 철자다. 조각을 가려 **읽기만** 하고 치환은 `cmd` 전체에
-  # 하면 같은 철자가 든 **다른 조각**의 후보까지 함께 사라진다
-  # [실측 2026-09-08: `bd -C <본 체크아웃> note x && git -C <본 체크아웃> checkout -- .` 가 rc=0 —
-  #  허용된 `bd … note` 를 앞에 붙이는 것만으로 C3 와 클론 루트 차단이 한 번에 우회됐다].
-  # 그래서 조각 **안에서** 벗기고 조각을 도로 이어 붙인다. 이을 때 넣는 개행은 아래 후보 grep 의
-  # 문자 클래스가 이미 경계로 취급하므로 판정에 들지 않는다.
-  # 조각을 `cmd` 에서 가르므로 `$HOME` 은 이미 펼쳐져 있다. 값 다음의 **공백**이 "정확히 그 토큰"
-  # 을 보장하는 것도, 정규식을 쓰지 않는 이유도 위와 같다 — 조각 끝에 공백 한 칸을 붙여
-  # 마지막 토큰인 형태(`… bd -C <루트>`)도 같은 모양으로 걸리게 한다.
-  bdcmd=""
-  while IFS= read -r seg; do
-    if [ "$(seg_exec_word "$seg")" = bd ]; then
-      seg="$seg "
-      prev=""
-      while IFS= read -r tok; do
-        case "$prev" in
-          -C|--directory|--db)
-            hrn="$(mc_norm "$tok")"
-            if [ -n "$tok" ] && { [ -f "$hrn/.harness.json" ] || mc_holds_trees "$hrn"; }; then
-              seg="${seg//"$prev $tok "/}"
-            fi ;;
-        esac
-        prev="$tok"
-      done < <(printf '%s' "$seg" | tr ' \t' '\n\n')
-    fi
-    bdcmd="$bdcmd$seg"$'\n'
-  done < <(cmd_segments "$cmd")
-  cmd="$bdcmd"
+  # 후보는 **토큰 목록**으로 받는다 — 한 줄에 하나이고, bd 의 원장 지정 자리에 선 등장만
+  # 빠져 있다(mc_cand_tokens). 조각을 이을 때 넣는 개행은 아래 후보 grep 의 문자 클래스가
+  # 이미 경계로 취급하므로 판정에 들지 않는다.
+  cmd="$(mc_cand_tokens "$cmd")"
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
     # 레포 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<레포>/f` 는 인용을 걷으면 `s/a/b/w<레포>/f`
