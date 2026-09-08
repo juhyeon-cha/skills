@@ -81,7 +81,7 @@ case "${CMD}" in
 esac
 
 # 기본 경로는 guard.sh 의 GUARD_LOG 와 **같은 표현이어야 한다** — 갈라지면 이 명령이 빈
-# 로그를 보고 "훅 미실행" 이라고 거짓말한다. checks/guard-check.sh ⑮ 가 두 파일에서
+# 로그를 보고 "훅 미실행" 이라고 거짓말한다. tests/harness/guard-check.sh ⑮ 가 두 파일에서
 # 기본값을 각각 파생해 대조한다 (한쪽만 고치면 게이트가 비-0).
 LOG="${HARNESS_GUARD_LOG:-$HOME/.claude/harness-guard-log.tsv}"
 
@@ -89,7 +89,7 @@ if [ ! -s "${LOG}" ]; then
   HOOK="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/hooks/guard.sh"
   WHY="검사한 훅에는 로깅 호출이 있다"
   # 아래 if…fi 가 두 부재를 가르는 로직이다. 통째로 빼면 두 상태가 같은 문구로 돌아간다 —
-  # checks/guard-check.sh ⑰ 이 이 범위만 지운 사본으로 그 귀속을 든다.
+  # tests/harness/guard-check.sh ⑰ 이 이 범위만 지운 사본으로 그 귀속을 든다.
   if [ ! -r "${HOOK}" ]; then
     WHY="훅 파일을 읽지 못해 로깅 유무를 확인하지 못했다"
   elif ! grep -q '^[[:space:]]*log_guard ' "${HOOK}"; then

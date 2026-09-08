@@ -9,9 +9,9 @@
 - **UC numbers are fixed identifiers.** They are row keys elsewhere (the defect matrix `harness-dg0.2.1`). Never reuse or shift a number — a retired usecase keeps its number with the reason.
 - **Pass criteria take two forms only**: ① `command` → expected exit code ② existence of a file or state (a path, a ledger field value, a git ref). "Works well" is not a criterion.
 - **Criteria are hypotheses; measurements live in the ledger.** The walk-throughs that produced these criteria are the notes of `harness-dg0.1.2` and later story beads — quote from there, do not copy them here.
-- **Every ledger call below is the adapter.** `ledger.sh …` is short for `bash <plugin>/scripts/ledger.sh …`; subcommands, arguments, and JSON keys are `bd`'s. Which backend answers is `backend` in the harness root's `ledger.json` — the criteria below hold on all three unless a step names one, and this harness runs `beads`.
-- Judgment commands run **from the place the actor's session opened** unless stated: the harness root for planning and retrospective, the target clone or its worktree for development. Inside a story worktree the harness root is found through the worktree wiring; from a clone root, and anywhere the wiring is absent, prefix the call with `HARNESS_ROOT=<harness root>`.
-- Placeholders: `<story ID>` · `<task ID>` · `<sprint ID>` (`YYYY-SNN`) · `<repo>` · `<clone>` (= `~/.harness-workspace/<repo>`) · `<worktree name>` (= what `<plugin>/lib/worktree-name.sh <story ID>` prints — **not the story ID**, which a `github` ID's `#` makes unusable as a name) · `<worktree>` (= `<clone>/.claude/worktrees/<worktree name>`) · `<harness root>` · `<plugin>` (= the installed plugin, which skill and agent bodies reach as CLAUDE_PLUGIN_ROOT).
+- **Every ledger call below is the adapter.** `ledger.sh …` is short for `bash <plugin>/scripts/ledger.sh …`; subcommands, arguments, and JSON keys are `bd`'s. Which backend answers is `ledger.backend` in the repo's `.harness.json` — the criteria below hold on all three unless a step names one.
+- Judgment commands run **from the place the actor's session opened** unless stated: the target repo's main checkout for planning and retrospective, that checkout or its worktree for development. Both carry `.harness.json`, so the harness root is found by walking up; where the cwd cannot be counted on (a subagent, a fixture), prefix the call with `HARNESS_ROOT=<harness root>`.
+- Placeholders: `<story ID>` · `<task ID>` · `<sprint ID>` (`YYYY-SNN`) · `<repo>` · `<clone>` (= that repo's clone, wherever it lives) · `<worktree name>` (= what `<plugin>/lib/worktree-name.sh <story ID>` prints — **not the story ID**, which a `github` ID's `#` makes unusable as a name) · `<worktree>` (= `<clone>/.claude/worktrees/<worktree name>`) · `<harness root>` · `<plugin>` (= the installed plugin, which skill and agent bodies reach as CLAUDE_PLUGIN_ROOT).
 
 ## Index
 
@@ -37,23 +37,23 @@
 
 ### UC-1. Register a new target repo and reach the first worktree
 
-**Actor**: a person (a session opened at the harness root for registration; a session opened in the new clone for the worktree)
+**Actor**: a person (a session opened in the new clone)
 
 **Steps**
 
-1. At the harness root: `bash <plugin>/scripts/repo.sh add <url> --check '<gate command>'` — clone and registration in the clone root's `repos.json` together; `--check` lands in the clone's own `.harness.json`, to be committed to that repo. The clone lands at `~/.harness-workspace/<repo>`, beside the clone root's `ledger.json` — the harness root marker that `repo.sh root` writes. It writes nothing under the clone's `.claude/` — the plugin is a single user-scope install per machine, so a clone registers nothing.
-2. `… repo.sh list` confirms the registration and the harness root.
+1. `git clone <url>` — anywhere. In a worktree of it, write `.harness.json` with the gate command, the default branch and the **same `ledger` object the harness's other repos carry** (`harness:setup` section 5), and commit it. That file is the registration: there is no registry, and its presence is what makes the clone a harness root.
+2. `bash <plugin>/lib/harness-root.sh` from inside the clone prints the clone's path, and `ledger.sh list -n 1` from there is rc 0.
 3. `harness:plan-story` creates the story epic: `ledger.sh create "<title>" -t epic -l sprint:<sprint ID>,rail:r1,slug:r1-<slug>,repo:<repo>`.
 4. Open a session in `<clone>` and run `harness:develop` — section 2 calls `EnterWorktree` with `name=<worktree name>`; the plugin's PostToolUse hook wires the ledger and runs the repo's `bootstrap` if the repo has no EnterWorktree hook of its own.
 5. `harness:develop` 3-1 delegates to `harness:implementer` with the worktree path and the harness root absolute path.
 
 **Pass criteria**
 
-- `jq -r '.repos[].name' ~/.harness-workspace/repos.json | grep -qx '<repo>'` → rc 0
-- `[ -d <clone>/.git ]` → rc 0 (run through `repo.sh list`, since a Bash command string carrying the clone path is blocked by `r_main_shell`)
+- `jq -e .ledger.backend <clone>/.harness.json` → rc 0, and its value is the same as the harness's other repos carry
+- `bash <plugin>/lib/harness-root.sh` run from `<clone>` prints `<clone>`
 - `git -C <worktree> rev-parse --abbrev-ref HEAD` prints `worktree-<worktree name>`
 - `grep -qx '.claude/worktrees/' <clone>/.git/info/exclude && grep -qx '.beads' <clone>/.git/info/exclude` → rc 0, and the target repo's `.gitignore` is unchanged: `git -C <clone> status --porcelain .gitignore` prints 0 lines
-- on the `beads` backend, `cat <worktree>/.beads/redirect` prints `<harness root>/.beads` and `ledger.sh where` inside the worktree prints that ledger; on `github`·`notion` there is nothing to wire, and the criterion is instead that `ledger.sh list -n 1` from inside the worktree is rc 0
+- on the `beads` backend, `cat <worktree>/.beads/redirect` prints the ledger home's `.beads` and `ledger.sh where` inside the worktree prints that ledger; on `github`·`notion` there is nothing to wire, and the criterion is instead that `ledger.sh list -n 1` from inside the worktree is rc 0
 - `bash <plugin>/checks/workspace-check.sh` → rc 0
 - inside the worktree, the repo's `check` command from its own `.harness.json` → rc 0 (bootstrap finished)
 
@@ -219,21 +219,19 @@
 
 **Steps**
 
-1. **Nothing is cloned to get a harness** — there is no harness repo. Install the plugin, once per machine at user scope: `claude plugin marketplace add juhyeon-cha/skills` then `claude plugin install harness@skills`; `claude plugin list` shows it. Before the marketplace carries it, `claude --plugin-dir <skills clone>/plugins/harness` and `HARNESS_PLUGIN_ROOT` for the hooks.
-2. `bash <plugin>/scripts/repo.sh root --backend <backend> --owner <owner>` writes `~/.harness-workspace/ledger.json` — this machine's pointer at the ledger, and the marker that makes that directory the harness root. It is written by that command, never by hand.
+1. Install the plugin, once per machine at user scope: `claude plugin marketplace add juhyeon-cha/skills` then `claude plugin install harness@skills`; `claude plugin list` shows it. Before the marketplace carries it, `claude --plugin-dir <skills clone>/plugins/harness` and `HARNESS_PLUGIN_ROOT` for the hooks.
+2. `git clone <url>` each repo the work touches, anywhere. Each already carries `.harness.json`, so the ledger coordinates come with the clone — **there is nothing else to write.** Steps 1 and 2 are the whole setup.
 3. Make the ledger answer, per backend. **`beads`**: `ledger.sh bootstrap --dry-run`, then `ledger.sh bootstrap` (the Dolt data is not carried by anything else). **`github`**: `gh auth status` rc 0 with the `project` scope. **`notion`**: export `NOTION_TOKEN` on this machine.
-4. `ledger.sh list` confirms the ledger answers. Until it is rc 0, every skill and gate is powerless.
-5. `… repo.sh restore` re-clones the registered repos from their urls. It touches no clone's `.claude/` — step 1's install already serves them all.
-6. Resume an interrupted story: open a session in its clone and `harness:develop` → `EnterWorktree`.
+4. `ledger.sh list` from inside a clone confirms the ledger answers. Until it is rc 0, every skill and gate is powerless.
+5. Resume an interrupted story: open a session in its clone and `harness:develop` → `EnterWorktree`.
 
 **Pass criteria**
 
 - `ledger.sh list -n 0` → rc 0 with more than 0 issues
 - `claude plugin list` names `harness@skills`, and `[ -f <plugin>/.claude-plugin/plugin.json ]` → rc 0
-- for every name in `jq -r '.repos[].name' ~/.harness-workspace/repos.json`, `… repo.sh list` reports the clone present and the harness root `<harness root>` — there is no plugin row, and its absence is what `repo-check.sh` ④ asserts
-- `bash <plugin>/lib/harness-root.sh` prints `~/.harness-workspace` — that directory is the harness root, and its `ledger.json` is the marker
+- `bash <plugin>/lib/harness-root.sh` run from each clone prints that clone — its committed `.harness.json` is the marker, and no other file was created on this machine
 - `bash <plugin>/checks/board-check.sh` → rc 0 (the ledger's structure matches the registries the adapter derives)
-- 6 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<worktree name>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints the harness ledger)
+- 5 → `git -C <worktree> rev-parse --abbrev-ref HEAD` == `worktree-<worktree name>`, and from inside it `ledger.sh list -n 1` is rc 0 (on `beads`, `ledger.sh where` prints that ledger)
 - the failure path is judged too: on `beads`, if the ledger was never pushed, 3 fails with `remote at that url contains no Dolt data` (non-zero), and `ledger.sh list` being non-zero in that state is normal
 
 ---
@@ -273,7 +271,7 @@
 3. **A/B attribution**: a copy with only that rule's registration removed — the same input is blocked by the original and passes in the copy.
 4. `bash checks/guardrail-check.sh` — the whole guardrail is alive.
 5. A new hook event goes into `hooks/hooks.json` in the same change (S2 compares it with the files both ways).
-6. Commit; the plugin gate (`claude plugin validate --strict`) and `scripts/check-all.sh` pass.
+6. Commit; the plugin gate (`claude plugin validate --strict`) and `tests/run-all.sh` pass.
 
 **Pass criteria**
 
@@ -281,7 +279,7 @@
 - **the copy actually differs**: `diff <original> <copy>` prints more than 0 lines
 - for the input that must pass (the false-positive boundary), the original `guard.sh` → rc 0
 - `bash checks/guardrail-check.sh` → rc 0, and non-zero for a copy with the registration removed
-- `bash checks/guard-check.sh` → rc 0
+- `bash tests/harness/guard-check.sh` → rc 0
 - `hooks/hooks.json` and `hooks/*.sh` agree both ways at the `<event>\t<matcher>\t<command>` grain (guardrail-check S2)
 - the new rule's checked set is non-empty — no path passes on 0 items
 - the rows for the new rule in [guardrails.md](guardrails.md) section 1 (what it blocks · what it cannot) land in the same story, and the limits that stay rc=0 get a pinned fixture in `guard-check.sh`

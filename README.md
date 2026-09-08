@@ -19,11 +19,11 @@ juhyeon-cha 의 Claude Code 스킬 플러그인 마켓플레이스. 플러그인
 
 ## harness 사용법
 
-하네스는 **하네스 루트**(머신 로컬 디렉토리 `~/.harness-workspace` — 원장 지정 `ledger.json` 과 대상 레포
-목록 `repos.json` 을 직속으로 두고, 그 자리의 `ledger.json` 이 곧 루트의 표지다) 하나와, `repos.json` 에
-등재된 대상 레포들의 클론(그 옆 `~/.harness-workspace/<레포>`)으로 돈다. 게이트 명령·기본 브랜치는 대상 레포
-자신의 `.harness.json` 이 소유한다. 플러그인은 **user scope 에 한 번만** 설치한다 — 하네스
-트리나 대상 레포마다 등록하지 않는다.
+하네스가 도는 데 필요한 절차는 둘뿐이다 — **플러그인 설치**와 **`.harness.json` 이 있는 레포 클론**.
+하네스 전용 디렉토리도, 머신 로컬 설정 파일도 없다. 대상 레포 루트에 커밋된 `.harness.json` 하나가
+게이트 명령·기본 브랜치·부트스트랩과 **원장 좌표**를 담고, 그 파일의 존재가 곧 하네스 루트의 표지다
+(`lib/harness-root.sh` 가 CWD 에서 위로 거슬러 찾는다). 클론은 아무 데나 두어도 된다.
+플러그인은 **user scope 에 한 번만** 설치한다 — 레포마다 등록하지 않는다.
 
 ```
 claude plugin marketplace add juhyeon-cha/skills   # 머신당 한 번
@@ -48,13 +48,14 @@ claude plugin install harness@skills               # scope 인자 없이 — 기
 내장 `/loop` 을 제안한다 — 사이클 상태가 원장에 있어 웨이크업이 다시 들어와도 이어진다.
 
 **원장**(스프린트·스토리·태스크를 기록하는 이슈 저장소)은 어댑터 `scripts/ledger.sh` 로만 부르고,
-백엔드는 하네스 루트 `ledger.json` 의 `backend` 하나가 정한다 — 파일이 없거나 값이 셋 밖이면
-모든 원장 명령이 rc≠0 으로 죽는다(폴백 없음).
+백엔드는 `.harness.json` 의 `ledger.backend` 하나가 정한다 — 파일이 없거나 값이 셋 밖이면
+모든 원장 명령이 rc≠0 으로 죽는다(폴백 없음). 한 하네스에 속한 레포들은 **같은 `ledger` 객체**를
+저마다 커밋해 들고 있고, 그것이 그들을 한 하네스로 묶는다.
 
-| backend | 원장이 사는 곳 | `ledger.json` 이 더 담는 것 |
+| backend | 원장이 사는 곳 | `ledger` 가 더 담는 것 |
 |---|---|---|
 | `github` (기본) | 대상 레포들의 GitHub 이슈 + 그것을 묶는 Projects v2 | `owner`(프로젝트를 소유하는 로그인) · `project`(init 이 써 넣는 번호) |
-| `beads` | 하네스 루트 `.beads/` 의 로컬 Dolt DB | 없음 — 접두사는 init 인자, 원격은 Dolt remote 로 따로 |
+| `beads` | `.harness.json` 을 가진 레포의 `.beads/` 로컬 Dolt DB | 없음 — 접두사는 init 인자, 원격은 Dolt remote 로 따로 |
 | `notion` | 통합에 공유된 페이지 아래의 데이터베이스 | `database_id`(init 이 써 넣는다) — 토큰은 `NOTION_TOKEN` 환경 변수 |
 
 플러그인이 거는 훅은 넷이다 — SessionStart(상시 규율 블록 주입) · PreToolUse(가드 — 본 체크아웃
@@ -87,7 +88,7 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
 { "name": "<이름>", "source": "./plugins/<이름>", "description": "<한 줄 설명>" }
 ```
 
-3. `bash scripts/check.sh` 를 돌린다 — 종료 코드 0 이어야 한다. 이것이 이 레포의 게이트다: `claude plugin validate --strict`(마켓플레이스와 `plugins/*/` 각각) · `plugins/` 아래 `*.sh` 전수 shellcheck · agent-doc-audit 회귀(기준 1·4, `HARNESS_ROOT` 가 있으면 6 도) · 플러그인 설명이 `plugin.json` · `marketplace.json` · 이 README 에서 같은지.
+3. `bash scripts/check.sh` 를 돌린다 — 종료 코드 0 이어야 한다. 이것이 이 레포의 게이트다: `claude plugin validate --strict`(마켓플레이스와 `plugins/*/` 각각) · `plugins/`·`tests/` 아래 `*.sh` 전수 shellcheck · agent-doc-audit 회귀(기준 1·4, `HARNESS_ROOT` 가 있으면 6 도) · 플러그인 설명이 `plugin.json` · `marketplace.json` · 이 README 에서 같은지.
 
 설명은 `plugin.json` 이 원본이다. `marketplace.json` 과 README 의 설명은 거기에 맞춘다.
 

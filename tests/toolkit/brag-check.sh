@@ -9,7 +9,7 @@
 # 권한 검사를 우회하므로 그 경우 이 검사는 신뢰할 수 없다.
 
 set -uo pipefail
-HERE=$(cd "$(dirname "$0")" && pwd)
+HERE=$(cd "$(dirname "$0")/../../plugins/toolkit/skills/brag" && pwd)
 REPORT=$HERE/../html-report
 OUT=${1:-}
 T=$(mktemp -d)

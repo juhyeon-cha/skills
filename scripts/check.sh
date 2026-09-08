@@ -4,11 +4,11 @@
 # 네 검사를 전부 돌려 각각 보고하고, 하나라도 실패면 rc 1 이다(set -e 를 쓰지 않는다 — 첫 실패에서
 # 죽으면 나머지 검사의 결과가 보고되지 않는다).
 #   (a) claude plugin validate --strict — 마켓플레이스(.)와 plugins/*/ 각각
-#   (b) shellcheck — plugins/ 아래 *.sh 전수(find 로 파생, 파일 수를 낸다, 0개면 실패).
-#       plugins/harness/checks/shell-lint.sh 는 자기 플러그인 트리(scripts checks hooks lib)로 대상이 고정이라
-#       toolkit 의 *.sh 를 덮지 못한다 — 같은 플래그(--shell=bash --severity=warning)와 같은 규칙 면제로 여기서 전수를 돈다.
-#       미설치(shellcheck 가 PATH 에 없음)는 shell-lint.sh 와 같은 fail-open: 통과시키되 검사하지 못했다고 말한다.
-#   (c) agent-doc-audit 회귀 — 두 플러그인과 레포 루트 스킬(.claude/skills)에서
+#   (b) shellcheck — plugins/ 와 tests/ 아래 *.sh 전수(find 로 파생, 파일 수를 낸다, 0개면 실패).
+#       배포되는 셸과 배포되지 않는 셸을 한 자리에서 같은 플래그(--shell=bash --severity=warning)로 돈다 —
+#       플러그인 안에 있던 shell-lint.sh 는 대상이 자기 트리로 고정이라 이 전수에 흡수하고 지웠다.
+#       미설치(shellcheck 가 PATH 에 없음)는 fail-open: 통과시키되 검사하지 못했다고 말한다.
+#   (c) agent-doc-audit 회귀 — 두 플러그인과 레포 문서(docs)·레포 루트 스킬(.claude/skills)에서
 #       1-correction · 4-date · 4-line-pointer 가 0줄. 레포 루트 스킬은 플러그인 밖에 살아
 #       (a) validate 도 (b) shellcheck 도 보지 않는 자리라, 여기가 유일한 검사 자리다.
 #       6-dead-path 는 harness 플러그인 docs 가 하네스 루트 상대 경로를 쓰므로 HARNESS_ROOT 가 있을 때만
@@ -38,28 +38,27 @@ done
 
 # ── (b) shellcheck 전수 ──────────────────────────────────────────────
 files=()
-while IFS= read -r f; do files+=("$f"); done < <(find plugins -type f -name '*.sh' | sort)
+while IFS= read -r f; do files+=("$f"); done < <(find plugins tests -type f -name '*.sh' | sort)
 n=${#files[@]}
 if [ "$n" -eq 0 ]; then
-  echo "✗ (b) plugins/ 아래 *.sh 가 0개다 — 빈 집합에 대한 검사는 통과가 아니라 검사 안 함이다"
+  echo "✗ (b) plugins/·tests/ 아래 *.sh 가 0개다 — 빈 집합에 대한 검사는 통과가 아니라 검사 안 함이다"
   fail=1
 elif ! command -v shellcheck >/dev/null 2>&1; then
   echo "⚠ (b) shellcheck 가 없다 — *.sh ${n}개를 **검사하지 못했다** (통과가 아니라 미판정이다; brew install shellcheck)"
 else
-  # SC2317 면제: harness 의 검사 스크립트는 함수를 정의해 두고 step 에 이름으로 넘겨 shellcheck 가 도달 불가로
-  # 읽는다 — plugins/harness/checks/shell-lint.sh 의 규칙 면제와 같다.
+  # SC2317 면제: 검사 스크립트는 함수를 정의해 두고 step 에 이름으로 넘겨 shellcheck 가 도달 불가로 읽는다.
   if out=$(shellcheck --shell=bash --severity=warning --exclude=SC2317 "${files[@]}" 2>&1); then
-    echo "✓ (b) shellcheck 통과 — plugins/ 아래 *.sh ${n}개 · severity=warning 이상 0건 (규칙 면제 SC2317)"
+    echo "✓ (b) shellcheck 통과 — plugins/·tests/ 아래 *.sh ${n}개 · severity=warning 이상 0건 (규칙 면제 SC2317)"
   else
     printf '%s\n' "$out"
-    echo "✗ (b) shellcheck 실패 — plugins/ 아래 *.sh ${n}개 중 지적이 있다 (위)"
+    echo "✗ (b) shellcheck 실패 — plugins/·tests/ 아래 *.sh ${n}개 중 지적이 있다 (위)"
     fail=1
   fi
 fi
 
 # ── (c) agent-doc-audit 회귀 ─────────────────────────────────────────
 AUDIT=plugins/toolkit/skills/agent-doc-audit/check.sh
-SCAN='plugins/harness plugins/toolkit .claude/skills'
+SCAN='plugins/harness plugins/toolkit docs .claude/skills'
 crit='1-correction|4-date|4-line-pointer'
 [ -n "${HARNESS_ROOT:-}" ] && crit="$crit|6-dead-path"
 # shellcheck disable=SC2086  # SCAN 은 낱말 분리가 의도다; HARNESS_ROOT 가 있을 때만 --root <값> 두 낱말을 붙인다

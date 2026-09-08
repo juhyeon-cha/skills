@@ -89,13 +89,3 @@ must not disagree on how they are operated.
 
 Sample values are placeholders chosen from type names (`Long`→`0`, `LocalDateTime`→an ISO string).
 **They are not real data.**
-
-## 4. Check
-
-```bash
-bash check.sh
-```
-
-It fetches two sample repos at fixed commits, runs both extractors, and checks the schema assertion,
-the `render.py` output and the failure paths (missing key · zero endpoints · missing file) together.
-Network needed. `check.sh <snapshot.json>` runs the schema assertion alone on that one file.

@@ -3,7 +3,7 @@
 # 어댑터가 bash 라 MCP 를 못 부른다). ledger.sh 가 부른다(직접 부르지 않는다). 요청 문면은
 # harness-m8gg.3.2 의 실측 그대로다 (Notion-Version 2022-06-28).
 #
-# ledger.json = {"backend":"notion","database_id":"<id>"}. 토큰은 NOTION_TOKEN 환경 변수뿐이고
+# .harness.json 의 ledger = {"backend":"notion","database_id":"<id>"}. 토큰은 NOTION_TOKEN 환경 변수뿐이고
 # 파일에 두지 않는다 — 없으면 rc≠0.
 #
 # DB 스키마(T0.2 그대로 + init 이 더하는 둘):
@@ -47,14 +47,14 @@ set -uo pipefail
 die() { echo "ledger-notion: $*" >&2; exit 1; }
 
 # 워크트리 배선 — 이 백엔드는 워크트리에 아무것도 두지 않는다. 페이지는 원격에 있고 루트는
-# HARNESS_ROOT 또는 ~/.harness-workspace/ledger.json(lib/harness-root.sh)으로 찾는다. 토큰 없이도 답한다.
-[ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 클론 루트 직속의 ledger.json 으로 찾는다"; exit 0; }
+# HARNESS_ROOT 또는 위로 거슬러 찾은 .harness.json(lib/harness-root.sh)으로 정한다. 토큰 없이도 답한다.
+[ "${1:-}" = "wire-worktree" ] && { echo "ledger-notion: 워크트리 배선 없음 — 루트는 HARNESS_ROOT 또는 위로 거슬러 찾은 .harness.json 으로 정한다"; exit 0; }
 # 원격 반영 검사 — 페이지가 원격 자체라 앞서 있을 로컬 사본이 없다. checks/ledger-check.sh 가 부른다.
 [ "${1:-}" = "sync-check" ] && { echo "✓ 원장 게이트 통과 — 원격 반영 대상 없음 (notion 백엔드: 페이지가 원격 자체다)"; exit 0; }
 # 사람이 읽는 자기 UI — 갖는다. scripts/board.sh 가 이것으로 렌더 여부를 정한다(코어는 백엔드
 # 이름을 열거하지 않는다). 위 둘과 같이 토큰 검사 앞에 둔다 — 답이 상수라 원장에 닿지 않는다.
 [ "${1:-}" = "has-ui" ] && { echo "Notion 의 데이터베이스 화면"; exit 0; }
-DB="$(jq -r '.database_id // empty' "$LEDGER_CONFIG")"
+DB="$(jq -r '.ledger.database_id // empty' "$LEDGER_CONFIG")"
 [ -n "${NOTION_TOKEN:-}" ] || die "NOTION_TOKEN 환경 변수가 없다 — 통합 토큰을 환경 변수로만 준다(파일에 두지 않는다)"
 command -v curl >/dev/null 2>&1 || die "curl 이 PATH 에 없다 — Notion 백엔드는 REST 로 원장에 닿는다"
 
@@ -125,7 +125,7 @@ read_body_file() { if [ "$1" = "-" ]; then cat; else cat "$1"; fi; }
 glob_to_re() { printf '^%s$\n' "$(printf '%s' "$1" | sed -e 's/[][\.^$(){}|+?\\]/\\&/g' -e 's/\*/.*/g')"; }
 want_json() { case " $* " in *" --json "*) return 0 ;; *) return 1 ;; esac; }
 print_rows() { jq -r '.[] | "\(.id)\t\(.status)\t\(.issue_type)\t\(.title)"'; }
-need_db() { [ -n "$DB" ] || die "$LEDGER_CONFIG 에 database_id 가 없다 — ledger.sh init --parent-page <페이지 id> 가 만든다"; }
+need_db() { [ -n "$DB" ] || die "$LEDGER_CONFIG 에 ledger.database_id 가 없다 — ledger.sh init --parent-page <페이지 id> 가 만든다"; }
 
 # query <필터 JSON 또는 ""> → 페이지 전수(정규화, notes 없음). has_more 를 따라간다.
 query() {
@@ -188,10 +188,10 @@ case "$cmd" in
     done
     base='{Name:{title:{}}, Type:{select:{options:[{name:"epic"},{name:"feature"},{name:"task"},{name:"bug"},{name:"chore"},{name:"decision"}]}}, Status:{select:{options:[{name:"open"},{name:"in_progress"},{name:"blocked"},{name:"deferred"},{name:"closed"}]}}, Acceptance:{rich_text:{}}, Labels:{multi_select:{}}, Description:{rich_text:{}}, Assignee:{rich_text:{}}}'
     if [ -z "$DB" ]; then
-      [ -n "$parent_page" ] || die "$LEDGER_CONFIG 에 database_id 가 없다 — 새로 만들려면 init --parent-page <통합이 공유된 페이지 id>"
+      [ -n "$parent_page" ] || die "$LEDGER_CONFIG 에 ledger.database_id 가 없다 — 새로 만들려면 init --parent-page <통합이 공유된 페이지 id>"
       DB="$(napi POST databases "$(jq -n --arg p "$parent_page" --arg t "$title" "{parent:{type:\"page_id\", page_id:\$p}, title:[{type:\"text\", text:{content:\$t}}], properties: $base}")" | jq -r '.id')" || exit 1
       [ -n "$DB" ] || die "DB 생성 응답에 id 가 없다"
-      tmp="$(mktemp)"; jq --arg d "$DB" '.database_id = $d' "$LEDGER_CONFIG" > "$tmp" && mv "$tmp" "$LEDGER_CONFIG"
+      tmp="$(mktemp)"; jq --arg d "$DB" '.ledger.database_id = $d' "$LEDGER_CONFIG" > "$tmp" && mv "$tmp" "$LEDGER_CONFIG"
     fi
     # 자기 관계 둘 + init 이 더하는 속성 둘. 이미 있는 DB 에도 같은 PATCH 를 다시 보낼 수 있다(멱등).
     napi PATCH "databases/$DB" "$(jq -n --arg d "$DB" '{properties: {Parent:{relation:{database_id:$d, single_property:{}}}, "Blocked by":{relation:{database_id:$d, single_property:{}}}, Description:{rich_text:{}}, Assignee:{rich_text:{}}}}')" >/dev/null || exit 1

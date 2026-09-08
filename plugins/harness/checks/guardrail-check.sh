@@ -37,7 +37,7 @@
 # 막아 준 것을 "이 규칙이 산다"로 오독한다 — 규칙 7개가 겹치는 판정 지점을 공유하므로
 # 실제로 일어나는 오독이다 (guard.sh 의 "등재 순서로 메시지를 고른다" 주석 참조).
 #
-# checks/guard-check.sh 와의 경계: 그쪽은 guard.sh **안**을 판다 (규칙별 오탐·미탐 경계,
+# tests/harness/guard-check.sh 와의 경계: 그쪽은 guard.sh **안**을 판다 (규칙별 오탐·미탐 경계,
 # 면제 목록 전수, 한계의 박제). 이 게이트는 그 위에서 **표면이 사라졌는가**만 본다.
 # 규칙 하나에 시험 1건씩이고, 대신 guard-check.sh 가 못 보는 것을 본다: hooks.json 배선·
 # 검사 스크립트 실물·정지 가드의 발화.
@@ -93,7 +93,7 @@ trap 'rm -rf "$TMP"' EXIT
 # 발화 로그를 임시 경로로 돌린다. S1 은 규칙마다 훅에 합성 stdin 을 먹이므로(규칙 7종 ×
 # 프로브·A/B 사본) 기본 경로에 그대로 쓰면 실사용 계수가 합성 발화로 오염된다. "그 규칙이
 # 발화한 적 있는가" 를 기계값으로 만드는 것이 그 로그의 존재 이유인데, 게이트 자신이 그 값을
-# 위조한다. checks/guard-check.sh 가 같은 이유로 같은 형태를 쓴다.
+# 위조한다. tests/harness/guard-check.sh 가 같은 이유로 같은 형태를 쓴다.
 export HARNESS_GUARD_LOG="$TMP/guard-log.tsv"
 # 세션→actor 매핑도 같은 이유로 돌린다. 기본 경로가 `$HOME/.claude/harness-session-actor.tsv`
 # 라 돌리지 않으면 이 게이트의 합성 claim 이 **실사용 매핑에 섞이고**, 정지 가드가 그것을
@@ -235,22 +235,27 @@ step "머리주석의 S 목록 줄 수가 실제 표면 수와 같다 (${listed_
 section "S1 훅 규칙 (${HOOK})"
 
 # 집합 파생. guard.sh 가 "규칙 함수는 r_ 접두" 를 계약으로 선언하고
-# checks/guard-check.sh ⑦ 이 그 계약(전원 등재·접두 준수)을 단언한다. 여기서는 그
+# tests/harness/guard-check.sh ⑦ 이 그 계약(전원 등재·접두 준수)을 단언한다. 여기서는 그
 # 집합을 그대로 받아 **차단 동작**을 본다.
 RULE_SET=()
 while IFS= read -r fn; do [[ -n "$fn" ]] && RULE_SET+=("$fn"); done < <(
   grep -Eo '^r_[A-Za-z0-9_]+\(\)' "$HOOK" | sed 's/()$//' | sort -u)
 step "규칙 집합이 파생됐다 (${#RULE_SET[@]}개)" [ "${#RULE_SET[@]}" -gt 0 ]
 
-CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"   # guard.sh 와 같은 표현
 IMPL_T="harness:implementer"; GR_R="harness:reviewer"                     # agent_type 의 실측 형식 (M0)
-MAIN_PATH="$CLONE_ROOT/_probe-repo/README.md"                  # 어휘 판정이라 실재하지 않아도 된다
+# 본 체크아웃 판정의 판별자는 **실재하는 `.harness.json`** 이다(guard.sh 의 mc_locate) — 어휘
+# 판정만으로는 대상 레포를 알 수 없으므로 픽스처 레포를 실제로 만든다. 파일 자신은 없어도 된다.
+mkdir -p "$TMP/_probe-repo"
+printf '{"ledger":{"backend":"beads"}}\n' > "$TMP/_probe-repo/.harness.json"
+MAIN_PATH="$TMP/_probe-repo/README.md"
 # 채점자 규칙의 차단 자리. r_grader_write 는 skills#225 이후 **대상 트리 안**만 막으므로
 # 트리 밖($TMP)은 더 이상 차단이 아니다. 워크트리 경로를 쓰는 이유는 **A/B 귀속**이다 —
 # r_main_write 는 `.claude/worktrees/*/*` 를 통과시키고 r_grader_write 는 그것도 막으니,
-# 이 입력의 rc=2 는 오직 r_grader_write 때문이다. 트리 안 다른 자리(본 체크아웃)를 쓰면
+# 이 입력의 rc=2 는 오직 r_grader_write 때문이다. 트리 밖 다른 자리(본 체크아웃)를 쓰면
 # r_main_write 에 먼저 걸려 "그 규칙 등재만 뺀 사본에서 rc 0" 이 거짓이 된다.
-WT_PATH="$CLONE_ROOT/_probe-repo/.claude/worktrees/_probe-wt/README.md"
+# 조상 `.harness.json` 은 위 픽스처 하나로 충분하다 — r_grader_write 가 부르는 mc_root_of 는
+# 워크트리 필터가 없어 `_probe-repo` 를 루트로 잡는다.
+WT_PATH="$TMP/_probe-repo/.claude/worktrees/_probe-wt/README.md"
 
 # 규칙마다 **차단돼야 하는** 입력 하나. 형식: "<규칙>|<PreToolUse 이벤트 JSON>".
 # 이 표는 손으로 적지만 **집합이 아니라 시험 데이터**다 — 어느 규칙을 검사할지는
@@ -343,8 +348,8 @@ done
 # 아니다 — 규칙 집합을 함수 정의(`^r_…()`)에서 파므로, 등재 줄만 지운 사본에서도 그 규칙은
 # 집합에 남고 면제로 통과한다. 시험이 있는 규칙은 그 상태가 위 A/B 에서 rc=0 으로 시끄럽게
 # 죽는데, 면제된 규칙만 그 검출을 잃는다 [실측 2026-08-23: RULES+= 줄만 지운 사본이 이
-# 게이트를 rc=0 으로 통과했다 — 그때 guard-check.sh 는 통째로 check-all 의 면제라 아무도 못
-# 봤다. 지금은 그 등록부 단언이 임계 아래 절이라 checks/guard-fast-check.sh 로 여기서 돈다].
+# 게이트를 rc=0 으로 통과했다 — 그때 guard-check.sh 는 통째로 러너의 면제라 아무도 못
+# 봤다. 지금은 그 등록부 단언이 임계 아래 절이라 tests/harness/guard-fast-check.sh 로 돈다].
 # 그래서 면제 키마다 등재의 실재를 **정적으로** 단언한다. 앞으로 생길 면제도 함께 덮는다.
 registered_in() {  # registered_in <규칙함수> <훅파일>
   grep -E '^RULES\+=' "$2" | grep -q "\"[^\"]*:$1\""
@@ -494,13 +499,13 @@ if [[ ! -f "$LEDGER" ]]; then
   fail=1
 else
   LTMP="$TMP/ledger"
-  # 픽스처 루트 둘 — 판별자 ledger.json(backend beads)을 갖춘다. `root` 는 .beads/redirect 로 `up` 의 원장을
+  # 픽스처 루트 둘 — 판별자 .harness.json(backend beads)을 갖춘다. `root` 는 .beads/redirect 로 `up` 의 원장을
   # 가리키는 사본 루트(워크트리·검사 사본과 같은 배선)라 자기 아래에는 embeddeddolt 가 없다 — 원장 위치를
   # bd 에게 묻지 않고 루트 아래 경로를 조립하면 여기서 원장을 놓친다(harness-js9 의 형태). `norepo` 는
   # 원장이 정말 없는 트리다. ledger-check.sh 는 인자 루트를 HARNESS_ROOT 로 어댑터에 넘긴다.
   mkdir -p "$LTMP/bin" "$LTMP/up/.beads/embeddeddolt/db" "$LTMP/root/.beads" "$LTMP/norepo"
-  printf '{"backend":"beads"}\n' > "$LTMP/root/ledger.json"
-  printf '{"backend":"beads"}\n' > "$LTMP/norepo/ledger.json"
+  printf '{"ledger":{"backend":"beads"}}\n' > "$LTMP/root/.harness.json"
+  printf '{"ledger":{"backend":"beads"}}\n' > "$LTMP/norepo/.harness.json"
   printf '%s\n' "$LTMP/up/.beads" > "$LTMP/root/.beads/redirect"
 
   # dolt 스텁 — 원격 있음 · 계보 공유 · ahead 는 $LTMP/ahead 파일이 정한다.
@@ -571,7 +576,7 @@ STUB
   step "배선 루트: redirect 너머의 원장을 대상으로 판정에 도달한다 (rc=0)" [ "$LRC" -eq 0 ]
   step "배선 루트: 반영 여부를 실제로 판정했다고 말한다" has_text "원격 반영 확인됨" "$LOUT"
 
-  # ② 원장이 정말 없는 **클론**(ledger.json 은 있으나 bd 가 원장을 못 낸다) — 건너뛰고 rc=0.
+  # ② 원장이 정말 없는 **클론**(.harness.json 은 있으나 bd 가 원장을 못 낸다) — 건너뛰고 rc=0.
   #    ①의 수정이 이것을 깨지 않는다. 진짜 git 저장소로 만든다 — "저장소이긴 한데 원장이 없다"를 밟는다.
   fxgit init -q "$LTMP/norepo" 2>/dev/null
   LOUT=$(env PATH="$LTMP/bin:/usr/bin:/bin" BD_STUB_MISS=1 bash "$LEDGER" "$LTMP/norepo" 2>&1); LRC=$?
@@ -664,7 +669,7 @@ fi
 # 쌓인다.** "그 경로가 발화한 적 있는가"를 기계값으로 만드는 것이 그 로그의 존재 이유인데
 # 게이트가 그 값을 스스로 망친다 (S1·S6 이 같은 이유로 같은 형태를 쓴다). 원장 조회는 PATH
 # 앞의 스텁이 받고, 하네스 루트는 HARNESS_ROOT 로 물린 합성 루트다(lib/harness-root.sh 의 첫
-# 출처 — 판별자 ledger.json 만 갖춘다) — 진짜 bd·원장을 물리면 판정이 그 머신의 원장
+# 출처 — 판별자 .harness.json 만 갖춘다) — 진짜 bd·원장을 물리면 판정이 그 머신의 원장
 # 상태에 흔들려 재현되지 않는다.
 section "S7 정지 가드 (${STOPHOOK}) — 배선된 그 파일이 실제로 발화하는가"
 if [[ ! -f "$STOPHOOK" ]]; then
@@ -673,7 +678,7 @@ if [[ ! -f "$STOPHOOK" ]]; then
 else
   PTMP="$TMP/stopguard"
   mkdir -p "$PTMP/bin" "$PTMP/proj" "$PTMP/data" "$PTMP/hroot"
-  printf '{"backend":"beads"}\n' > "$PTMP/hroot/ledger.json"   # 판별자 — 훅의 오라클은 어댑터(ledger.sh)를 거쳐 PATH 앞의 스텁 bd 에 닿는다
+  printf '{"ledger":{"backend":"beads"}}\n' > "$PTMP/hroot/.harness.json"   # 판별자 — 훅의 오라클은 어댑터(ledger.sh)를 거쳐 PATH 앞의 스텁 bd 에 닿는다
   SDATA="$PTMP/data"
   SLOG="$SDATA/stop-resume.log"
   SORACLE="$PTMP/oracle"
@@ -979,7 +984,7 @@ STUB
   stop_case IDLE s-sc-ghnull false "$FX_SC_GH_NULL"; SCOPE_FX+=("github 모양 actor=null→통과")
   step "사거리 ⑥: actor 가 null 이면 assignee 로 새지 않는다 (막지 않는다)" [ -z "$SOUT" ]
 
-  # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/development.md "Checking that a check is alive").
+  # 집합이 빈 채로 참이 되는 것을 막는다 (../docs/engineering.md "Checking that a check is alive").
   step "사거리 픽스처 집합이 비지 않았다 (${#SCOPE_FX[@]}종: ${SCOPE_FX[*]:-없음})" \
     [ "${#SCOPE_FX[@]}" -ge 6 ]
 

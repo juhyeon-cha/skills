@@ -31,7 +31,7 @@
 #   ① 함수를 하나 쓴다 — 이름은 `r_` 접두. 차단할 때 deny "<사유>", 그 외에는 return 0.
 #   ② RULES 에 "<도구이름 또는 *>:<함수이름>" 한 줄을 등재한다.
 #   ③ 규칙 블록은 아래 `RULES=()` **뒤에** 둔다. 앞에 두면 `RULES=()` 가 등재를 지운다.
-#   ①의 `r_` 접두와 ③의 배치를 checks/guard-check.sh ⑦ 이 역방향으로 단언한다 —
+#   ①의 `r_` 접두와 ③의 배치를 tests/harness/guard-check.sh ⑦ 이 역방향으로 단언한다 —
 #   함수를 정의해 놓고 등재를 빠뜨리거나 순서가 뒤집히면 게이트가 비-0 으로 깨진다.
 #   규칙 본문에서 **명령 형태를 정규식으로 열거하지 마라.** 그 접근은 스파이크에서
 #   세 번 연속 샜고(래퍼 `timeout`, 옵션 위치 `git -C`) 한 번은 경로 속 `.git` 덕에
@@ -52,9 +52,8 @@ set -uo pipefail
 # 이 값을 트리 판정에 쓰지 않는다. 쓰는 곳은 둘뿐이다: 내부 오류 메시지의 자기 경로, 그리고
 # lib/harness-root.sh 의 자리(r_bd_root 의 차단 메시지가 하네스 루트를 제시할 때 부른다).
 #
-# 클론 루트를 기준으로 판정하는 규칙(r_main_write·r_main_shell)의 값은
-# `${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}` 다 — scripts/repo.sh·hooks/enter-worktree.sh 가
-# 클론 위치를 정할 때 쓰는 바로 그 규약이다.
+# 대상 레포를 판정하는 규칙(r_main_write·r_main_shell)은 고정 경로를 쓰지 않는다 — 판별자는
+# 그 레포가 커밋한 `.harness.json` 이고, 경로에서 위로 거슬러 찾는다(lib/harness-root.sh 와 같다).
 #
 # agent_type 의 실측 형식은 `harness:<에이전트이름>` 이다 (M0 실측 harness-lzs3.1 note —
 # 플러그인이름:에이전트이름). 역할별 규칙은 그 형식 하나로만 대조한다 — 접두 없는 값을 함께 받으면
@@ -84,10 +83,8 @@ GUARD_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pw
 # 위치: `~/.claude/harness-guard-log.tsv`. 어느 레포도 어느 워크트리도 아니라 git·원장을
 # 오염시키지 않으면서, 훅 사본이 워크트리마다 배포돼도 계수가 한 파일로 모인다.
 # GUARD_ROOT 아래에 두면 워크트리 수만큼 쪼개진다.
-# **클론 루트 옆(`~/.harness-workspace/guard-log.tsv`)에는 둘 수 없다** [실측 2026-08-27]:
-# 이 훅 자신의 C3(r_main_shell)가 클론 루트 직속 경로를 명령 문자열에서 보면 차단하므로,
-# 거기 두면 로그를 들여다보는 명령이 rc=2 로 막힌다 — 초판이 그 자리였고 실제로 막혔다.
-# 계수 스크립트는 경로를 명령 문자열에 두지 않아 돌지만, 사람이 원본을 볼 수 없게 된다.
+# **대상 레포 안에는 둘 수 없다**: 이 훅 자신의 C3(r_main_shell)가 본 체크아웃 경로를 명령
+# 문자열에서 보면 차단하므로, 거기 두면 로그를 들여다보는 명령이 rc=2 로 막힌다.
 #
 # 회전: 줄 수 상한 하나. **새 상태 파일을 만들지 않는다** — harness-dg0.3.1 note 9.3(2) 가
 # 재주입 상한을 별도 상태 없이 로그 줄 수로 센 것과 같은 형태다. 넘으면 최근 절반만 남긴다.
@@ -152,7 +149,7 @@ if ! printf '%s' "$INPUT" | jq -e 'type == "object"' >/dev/null 2>&1; then
 fi
 
 # JSON 은 printf 로 먹인다 — echo 는 backslash 확장 셸에서 필드 안의 이스케이프를
-# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/development.md "Shell traps").
+# 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/engineering.md "Shell traps").
 field() { printf '%s' "$INPUT" | jq -r "$1 // \"\"" 2>/dev/null; }
 
 TOOL_NAME="$(field '.tool_name')"
@@ -205,7 +202,7 @@ has_token() { printf '%s' "${2-$COMMAND}" | grep -Eqw -- "$1"; }
 # **목록은 손으로 적되, 게이트가 `<도구> --help` 파생과 대조한다.** 훅에서 직접
 # 파생하지 않는 이유는 비용이다 — 이 훅은 **모든 도구 호출마다** 도는데 훅 1회가
 # 56ms 이고 `bd --help` 가 32ms, `git --help` 가 5ms 다 [실측 2026-08-22, 각 5회 평균].
-# 대신 목록이 낡으면 checks/guard-check.sh 가 실패시킨다: 파생에 있는데 여기 없으면
+# 대신 목록이 낡으면 tests/harness/guard-check.sh 가 실패시킨다: 파생에 있는데 여기 없으면
 # 그것이 곧 미탐이므로 **파생 ⊆ 목록**을 단언하고, 파생 집합이 비면(파싱이 깨졌다는
 # 뜻이다) 그것도 실패로 읽는다. 새 옵션의 기본값은 "건너뛴다"여야 한다 — 목록에
 # 없으면 값이 하위 명령으로 읽히는 쪽이 기본값이 되므로 극성이 뒤집힌다.
@@ -379,23 +376,25 @@ sa_observe || :   # SA_OBSERVE_CALL — 관측 호출. 실패해도 판정은 �
 # 형식: "<도구이름 또는 *>:<함수이름>". 비어 있으면 아무것도 차단하지 않는다.
 # **이 선언은 모든 `RULES+=` 보다 위에 있어야 한다.** 아래로 내려가면 이미 쌓인 등재를
 # 전부 지우고, 규칙이 하나도 안 걸리는 훅이 rc=0 으로 조용히 통과한다. 이 줄은
-# checks/guard-check.sh 의 mkhook 이 삽입 앵커(`^RULES=()$`)로도 쓰므로 단독 유지한다.
+# tests/harness/guard-check.sh 의 mkhook 이 삽입 앵커(`^RULES=()$`)로도 쓰므로 단독 유지한다.
 RULES=()
 
 # ── 규칙 ─────────────────────────────────────────────────────────────
 
 # ── C3 — 대상 레포 본 체크아웃 쓰기 차단 ──────────────────────────────
 #
-# 경계가 한 단계 차이다. 클론 루트 아래 `<레포>/` 는 전부 금지이고 예외가 딱 하나,
+# 경계가 한 단계 차이다. 대상 레포의 체크아웃은 전부 금지이고 예외가 딱 하나,
 # `<레포>/.claude/worktrees/<워크트리 이름>/` 다. 워크트리가 본 체크아웃의 **하위 경로**라
 # 접두 일치만 보면 워크트리까지 함께 막힌다 — 그것이 harness-uhy.1.1 note ④ 가 실측한 실패다.
 # `permissions.deny` 로 부모를 막고 자식(워크트리)을 allow 하면 둘 다 막혔고
 # (`main.txt: old  wt.txt: old`), 훅으로 바꾸니 의도대로 갈렸다
 # (`main.txt: old  wt.txt: NEWWT`). **그래서 이 강제 지점은 반드시 훅이어야 한다.**
 #
-# 클론 루트는 GUARD_ROOT 가 아니다 (위 GUARD_ROOT 주석). scripts/repo.sh·
-# hooks/enter-worktree.sh 와 **같은 표현**을 쓴다 — 셋이 어긋나면 규칙이 조용히 빗나간다.
-CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
+# **대상 레포를 고정 경로로 알아내지 않는다.** 판별자는 그 레포가 커밋한 `.harness.json`
+# 이고, 경로에서 위로 거슬러 올라가 처음 만나는 그 파일의 디렉토리가 레포 루트다
+# (lib/harness-root.sh 와 같은 판별자). 클론을 어디에 두든 규칙이 따라간다.
+# 워크트리는 자기 체크아웃에 `.harness.json` 을 가지므로 **자기 자신이 루트로 잡히고**,
+# 그 루트의 경로가 `.claude/worktrees/` 를 지나면 본 체크아웃이 아니다.
 
 # 경로를 **어휘적으로** 정규화한다. 파일시스템을 보지 않는다 — 아직 없는 파일도
 # 판정해야 하고, 훅의 CWD 는 신뢰할 수 없다. `..` 를 접는 것이 핵심이다:
@@ -421,47 +420,49 @@ mc_norm() (
 )
 
 # 경로가 어느 레포의 본 체크아웃 안인가. 안이면 0 과 함께 MC_PATH(정규화 경로)·
-# MC_REPO(레포 이름)·MC_SUB(레포 아래 상대 경로, 레포 루트면 빈 문자열)를 채운다.
-# **워크트리 예외 판정은 여기서 하지 않는다** — 도구 경로 규칙과 셸 명령 규칙의 예외
-# 폭이 다르기 때문이다(각 규칙 주석 참조). 두 판정을 한 함수에 섞으면 한쪽의 완화가
-# 다른 쪽의 구멍이 된다.
-MC_PATH=""; MC_REPO=""; MC_SUB=""
-mc_locate() {
-  local p root rest
+# MC_ROOT(레포 루트 절대 경로)·MC_REPO(레포 이름)·MC_SUB(레포 아래 상대 경로, 레포
+# 루트 자신이면 빈 문자열)를 채운다.
+#
+# 루트는 **위로 거슬러 올라가 처음 만나는 `.harness.json`** 의 디렉토리다. 아직 없는
+# 파일도 판정해야 하므로 경로 자신의 실재는 보지 않는다 — 조상 디렉토리만 본다.
+# 어느 조상에도 그 파일이 없으면 하네스가 다루는 트리가 아니고, 판정하지 않는다(1).
+#
+# 판별을 파일시스템에 맡기므로 대소문자 표기로 새지 않는다 — macOS 기본 파일시스템에서
+# `~/.Harness-Workspace/…` 는 문자열 비교로는 다른 경로였지만(실측 2026-08-28, 그 표기의
+# `rm -rf` 가 rc=0 으로 통과했다) `[ -f … ]` 는 같은 파일을 찾아낸다.
+#
+# **워크트리는 여기서 걸러진다** — 자기 체크아웃에 `.harness.json` 이 있어 자신이 루트로
+# 잡히고, 그 루트 경로가 `.claude/worktrees/` 를 지나면 본 체크아웃이 아니므로 1 이다.
+# 그래도 규칙마다 예외 폭이 달라(각 규칙 주석) MC_SUB 로 한 번 더 가르는 자리가 있다.
+MC_PATH=""; MC_ROOT=""; MC_REPO=""; MC_SUB=""
+
+# 루트 찾기만 한다 — **워크트리 필터가 없다.** 경로가 하네스가 다루는 레포 트리 안이면
+# (워크트리도 그 트리다) 0 과 함께 MC_* 를 채운다. 어느 조상에도 `.harness.json` 이 없으면 1.
+#
+# 이 절반이 따로 있는 이유는 **규칙마다 워크트리의 뜻이 반대**라서다. C3 둘은 워크트리를
+# 통과시켜야 하므로 필터가 붙은 mc_locate 를 부르고, r_grader_write 는 워크트리를 **막아야**
+# 하므로 이쪽을 부른다 — 채점 대상이 바로 그 워크트리다. 한 함수에 필터를 두면 그 규칙의
+# 뜻이 조용히 뒤집힌다 [skills#236 실측: 필터 붙은 locate 위에서 채점자의 워크트리 쓰기가
+# rc=0 으로 통과했고, 텍스트 충돌도 게이트 실패도 없었다].
+mc_root_of() {
+  local p d
   p="$(mc_norm "$1")" || return 1
-  root="$(mc_norm "$CLONE_ROOT")" || return 1
-  # 비교는 소문자로 접어서 한다 — macOS 기본 파일시스템은 대소문자를 구분하지 않아
-  # `~/.Harness-Workspace/…` 가 같은 디렉토리인데 문자열 비교는 통과시켰다 [실측 2026-08-28,
-  # implementer rm -rf 그 표기 → rc=0 — 리뷰 #8]. MC_PATH 등 밖으로 내는 값은 원래 표기다.
-  # ponytail: 대소문자 구분 FS(Linux)에서는 다른 디렉토리를 같은 것으로 읽는 오탐 방향.
-  local lp lr
-  lp="$(printf '%s' "$p" | tr '[:upper:]' '[:lower:]')"
-  lr="$(printf '%s' "$root" | tr '[:upper:]' '[:lower:]')"
-  # 클론 루트 **자체**도 잡는다. 여기를 빼면 심각도가 뒤집힌다 — 레포 하나를 지우는
-  # `rm -rf <루트>/<레포>` 는 막히는데 전부를 지우는 `rm -rf <루트>` 가 통과한다.
-  # MC_REPO 를 비워 두어 호출부(mc_deny_root)가 "루트 자체"와 "루트 직속"을 가른다.
-  case "$lp" in
-    "$lr")    MC_PATH="$p"; MC_REPO=""; MC_SUB=""; return 0 ;;
-    "$lr"/?*) ;;                                   # 우변 인용 — 루트를 glob 으로 읽지 않는다
-    *) return 1 ;;
-  esac
-  rest="${p:$((${#root} + 1))}"
-  MC_REPO="${rest%%/*}"
-  [ -n "$MC_REPO" ] || return 1
-  # 클론 루트 직속 파일(`<루트>/x.txt`)은 레포 체크아웃이 아니다.
-  if [ "$MC_REPO" = "$rest" ]; then MC_SUB=""; else MC_SUB="${rest#*/}"; fi
-  MC_PATH="$p"
+  d="$p"
+  while :; do
+    [ -f "$d/.harness.json" ] && break
+    [ "$d" = / ] && return 1
+    d="${d%/*}"; [ -n "$d" ] || d=/
+  done
+  MC_PATH="$p"; MC_ROOT="$d"; MC_REPO="${d##*/}"
+  if [ "$p" = "$d" ]; then MC_SUB=""; else MC_SUB="${p:$((${#d} + 1))}"; fi
   return 0
 }
 
-# MC_SUB 가 빈 경우 — 클론 루트 바로 아래의 한 칸. 레포 체크아웃 **루트 자체**이거나
-# 그 옆에 놓인 파일이며, 경로 문자열만으로는 둘을 가를 수 없다(디렉토리 실재 여부를
-# 보는 것은 아직 없는 파일 앞에서 무의미하다). 어느 쪽이든 금지 대상이라 판정은
-# 같지만, "레포 <x.txt> 의 본 체크아웃" 같은 헛소리 메시지를 내지 않으려고 갈라 둔다.
-mc_deny_root() {
-  [ -n "$MC_SUB" ] && return 0
-  [ -n "$MC_REPO" ] || deny "클론 루트 자체 금지 — $1 은 클론 루트($CLONE_ROOT) 그 자체다. 지우거나 옮기면 모든 레포의 클론·워크트리·미커밋 변경이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크다. 이 층은 scripts/repo.sh 가 소유한다."
-  deny "클론 루트 직속 금지 — $1 은 클론 루트($CLONE_ROOT) 바로 아래다. 레포 체크아웃 루트이거나 그 옆의 파일이며, 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/<레포>/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
+mc_locate() {
+  mc_root_of "$1" || return 1
+  # 루트가 워크트리면 본 체크아웃이 아니다 — 통과시킨다.
+  case "$MC_ROOT" in */.claude/worktrees/*) return 1 ;; esac
+  return 0
 }
 
 # 이 호출이 **파일 쓰기**인가 — 아래 두 규칙(r_main_write·r_grader_write)의 공통 판정.
@@ -495,9 +496,10 @@ r_main_write() {
   p="$(w_path)"
   [ -n "$p" ] || return 0
   mc_locate "$p" || return 0
+  # 아직 체크아웃되지 않아 `.harness.json` 이 없는 워크트리 자리도 통과시킨다 — 그 안은
+  # 이미 워크트리의 몫이고, 파일이 생기고 나면 mc_locate 가 스스로 걸러 낸다.
   case "$MC_SUB" in .claude/worktrees/*/*) return 0 ;; esac
-  mc_deny_root "$p"
-  deny "본 체크아웃 쓰기 금지 — $MC_PATH 는 대상 레포 '$MC_REPO' 의 본 체크아웃 안이다. 쓰기는 스토리 워크트리 안에서만 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
+  deny "본 체크아웃 쓰기 금지 — $MC_PATH 는 대상 레포 '$MC_REPO' 의 본 체크아웃 안이다. 쓰기는 스토리 워크트리 안에서만 한다: $MC_ROOT/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
 }
 # 매처가 `*` 인 이유는 위 w_path 주석에 있다 — 도구 이름을 여기 나열하면 그 목록이 곧
 # 허용 목록이 되어, 나열되지 않은 쓰기 도구가 기본값 "검사 안 됨"으로 샌다.
@@ -528,7 +530,7 @@ RULES+=("*:r_main_write")
 # 큰따옴표 안의 `$(` 는 명령 치환이라 경계로 남긴다 — `echo "$(rm -rf …)"` 의 rm 을 봐야 한다.
 # `bash -c "…"` 는 인용 안이 스크립트라 경계를 지우면 그 안의 쓰기가 가려진다 — 조각의 실행 낱말 앞에
 # 셸 래퍼가 서면(seg_shell_wrapped) 읽기로 보지 않는다.
-# 읽기 낱말 목록 — 여기 한 자리뿐이다. 게이트(checks/guard-check.sh ⑨)가 이 줄에서 파생해 낱말마다
+# 읽기 낱말 목록 — 여기 한 자리뿐이다. 게이트(tests/harness/guard-check.sh ⑨)가 이 줄에서 파생해 낱말마다
 # 통과를 단언하므로 시험 없는 낱말은 없다. 옵션에 따라 쓰기가 되는 낱말은 MC_WRITE_OPTS 에 그 옵션을 둔다.
 MC_READ_CMDS="ls cat head tail wc stat file grep diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find"
 # 읽기 낱말이 쓰기가 되는 옵션 — `<낱말>:<정규식>`. 조각에 그 토큰이 있으면 읽기가 아니다.
@@ -546,7 +548,7 @@ MC_WRITE_OPTS="sed:-[A-Za-z]*[iI][^[:space:]]*|--i[^[:space:]]*|-[A-Za-z]*f[^[:s
 #     (`>` 는 조각 공통의 리다이렉션 판정이 먼저 잡는다). 인용 안의 `(`·`|` 는 mc_segcmd 가 경계로 쪼개지 않으려고
 #     공백·\001 로 바꿔 두므로 `system(` 의 괄호는 세지 않고 `|` 는 그 문자를 본다.
 #   sed 조각 — **스크립트 인자**(`-e`·`--expression` 의 값, 없으면 첫 비옵션 토큰)에 `w`·`W` 글자가 있으면
-#     읽기가 아니다. 인용을 존중해 토큰을 가르므로 파일 피연산자의 `w`(`.harness-workspace`)는 세지 않는다.
+#     읽기가 아니다. 인용을 존중해 토큰을 가르므로 파일 피연산자의 `w`(경로 안의 글자)는 세지 않는다.
 # 감수하는 오탐(차단 쪽): `sed 's/new/old/'`·`awk '{print a || b}'` 처럼 쓰기가 아닌 `w`·`|` 도 막힌다 —
 # 그 명령은 워크트리 경로로 돌리거나 스크래치에 복사해 돌린다. 못 보는 것: `-f <스크립트파일>`(본문이 명령
 # 문자열에 없다) · GNU sed 의 `e` 명령(이 머신의 BSD sed 에는 없다 — `e` 글자를 세면 거의 모든 스크립트가 막힌다).
@@ -662,38 +664,47 @@ mc_all_readonly() {
 }
 
 r_main_shell() {
-  local cand cmd
+  local cand cmd tail hit
   # `$HOME`·`${HOME}` 을 먼저 펼친다. mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 은
-  # `$HOME` 뒤의 슬래시부터 잡아 `/.harness-workspace/...` 라는 엉뚱한 절대 경로를
+  # `$HOME` 뒤의 슬래시부터 잡아 엉뚱한 절대 경로를
   # 만든다 — 그래서 틸드는 막히고 `$HOME` 은 새는 비대칭이 생겼다. 셸이 실제로 펼칠
   # 값을 훅도 같은 값으로 펼쳐야 판정이 명령의 의미를 따라간다.
   cmd="$COMMAND"
   cmd="${cmd//\$\{HOME\}/$HOME}"
   cmd="${cmd//\$HOME/$HOME}"
   # **원장 지정 대입 하나는 후보에서 뺀다** (skills#211). r_bd_root 는 서브에이전트의 원장 쓰기를
-  # `HARNESS_ROOT=<하네스 루트> ledger.sh …` 형태로만 인정하는데, architecture.md 가 하네스 루트를
-  # 클론 루트로 못박으므로 그 값이 이 규칙의 후보로 잡혀 **지명해도 막히고 안 지명해도 막히는**
-  # 배반이 됐다 (skills#209 실측 ③ — 두 규칙이 서로를 배반한다).
-  # 값이 클론 루트와 **정확히 같을 때만** 뺀다. 뒤따르는 공백이 그것을 보장한다 —
-  # `HARNESS_ROOT=<루트>/sub` 는 그대로 후보이고, 명령의 나머지 후보도 손대지 않으므로
-  # `HARNESS_ROOT=<루트> rm -rf <루트>/x` 는 계속 막힌다.
+  # `HARNESS_ROOT=<하네스 루트> ledger.sh …` 형태로만 인정하는데, 하네스 루트는 **대상 레포 자신**
+  # 이라 그 값이 이 규칙의 후보로 잡혀 **지명해도 막히고 안 지명해도 막히는** 배반이 된다
+  # (skills#209 실측 ③ — 두 규칙이 서로를 배반한다).
+  # 값이 **하네스 루트일 때만** 뺀다. 판별자는 그 자리의 `.harness.json` 이고, 뒤따르는 공백이
+  # "정확히 그 값" 을 보장한다 — `HARNESS_ROOT=<루트>/sub` 는 그대로 후보이고, 명령의 나머지
+  # 후보도 손대지 않으므로 `HARNESS_ROOT=<루트> rm -rf <루트>/x` 는 계속 막힌다.
   # **이 자리에 정규식을 쓰지 마라.** 값을 정규식에 보간하면 값에 든 메타문자가 판정을 바꾼다 —
   # `.` 은 한 글자만 다른 남의 경로까지 함께 벗기고, `[` 은 sed 를 죽여 후보를 통째로 없앤다
   # (그 순간 이 규칙은 무엇이든 통과시킨다). 인용한 셸 치환은 값을 리터럴로 읽어 그 부류가 없다 —
-  # 게이트 ⑨ 의 "원장 지정 대입의 면제" 절이 메타문자 클론 루트로 그 차이를 못박는다.
-  cmd="${cmd//"HARNESS_ROOT=$CLONE_ROOT "/}"
+  # 게이트 ⑨ 의 "원장 지정 대입의 면제" 절이 메타문자 루트로 그 차이를 못박는다.
+  while IFS= read -r hr; do
+    [ -n "$hr" ] || continue
+    [ -f "$(mc_norm "$hr")/.harness.json" ] || continue
+    cmd="${cmd//"HARNESS_ROOT=$hr "/}"
+  done < <(printf '%s' "$cmd" | tr ' \t' '\n\n' | sed -n 's/^HARNESS_ROOT=//p')
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
-    # 클론 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<클론>/f` 는 인용을 걷으면 `s/a/b/w<클론>/f`
-    # 한 토큰이라 후보 grep 이 `/a/b/w<클론>/f` 를 내고 mc_locate 가 놓친다(harness-m8gg.8.5 2차 리뷰의 형태 3).
-    # 토큰 안에 클론 루트가 있으면 거기서부터 다시 본다.
+    # 레포 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<레포>/f` 는 인용을 걷으면 `s/a/b/w<레포>/f`
+    # 한 토큰이라 후보 grep 이 `/a/b/w<레포>/f` 를 내고 mc_locate 가 놓친다(harness-m8gg.8.5 2차 리뷰의 형태 3).
+    # 그래서 통째로 못 짚으면 토큰의 `/` 마다 그 뒤를 절대 경로로 다시 본다. 실재하는
+    # `.harness.json` 을 조상으로 갖는 꼬리만 걸리므로 없는 경로를 지어내지 않는다.
     if ! mc_locate "$cand"; then
-      case "$cand" in ?*"$CLONE_ROOT"/*) cand="$CLONE_ROOT/${cand#*"$CLONE_ROOT"/}"; mc_locate "$cand" || continue ;; *) continue ;; esac
+      tail="${cand#/}"; hit=""
+      while [ "${tail#*/}" != "$tail" ]; do
+        tail="${tail#*/}"                       # 앞 한 칸을 벗기고 다시 절대 경로로 본다
+        mc_locate "/$tail" && { hit=1; break; }
+      done
+      [ -n "$hit" ] || continue
     fi
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0
-    mc_deny_root "$cand"
-    deny "본 체크아웃 경로 금지 — 명령에 $MC_PATH 가 들어 있다. 대상 레포 '$MC_REPO' 의 본 체크아웃은 직접 건드리지 않는다(읽기 전용 명령만으로 된 명령 — ls·cat·grep·git status 등 — 은 통과한다. 파일 리다이렉션이나 그 밖의 명령이 하나라도 섞이면 막힌다). 작업은 스토리 워크트리 안에서 한다: $CLONE_ROOT/$MC_REPO/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
+    deny "본 체크아웃 경로 금지 — 명령에 $MC_PATH 가 들어 있다. 대상 레포 '$MC_REPO' 의 본 체크아웃은 직접 건드리지 않는다(읽기 전용 명령만으로 된 명령 — ls·cat·grep·git status 등 — 은 통과한다. 파일 리다이렉션이나 그 밖의 명령이 하나라도 섞이면 막힌다). 작업은 스토리 워크트리 안에서 한다: $MC_ROOT/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
   done < <(printf '%s' "$cmd" | grep -oE "[~/][^[:space:]\"'\`;|&()<>]*"
            printf '%s' "$cmd" | grep -oE "(^|[[:space:]])\.\.?/[^[:space:]\"'\`;|&()<>]*" | sed 's/^[[:space:]]//')
 }
@@ -705,7 +716,7 @@ RULES+=("Bash:r_main_shell")
 # 흔적이 거의 남지 않고 원격만 조용히 바뀐다. 되돌리기 비용이 이 훅이 다루는 것 중
 # 가장 크고, 되돌림 자체가 또 한 번의 원격 반영이라 승인 없이 시작할 수 없다.
 # 근거 문서(전부 설득이고 강제는 없었다): agents/implementer.md:27(=A3) ·
-# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36 · ../docs/development.md "Remote".
+# 세션 블록 "절대 금지"(=C2) · ../docs/operations.md:36.
 #
 # **적용 대상은 서브에이전트 호출뿐이다.** 오케스트레이터는 사용자 지시를 받으면 실제로
 # push·PR 을 해야 한다. 판정 근거는 r_bd_root 와 같은 `agent_id`·`agent_type` 의 존재이고
@@ -876,9 +887,11 @@ gr_can() {
 # ① 파일 쓰기 판정. **대상 트리 안일 때만** 막는다 — 불변식은 "채점자가 대상 트리를
 # 고치지 않는다"이지 "채점자가 아무 파일도 못 쓴다"가 아니다. 종전에는 경로를 보지 않아
 # 트리 밖 스크래치패드의 메모까지 막혔고, 그것이 skills#191 회차 실측 오탐 2건이다.
-# 대상 트리의 정의는 C3(r_main_write)와 같은 mc_locate — 클론 루트 아래의 레포 체크아웃
-# (워크트리 포함)이다. **C3 와 예외 폭이 반대다**: C3 는 워크트리를 통과시키고 이 규칙은
-# 워크트리도 막는다. 채점 대상이 바로 그 워크트리라서다.
+# 대상 트리의 정의는 **mc_root_of** — 위로 거슬러 올라가 처음 만나는 커밋된 `.harness.json`
+# 의 디렉토리 아래 전부이고, 워크트리도 그 트리다. **C3 와 예외 폭이 반대다**: C3 는 mc_locate
+# (워크트리 필터가 붙은 쪽)를 불러 워크트리를 통과시키고, 이 규칙은 필터 없는 쪽을 불러
+# 워크트리도 막는다. 채점 대상이 바로 그 워크트리라서다 — 두 규칙이 같은 함수를 부르면
+# 이 규칙의 뜻이 조용히 뒤집힌다(mc_root_of 주석의 skills#236 실측).
 # 감수하는 것: 트리를 다른 자리에 복사해 고치는 길은 열려 있다. 그 사본은 다음 판정의
 # 대상이 아니므로 "만든 주체가 채점한다"가 성립하지 않고, 막으려면 경로 판정 자체를
 # 버려야 해서 오탐이 다시 전부 돌아온다.
@@ -892,8 +905,8 @@ r_grader_write() {
   # cwd 없는 상대 경로는 접을 수 없어 트리 안인지 알 수 없다. **판정 불가는 통과가 아니다** —
   # 여기서 return 0 하면 cwd 키가 빠진 페이로드 하나로 규칙 전체가 꺼진다.
   mc_norm "$p" >/dev/null || deny "채점자의 파일 수정 금지 — 상대 경로 '$p' 는 페이로드에 cwd 가 없어 대상 트리 안인지 접어 볼 수 없다. 판정 불가는 차단이다 — 절대 경로로 다시 불러라. $(gr_can)"
-  mc_locate "$p" || return 0   # GRADER_TREE_SCOPE — 트리 밖(스크래치패드·/tmp)은 채점자도 쓴다
-  deny "채점자의 파일 수정 금지 — $TOOL_NAME 도구가 겨눈 $MC_PATH 는 대상 레포 트리 안이다(클론 루트 $CLONE_ROOT 아래). agent_type=$AGENT_TYPE 에게 대상 트리 수정·커밋은 금지다(리뷰·평가만) — 채점자가 고친 파일이 곧 다음 판정의 대상이 되어 만든 주체가 채점하는 상태가 된다. 트리 **밖**(스크래치패드·/tmp)의 메모는 막지 않는다. $(gr_can)"
+  mc_root_of "$p" || return 0   # GRADER_TREE_SCOPE — 트리 밖(스크래치패드·/tmp)은 채점자도 쓴다
+  deny "채점자의 파일 수정 금지 — $TOOL_NAME 도구가 겨눈 $MC_PATH 는 대상 레포 '$MC_REPO' 의 트리 안이다(레포 루트 $MC_ROOT 아래 — 워크트리도 그 트리다). agent_type=$AGENT_TYPE 에게 대상 트리 수정·커밋은 금지다(리뷰·평가만) — 채점자가 고친 파일이 곧 다음 판정의 대상이 되어 만든 주체가 채점하는 상태가 된다. 트리 **밖**(스크래치패드·/tmp)의 메모는 막지 않는다. $(gr_can)"
 }
 RULES+=("*:r_grader_write")
 
@@ -1084,7 +1097,7 @@ RULES+=("Bash:r_impl_bd")
 #   bd note/update/close <하네스ID> → rc=1, id 불일치로 시끄럽게 죽는다
 # id 인자가 없는 명령(create·remember)과 label 이 특히 위험하다.
 #
-# **적용 대상은 서브에이전트 호출뿐이다.** 오케스트레이터 세션은 하네스 루트에서 열려
+# **적용 대상은 서브에이전트 호출뿐이다.** 오케스트레이터 세션은 대상 레포에서 열려
 # 옵션 없는 bd 가 정상이고, 스킬 문서가 전부 그 형태로 쓰여 있다. 판정 근거로 훅 입력의
 # `agent_id`·`agent_type` **존재**를 쓴다 — 스파이크가 실측한 성질이다: 부모의 Agent
 # 도구 호출에는 둘 다 비어 있고 서브에이전트의 개별 호출에만 채워진다 (harness-uhy.1.1 note (b)).
@@ -1092,7 +1105,7 @@ RULES+=("Bash:r_impl_bd")
 # 빌 수 있고, agent_id 는 호출마다 발급되는 식별자라 더 안정적이다.
 #
 # `cwd` 를 쓰지 않은 이유: (1) 서브에이전트 호출에서 그 필드가 세션의 프로젝트 디렉토리인지
-# 위임된 워크트리인지 **실측된 바 없다**. 전자면 클론 루트 아래로 판정되는 입력이 하나도
+# 위임된 워크트리인지 **실측된 바 없다**. 전자면 대상 레포 아래로 판정되는 입력이 하나도
 # 없어 규칙이 통째로 꺼지는데 rc 는 0 이라 침묵으로 통과한다 — harness:develop 이 금지하는 형태다.
 # (2) 명령 안의 `cd` 를 반영하지 못한다. agent_id 오판의 대가는 "-C 를 한 번 더 붙여라"
 # 라는 오탐뿐이라 실패 방향이 안전한 쪽이다.
@@ -1126,12 +1139,12 @@ bd_is_read() {
 }
 
 # 차단 메시지에 실을 하네스 루트 값. 훅은 자기 위치(플러그인)에서 아무것도 알 수 없으므로
-# lib/harness-root.sh 를 **이 호출의 cwd** 에서 부른다 — 워크트리면 .beads/redirect 를 따라 원장을
+# lib/harness-root.sh 를 **이 호출의 cwd** 에서 부른다 — 위로 .harness.json 을 거슬러 올라가 루트를
 # 찾고, 못 찾으면 값을 제시하지 않는다. 틀린 경로를 자신 있게 지시하는 것이 침묵보다 나쁘다.
 # 차단 시점에만 도는 호출이라 도구 호출마다의 비용은 없다.
 bd_root_hint() {
   local r
-  # cwd 로 못 들어가도(합성 페이로드·사라진 디렉토리) 헬퍼는 돈다 — HARNESS_ROOT·클론 루트 직속 ledger.json 은 cwd 와 무관하다.
+  # cwd 로 못 들어가도(합성 페이로드·사라진 디렉토리) 헬퍼는 돈다 — HARNESS_ROOT 는 cwd 와 무관하다.
   if r="$(cd "${CWD:-.}" 2>/dev/null; bash "$GUARD_ROOT/lib/harness-root.sh" 2>/dev/null)" && [ -n "$r" ]; then
     printf '%s' "이 호출의 cwd 에서 찾은 하네스 루트는 $r 다 — 위임 메시지가 다른 값을 주지 않았다면 그것이다."
   else
@@ -1173,7 +1186,7 @@ for rule in ${RULES[@]+"${RULES[@]}"}; do
   # 매처 대조보다 **먼저** 둔다: 이번 호출에 디스패치되지 않는 항목의 오타도 잡아야
   # 규칙이 영영 꺼진 채 남지 않는다.
   declare -F "$fn" >/dev/null || deny "규칙 등록부가 깨졌다 — '$rule' 이 가리키는 함수 $fn 이 없다"
-  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (../docs/development.md).
+  # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (../docs/engineering.md "Shell traps").
   [[ "$matcher" = "*" || "$matcher" = "$TOOL_NAME" ]] || continue
   "$fn"
 done

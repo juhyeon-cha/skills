@@ -10,7 +10,11 @@
 # 4-4 는 fetch --prune 을 마지막에 뒀지만 여기서는 **맨 앞**이다 — 미푸시 판정이
 # origin 참조에 기대므로, 낡은 참조로 판정하면 검사 자체가 거짓이 된다.
 #
-# **클론 자체는 지우지 않는다.** 등록 해제는 scripts/repo.sh remove 의 몫이다.
+# **클론 자체는 지우지 않는다.**
+#
+# **대상은 이 세션이 서 있는 레포 하나다.** 멀티 레포 스토리는 레포마다 세션 하나이므로
+# (harness:develop "멀티 레포") 정리도 그 레포에서 한 번씩 부른다 — 하네스는 다른 레포의
+# 클론이 어디 있는지 알지 못하고, 알려고 고정 경로를 두면 그 경로가 곧 썩는다.
 #
 # stdout: "<레포이름>\t<제거한 워크트리 절대경로>" 줄 목록 (계약
 #   채널). 진단은 전부 stderr. 제거를 거부한 레포는 stdout 에 나오지 않으며, **아무것도
@@ -37,16 +41,20 @@
 # 기계로 판정하고, 머지 여부는 호출하는 사람이 판정한다 — develop 4-4 의 "사용자
 # 지시로만"이 곧 그 판정의 표현이다.
 set -uo pipefail
-# 하네스 루트는 lib/harness-root.sh 가 낸다 (board.sh 와 동일) — 호출자의 CWD 도
-# 스크립트 위치도 쓰지 않는다. CWD 를 쓰면 워크트리에서 절대 경로로 불렸을 때 대상 레포의
-# repos.json 을 읽는다.
+# **두 값을 따로 낸다.** 원장의 자리(ROOT)는 lib/harness-root.sh 가 내고 HARNESS_ROOT 를 존중한다.
+# 정리할 레포(MAIN)는 **호출자가 서 있는 자리**에서 같은 헬퍼를 HARNESS_ROOT 없이 불러 낸다 —
+# 서브에이전트·검사가 원장을 다른 곳으로 물려도 정리 대상은 서 있는 레포여야 한다.
 # `$PWD` 가 아니라 `pwd -P` 다. 논리 경로로 잡으면 아래 inside() 가 심볼릭 경로로 들어온
 # 호출자를 못 알아보고 **자기 CWD 를 지운다** (macOS 는 /var→/private/var 심링크가 기본이라
 # 재현 소재가 늘 있다). 이 파일의 다른 경로 비교도 전부 pwd -P 로 통일돼 있다.
 CALLER_PWD="$(pwd -P)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
-cd "$ROOT" || { echo "✗ 하네스 루트로 이동하지 못했다: $ROOT" >&2; exit 1; }
+HERE="$(env -u HARNESS_ROOT bash "$PLUGIN_ROOT/lib/harness-root.sh")" \
+  || { echo "✗ 서 있는 자리에서 대상 레포를 찾지 못했다 — .harness.json 이 있는 레포 안에서 실행하라" >&2; exit 1; }
+# 워크트리 안에서 불렸으면 그 자리도 워크트리다 — 정리 대상은 그것을 소유한 본 체크아웃이다.
+MAIN="${HERE%%/.claude/worktrees/*}"
+cd "$MAIN" || { echo "✗ 대상 레포로 이동하지 못했다: $MAIN" >&2; exit 1; }
 
 STORY=""
 FORCE=0
@@ -59,10 +67,7 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$STORY" ]] || { echo "사용법: workspace-cleanup.sh <story-id> [--force]" >&2; exit 1; }
 
-CLONE_ROOT="${HARNESS_CLONE_ROOT:-$HOME/.harness-workspace}"
-MANIFEST="${REPOS_MANIFEST:-$CLONE_ROOT/repos.json}"   # 등록부는 클론 루트 직속 (재정의는 검사 스크립트용)
-command -v jq >/dev/null 2>&1 || { echo "오류: jq 가 없다 — 라벨·등록부 해석에 필수 (없으면 '라벨 없음' 오진이 난다)" >&2; exit 1; }
-[[ -f "$MANIFEST" ]] || { echo "오류: $MANIFEST 없음" >&2; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "오류: jq 가 없다 — 라벨 해석에 필수 (없으면 '라벨 없음' 오진이 난다)" >&2; exit 1; }
 
 # 원장 실패와 "라벨 없음"을 구분한다. stderr 는 stdout 에 섞지 않는다 — 백엔드가 경고만 내도
 # JSON 이 오염돼 jq 가 죽고 "라벨 없음" 오진이 난다 (실측 2026-08-20). 원장은 어댑터로 읽는다.
@@ -74,6 +79,15 @@ fi
 rm -f "$BD_ERR"
 REPOS=$(printf '%s' "$SHOW_JSON" | jq -r '.[0].labels[]? | select(startswith("repo:")) | sub("^repo:"; "")')
 [[ -n "$REPOS" ]] || { echo "오류: ${STORY} 에 repo:* 라벨이 없다" >&2; exit 1; }
+
+# 정리 대상은 이 레포 하나다. 스토리의 repo: 라벨에 이 레포가 없으면 자리를 잘못 잡은 것이다 —
+# 다른 레포의 워크트리를 이 레포에서 지울 수는 없으므로 조용히 0건으로 끝내지 않고 죽는다.
+THIS="${MAIN##*/}"
+if ! printf '%s\n' "$REPOS" | grep -qxF "$THIS"; then
+  echo "오류: ${STORY} 의 repo: 라벨에 '$THIS' 가 없다 (라벨: $(printf '%s' "$REPOS" | tr '\n' ' ')) — 그 레포의 클론에서 실행하라" >&2
+  exit 1
+fi
+REPOS="$THIS"
 
 # 워크트리 이름은 **스토리 ID 가 아니라** ID 를 변환한 것이다 — 변환의 자리는 lib/worktree-name.sh
 # 하나이고 여기서 그것을 부른다. ID 를 그대로 경로에 넣으면 github 백엔드(`<repo>#<번호>`)에서
@@ -99,12 +113,7 @@ inside() {  # inside <디렉토리> — CALLER_PWD 가 그 아래인가
 while IFS= read -r name; do
   [[ -z "$name" ]] && continue
 
-  if [[ "$(jq -r --arg n "$name" '[.repos[] | select(.name == $n)] | length' "$MANIFEST")" -eq 0 ]]; then
-    echo "오류: $MANIFEST 에 '$name' 항목이 없다 (scripts/repo.sh add <url> --name $name)" >&2; fail=1; continue
-  fi
-
-  # 클론 위치는 등록부가 아니라 이름에서 파생한다 (hooks/enter-worktree.sh 와 동일한 규약).
-  repo="$CLONE_ROOT/$name"
+  repo="$MAIN"
   if ! git -C "$repo" rev-parse --git-dir >/dev/null 2>&1; then
     echo "오류: '$name' 의 클론이 없다: $repo — 정리할 대상이 없다" >&2; fail=1; continue
   fi

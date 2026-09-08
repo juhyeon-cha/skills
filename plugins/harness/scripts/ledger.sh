@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # 원장 어댑터의 경계. 하위 명령·인자·JSON 키는 bd 와 같다 — 스킬·검사·훅은 `bd -C <루트> …` 를
-# `ledger.sh …` 로 바꾸는 것으로 끝난다. 백엔드는 `<하네스루트>/ledger.json` 의 `backend` 하나로
-# 정하고, 없으면 rc≠0 이다. **폴백 없음** — 파일이 없다고 조용히 beads 로 가면 원장을 잘못 짚은
-# 채로 쓰기가 성공한다.
+# `ledger.sh …` 로 바꾸는 것으로 끝난다. 백엔드는 `<하네스루트>/.harness.json` 의 `ledger.backend`
+# 하나로 정하고, 없으면 rc≠0 이다. **폴백 없음** — 파일이 없다고 조용히 beads 로 가면 원장을 잘못
+# 짚은 채로 쓰기가 성공한다.
 #
 # 사용: ledger.sh <하위 명령> [인자…]      ledger.sh --help
 #
@@ -10,8 +10,8 @@
 # 부르지 않는다(검사가 픽스처를 물리는 통로이고, github·notion 백엔드에는 bd 가 없다).
 #
 # 백엔드 파일은 같은 디렉토리의 ledger-<backend>.sh 이고 아래 환경 변수로 받는다:
-#   LEDGER_ROOT   하네스 루트 절대 경로
-#   LEDGER_CONFIG ledger.json 절대 경로
+#   LEDGER_ROOT   하네스 루트 절대 경로 (= .harness.json 이 사는 대상 레포 루트)
+#   LEDGER_CONFIG .harness.json 절대 경로 — 원장 좌표는 그 파일의 `ledger` 객체 아래에 산다
 #
 # 하위 명령 집합의 출처: 플러그인이 실제 부르는 bd 하위 명령 전수(측정 명령과 결과는 원장
 # harness-m8gg.4.1 의 note). 모든 백엔드가 받는 것과 beads 에만 있는 것으로 가른다 — beads 전용
@@ -98,12 +98,12 @@ else
   ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
 fi
 
-CFG="$ROOT/ledger.json"
-[ -f "$CFG" ] || { echo "ledger: $CFG 이 없다 — 하네스 루트에 ledger.json 을 두어라 ({\"backend\": \"beads|github|notion\"})" >&2; exit 1; }
-backend="$(jq -r '.backend // empty' "$CFG" 2>/dev/null)"
+CFG="$ROOT/.harness.json"
+[ -f "$CFG" ] || { echo "ledger: $CFG 이 없다 — 대상 레포 루트에 .harness.json 을 두어라 (ledger 키: {\"backend\": \"beads|github|notion\", …})" >&2; exit 1; }
+backend="$(jq -r '.ledger.backend // empty' "$CFG" 2>/dev/null)"
 case " $BACKENDS " in
   *" $backend "*) ;;
-  *) echo "ledger: $CFG 의 backend '$backend' 는 허용값($BACKENDS) 밖이다" >&2; exit 1 ;;
+  *) echo "ledger: $CFG 의 ledger.backend '$backend' 는 허용값($BACKENDS) 밖이다" >&2; exit 1 ;;
 esac
 
 run_backend() { LEDGER_ROOT="$ROOT" LEDGER_CONFIG="$CFG" bash "$PLUGIN_ROOT/scripts/ledger-$backend.sh" "$@"; }
