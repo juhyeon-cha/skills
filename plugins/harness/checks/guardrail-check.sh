@@ -248,6 +248,18 @@ IMPL_T="harness:implementer"; GR_R="harness:reviewer"                     # agen
 mkdir -p "$TMP/_probe-repo"
 printf '{"ledger":{"backend":"beads"}}\n' > "$TMP/_probe-repo/.harness.json"
 MAIN_PATH="$TMP/_probe-repo/README.md"
+# 채점자 규칙의 차단 자리. r_grader_write 는 skills#225 이후 **대상 트리 안**만 막으므로
+# 트리 밖($TMP)은 더 이상 차단이 아니다. 워크트리 경로를 쓰는 이유는 **A/B 귀속**이다 —
+# r_main_write 는 `.claude/worktrees/*/*` 를 통과시키고 r_grader_write 는 그것도 막으니,
+# 이 입력의 rc=2 는 오직 r_grader_write 때문이다. 트리 안 다른 자리(본 체크아웃)를 쓰면
+# r_main_write 에 먼저 걸려 "그 규칙 등재만 뺀 사본에서 rc 0" 이 거짓이 된다.
+# 조상 `.harness.json` 은 위 픽스처 하나로 충분하다 — r_grader_write 가 부르는 mc_root_of 는
+# 워크트리 필터가 없어 `_probe-repo` 를 루트로 잡는다.
+# **`_probe-wt` 에는 `.harness.json` 을 만들지 마라** — 그러면 MC_ROOT 가 그 워크트리로 잡혀
+# 위 문장의 "`_probe-repo` 를 루트로 잡는다" 가 거짓이 되고 차단 메시지의 레포 이름도
+# `_probe-wt` 가 된다. A/B 귀속 자체는 그래도 유지된다 [실측 2026-09-08: 그 파일이 있어도
+# r_main_write 는 rc=0 이다 — 그쪽이 부르는 mc_locate 가 워크트리 루트를 걸러 내기 때문이다].
+WT_PATH="$TMP/_probe-repo/.claude/worktrees/_probe-wt/README.md"
 
 # 규칙마다 **차단돼야 하는** 입력 하나. 형식: "<규칙>|<PreToolUse 이벤트 JSON>".
 # 이 표는 손으로 적지만 **집합이 아니라 시험 데이터**다 — 어느 규칙을 검사할지는
@@ -256,7 +268,7 @@ PROBES=(
   "r_main_write|{\"tool_name\":\"Write\",\"tool_input\":{\"file_path\":\"$MAIN_PATH\"}}"
   "r_main_shell|{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo x > $MAIN_PATH\"}}"
   "r_remote|{\"tool_name\":\"Bash\",\"agent_type\":\"$IMPL_T\",\"tool_input\":{\"command\":\"git push origin master\"}}"
-  "r_grader_write|{\"tool_name\":\"Write\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"file_path\":\"$TMP/probe.txt\"}}"
+  "r_grader_write|{\"tool_name\":\"Write\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"file_path\":\"$WT_PATH\"}}"
   "r_grader_shell|{\"tool_name\":\"Bash\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"command\":\"git commit -m probe\"}}"
   "r_impl_bd|{\"tool_name\":\"Bash\",\"agent_type\":\"$IMPL_T\",\"tool_input\":{\"command\":\"bd -C $TMP close probe-1\"}}"
   "r_bd_root|{\"tool_name\":\"Bash\",\"agent_id\":\"sess-probe\",\"tool_input\":{\"command\":\"bd close probe-1\"}}"
@@ -340,7 +352,8 @@ done
 # 아니다 — 규칙 집합을 함수 정의(`^r_…()`)에서 파므로, 등재 줄만 지운 사본에서도 그 규칙은
 # 집합에 남고 면제로 통과한다. 시험이 있는 규칙은 그 상태가 위 A/B 에서 rc=0 으로 시끄럽게
 # 죽는데, 면제된 규칙만 그 검출을 잃는다 [실측 2026-08-23: RULES+= 줄만 지운 사본이 이
-# 게이트를 rc=0 으로 통과했다 — guard-check.sh 는 러너의 면제라 아무도 못 본다].
+# 게이트를 rc=0 으로 통과했다 — 그때 guard-check.sh 는 통째로 러너의 면제라 아무도 못
+# 봤다. 지금은 그 등록부 단언이 임계 아래 절이라 tests/harness/guard-fast-check.sh 로 돈다].
 # 그래서 면제 키마다 등재의 실재를 **정적으로** 단언한다. 앞으로 생길 면제도 함께 덮는다.
 registered_in() {  # registered_in <규칙함수> <훅파일>
   grep -E '^RULES\+=' "$2" | grep -q "\"[^\"]*:$1\""

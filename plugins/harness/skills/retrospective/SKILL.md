@@ -7,7 +7,7 @@ description: Retrospective procedure after a story or a sprint closes. Sweeps th
 
 ## 1. Gather the material
 
-There are two inputs — **the ledger (notes)** and **the subagent transcripts**. A note holds what a role decided to write down; a transcript holds what the role actually did. Neither stands in for the other.
+There are three inputs — **the ledger (notes)**, **the subagent transcripts**, and **the guard firing log**. A note holds what a role decided to write down; a transcript holds what the role actually did; the log holds what the guardrail refused to let it do. None stands in for the others.
 
 ### 1-1. The ledger
 
@@ -29,6 +29,43 @@ There are two inputs — **the ledger (notes)** and **the subagent transcripts**
 - **What lives in the transcripts and not in the notes** — at least two come only from this side: ① **the tool-call distribution** (which role fires how many calls in parallel per response, and what it uses — nobody writes that into a note) ② **the role signal counts** (how many times the evaluator rejected — `close_reason` keeps the final MATCH alone).
 - **Quote ratios rather than totals.** The directory is live, so totals grow every session. Everything from the transcripts is **observation** — proposals live elsewhere.
 - **The failure path is recorded as unmeasured, and stays recorded.** On rc=2 (no transcript directory · 0 delegations completed in the window · no python3), put the `UNREACHED:` lines from stderr (the `unreached` array in JSON) verbatim on the story bead with `ledger.sh note` — "전사 미실측: <UNREACHED 원문>". Then proceed on the ledger alone, and treat the transcript-only items (rejection rate · parallel rate · reuse) as **unmeasured** rather than "no observation" — they enter the 2-observation count in section 3 as nothing at all, not as 0.
+
+### 1-3. The guard log — false-positive rate per rule
+
+The harness says a gate does not weaken a prohibition. The other side has no place to be read: **a rule whose false positives outnumber its true ones is a net loss** — it costs the round more work than it prevents. This is where that gets measured. **Measurement without an action is not measurement**, so ③ below is part of the step, not a follow-up.
+
+**① What to run**
+
+    bash ${CLAUDE_PLUGIN_ROOT}/scripts/guard-log.sh rows [<round>]
+
+Seven TSV columns — time · round · agent · tool · rule · classifiability · command; the summary goes to stderr. `<round>` is a `session_id`; leave it off to take every round in the log. Run it with no argument first — the round column is the axis, not the filter.
+
+That run is hundreds of rows, so group them before reading any:
+
+    bash ${CLAUDE_PLUGIN_ROOT}/scripts/guard-log.sh rows | cut -f2,5,6 | sort | uniq -c
+
+Round × rule × classifiability with a count — that is the denominator per rule, and it is what ② and ③ below are computed over. Then read the full rows of the rules that clear ③'s 5-row floor. **Rules older than the log get their rate quoted per round, never pooled** — ceiling 6 of section 11 says why.
+
+**Read rc before reading a single row.** rc=4 ("blocking really was 0") and rc=6 ("blocking happened, none of it classifiable") are the pair that fabricates a clean rule when folded together, and rc=5 is a missing round, not an empty one. The full rc table and every ceiling on these numbers are **[guardrail-verification.md](../../docs/guardrail-verification.md) section 11, "When firing counts can be used as evidence"** — that section owns them, this one does not restate them. Read it before quoting any rate; two of its ceilings (the 120-character cut halving the denominator, and the log sampling guard firings rather than blocked work) decide how the rate may be worded.
+
+**② What is judged — and by whom**
+
+Per rule, over that rule's `ok` rows only: how many blocks were **false positives** (a legitimate task refused) against how many were **true** (the rule caught what it exists to catch).
+
+| Half | Who | What it is |
+|---|---|---|
+| The axes — round, rule, agent, tool, command head, classifiability | **machine.** `rows` produces them | The command classifies nothing; it prepares the material up to the point a person reads |
+| Was this block justified? | **human.** No command decides it | Measured at **47.4%** needing natural-language judgment (`skills#224`) — the rule name alone does not separate a justified block from a false one |
+
+Do not hide that split, and do not report a rate as if the whole of it were machine-produced. `truncated` and `nocmd` rows are **neither** — they are unclassified, so they leave the denominator rather than landing in either column.
+
+**③ Threshold, and what happens when it is crossed**
+
+**A rule is over threshold when its false positives outnumber its true ones (> 50% of its `ok` rows) and it has at least 5 `ok` rows.** Below 5 the rate is one or two rows of noise; leave it and say so.
+
+Over threshold, stand up **a proposal to narrow that rule** — not a note about it. The proposal goes out on the section 5 path (a per-file diff, applied after human approval), and it carries: the rule name · the rate with **its denominator and the round** · the `ok` rows read as false positives, quoted · what narrowing them costs on the other side (which true blocks the narrowing would also drop). A narrowing with no answer to that last one is not ready.
+
+The section 3 promotion bar still applies: one round's rate is one observation. Register it as a `-l harness` bead with the numbers in the body, and promote on the second.
 
 ## 2. Three-way sort
 

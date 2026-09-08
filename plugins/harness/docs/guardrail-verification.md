@@ -135,24 +135,37 @@ Two places it backs off by design. **An unreadable oracle does not fall back to 
 
 Several places say "do not quote a hand count; use the output of `scripts/guard-log.sh` as evidence". **When that holds** is pinned here — used where it does not, "0 false positives" and "logging did not happen" come out as the same value.
 
+**Both subcommands are covered here** — `count` (round × rule firing counts) and `rows [<round>]` (one line per blocked call, with a classifiability column). This section owns **what those numbers mean and what they cannot see**; the procedure that reads them on a schedule is `skills/retrospective/SKILL.md` section 1-3, and it points back here rather than repeating the table below.
+
 ### Conditions — only when all three hold
 
 1. **The `guard.sh` that fired has the logging call.** The log path is outside every tree (`~/.claude/harness-guard-log.tsv`, override `HARNESS_GUARD_LOG`), and the logging code is in the plugin — so **the firing hook is the installed plugin version** (or the `--plugin-dir` tree a session was started with), not whatever branch a worktree has checked out. A logging change in a plugin source tree counts nothing until that tree is what sessions load.
 2. **The counting command reads the log the hook writes.** That the two files' `HARNESS_GUARD_LOG` default agrees is derived and compared by `tests/harness/guard-check.sh` ⑯.
 3. **The round column has not collapsed.** A payload without `session_id` folds rounds into `-` (⑯ (e) pins that value).
 
-### Three kinds of absence — told apart by rc and phrase
+### Every kind of absence — told apart by rc and phrase
+
+**Reading two of these as one is how "0 false positives" gets fabricated.** rc=4 says the blocking really was 0; rc=6 says blocking happened and none of it can be classified. A retrospective that folds rc=6 into rc=4 reports a clean rule that was never measured.
 
 | State | rc | Usable as evidence? |
 |---|---|---|
-| counts come out | 0 | **yes.** Round × rule counts are machine values |
+| rows or counts come out | 0 | **yes.** Round × rule counts, and the per-row axes, are machine values |
 | no log, and **the inspected `guard.sh` has the logging call** | 1 | "the hook never ran". **Only when the inspected hook is the one sessions load** — the phrase prints the path |
 | no log, and **the inspected `guard.sh` has no logging call** | 3 | **not "0 firings".** The hook runs and leaves nothing |
+| log present, **0 blocked rows in range** (`rows`) | 4 | **yes** — blocking really was 0. The one rc that licenses "no false positives in this range" |
+| the **given round** has no row at all (`rows <round>`) | 5 | **not "0 blocked".** Rotation dropped it, or the round name is wrong |
+| blocked rows exist but **all are unclassifiable** (`rows`) | 6 | **no.** Not "0 false positives" — **could not be counted.** Read it as an unmeasured round, never as a clean one |
 
-The three branches are reproduced, and a copy of the counting command with the distinction removed is shown unable to tell them apart, by `tests/harness/guard-check.sh` ⑱.
+rc=2 is neither: an unknown subcommand, i.e. an operator typo, checked before the log is even read so it cannot come back as rc=1.
+
+The rc=0/1/3 branches are reproduced, and a copy of the counting command with the distinction removed is shown unable to tell them apart, by `tests/harness/guard-check.sh` ⑱; rc=4/5/6 are pinned against synthetic logs by ⑯ (h).
 
 ### Ceilings (what it cannot do)
 
 1. **The counting command does not know which `guard.sh` actually fired.** Nothing records it afterwards — the log has no hook path, and an empty log has no log. The command inspects the plugin tree it sits in (`CLAUDE_PLUGIN_ROOT`, else its own location); when a session was started with a different `--plugin-dir`, the rc=1/rc=3 phrase is about the wrong tree — the printed path is what to compare.
 2. **rc=3 separates only the cause of absence.** A non-empty log with a non-logging version mixed in (sessions on different plugin versions) is not caught — that round's rows are simply missing, and missing rows appear under no rc. **A miss remains, and it is the more dangerous shape.**
 3. **Rotation loss and `session_id` absence are as the "발화 로그" comment of `guard.sh` says** — places where the denominator quietly shrinks.
+4. **The log cuts each command at 120 characters, so about half the denominator is unclassifiable.** `guard.sh` writes `${ev:0:120}`, and the token that decides whether a block was justified is often past the cut. Measured on the real log in the `skills#228` round: **240 of 449 blocked rows were truncated.** `rows` marks those `truncated` rather than guessing, so a false-positive rate computed from that log has a denominator of the `ok` rows alone — state it that way, never as a rate over all blocks. Widening the cut does not fix a past round: the hook that writes the log is the **installed** plugin version (condition 1), so a wider cut counts nothing until a release and an update, and it never recovers rows already written.
+5. **The denominator is the wrong population for "was a legitimate task blocked".** The log samples **what the guard blocked**, which is not the same set as **legitimate work that got stopped**. Blocks that never reach `guard.sh` leave no line at all — Claude Code's own worktree-isolation refusal is one, measured in the `skills#221` round. A rate computed here is a rate over guard firings, and cannot be read as a rate over the agent's blocked work.
+6. **The log spans rule versions.** Rows are appended and never rewritten, and `rows` with no argument returns every round in the file — so a round that ran *before* a rule was narrowed still shows the false positives the narrowing has since removed. Real instance: `r_grader_write` was narrowed in `skills#225`, and `docs/guardrails.md` section 1 still records two false positives of it from the `skills#191` round. The direction is "dirtier than the rule now is", so it cannot fabricate a *clean* rule — what it can do is produce **a proposal to narrow a rule that is already narrow.** Before quoting a rate for a rule, cut the population to the rounds after that rule last changed; the round column is what does the cutting.
+7. **The cost of a false positive is not recorded.** The log ends at the block. Whether the agent then gave up, or routed around it, is nowhere in the file — and routing around is real: in the `skills#221` round an evaluator blocked by `r_grader_write` delegated the write to another agent instead of stopping. So the rate says how often the guard was wrong, never what being wrong cost.

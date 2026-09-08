@@ -165,7 +165,8 @@ COMMAND_RAW="$(field '.tool_input.command')"    # Bash — 인용부호를 걷�
 # 실행하는데 낱말 판정(has_token 의 -w)은 그 글자에 막혀 **미탐**이었다 [실측 2026-08-28,
 # implementer: 둘 다 rc=0 — 리뷰 #6]. 리터럴 `\n`·`\t` 는 먼저
 # 공백으로 되돌린다(걷어내면 `\n/path` 가 `n/path` 로 붙어 경로 추출이 어긋난다).
-# 역따옴표는 남긴다(판정 재료로 쓰는 규칙은 지금 없다 — 걷어내면 뒤의 경로 추출이 어긋난다).
+# 역따옴표는 남긴다 — 걷어내면 뒤의 경로 추출이 어긋나고, mc_cand_tokens 가 그것을 명령 치환의
+# 경계로 읽는다(그 함수 주석).
 strip_quotes() { sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g"; }
 COMMAND="$(printf '%s' "$COMMAND_RAW" | strip_quotes)"
 FILE_PATH="$(field '.tool_input.file_path')" # Write·Edit·Read 계열
@@ -253,6 +254,16 @@ subcmds_after() {  # subcmds_after <도구> <값-받는 옵션 목록> [건초�
 # `[` 는 낱말로 남긴다 — tr 이 지우면 `[ -f <경로> ]` 의 첫 실행 낱말이 경로의 basename 이 된다
 # (MC_READ_CMDS 의 `[` 가 그래서 죽어 있었다 — harness-m8gg.8.5 note).
 EXEC_WRAPPERS="timeout env nice sudo bash sh zsh if then else elif while until do"
+# **역따옴표는 여기서 경계가 아니다.** `$(` 와 같은 명령 치환이지만, 이 함수는 **모든** 규칙이
+# 공유하는 조각 나누기다 — 여기에 얹으면 사거리가 규칙 전체로 퍼진다. skills#239 3회차가 실제로
+# 그렇게 얹었다가 양방향으로 어긋났다 [실측 2026-09-08, 3회차 리뷰]:
+#   ① 막던 것이 통과 — 도구 이름 **바로 뒤**의 역따옴표가 조각을 잘라 하위 명령이 비고,
+#      subcmds_after 를 보는 규칙들이 그것을 "옵션만 있는 호출 = 읽기" 로 읽었다
+#      (`gh \`echo pr\` create --title x` · `bd \`x\` create foo` 가 rc 2 → rc 0).
+#   ② 안 막던 것이 차단 — mc_segcmd 는 인용 안의 `;|&()` 만 중화하고 역따옴표는 안 해서,
+#      작은따옴표 안의 **리터럴** 역따옴표가 경계로 읽혔다 (`grep -n '\`' <본 체크아웃>/README.md`
+#      가 rc 0 → rc 2 — 읽기 전용 명령이 막혔다).
+# 역따옴표를 경계로 볼 필요가 있는 자리는 mc_cand_tokens 하나뿐이고, 그쪽이 자기 안에서 다룬다.
 cmd_segments() { printf '%s\n' "${1-$COMMAND}" | sed -E 's/\|\||&&|[;|(]|\$\(/\n/g'; }
 seg_exec_word() {  # seg_exec_word <조각> → 첫 실행 낱말 (없으면 빈 줄)
   printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=[-' '\n' \
@@ -419,9 +430,10 @@ mc_norm() (
   printf '%s' "${res:-/}"
 )
 
-# 경로가 어느 레포의 본 체크아웃 안인가. 안이면 0 과 함께 MC_PATH(정규화 경로)·
-# MC_ROOT(레포 루트 절대 경로)·MC_REPO(레포 이름)·MC_SUB(레포 아래 상대 경로, 레포
-# 루트 자신이면 빈 문자열)를 채운다.
+# 아래 mc_root_of 가 채우는 자리. 경로가 어느 레포 트리 안인가 — 그 함수는 **루트 찾기만
+# 한다. 워크트리 필터가 없다**(워크트리도 그 트리다). 안이면 0 과 함께 MC_PATH(정규화 경로)·
+# MC_ROOT(레포 루트 절대 경로)·MC_REPO(레포 이름)·MC_SUB(레포 루트 아래 상대 경로, 루트
+# 자신이면 빈 문자열)를 채운다.
 #
 # 루트는 **위로 거슬러 올라가 처음 만나는 `.harness.json`** 의 디렉토리다. 아직 없는
 # 파일도 판정해야 하므로 경로 자신의 실재는 보지 않는다 — 조상 디렉토리만 본다.
@@ -430,12 +442,14 @@ mc_norm() (
 # 판별을 파일시스템에 맡기므로 대소문자 표기로 새지 않는다 — macOS 기본 파일시스템에서
 # `~/.Harness-Workspace/…` 는 문자열 비교로는 다른 경로였지만(실측 2026-08-28, 그 표기의
 # `rm -rf` 가 rc=0 으로 통과했다) `[ -f … ]` 는 같은 파일을 찾아낸다.
-#
-# **워크트리는 여기서 걸러진다** — 자기 체크아웃에 `.harness.json` 이 있어 자신이 루트로
-# 잡히고, 그 루트 경로가 `.claude/worktrees/` 를 지나면 본 체크아웃이 아니므로 1 이다.
-# 그래도 규칙마다 예외 폭이 달라(각 규칙 주석) MC_SUB 로 한 번 더 가르는 자리가 있다.
 MC_PATH=""; MC_ROOT=""; MC_REPO=""; MC_SUB=""
-mc_locate() {
+
+# 이 절반이 따로 있는 이유는 **규칙마다 워크트리의 뜻이 반대**라서다. C3 둘은 워크트리를
+# 통과시켜야 하므로 필터가 붙은 mc_locate 를 부르고, r_grader_write 는 워크트리를 **막아야**
+# 하므로 이쪽을 부른다 — 채점 대상이 바로 그 워크트리다. 한 함수에 필터를 두면 그 규칙의
+# 뜻이 조용히 뒤집힌다 [skills#236 실측: 필터 붙은 locate 위에서 채점자의 워크트리 쓰기가
+# rc=0 으로 통과했고, 텍스트 충돌도 게이트 실패도 없었다].
+mc_root_of() {
   local p d
   p="$(mc_norm "$1")" || return 1
   d="$p"
@@ -444,11 +458,108 @@ mc_locate() {
     [ "$d" = / ] && return 1
     d="${d%/*}"; [ -n "$d" ] || d=/
   done
-  # 루트가 워크트리면 본 체크아웃이 아니다 — 통과시킨다.
-  case "$d" in */.claude/worktrees/*) return 1 ;; esac
   MC_PATH="$p"; MC_ROOT="$d"; MC_REPO="${d##*/}"
   if [ "$p" = "$d" ]; then MC_SUB=""; else MC_SUB="${p:$((${#d} + 1))}"; fi
   return 0
+}
+
+# 경로가 어느 레포의 **본 체크아웃** 안인가 — 위 mc_root_of 에 워크트리 필터를 얹은 것이다.
+# **워크트리는 여기서 걸러진다** — 자기 체크아웃에 `.harness.json` 이 있어 자신이 루트로
+# 잡히고, 그 루트 경로가 `.claude/worktrees/` 를 지나면 본 체크아웃이 아니므로 1 이다.
+# 그래도 규칙마다 예외 폭이 달라(각 규칙 주석) MC_SUB 로 한 번 더 가르는 자리가 있다.
+#
+# **1 을 냈다고 MC_* 가 비어 있지 않다.** 필터에 걸린 1 이면 mc_root_of 가 이번 호출로 채운 값
+# (그 워크트리 루트)이 그대로 있고, mc_root_of 자신이 낸 1 이면 직전 호출의 값이 남아 있다.
+# 어느 쪽이든 1 뒤에 MC_* 를 읽으면 안 된다 — 오늘은 읽는 자리가 없어 무해하다.
+mc_locate() {
+  mc_root_of "$1" || return 1
+  # 루트가 워크트리면 본 체크아웃이 아니다 — 통과시킨다.
+  case "$MC_ROOT" in */.claude/worktrees/*) return 1 ;; esac
+  return 0
+}
+
+# 겨눈 자리가 하네스 트리를 **품고** 있는가 — mc_root_of 의 대응물이다. 그쪽은 **위로** 거슬러
+# 자기가 속한 트리를 찾고, 이쪽은 **아래를 보고** 자기가 담고 있는 트리를 찾는다. 클론 루트에는
+# 자기 `.harness.json` 이 없어 위로 보는 판정에는 **아예 걸리지 않는다** — 그래서 `rm -rf <클론 루트>`
+# 가 rc=0 으로 통과했다(skills#239 실측: 설치본 2.1.0 rc=2 · origin/main 단독 rc=0). 그 조작 하나로
+# 모든 레포의 클론·워크트리·미커밋 변경이 한 번에 사라진다.
+# 되살리되 **옛 고정 경로 변수로 돌아가지 않는다**(사용자 결정) — 판별자는 `.harness.json` 하나다.
+#
+# **깊이는 한 칸이다.** 클론 루트의 실제 모양이 `<루트>/<레포>/.harness.json` 이라(scripts/repo.sh 가
+# 만드는 층) 자식 디렉토리 한 겹의 glob 한 번이면 그 층은 전부 잡힌다. 훅은 **모든 도구 호출마다**
+# 도므로 비용을 여기서 못박는다 — 후보 토큰 하나당 `mc_norm` 서브셸 하나 + readdir 한 번 +
+# **자식 디렉토리마다 `[ -f ]` stat 한 번**, 재귀 없음. 자식 수에 선형이다.
+# 리뷰 실측(2026-09-08): 훅 한 번 76ms → 88ms, 자식 5000 개인 자리를 겨눈 후보 하나가 약 24ms.
+# 못 잡는 것: 트리보다 **두 칸 이상** 위(`rm -rf ~` 같은 홈 디렉토리). 깊이를 늘리면 비용이 곱으로
+# 늘고, 트리와 무관한 상위 디렉토리까지 함께 막히는 과잉이 된다 — ../docs/guardrails.md "못 막는 것".
+#
+# 0 일 때 MC_HOLDER 에 정규화한 그 자리가, MC_TREES 에 품은 트리들의 이름이 앞에 공백 붙은 채로
+# 담긴다(차단 메시지가 "무엇을 잃는가"를 말하는 자리). MC_PATH 계열은 건드리지 않는다 — 이 함수를
+# 부르는 자리는 mc_locate 가 1 을 낸 뒤라 그 값들이 이미 못 쓰는 상태다(mc_locate 주석).
+# 인용한 "$p" 안의 `[` 는 리터럴이라 메타문자가 든 경로에서도 판정이 산다.
+MC_HOLDER=""; MC_TREES=""
+mc_holds_trees() {
+  local p c
+  p="$(mc_norm "$1")" || return 1
+  MC_HOLDER="$p"; MC_TREES=""
+  for c in "$p"/*/.harness.json; do
+    [ -f "$c" ] || continue
+    c="${c%/.harness.json}"
+    MC_TREES="$MC_TREES ${c##*/}"
+  done
+  [ -n "$MC_TREES" ]
+}
+
+# 하네스 루트의 **두 모양** — 자기 `.harness.json` 을 가진 레포 트리(그 레포가 하네스 루트인
+# 배치)이거나, 트리들을 품은 클론 루트다. 원장 지정(`HARNESS_ROOT=` · `bd -C`)의 값이 이것일
+# 때만 그 등장을 r_main_shell 의 후보에서 뺀다 — 뒤쪽이 빠지면 `HARNESS_ROOT=<클론 루트>
+# ledger.sh …` 가 그 자체로 클론 루트 차단에 걸려 **지명해도 막히고 안 지명해도 막히는**
+# 배반이 선다 (skills#209 실측 ③ 과 같은 부류).
+# MC_HOLDER·MC_TREES 를 덮는다 — 부르는 자리는 그 값을 아직 읽지 않는다(mc_holds_trees 주석).
+mc_is_harness_root() {  # mc_is_harness_root <경로>
+  local n
+  [ -n "$1" ] || return 1
+  n="$(mc_norm "$1")" || return 1
+  [ -f "$n/.harness.json" ] || mc_holds_trees "$n"
+}
+
+# 후보 경로 토큰을 낸다 — 한 줄에 하나. **명령 문자열을 변형하지 않는다.**
+#
+# 앞 두 회차는 `-C <경로> ` 를 명령에서 **지워** 후보를 사라지게 했고 두 번 다 샜다: 1회차는
+# 명령 전체에 치환해 `&&`·`;` 로 이은 **다른 조각**의 후보까지 지웠고(skills#211 → 실측 rc=0),
+# 2회차는 조각 안으로 좁혔지만 역따옴표가 조각 경계가 아니라 **같은 조각 안**의 다른 명령까지
+# 지웠다(skills#239 2회차 → 실측 rc=0). 벗김에는 **사거리**가 있어 매번 다른 구분자에서 샌다.
+# 건너뛰기에는 사거리가 없다 — 판정이 **등장 단위**라 다른 등장에 닿지 못한다. 이 레포가 세 번
+# 기록한 "명령 형태를 문자열 수술로 다루면 샌다"(이 파일 머리말 · ../docs/guardrails.md 1절)의 방향이다.
+#
+# 건너뛰는 조건은 셋 다 설 때뿐이다: (a) 그 조각의 실행 낱말이 `bd` 이고 (b) 그 등장이 원장 지정
+# 옵션(`-C`·`--directory`·`--db`) 바로 뒤이며 (c) 값이 하네스 루트다. `ledger.sh` 쪽 지정 표기
+# (`HARNESS_ROOT=`)는 부르는 쪽이 먼저 걷는다 — 그쪽 사유는 r_main_shell 의 그 절에 있다.
+#
+# **역따옴표는 여기서만 조각 경계다.** 조건 (a) 를 판정할 때 그 안의 낱말은 바깥 조각이 아니라
+# **자기 명령**으로 실행되므로, 경계로 읽지 않으면 `bd -C <루트> note x \`git -C <본 체크아웃>
+# checkout -- .\`` 의 git 이 bd 조각 안에 든 것으로 읽혀 (a) 가 성립해 버린다
+# [skills#239 2회차의 누출 — 실측 rc=0]. 공용 `cmd_segments` 에 얹지 **않는** 이유는 그 함수의
+# 주석에 있다 — 얹으면 subcmds_after 를 보는 규칙들과 mc_all_readonly 가 양방향으로 어긋났다.
+# 여기서 자르는 것은 이 함수가 내는 후보 토큰뿐이라 사거리가 이 함수를 넘지 않고, 아래 후보 grep
+# 의 문자 클래스가 이미 역따옴표를 경로의 끝으로 취급하므로 잘라도 후보가 달라지지 않는다.
+mc_cand_tokens() {  # mc_cand_tokens <명령>
+  local seg w prev tok
+  while IFS= read -r seg; do
+    w="$(seg_exec_word "$seg")"
+    prev=""
+    while IFS= read -r tok; do
+      # 빈 토큰(연속 공백)은 낱말이 아니다 — 건너뛰되 prev 는 그대로 둔다(셸의 낱말 나누기와 같다).
+      # **개행을 붙여 흘린다** — 붙이지 않으면 조각의 **마지막 토큰**이 read 의 비-0 과 함께 버려져
+      # 후보에서 통째로 빠진다(`rm -rf <클론 루트>` 가 그 자리다).
+      [ -n "$tok" ] || continue
+      case "$w:$prev" in
+        bd:-C|bd:--directory|bd:--db) mc_is_harness_root "$tok" && { prev="$tok"; continue; } ;;
+      esac
+      printf '%s\n' "$tok"
+      prev="$tok"
+    done < <(printf '%s\n' "$seg" | tr ' \t' '\n\n')
+  done < <(cmd_segments "$(printf '%s' "$1" | tr '`' '\n')")
 }
 
 # 이 호출이 **파일 쓰기**인가 — 아래 두 규칙(r_main_write·r_grader_write)의 공통 판정.
@@ -589,6 +700,11 @@ MC_GIT_READ="status log diff show ls-files rev-parse blame describe cat-file ls-
 # 위에서 뺀 하위 명령의 읽기 형태 — `<하위명령>:<바로 다음 토큰>`. 바로 다음 토큰이 그것일 때만 읽기다
 # (`git worktree list` · `git config --get x` · `git branch --show-current`). 게이트가 쌍마다 통과를 단언한다.
 MC_GIT_READ_OPT="worktree:list config:--get config:--get-regexp config:--list config:-l branch:--show-current branch:--list branch:-a branch:-r branch:-v branch:-vv remote:-v remote:show remote:get-url stash:list stash:show tag:-l tag:--list"
+# 조각에서 하위 명령 **바로 다음** 토큰. 위 쌍 목록의 우변을 뽑는 자리이며 r_grader_shell 도
+# 같은 목록을 같은 추출로 본다 — 추출을 둘로 두면 한쪽만 고쳐졌을 때 두 규칙의 판정이 어긋난다.
+git_next_token() {  # git_next_token <하위 명령> <조각>
+  printf '%s' "$2" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk -v s="$1" 'f && $0 != "" { print; exit } $0 == s { f = 1 }'
+}
 mc_segcmd() {  # COMMAND_RAW 의 인용 안 경계 문자를 공백으로(`|` 는 \001 — mc_script_writes 가 본다). 인용은 남긴다.
   printf '%s\n' "$COMMAND_RAW" | awk '
     {
@@ -629,7 +745,7 @@ mc_all_readonly() {
     if [ "$w" = "git" ]; then
       sub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
       case " $MC_GIT_READ " in *" $sub "*) continue ;; esac
-      nxt="$(printf '%s' "$seg" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk -v s="$sub" 'f && $0 != "" { print; exit } $0 == s { f = 1 }')"
+      nxt="$(git_next_token "$sub" "$seg")"
       case " $MC_GIT_READ_OPT " in *" $sub:$nxt "*) continue ;; esac
     fi
     if [ "$w" = "gh" ]; then
@@ -645,7 +761,7 @@ mc_all_readonly() {
 }
 
 r_main_shell() {
-  local cand cmd tail hit
+  local cand cmd tail hit hr
   # `$HOME`·`${HOME}` 을 먼저 펼친다. mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 은
   # `$HOME` 뒤의 슬래시부터 잡아 엉뚱한 절대 경로를
   # 만든다 — 그래서 틸드는 막히고 `$HOME` 은 새는 비대칭이 생겼다. 셸이 실제로 펼칠
@@ -664,11 +780,25 @@ r_main_shell() {
   # `.` 은 한 글자만 다른 남의 경로까지 함께 벗기고, `[` 은 sed 를 죽여 후보를 통째로 없앤다
   # (그 순간 이 규칙은 무엇이든 통과시킨다). 인용한 셸 치환은 값을 리터럴로 읽어 그 부류가 없다 —
   # 게이트 ⑨ 의 "원장 지정 대입의 면제" 절이 메타문자 루트로 그 차이를 못박는다.
+  # 판별자는 **하네스 루트의 두 모양**이다 — mc_is_harness_root 가 든다.
+  #
+  # **이 하나만 벗김으로 남는다.** bd 쪽 지정 표기(`-C`·`--directory`·`--db`)는 아래
+  # mc_cand_tokens 가 **건너뛰기**로 바꿨는데(skills#239 3회차), 이쪽은 그대로 둔다. 벗김이
+  # 두 회차 샌 원인은 `-C` 라는 철자를 `git`·`gh` 도 쓴다는 것 — 지울 문자열이 남의 명령에도
+  # 서 있어 사거리가 생겼다. `HARNESS_ROOT=` 는 그 부류가 없다: 지울 문자열이 변수 이름으로
+  # 고정돼 있고, 그 대입이 어느 조각에 서든 값이 하네스 루트인 **원장 지명 그 자체**라
+  # 지워도 남의 후보가 되지 않는다. 명령의 나머지 후보는 손대지 않으므로
+  # `HARNESS_ROOT=<루트> rm -rf <루트>` 의 뒤쪽 등장은 그대로 남아 계속 막힌다(게이트 ⑨).
+  # 실측된 누출이 없는 자리를 함께 고치면 게이트의 부정 대조군 둘(메타문자 루트로 "정규식을
+  # 쓰지 마라"를 못박는 쪽)을 근거 없이 다시 써야 한다 — 그래서 두었다.
   while IFS= read -r hr; do
-    [ -n "$hr" ] || continue
-    [ -f "$(mc_norm "$hr")/.harness.json" ] || continue
+    mc_is_harness_root "$hr" || continue
     cmd="${cmd//"HARNESS_ROOT=$hr "/}"
   done < <(printf '%s' "$cmd" | tr ' \t' '\n\n' | sed -n 's/^HARNESS_ROOT=//p')
+  # 후보는 **토큰 목록**으로 받는다 — 한 줄에 하나이고, bd 의 원장 지정 자리에 선 등장만
+  # 빠져 있다(mc_cand_tokens). 조각을 이을 때 넣는 개행은 아래 후보 grep 의 문자 클래스가
+  # 이미 경계로 취급하므로 판정에 들지 않는다.
+  cmd="$(mc_cand_tokens "$cmd")"
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
     # 레포 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<레포>/f` 는 인용을 걷으면 `s/a/b/w<레포>/f`
@@ -681,7 +811,13 @@ r_main_shell() {
         tail="${tail#*/}"                       # 앞 한 칸을 벗기고 다시 절대 경로로 본다
         mc_locate "/$tail" && { hit=1; break; }
       done
-      [ -n "$hit" ] || continue
+      # 어느 트리 **안**도 아니면 마지막으로 아래를 본다 — 트리들을 품은 자리(클론 루트)다.
+      # 읽기 면제는 위와 같다(`ls <클론 루트>` 는 통과한다).
+      if [ -z "$hit" ]; then
+        mc_holds_trees "$cand" || continue
+        mc_all_readonly && return 0
+        deny "클론 루트 자체 금지 — 명령에 $MC_HOLDER 가 들어 있다. 그 자리는 어느 레포 트리도 아니지만 하네스 트리들을 **품고 있다**:$MC_TREES. 지우거나 옮기면 그 레포들의 클론·워크트리·**미커밋 변경**이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크고 복구 경로가 없다. 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $MC_HOLDER/<레포>/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 \`#\` 때문에 도구가 거부한다)."
+      fi
     fi
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0
@@ -865,15 +1001,29 @@ gr_can() {
   esac
 }
 
-# ① 파일 쓰기 판정. **경로를 보지 않으므로** 워크트리 안이든 밖이든 똑같이 막힌다.
-# 경로로 완화하지 않는 이유: 채점 대상 트리를 경로로 특정할 수단이 훅 입력에 없고,
-# 있다 해도 답안 사본을 다른 자리에 만들어 고치는 경로가 열린다.
+# ① 파일 쓰기 판정. **대상 트리 안일 때만** 막는다 — 불변식은 "채점자가 대상 트리를
+# 고치지 않는다"이지 "채점자가 아무 파일도 못 쓴다"가 아니다. 종전에는 경로를 보지 않아
+# 트리 밖 스크래치패드의 메모까지 막혔고, 그것이 skills#191 회차 실측 오탐 2건이다.
+# 대상 트리의 정의는 **mc_root_of** — 위로 거슬러 올라가 처음 만나는 커밋된 `.harness.json`
+# 의 디렉토리 아래 전부이고, 워크트리도 그 트리다. **C3 와 예외 폭이 반대다**: C3 는 mc_locate
+# (워크트리 필터가 붙은 쪽)를 불러 워크트리를 통과시키고, 이 규칙은 필터 없는 쪽을 불러
+# 워크트리도 막는다. 채점 대상이 바로 그 워크트리라서다 — 두 규칙이 같은 함수를 부르면
+# 이 규칙의 뜻이 조용히 뒤집힌다(mc_root_of 주석의 skills#236 실측).
+# 감수하는 것: 트리를 다른 자리에 복사해 고치는 길은 열려 있다. 그 사본은 다음 판정의
+# 대상이 아니므로 "만든 주체가 채점한다"가 성립하지 않고, 막으려면 경로 판정 자체를
+# 버려야 해서 오탐이 다시 전부 돌아온다.
 # 판정을 도구 이름이 아니라 w_path 로 하는 이유는 그 함수의 주석에 있다 — 이름 목록은
 # 허용 목록 극성이라 새 쓰기 도구가 기본값 "검사 안 됨"으로 샌다.
 r_grader_write() {
   gr_is_grader || return 0
-  [ -n "$(w_path)" ] || return 0
-  deny "채점자의 파일 수정 금지 — $TOOL_NAME 도구는 agent_type=$AGENT_TYPE 에게 금지다(파일 수정·커밋 금지, 리뷰·평가만). 채점자가 고친 파일이 곧 다음 판정의 대상이 되어 만든 주체가 채점하는 상태가 된다. $(gr_can)"
+  local p
+  p="$(w_path)"
+  [ -n "$p" ] || return 0
+  # cwd 없는 상대 경로는 접을 수 없어 트리 안인지 알 수 없다. **판정 불가는 통과가 아니다** —
+  # 여기서 return 0 하면 cwd 키가 빠진 페이로드 하나로 규칙 전체가 꺼진다.
+  mc_norm "$p" >/dev/null || deny "채점자의 파일 수정 금지 — 상대 경로 '$p' 는 페이로드에 cwd 가 없어 대상 트리 안인지 접어 볼 수 없다. 판정 불가는 차단이다 — 절대 경로로 다시 불러라. $(gr_can)"
+  mc_root_of "$p" || return 0   # GRADER_TREE_SCOPE — 트리 밖(스크래치패드·/tmp)은 채점자도 쓴다
+  deny "채점자의 파일 수정 금지 — $TOOL_NAME 도구가 겨눈 $MC_PATH 는 대상 레포 '$MC_REPO' 의 트리 안이다(레포 루트 $MC_ROOT 아래 — 워크트리도 그 트리다). agent_type=$AGENT_TYPE 에게 대상 트리 수정·커밋은 금지다(리뷰·평가만) — 채점자가 고친 파일이 곧 다음 판정의 대상이 되어 만든 주체가 채점하는 상태가 된다. 트리 **밖**(스크래치패드·/tmp)의 메모는 막지 않는다. $(gr_can)"
 }
 RULES+=("*:r_grader_write")
 
@@ -932,11 +1082,22 @@ r_grader_shell() {
   gr_is_grader || return 0
 
   tool_aliased git && deny "git 을 변수에 담아 부르는 형태('G=git; \$G …')는 하위 명령을 읽을 수 없어 차단한다 — git 을 직접 불러라. $(gr_can)"
-  local seg gsub
+  local seg gsub gnxt
   while IFS= read -r seg; do
     gsub="$(subcmds_after git "$GIT_VALUE_OPTS" "$seg")"
-    if [ -n "$gsub" ]; then case " $GR_GIT_READ " in *" $gsub "*) continue ;; esac; fi
-    deny "채점자의 git 쓰기 금지 — 'git ${gsub:-<하위 명령 없음>}' 은 읽기 면제 목록 밖이다. agent_type=$AGENT_TYPE 은 파일 수정·커밋이 금지다(리뷰·평가만) — 채점자가 만든 커밋이 곧 다음 판정의 대상이 된다. 판정은 git 이 실행하는 하위 명령이라 commit 뿐 아니라 revert·cherry-pick·merge·am·rebase·reset·clean·stash·checkout 도 막힌다. 읽기 면제: $GR_GIT_READ. 실행이 아닌 문자열(git log --grep commit)은 걸리지 않는다 — 그래도 막혔으면 오탐이니 사람에게 확인받아라. $(gr_can)"
+    if [ -n "$gsub" ]; then
+      case " $GR_GIT_READ " in *" $gsub "*) continue ;; esac
+      # 하위 명령만으로는 읽기·쓰기가 갈리지 않아 GR_GIT_READ 에 올릴 수 없는 것들의 **읽기 형태**.
+      # `remote` 는 add·remove 가 있어 목록 밖인데 `remote get-url` 은 URL 을 stdout 으로 낼 뿐이다 —
+      # skills#191 회차에서 `gh issue view <n> -R $(git remote get-url origin | sed …)` 가 이것 때문에
+      # 막혔다. 원인은 명령 치환이 아니다: 치환 밖의 `git remote get-url origin` 도 똑같이 막혔다
+      # [실측 skills#226]. 목록은 C3 의 MC_GIT_READ_OPT 를 **그대로 재사용**한다 — 같은 "git 읽기 쌍"
+      # 개념이고, 둘로 두면 한쪽만 늘어났을 때 두 규칙의 판정이 어긋난다.
+      # 넓히는 것이지 여는 것이 아니다: 쌍이 어긋나면(`remote add`·`config <k> <v>`·`tag -d`) 종전대로 막힌다.
+      gnxt="$(git_next_token "$gsub" "$seg")"
+      case " $MC_GIT_READ_OPT " in *" $gsub:$gnxt "*) continue ;; esac
+    fi
+    deny "채점자의 git 쓰기 금지 — 'git ${gsub:-<하위 명령 없음>}' 은 읽기 면제 목록 밖이다. agent_type=$AGENT_TYPE 은 파일 수정·커밋이 금지다(리뷰·평가만) — 채점자가 만든 커밋이 곧 다음 판정의 대상이 된다. 판정은 git 이 실행하는 하위 명령이라 commit 뿐 아니라 revert·cherry-pick·merge·am·rebase·reset·clean·stash·checkout 도 막힌다. 읽기 면제: $GR_GIT_READ. 하위 명령 **바로 다음** 토큰까지 봐서 읽기인 쌍도 면제다: $MC_GIT_READ_OPT. 실행이 아닌 문자열(git log --grep commit)은 걸리지 않는다 — 그래도 막혔으면 오탐이니 사람에게 확인받아라. $(gr_can)"
   done < <(exec_segments git)
 
   local t sub

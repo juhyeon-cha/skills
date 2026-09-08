@@ -48,7 +48,9 @@
 #    플러그인 재구조화가 남긴 규칙은 앵커와 무관한 불변식 넷뿐이다. 근거는 훅 머리주석.)
 #   ⑯ S16 — 규칙 발화가 **규칙 이름과 함께** 로그에 남고, 통과도 한 줄 남아 "발화 0" 과
 #      "훅 미실행" 이 갈린다(후자는 계수 명령 scripts/guard-log.sh 의 rc=1). 회차별 계수가
-#      기계값(TSV)이며, 로깅 호출만 뺀 사본에서 그 단언이 무너지는 것으로 귀속한다
+#      기계값(TSV)이며, 로깅 호출만 뺀 사본에서 그 단언이 무너지는 것으로 귀속한다.
+#      (h) 는 `rows` 하위 명령 — 차단 행마다 분류 가능성이 붙고, **"차단 0건"·"회차를 못
+#      찾았다"·"전부 분류 불가" 가 서로 다른 rc 로 갈린다**
 #   ⑱ S16-b — 로그 **부재의 원인 둘**이 갈린다: "훅 미실행"(rc=1)과 "로깅 없는 guard.sh 가
 #      발화 중"(rc=3). 두 상태를 각각 재현해 문구·rc 로 확인하고, 계수 명령에서 구분
 #      로직만 뺀 사본이 가르지 못하는 것으로 귀속한다. 사본이 죽어서 못 가른 것이
@@ -141,7 +143,33 @@ outside_main() {  # outside_main <경로> — 본 체크아웃 밖이면 0
   done
   return 0
 }
+# ── 절 범위: 이 게이트가 두 자리에서 도는 이유와 그 분리선 ─────────────
+# 통째로 돌리면 이 게이트 하나가 러너의 나머지 검사 전부와 맞먹는다(실측 skills#223,
+# 깨끗한 직렬 1회: 이 파일 159.5초 vs 나머지 검사 합계 163.3초). 그래서
+# tests/run-all.sh 에 통째로 넣으면 그 게이트가 두 배가 된다 — **그것이 자리를 둘로 가르는 이유다.**
+# "느려서 뺀다" 가 아니다: 같은 게이트 안에 76.6초짜리 rules-check 이 면제 없이 돈다.
+#
+# **분리선은 절 이름이 아니라 소요다.** 이름으로 걸 수 없는 실측 근거가 있다 — 같은 라벨이
+# 한 회차 안에 여러 번 출력돼 초를 특정 절에 귀속시키는 매핑이 회차마다 뒤집힌다(skills#223).
+#
+# 기준(수가 아니라 재현하는 절차다):
+#   ① 한 절의 실측 소요가 **게이트 나머지 전부의 소요의 10분의 1** 을 넘으면 전수 자리로 뺀다.
+#      나머지가 약 160초인 지금 그 선은 약 10초다 — 어느 절도 커밋마다 치르는 게이트를
+#      10% 넘게 늘리지 못한다는 뜻이다.
+#   ② ① 로 빠진 절이 세운 픽스처에 기대는 절은 함께 뺀다. 기댐은 소요와 무관하므로
+#      임계만으로는 갈리지 않는다.
+#   재는 법: 절 머리의 `echo "── ` 줄 앞에 시각을 찍고 이웃 절과 뺀다.
+#   지금 빠진 것: ⑨ 22.3s · ⑩ 24.3s · ⑪ 31.9s · ⑫ 24.3s · ⑬ 44.0s (①) · ⑬-2 7.5s (②).
+#
+# GUARD_CHECK_SCOPE=fast → 임계 아래 절만 (tests/harness/guard-fast-check.sh 가 그 자리다).
+# 기본값 full → 전수. 절을 새로 넣으면 위 ①② 로 어느 쪽인지 정하라.
+SCOPE="${GUARD_CHECK_SCOPE:-full}"
+# 모르는 값은 조용히 좁은 집합으로 떨어지지 않고 여기서 죽는다 — 좁아진 집합의 통과는 통과가 아니다.
+case "$SCOPE" in full|fast) ;; *) echo "guard-check: GUARD_CHECK_SCOPE 값 '$SCOPE' 는 허용값이 아니다 (허용값: full·fast)" >&2; exit 2 ;; esac
+full_scope() { [ "$SCOPE" = "full" ]; }
+
 echo "── ⓪ 픽스처 전제 ──"
+echo "  절 범위: $SCOPE"
 step "FX_ROOT 가 본 체크아웃 밖이다 (안이면 아래 rc=0 통과 단언이 r_main_shell 때문에 뒤집힌다)" outside_main "$FX_ROOT"
 step "FX_CLONE 이 본 체크아웃 밖이다 (같은 사유)" outside_main "$FX_CLONE"
 
@@ -481,6 +509,7 @@ run "$(j_sub "bd -C $FX_ROOT --actor harness note $FX_TASK \"메모\"" 'harness:
 printf '  rc=%d  [implementer] --actor <값> note (note 는 허용)\n' "$GUARD_RC"
 step "통과: --actor 값을 건너뛰어도 note 는 그대로 허용된다" [ "$GUARD_RC" -eq 0 ]
 
+if full_scope; then   # ↓↓ 임계 위 절 (위 「절 범위」 참조) — fast 에서는 통째로 건너뛴다
 echo "── ⑨ C3: 본 체크아웃 쓰기 차단 (도구 경로 + 셸 경로) ──"
 # 픽스처 레포를 임시 디렉토리 안에 **실제로 만든다.** 판별자가 `.harness.json` 의 실재라
 # 어휘 판정만으로는 대상 레포를 알 수 없다 — 파일 내용은 보지 않으므로 최소 형태로 둔다.
@@ -884,12 +913,165 @@ step "레포 체크아웃 자체가 Write 도구로도 차단된다" [ "$GUARD_R
 # 거짓 양성 대조군 — 레포와 **접두만** 같은 형제 경로까지 막으면 과차단이다.
 runm "$(j_bash "rm -rf $MCROOT/repo-other")"
 step "대조: 레포와 접두만 같은 형제 경로는 통과한다" [ "$GUARD_RC" -eq 0 ]
-# **못 막는 것 — 레포를 담은 상위 디렉토리.** 종전에는 클론 루트라는 고정 층이 있어
-# `rm -rf <클론루트>` 를 막았다. 그 층을 없앤 대가로, 레포들의 부모를 지우는 조작은 하네스가
-# 판정할 근거가 없다(판별자가 그 디렉토리에 없다). 하위를 훑어 찾는 방법은 비용이 무한정이라
-# 두지 않았다 — plugins/harness/docs/guardrails.md "못 막는 것" 이 이 rc=0 을 한계로 든다.
+# ── ⑨-클론 루트 자체 (skills#239) ──────────────────────────────────────
+# **트리를 품은 자리.** 클론 루트에는 자기 `.harness.json` 이 없어 위로 거슬러 찾는 mc_locate 에는
+# 아예 걸리지 않는다 — 이 자리는 한때 "못 막는 것(rc=0 고정)" 으로 박혀 있었고, 그 사이 실제로
+# `rm -rf <클론 루트>` 가 통과했다(skills#239: 설치본 2.1.0 rc=2 · origin/main 단독 rc=0).
+# mc_holds_trees 가 **아래를 한 칸** 보고 그 층을 되살린다. 판정은 `.harness.json` 어휘뿐이다 —
+# 고정 경로 변수는 되살리지 않았고, 아래 부정 대조군이 그 한 줄에 귀속시킨다.
+declare -a MC_HOLDER_DENY=(
+  "rm -rf $MCROOT"
+  "rm -rf $MCROOT/"
+  "mv $MCROOT /tmp/gone"
+  "HARNESS_ROOT=$MCROOT rm -rf $MCROOT"   # 원장 지정 대입이 붙어도 남은 후보가 걸린다
+)
+for c in "${MC_HOLDER_DENY[@]}"; do
+  runm "$(j_bash "$c")"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "트리를 품은 자리(클론 루트) 조작이 차단된다: $c" [ "$GUARD_RC" -eq 2 ]
+done
+# 메시지가 **무엇을 잃는가**를 말한다 — 품은 트리 이름이 실려야 "레포 하나보다 크다"가 근거가 된다.
 runm "$(j_bash "rm -rf $MCROOT")"
-step "한계(못 막음, rc=0 고정): 레포를 담은 상위 디렉토리 삭제" [ "$GUARD_RC" -eq 0 ]
+echo "  holder → $GUARD_OUT"
+# 트리 이름을 **목록 자리째** 짚는다 — 낱말 'repo' 만 보면 메시지의 산문("scripts/repo.sh 가
+# 소유한다")과 픽스처 디렉토리 이름에도 든 부분 문자열이라, 목록이 비어도 통과한다.
+step "클론 루트 메시지에 품은 트리 이름이 실린다" has_text '**품고 있다**: repo' "$GUARD_OUT"
+step "클론 루트 메시지가 무엇을 잃는지 말한다"   has_text '미커밋 변경' "$GUARD_OUT"
+# **과잉 대조군 — 이게 없으면 "위쪽을 전부 막는 규칙"도 위를 통과한다.** 넷 다 rc=0 이어야 한다
+# (skills#239 acceptance ③). 과잉을 고치는 스토리에서 새 과잉을 만드는 것이 최악의 결과다.
+MC_HOLDER_EMPTY="$TMP/holder-empty"; mkdir -p "$MC_HOLDER_EMPTY"          # 트리를 안 품은 빈 디렉토리
+MC_HOLDER_TMP="$TMP/holder-unrelated/sub"; mkdir -p "$MC_HOLDER_TMP"      # 하네스와 무관한 임시 디렉토리
+declare -a MC_HOLDER_LABEL=() MC_HOLDER_JSON=()
+MC_HOLDER_LABEL+=("(a) 워크트리 안의 rm -rf")
+MC_HOLDER_JSON+=("$(j_sub "rm -rf $MCROOT/repo/.claude/worktrees/story-a/build" 'harness:implementer')")
+MC_HOLDER_LABEL+=("(b) 하네스와 무관한 임시 디렉토리 rm -rf")
+MC_HOLDER_JSON+=("$(j_sub "rm -rf ${MC_HOLDER_TMP%/sub}" 'harness:implementer')")
+MC_HOLDER_LABEL+=("(c) 트리를 안 품은 빈 디렉토리 rm -rf")
+MC_HOLDER_JSON+=("$(j_bash "rm -rf $MC_HOLDER_EMPTY")")
+MC_HOLDER_LABEL+=("(d) 채점자의 트리 밖 쓰기")
+MC_HOLDER_JSON+=("$(jq -n --arg p "${MC_HOLDER_TMP}/note.txt" \
+  '{hook_event_name:"PreToolUse",tool_name:"Write",cwd:"/x",agent_id:"aa306a4edf39e7dfe",agent_type:"harness:evaluator",tool_input:{file_path:$p,content:"hi"}}')")
+MC_HOLDER_LABEL+=("(e) 읽기는 면제다 — ls <클론 루트>")
+MC_HOLDER_JSON+=("$(j_bash "ls $MCROOT")")
+MC_HOLDER_LABEL+=("(f) 원장 지정만 있는 명령 — HARNESS_ROOT=<클론 루트> ledger.sh note")
+MC_HOLDER_JSON+=("$(j_sub "HARNESS_ROOT=$MCROOT $FX_LS note $FX_TASK \"메모\"" 'harness:implementer')")
+for i in "${!MC_HOLDER_LABEL[@]}"; do
+  runm "${MC_HOLDER_JSON[$i]}"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${MC_HOLDER_LABEL[$i]}"
+  step "클론 루트 판정이 넓지 않다: ${MC_HOLDER_LABEL[$i]}" [ "$GUARD_RC" -eq 0 ]
+done
+# 부정 대조군 — **새 판정 한 줄만** 되돌린 사본에서 위 차단이 rc=0 으로 돌아온다.
+NEG_HOLD="$TMP/guard-no-holder.sh"
+step "부정 대조군 전제: 클론 루트 판정이 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'mc_holds_trees "$cand" || continue' "$HOOK")" -eq 1 ]
+awk 'index($0,"mc_holds_trees \"$cand\" || continue") { print "        continue"; next } { print }' \
+  "$HOOK" > "$NEG_HOLD"; chmod +x "$NEG_HOLD"
+step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_HOLD"
+runh "$NEG_HOLD" "$(j_bash "rm -rf $MCROOT")"
+step "부정 대조군: 그 줄을 되돌리면 클론 루트 삭제가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+
+# ── bd 원장 지정의 면제가 **그 등장 밖으로 새지 않는다** (skills#239 1·2·3회차) ────────
+# 이 부류는 세 회차 동안 두 번 샜고, 두 번 다 **명령 문자열을 벗긴** 탓이었다:
+#   1회차 `623ec82` 명령 **전체**에서 `-C <경로> ` 치환 → `&&`·`;`·`|` 로 이은 다른 조각이 샜다
+#   2회차 `e605e67` **조각 안**에서 전역 치환      → 역따옴표가 조각 경계가 아니라 같은 조각 안이 샜다
+# 3회차는 벗기지 않는다 — 후보를 모을 때 그 **등장만** 건너뛴다(mc_cand_tokens). 아래 목록은
+# 두 회차가 실제로 샌 형태를 전부 든다. 통과 픽스처(위 (f)·아래 단독형)만으로는 이 부류가
+# 안 잡히므로 대조가 여기 있어야 한다. 구분자마다 한 줄씩 두는 이유도 같다 — 벗김의 사거리는
+# 구분자마다 달랐고, 한둘만 두면 다음 구분자에서 또 샌다.
+declare -a BD_LEAK_LABEL=() BD_LEAK_CMD=()
+BD_LEAK_LABEL+=("&& 로 이은 뒤 조각이 본 체크아웃을 건드린다")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT/repo checkout -- .")
+BD_LEAK_LABEL+=("; 로 이은 뒤 조각이 본 체크아웃을 건드린다")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x ; git -C $MCROOT/repo reset --hard")
+BD_LEAK_LABEL+=("| 로 이은 뒤 조각이 본 체크아웃을 건드린다")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x | git -C $MCROOT/repo checkout -- .")
+BD_LEAK_LABEL+=("역따옴표 안의 다른 명령 (2회차가 놓친 것)")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`")
+BD_LEAK_LABEL+=("\$( ) 안의 다른 명령")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x \$(git -C $MCROOT/repo checkout -- .)")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — && git clean -fdx")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x && git -C $MCROOT clean -fdx")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — ; rm -rf")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x ; rm -rf $MCROOT")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — | git clean -fdx")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x | git -C $MCROOT clean -fdx")
+BD_LEAK_LABEL+=("역따옴표가 클론 루트를 겨눈다 — rm -rf")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x \`rm -rf $MCROOT\`")
+BD_LEAK_LABEL+=("\$( ) 가 클론 루트를 겨눈다 — git clean -fdx")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x \$(git -C $MCROOT clean -fdx)")
+BD_LEAK_LABEL+=("bd 조각이 **뒤**에 온다 — 본 체크아웃")
+BD_LEAK_CMD+=("git -C $MCROOT/repo checkout -- . && bd -C $MCROOT/repo note $FX_TASK x")
+BD_LEAK_LABEL+=("bd 조각이 **뒤**에 온다 — 클론 루트")
+BD_LEAK_CMD+=("rm -rf $MCROOT && bd -C $MCROOT note $FX_TASK x")
+BD_LEAK_LABEL+=("-C 가 셋 이상")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo -C $MCROOT note $FX_TASK x && git -C $MCROOT/repo checkout -- .")
+BD_LEAK_LABEL+=("bd 조각이 둘")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x && bd -C $MCROOT/repo note $FX_TASK y && rm -rf $MCROOT")
+BD_LEAK_LABEL+=("--db 표기도 같다")
+BD_LEAK_CMD+=("bd --db $MCROOT/repo note $FX_TASK x && rm -rf $MCROOT/repo")
+BD_LEAK_LABEL+=("--directory 표기 + 역따옴표")
+BD_LEAK_CMD+=("bd --directory $MCROOT note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`")
+BD_LEAK_LABEL+=("bd 없는 단독형 — 본 체크아웃")
+BD_LEAK_CMD+=("git -C $MCROOT/repo checkout -- .")
+# 조건 (c) — 값이 하네스 루트가 **아니면** 건너뛰지 않는다. 위 통과 대조(면제 단독형)와 형태가
+# 같고 값만 다르므로, (c) 가 죽으면 그것들만으로는 안 잡히고 여기서만 드러난다.
+BD_LEAK_LABEL+=("(c) -C 값이 하네스 루트가 아니다 — 본 체크아웃 하위 경로")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo/docs note $FX_TASK x")
+for i in "${!BD_LEAK_LABEL[@]}"; do
+  runh "$HOOK" "$(j_sub "${BD_LEAK_CMD[$i]}" 'harness:implementer')"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${BD_LEAK_LABEL[$i]}"
+  step "bd 면제가 그 등장 밖으로 새지 않는다: ${BD_LEAK_LABEL[$i]}" [ "$GUARD_RC" -eq 2 ]
+done
+# 대조 — 면제 자신은 살아 있어야 한다. 이 둘이 rc=2 로 뒤집히면 A4 가 요구하는 지명이
+# 그 자체로 막히는 배반이 다시 서고, guardrail-check S1 의 A/B 귀속이 무너진다.
+for c in "bd -C $MCROOT note $FX_TASK x" "bd -C $MCROOT/repo note $FX_TASK x" \
+         "bd --directory $MCROOT note $FX_TASK x" "bd --db $MCROOT note $FX_TASK x"; do
+  runh "$HOOK" "$(j_sub "$c" 'harness:implementer')"
+  printf '  rc=%d  면제 단독형: %s\n' "$GUARD_RC" "$c"
+  step "면제 단독형은 통과한다: $c" [ "$GUARD_RC" -eq 0 ]
+done
+# A/B 귀속 ① — 건너뛰기를 **조각의 실행 낱말과 무관**하게 푼 사본에서 우회가 되살아난다.
+# 그 사본이 **다른 이유로 죽지 않았음**을 함께 든다(클론 루트 삭제는 여전히 rc=2).
+NEG_BDSEG="$TMP/guard-bd-allseg.sh"
+step "부정 대조군 전제: 실행 낱말 조건이 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'bd:-C|bd:--directory|bd:--db)' "$HOOK")" -eq 1 ]
+sed 's/bd:-C|bd:--directory|bd:--db)/*:-C|*:--directory|*:--db)/' "$HOOK" > "$NEG_BDSEG"; chmod +x "$NEG_BDSEG"
+step "부정 대조군 ① 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BDSEG"
+runh "$NEG_BDSEG" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT/repo checkout -- ." 'harness:implementer')"
+step "부정 대조군 ①: 건너뛰기를 모든 조각에 풀면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+runh "$NEG_BDSEG" "$(j_bash "rm -rf $MCROOT")"
+step "부정 대조군 ①: 그 사본이 다른 이유로 죽지 않았다 (클론 루트 삭제는 rc=2)" [ "$GUARD_RC" -eq 2 ]
+# A/B 귀속 ② — 역따옴표 경계를 mc_cand_tokens 에서 뺀 사본에서 2회차가 놓친 형태가 되살아난다.
+NEG_BT="$TMP/guard-no-backtick.sh"
+step "부정 대조군 전제: mc_cand_tokens 의 역따옴표 경계가 훅에 1줄 실재한다" \
+  [ "$(grep -cF "| tr '\`' '\\n')\")" "$HOOK")" -eq 1 ]
+sed "s/ | tr '\`' '\\\\n'//" "$HOOK" > "$NEG_BT"; chmod +x "$NEG_BT"
+step "부정 대조군 ② 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BT"
+runh "$NEG_BT" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`" 'harness:implementer')"
+step "부정 대조군 ②: 역따옴표가 경계가 아니면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+runh "$NEG_BT" "$(j_bash "rm -rf $MCROOT")"
+step "부정 대조군 ②: 그 사본이 다른 이유로 죽지 않았다 (클론 루트 삭제는 rc=2)" [ "$GUARD_RC" -eq 2 ]
+
+# ── 역따옴표 경계는 **mc_cand_tokens 안에만** 산다 (skills#239 3회차 리뷰) ─────────
+# 3회차가 이 경계를 공용 `cmd_segments` 에 얹었다가 양방향으로 어긋났다. 국소화가 유지되는지를
+# 두 방향에서 각각 못박는다 — 한 방향만 두면 다음 회차가 반대쪽으로 다시 넘어간다.
+# ① **막던 것이 통과했다** — 도구 이름 바로 뒤의 역따옴표가 조각을 잘라 하위 명령이 비고,
+#    subcmds_after 를 보는 규칙들(r_remote·r_impl_bd·r_bd_root)이 "옵션만 있는 호출 = 읽기" 로 읽었다.
+for c in "gh \`echo pr\` create --title x" "bd \`x\` create $FX_TASK"; do
+  runh "$HOOK" "$(j_sub "$c" 'harness:implementer')"
+  printf '  rc=%d  역따옴표 부작용①: %s\n' "$GUARD_RC" "$c"
+  step "도구 이름 뒤 역따옴표가 하위 명령을 비우지 않는다: $c" [ "$GUARD_RC" -eq 2 ]
+done
+# ② **안 막던 것이 막혔다** — mc_segcmd 는 인용 안의 `;|&()` 만 중화하고 역따옴표는 안 해서,
+#    작은따옴표 안의 **리터럴** 역따옴표가 mc_all_readonly 에서 경계로 읽혔다. 기존 중화가
+#    살아 있는지를 같은 자리에서 함께 든다 — 넷은 이 변경 전부터 통과하던 형태다.
+for c in "grep -n '\`' $MCROOT/repo/README.md" "grep -n 'a;b' $MCROOT/repo/README.md" \
+         "grep -n 'a|b' $MCROOT/repo/README.md" "grep -n 'a&b' $MCROOT/repo/README.md" \
+         "grep -n 'a(b' $MCROOT/repo/README.md"; do
+  runh "$HOOK" "$(j_bash "$c")"
+  printf '  rc=%d  인용 안 경계 문자: %s\n' "$GUARD_RC" "$c"
+  step "인용 안의 리터럴 경계 문자가 읽기 전용 명령을 막지 않는다: $c" [ "$GUARD_RC" -eq 0 ]
+done
 
 # ── `$HOME` 표기 (harness-0ig). mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 이 `$HOME`
 # 뒤 슬래시부터 잡아 엉뚱한 절대 경로를 만들었다 — 틸드는 막히고 `$HOME` 은 새는 비대칭.
@@ -911,10 +1093,12 @@ done
 # 사본이 원본과 같아져 대조군이 조용히 무의미해진다.
 # 워크트리 예외 — mc_locate 가 워크트리 모양의 루트를 통과시키는 한 줄. 빼면 워크트리 안의
 # 쓰기가 본 체크아웃으로 읽혀 막힌다(과차단 방향). 그 줄이 죽으면 여기서 드러난다.
+# **이 줄은 mc_locate 에만 있다** — 루트 찾기(mc_root_of)에는 필터가 없고, r_grader_write 가
+# 그쪽을 부른다(⑫). 그래서 이 대조군을 빼도 채점자 규칙의 rc 는 움직이지 않는 것이 맞다.
 NEG_WT="$TMP/guard-no-wtexempt.sh"
 step "부정 대조군 전제: 워크트리 예외가 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'case "$d" in */.claude/worktrees/*) return 1 ;; esac' "$HOOK")" -eq 1 ]
-grep -vF 'case "$d" in */.claude/worktrees/*) return 1 ;; esac' "$HOOK" > "$NEG_WT"; chmod +x "$NEG_WT"
+  [ "$(grep -cF 'case "$MC_ROOT" in */.claude/worktrees/*) return 1 ;; esac' "$HOOK")" -eq 1 ]
+grep -vF 'case "$MC_ROOT" in */.claude/worktrees/*) return 1 ;; esac' "$HOOK" > "$NEG_WT"; chmod +x "$NEG_WT"
 step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_WT"
 mkdir -p "$MCROOT/repo/.claude/worktrees/story-a"
 printf '{"ledger":{"backend":"beads"}}\n' > "$MCROOT/repo/.claude/worktrees/story-a/.harness.json"
@@ -1763,19 +1947,27 @@ echo "── ⑫ A1/A2: 채점자(reviewer·evaluator)의 쓰기 차단 ──"
 # reviewer·evaluator 인가"다. 그래서 implementer 대조군이 이 절의 핵심이다: 구현자를 함께
 # 막으면 개발이 통째로 멈추는데 rc 만 보면 "잘 막힌다"로 읽힌다.
 #
-# 시험 경로는 **대상 레포 밖**(/tmp)을 쓴다. 본 체크아웃 경로를 쓰면 C3 도 함께 걸려
-# rc=2 가 어느 규칙 때문인지 갈리지 않는다. 겹침은 아래에서 따로 본다.
-GR_PATH="/tmp/guard-check-grader.txt"
+# 차단 시험 경로는 **워크트리**(⑧ 의 MCROOT 아래)를 쓴다 — r_grader_write 가 대상 트리 안만
+# 막게 좁혀졌으므로(skills#225) 트리 밖 경로로는 차단이 성립하지 않는다. 본 체크아웃 대신
+# 워크트리를 쓰는 것은 **귀속** 때문이다: 그 자리는 C3(r_main_write)가 통과시키므로 rc=2 의
+# 원인이 이 규칙 하나로 갈린다. 겹침(본 체크아웃)은 아래에서 따로 본다.
+# 조상 `.harness.json` 은 ⑨ 이 만든 `$MCROOT/repo/.harness.json` 하나면 된다 — r_grader_write
+# 가 부르는 mc_root_of 에는 워크트리 필터가 없어 워크트리에 따로 둘 필요가 없다.
+GR_WT="$MCROOT/repo/.claude/worktrees/story-a"
+GR_PATH="$GR_WT/grader.txt"
+GR_OUTSIDE="/tmp/guard-check-grader.txt"   # 트리 밖 — 좁힌 뒤로는 통과 대상이다
 
-j_tool_agent() {  # j_tool_agent <도구> <경로> <agent_type>
-  jq -n --arg t "$1" --arg p "$2" --arg a "$3" '
-    {hook_event_name:"PreToolUse", tool_name:$t, cwd:"/x",
+j_tool_agent() {  # j_tool_agent <도구> <경로> <agent_type> [cwd — 기본값 /x]
+  jq -n --arg t "$1" --arg p "$2" --arg a "$3" --arg d "${4-/x}" '
+    {hook_event_name:"PreToolUse", tool_name:$t, cwd:$d,
      agent_id:"aa306a4edf39e7dfe", agent_type:$a,
      tool_input: (if   $t == "NotebookEdit" then {notebook_path:$p, new_source:"x"}
                   elif $t == "Edit"         then {file_path:$p, old_string:"a", new_string:"b"}
                   else                           {file_path:$p, content:"hi"} end)}'
 }
-runrole() { run "$(j_sub "$1" "$2")"; }   # <명령> <agent_type>
+# 이 절의 훅 호출은 환경 변수를 얹지 않는다 — 대상 레포 판별자는 조상 `.harness.json` 이고
+# (⑨ 이 만든 $MCROOT/repo/.harness.json), 훅이 읽는 클론 루트 변수는 없다.
+runrole() { runm "$(j_sub "$1" "$2")"; }   # <명령> <agent_type>
 
 # ── 차단: 파일 쓰기 (acceptance ①).
 # 목록의 뒤 둘은 **규칙에 이름이 등재되지 않은** 도구다. 종전에는 r_grader_write 가 세
@@ -1785,7 +1977,7 @@ runrole() { run "$(j_sub "$1" "$2")"; }   # <명령> <agent_type>
 GR_R=harness:reviewer; GR_E=harness:evaluator; IMPL_T=harness:implementer
 for role in $GR_R $GR_E; do
   for tool in Write Edit NotebookEdit MultiEdit mcp__fs__write_file; do
-    run "$(j_tool_agent "$tool" "$GR_PATH" "$role")"
+    runm "$(j_tool_agent "$tool" "$GR_PATH" "$role")"
     printf '  rc=%d  [%s] %s %s\n' "$GUARD_RC" "$role" "$tool" "$GR_PATH"
     step "차단(도구): $tool · agent_type=$role" [ "$GUARD_RC" -eq 2 ]
   done
@@ -1793,12 +1985,51 @@ for role in $GR_R $GR_E; do
   # 명시하고, 읽지 못하면 리뷰·판정 자체가 불가능하다. 위 극성 반전이 읽기까지 삼키면
   # 채점자는 아무것도 못 하는데 rc 만 보면 "잘 막힌다"로 읽힌다.
   for tool in Read Grep; do
-    run "$(jq -n --arg t "$tool" --arg p "$GR_PATH" --arg a "$role" \
+    runm "$(jq -n --arg t "$tool" --arg p "$GR_PATH" --arg a "$role" \
       '{hook_event_name:"PreToolUse",tool_name:$t,cwd:"/x",agent_id:"aa306a4edf39e7dfe",agent_type:$a,tool_input:{file_path:$p}}')"
     printf '  rc=%d  [%s] %s %s\n' "$GUARD_RC" "$role" "$tool" "$GR_PATH"
     step "통과(읽기): $tool · agent_type=$role" [ "$GUARD_RC" -eq 0 ]
   done
 done
+
+# ── 좁힘의 경계 (skills#225). 불변식은 "채점자가 **대상 트리를** 고치지 않는다"이지 "채점자가
+#    아무 파일도 못 쓴다"가 아니다. 종전 판정은 경로를 보지 않아 리뷰어가 트리 밖
+#    스크래치패드에 메모조차 못 썼고, 그것이 skills#191 회차 실측 오탐 2건이다.
+#    **양쪽을 함께 든다** — 통과만 늘리면 좁히다 구멍을 낸 것과 구별되지 않는다.
+declare -a GRW_D_LABEL=() GRW_D_JSON=()
+GRW_D_LABEL+=("워크트리 안 (채점 대상 그 자체)");        GRW_D_JSON+=("$(j_tool_agent Write "$GR_WT/x.md" "$GR_R")")
+GRW_D_LABEL+=("워크트리 깊은 경로");                     GRW_D_JSON+=("$(j_tool_agent Edit  "$GR_WT/plugins/harness/hooks/guard.sh" "$GR_E")")
+GRW_D_LABEL+=("본 체크아웃 (C3 와 겹친다)");             GRW_D_JSON+=("$(j_tool_agent Write "$MCROOT/repo/main.txt" "$GR_R")")
+GRW_D_LABEL+=("cwd 가 워크트리일 때의 상대 경로");        GRW_D_JSON+=("$(j_tool_agent Write "./x.md" "$GR_R" "$GR_WT")")
+GRW_D_LABEL+=("워크트리에서 .. 로 본 체크아웃 탈출");     GRW_D_JSON+=("$(j_tool_agent Write "../../../esc.txt" "$GR_E" "$GR_WT")")
+GRW_D_LABEL+=("cwd 없는 상대 경로 (판정 불가는 차단이다)"); GRW_D_JSON+=("$(j_tool_agent Write "./x.md" "$GR_R" "")")
+for i in "${!GRW_D_JSON[@]}"; do
+  runm "${GRW_D_JSON[$i]}"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${GRW_D_LABEL[$i]}"
+  step "차단(대상 트리 안): ${GRW_D_LABEL[$i]}" [ "$GUARD_RC" -eq 2 ]
+done
+
+declare -a GRW_A_LABEL=() GRW_A_JSON=()
+GRW_A_LABEL+=("스크래치패드 (/private/tmp 아래)"); GRW_A_JSON+=("$(j_tool_agent Write "/private/tmp/claude-501/sess/scratchpad/review-note.md" "$GR_R")")
+GRW_A_LABEL+=("/tmp 직속");                        GRW_A_JSON+=("$(j_tool_agent Write "$GR_OUTSIDE" "$GR_E")")
+GRW_A_LABEL+=("트리 밖 임시 디렉토리 (Edit)");      GRW_A_JSON+=("$(j_tool_agent Edit  "$TMP/notes/판정.md" "$GR_R")")
+GRW_A_LABEL+=("트리 밖 (NotebookEdit)");            GRW_A_JSON+=("$(j_tool_agent NotebookEdit "$TMP/notes/n.ipynb" "$GR_E")")
+GRW_A_LABEL+=("cwd 가 트리 밖일 때의 상대 경로");   GRW_A_JSON+=("$(j_tool_agent Write "./review-note.md" "$GR_R" "$TMP/notes")")
+for i in "${!GRW_A_JSON[@]}"; do
+  runm "${GRW_A_JSON[$i]}"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${GRW_A_LABEL[$i]}"
+  step "통과(트리 밖): ${GRW_A_LABEL[$i]}" [ "$GUARD_RC" -eq 0 ]
+done
+
+# 부정 대조군 — 좁힘 한 줄만 되돌린 사본에서 스크래치패드 쓰기가 rc=2 로 돌아온다.
+# 그 줄이 없으면 위 "통과(트리 밖)" 다섯이 "규칙이 꺼져서" 통과한 것과 구별되지 않는다.
+NEG_GRW="$TMP/guard-no-grader-scope.sh"
+step "부정 대조군 전제: 좁힘 한 줄(GRADER_TREE_SCOPE)이 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'GRADER_TREE_SCOPE' "$HOOK")" -eq 1 ]
+grep -vF 'GRADER_TREE_SCOPE' "$HOOK" > "$NEG_GRW"; chmod +x "$NEG_GRW"
+step "부정 대조군 전제: 사본이 실재하고 원본과 다르다" not_same "$HOOK" "$NEG_GRW"
+runh "$NEG_GRW" "$(j_tool_agent Write "/private/tmp/claude-501/sess/scratchpad/review-note.md" "$GR_R")"
+step "부정 대조군: 좁힘을 빼면 스크래치패드 쓰기가 rc=2 로 돌아온다" [ "$GUARD_RC" -eq 2 ]
 
 # ── 차단: 셸 (acceptance ②). commit 토큰과 bd 쓰기 하위 명령.
 declare -a GR_DENY=(
@@ -1881,13 +2112,13 @@ for c in "${GR_MATRIX[@]}"; do
   step "통과(오케스트레이터, agent 필드 없음): $c" [ "$GUARD_RC" -eq 0 ]
 done
 for role in $GR_R $GR_E; do
-  run "$(j_tool_agent Write "$GR_PATH" "$role")"
+  runm "$(j_tool_agent Write "$GR_PATH" "$role")"
   step "차단(도구, agent_type=$role): Write $GR_PATH" [ "$GUARD_RC" -eq 2 ]
 done
-run "$(j_tool_agent Write "$GR_PATH" "$IMPL_T")"
+runm "$(j_tool_agent Write "$GR_PATH" "$IMPL_T")"
 printf '  rc=%d  [implementer] Write %s\n' "$GUARD_RC" "$GR_PATH"
 step "통과(도구, agent_type=implementer): Write $GR_PATH" [ "$GUARD_RC" -eq 0 ]
-run "$(j_write "$GR_PATH")"
+runm "$(j_write "$GR_PATH")"
 step "통과(도구, 오케스트레이터): Write $GR_PATH" [ "$GUARD_RC" -eq 0 ]
 
 # ── 극성 반전의 역방향 단언. 역할 목록을 게이트에 다시 적지 않는다:
@@ -1914,7 +2145,7 @@ gr_leaked=""; gr_blocked=""; gr_checked=0
 while read -r a; do
   [ -n "$a" ] || continue
   gr_checked=$((gr_checked + 1))
-  run "$(j_tool_agent Write "$GR_PATH" "$a")"
+  runm "$(j_tool_agent Write "$GR_PATH" "$a")"
   if printf '%s\n' "$GR_DECLARED" | grep -qx -- "$a"; then
     [ "$GUARD_RC" -eq 2 ] || gr_leaked="$gr_leaked $a"
   else
@@ -1980,8 +2211,12 @@ for c in 'bd --help' 'bd --version' 'bd --help > /dev/null 2>&1'; do
 done
 
 # ── 차단 메시지 (acceptance ⑤ — 그 역할이 **무엇만 할 수 있는지**가 적힌다).
-run "$(j_tool_agent Write "$GR_PATH" "$GR_R")"
+runm "$(j_tool_agent Write "$GR_PATH" "$GR_R")"
 echo "  deny(Write/reviewer) → $GUARD_OUT"
+# 좁힘(skills#225)을 메시지가 말해야 한다 — 없으면 받은 채점자가 "아무 데도 못 쓴다"로 읽고
+# 스크래치패드 메모까지 포기한다. 그것이 종전 판정에서 실제로 일어난 일이다.
+step "reviewer: 막힌 경로가 실린다"            has_text "$GR_PATH" "$GUARD_OUT"
+step "reviewer: 트리 밖은 열려 있음을 밝힌다"   has_text '트리 **밖**' "$GUARD_OUT"
 step "reviewer: 검증용 명령이 허용됨을 밝힌다" has_text '검증용 명령 실행은 허용된다' "$GUARD_OUT"
 step "reviewer: 할 수 있는 것을 역할 이름으로 연다" has_text 'reviewer 가 할 수 있는 것' "$GUARD_OUT"
 step "reviewer: 대신 낼 신호를 지시한다"       has_text 'SIGNAL: CHANGES_REQUESTED' "$GUARD_OUT"
@@ -1990,7 +2225,7 @@ step "reviewer: 근거 문서를 인용한다"          has_text 'agents/reviewe
 step "reviewer: 문제의 도구 이름이 실린다"     has_text 'Write 도구' "$GUARD_OUT"
 step "reviewer: evaluator 용 문구가 섞이지 않는다" lacks_text 'SIGNAL: MATCH' "$GUARD_OUT"
 
-run "$(j_tool_agent Edit "$GR_PATH" "$GR_E")"
+runm "$(j_tool_agent Edit "$GR_PATH" "$GR_E")"
 echo "  deny(Edit/evaluator) → $GUARD_OUT"
 step "evaluator: 할 수 있는 것을 역할 이름으로 연다" has_text 'evaluator 가 할 수 있는 것' "$GUARD_OUT"
 step "evaluator: 대신 낼 신호를 지시한다"      has_text "SIGNAL: MATCH" "$GUARD_OUT"
@@ -2040,6 +2275,60 @@ for c in 'git status' 'git log --oneline -3' 'git diff HEAD~1' 'git show HEAD' '
   runrole "$c" "$GR_R"
   step "통과(채점자 git 읽기): $c" [ "$GUARD_RC" -eq 0 ]
 done
+
+# ── 두 낱말 읽기 쌍 (skills#226). 하위 명령만으로는 읽기·쓰기가 갈리지 않아 GR_GIT_READ 에
+#    올릴 수 없는 것들의 읽기 형태를, C3 의 MC_GIT_READ_OPT 를 재사용해 면제한다.
+#    실측 오탐: skills#191 회차의 `gh issue view <n> -R $(git remote get-url origin | sed …)`.
+#    **원인은 명령 치환이 아니다** — 치환 밖의 같은 명령도 함께 막혔고 아래 두 줄이 그 짝이다.
+for c in \
+  "gh issue view 42 -R \$(git remote get-url origin | sed -E 's#.*[:/]([^/]+/[^/]+?)(\.git)?\$#\1#')" \
+  'git remote get-url origin' \
+  'echo $(git remote get-url origin)' \
+  'git remote -v' 'git remote show origin' \
+  'git config --get remote.origin.url' 'git config --list' \
+  'git worktree list' 'git stash list' 'git tag -l' \
+  'git status --porcelain --ignored; ls -la' \
+  'git status --porcelain --ignored && git diff --stat && git log --oneline -3'; do
+  runrole "$c" "$GR_R"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "통과(채점자 git 읽기 쌍): $c" [ "$GUARD_RC" -eq 0 ]
+done
+# **넓히는 것이지 여는 것이 아니다.** 쌍이 어긋나면 종전대로 막힌다 — 명령 치환 안이라고
+# 통과시키지 않는다는 것이 아래 두 줄(`echo $(…)`)의 몫이다.
+# `git branch -D x` 는 이 배열에 없다 — bare `branch` 가 GR_GIT_READ 의 면제어라 종전부터
+# 통과하며, 그것은 이 변경과 무관한 기존 한계다 (../docs/guardrails.md r_grader_shell 행).
+for c in \
+  'git remote add up https://x' 'git remote remove origin' 'git remote set-url origin https://x' \
+  'git config user.email x@y' 'git tag -d v1' 'git worktree add /tmp/w main' \
+  'git stash push -m x' \
+  'echo $(git commit -m x)' 'echo $(git remote remove origin)' \
+  'git remote get-url origin && git commit -m x'; do
+  runrole "$c" "$GR_E"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "차단(쌍이 어긋난 git 쓰기): $c" [ "$GUARD_RC" -eq 2 ]
+done
+# 원장 쓰기는 명령 치환 안에서도 막힌다 — 위 git 면제가 원장 규칙까지 새게 하지 않음을 본다.
+for c in "echo \$($FX_LS note $FX_TASK hi)" "echo \$(bd -C $FX_ROOT close $FX_TASK)"; do
+  runrole "$c" "$GR_R"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "차단(치환 안의 원장 쓰기): $c" [ "$GUARD_RC" -eq 2 ]
+done
+
+# 부정 대조군 — 넓힌 쌍 판정 한 줄만 뺀 사본에서 위 첫 줄이 rc=2 로 돌아온다.
+NEG_GRS="$TMP/guard-no-grader-pair.sh"
+GRS_MARK='case " $MC_GIT_READ_OPT " in *" $gsub:$gnxt "*) continue ;; esac'
+step "부정 대조군 전제: 쌍 판정이 채점자 규칙에 1줄 실재한다" \
+  [ "$(grep -cF "$GRS_MARK" "$HOOK")" -eq 1 ]
+grep -vF "$GRS_MARK" "$HOOK" > "$NEG_GRS"; chmod +x "$NEG_GRS"
+step "부정 대조군 전제: 사본이 실재하고 원본과 다르다" not_same "$HOOK" "$NEG_GRS"
+runh "$NEG_GRS" "$(j_sub "gh issue view 42 -R \$(git remote get-url origin | sed -E 's#x#y#')" "$GR_R")"
+step "부정 대조군: 쌍 판정을 빼면 그 읽기가 rc=2 로 돌아온다" [ "$GUARD_RC" -eq 2 ]
+# 목록을 둘로 두지 않았다는 단언 — 채점자 규칙이 C3 와 **같은** 변수를 본다. 여기서 갈리면
+# 한쪽만 늘어났을 때 두 규칙의 판정이 조용히 어긋난다.
+step "채점자 규칙이 C3 와 같은 쌍 목록(MC_GIT_READ_OPT)을 본다" \
+  [ "$(grep -cF 'MC_GIT_READ_OPT " in' "$HOOK")" -eq 2 ]
+step "쌍 추출도 한 자리다 (git_next_token 정의 1 · 호출 2)" \
+  [ "$(grep -cF 'git_next_token' "$HOOK")" -eq 3 ]
 
 # ── 막지 못하는 것. rc=0 을 단언으로 박아 둔다 — harness-uhy.5.1 note "한계" 와 1:1.
 declare -a GR_LIMIT_N=() GR_LIMIT_JSON=() GR_LIMIT_CMD=()
@@ -2594,6 +2883,8 @@ step "읽어낸 하위 명령이 값이 아니라 create 다" has_text "'bd crea
 # 구조 변경 통로를 여는 것은 아니다. 대신 **대상 이슈를 못 고른다**는 것이 실제 폭이고,
 # 그것이 위 한계 4 다.
 
+fi   # ↑↑ 임계 위 절 끝
+
 # ── ⑯ 발화 로그 (S16) ────────────────────────────────────────────────
 # 막는 것: **"발화 0" 과 "훅이 안 돌았다" 가 둘 다 무기록으로 보이는 상태.** 그 구분이
 # 없으면 규칙의 값어치를 재는 계수가 사람의 기억뿐이다 (harness-pl7 S16).
@@ -2751,6 +3042,78 @@ step "A/B: 로깅을 뺀 사본은 차단은 그대로인데 로그가 비었다
 : > "$LG"
 runlog "$HOOK" "$(j_sess "$WT_PROBE" "$FX_SESS")"
 step "A/B 대조: 원본은 같은 입력에서 로그를 남긴다" [ -s "$LG" ]
+
+# (h) rows — 분류에 쓸 축. 계수는 "몇 번 발화했나" 만 내고, 그 발화가 정당했는지는 규칙
+#     이름만으로 못 가른다. 여기서 막는 것은 **"차단 0건" 과 "못 셌다" 가 같은 값으로
+#     나오는 상태다** — 잘렸거나 명령이 없는 행을 정당으로도 오탐으로도 세면 오탐률이 그
+#     자리에서 거짓 근거가 된다. 세 부재를 rc 로 가르고, 행마다 분류 가능성을 단언한다.
+ROWSLOG="$TMP/s16-rows.tsv"
+ROWSERR="$TMP/s16-rows.err"
+# 한글이 섞여 **바이트로는 120 을 넘지만 문자로는 못 미치는** 온전한 명령. 길이를 바이트로
+# 재면 이 행이 절단으로 뒤집힌다 — 아래 A/B 가 그 뒤집힘을 귀속한다.
+ROWS_KO="한글이 섞였고 바이트로는 백이십을 넘지만 문자로는 못 미치는 온전한 명령 하나를 여기 둔다"
+ROWS_120=$(printf "a%.0s" {1..120})
+{
+  printf 't1\tfx-r1\timpl\tBash\t-\n'
+  printf 't2\tfx-r1\timpl\tBash\tr_x\tledger.sh close foo\n'
+  printf 't3\tfx-r1\t-\tBash\tSKIP-nojq\n'
+  printf 't4\tfx-r2\timpl\tBash\tr_y\n'
+  printf 't5\tfx-r1\timpl\tBash\tr_x\t%s\n' "$ROWS_120"
+  printf 't6\tfx-r1\timpl\tBash\tr_z\t%s\n' "$ROWS_KO"
+} > "$ROWSLOG"
+# 회차 인자가 빈 문자열이면 전체다 — 인자 개수를 갈라 부르면 이 함수가 두 벌이 된다.
+runrows() {  # runrows <계수 명령> <로그> <회차 또는 빈 문자열>
+  ROWS_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$2" "$1" rows "$3" 2>"$ROWSERR")
+  ROWS_RC=$?; ROWS_ERR=$(cat "$ROWSERR")
+}
+rowstate() {  # rowstate <시각 열 값> — 그 행의 분류 가능성(6열)
+  awk -F'\t' -v t="$1" '$1 == t { print $6 }' <<< "$ROWS_OUT"
+}
+
+runrows "$LOGSH" "$ROWSLOG" ""
+echo "  rows: rc=$ROWS_RC / $ROWS_ERR"
+step "rows rc=0"                                        [ "$ROWS_RC" -eq 0 ]
+step "rows 가 차단 행만 낸다 (통과·SKIP 은 빠진다)"       [ "$(printf '%s\n' "$ROWS_OUT" | wc -l)" -eq 4 ]
+step "rows 는 일곱 열이다"                               [ "$(awk -F'\t' 'END { print NF }' <<< "$ROWS_OUT")" -eq 7 ]
+step "온전한 명령 행은 ok"                               [ "$(rowstate t2)" = "ok" ]
+step "옛 5열 행은 nocmd (0건이 아니라 못 세는 행)"        [ "$(rowstate t4)" = "nocmd" ]
+step "120자에 걸린 행은 truncated (분류 불가)"            [ "$(rowstate t5)" = "truncated" ]
+# 이 한 줄이 길이를 **문자**로 세는지를 든다. 바이트로 세면 truncated 로 뒤집힌다.
+step "한글 섞인 온전한 명령이 ok 다 (길이를 문자로 센다)"  [ "$(rowstate t6)" = "ok" ]
+step "요약이 셋을 따로 센다"                              has_text "분류 가능 2 · 절단(120자 상한) 1 · 명령 없음(옛 5열 행) 1" "$ROWS_ERR"
+step "요약은 stderr 다 (stdout 은 기계값만 든다)"          lacks_text "분류 가능" "$ROWS_OUT"
+
+# 세 부재. **rc 가 서로 달라야 한다** — 같으면 읽는 사람이 "0 이었다" 와 "못 셌다" 를
+# 구분할 수 없고, 그 순간 오탐률 0 이 근거로 쓰인다.
+runrows "$LOGSH" "$ROWSLOG" "fx-r2"; R_ALLBAD=$ROWS_RC; ERR_ALLBAD=$ROWS_ERR
+printf 't1\tfx-r3\timpl\tBash\t-\nt2\tfx-r3\timpl\tBash\tSKIP-nojq\n' > "$TMP/s16-noblock.tsv"
+runrows "$LOGSH" "$TMP/s16-noblock.tsv" ""; R_ZERO=$ROWS_RC; ERR_ZERO=$ROWS_ERR
+runrows "$LOGSH" "$ROWSLOG" "fx-none"; R_NOSESS=$ROWS_RC; ERR_NOSESS=$ROWS_ERR
+runrows "$LOGSH" "$TMP/s16-absent-rows.tsv" ""; R_NOLOG=$ROWS_RC
+echo "  부재 rc: 로그없음=$R_NOLOG 차단0=$R_ZERO 회차없음=$R_NOSESS 전부분류불가=$R_ALLBAD"
+step "차단이 실제로 0 → rc=4"                            [ "$R_ZERO" -eq 4 ]
+step "없는 회차 → rc=5 (0건이 아니라 회차를 못 찾았다)"    [ "$R_NOSESS" -eq 5 ]
+step "차단은 있는데 전부 분류 불가 → rc=6"                [ "$R_ALLBAD" -eq 6 ]
+step "로그 부재 → rc=1 (rows 도 계수와 같은 판정)"         [ "$R_NOLOG" -eq 1 ]
+step "네 rc 가 서로 다르다 (같으면 '0건' 과 '못 셌다' 가 한 값)" \
+  bash -c '[ "$(printf "%s\n" "$@" | sort -u | wc -l)" -eq 4 ]' _ "$R_NOLOG" "$R_ZERO" "$R_NOSESS" "$R_ALLBAD"
+step "차단 0 문구가 '실제로 0' 이라고 말한다"              has_text "차단이 실제로 0" "$ERR_ZERO"
+step "회차 없음 문구가 '못 찾았다' 라고 말한다"            has_text "회차를 못 찾았다" "$ERR_NOSESS"
+step "전부 분류 불가 문구가 '오탐 0 이 아니라' 라고 말한다"  has_text "오탐 0 이 아니라 못 셌다" "$ERR_ALLBAD"
+step "전부 분류 불가여도 행 자체는 나온다 (사람이 볼 재료)"  has_text "nocmd" "$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$ROWSLOG" "$LOGSH" rows fx-r2 2>/dev/null)"
+
+# 모르는 하위 명령이 로그 부재의 rc=1 로 새어나오면 사람이 없는 상태를 고치러 간다.
+BADSUB_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent-rows.tsv" "$LOGSH" nosuchsub 2>&1); BADSUB_RC=$?
+step "모르는 하위 명령 → rc=2 (로그 부재의 1 과 다르다)"   [ "$BADSUB_RC" -eq 2 ]
+step "모르는 하위 명령 문구가 '훅이 한 번도' 가 아니다"     lacks_text "훅이 한 번도" "$BADSUB_OUT"
+
+# A/B 귀속 — 길이를 문자가 아니라 바이트로 재는 사본에서 한글 행이 절단으로 뒤집힌다.
+ROWS_AB="$TMP/s16-rows-bytelen.sh"
+sed 's/chars(\$6) >= 120/length($6) >= 120/' "$LOGSH" > "$ROWS_AB"; chmod +x "$ROWS_AB"
+step "A/B 전제: 사본이 원본과 다르다" not_same "$LOGSH" "$ROWS_AB"
+runrows "$ROWS_AB" "$ROWSLOG" ""
+step "A/B 대조: 사본도 살아 있다 (죽어서 다른 것이 아니다)" [ "$ROWS_RC" -eq 0 ]
+step "A/B: 바이트로 재는 사본은 한글 온전 행을 절단으로 뒤집는다" [ "$(rowstate t6)" = "truncated" ]
 
 # ── ⑱ 부재의 두 원인 (S16-b) ────────────────────────────────────────
 # 막는 것: **로그가 비었을 때 "훅 미실행" 과 "로깅 없는 guard.sh 가 발화 중" 이 같은
