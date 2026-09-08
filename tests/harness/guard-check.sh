@@ -1013,6 +1013,10 @@ BD_LEAK_LABEL+=("--directory 표기 + 역따옴표")
 BD_LEAK_CMD+=("bd --directory $MCROOT note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`")
 BD_LEAK_LABEL+=("bd 없는 단독형 — 본 체크아웃")
 BD_LEAK_CMD+=("git -C $MCROOT/repo checkout -- .")
+# 조건 (c) — 값이 하네스 루트가 **아니면** 건너뛰지 않는다. 위 통과 대조(면제 단독형)와 형태가
+# 같고 값만 다르므로, (c) 가 죽으면 그것들만으로는 안 잡히고 여기서만 드러난다.
+BD_LEAK_LABEL+=("(c) -C 값이 하네스 루트가 아니다 — 본 체크아웃 하위 경로")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo/docs note $FX_TASK x")
 for i in "${!BD_LEAK_LABEL[@]}"; do
   runh "$HOOK" "$(j_sub "${BD_LEAK_CMD[$i]}" 'harness:implementer')"
   printf '  rc=%d  %s\n' "$GUARD_RC" "${BD_LEAK_LABEL[$i]}"
@@ -1037,16 +1041,37 @@ runh "$NEG_BDSEG" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT
 step "부정 대조군 ①: 건너뛰기를 모든 조각에 풀면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 runh "$NEG_BDSEG" "$(j_bash "rm -rf $MCROOT")"
 step "부정 대조군 ①: 그 사본이 다른 이유로 죽지 않았다 (클론 루트 삭제는 rc=2)" [ "$GUARD_RC" -eq 2 ]
-# A/B 귀속 ② — 역따옴표를 조각 경계에서 뺀 사본에서 2회차가 놓친 형태가 되살아난다.
+# A/B 귀속 ② — 역따옴표 경계를 mc_cand_tokens 에서 뺀 사본에서 2회차가 놓친 형태가 되살아난다.
 NEG_BT="$TMP/guard-no-backtick.sh"
-step "부정 대조군 전제: 역따옴표 경계가 훅에 1줄 실재한다" \
-  [ "$(grep -cF '[;|(`]' "$HOOK")" -eq 1 ]
-sed 's/\[;|(`\]/[;|(]/' "$HOOK" > "$NEG_BT"; chmod +x "$NEG_BT"
+step "부정 대조군 전제: mc_cand_tokens 의 역따옴표 경계가 훅에 1줄 실재한다" \
+  [ "$(grep -cF "| tr '\`' '\\n')\")" "$HOOK")" -eq 1 ]
+sed "s/ | tr '\`' '\\\\n'//" "$HOOK" > "$NEG_BT"; chmod +x "$NEG_BT"
 step "부정 대조군 ② 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BT"
 runh "$NEG_BT" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`" 'harness:implementer')"
 step "부정 대조군 ②: 역따옴표가 경계가 아니면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 runh "$NEG_BT" "$(j_bash "rm -rf $MCROOT")"
 step "부정 대조군 ②: 그 사본이 다른 이유로 죽지 않았다 (클론 루트 삭제는 rc=2)" [ "$GUARD_RC" -eq 2 ]
+
+# ── 역따옴표 경계는 **mc_cand_tokens 안에만** 산다 (skills#239 3회차 리뷰) ─────────
+# 3회차가 이 경계를 공용 `cmd_segments` 에 얹었다가 양방향으로 어긋났다. 국소화가 유지되는지를
+# 두 방향에서 각각 못박는다 — 한 방향만 두면 다음 회차가 반대쪽으로 다시 넘어간다.
+# ① **막던 것이 통과했다** — 도구 이름 바로 뒤의 역따옴표가 조각을 잘라 하위 명령이 비고,
+#    subcmds_after 를 보는 규칙들(r_remote·r_impl_bd·r_bd_root)이 "옵션만 있는 호출 = 읽기" 로 읽었다.
+for c in "gh \`echo pr\` create --title x" "bd \`x\` create $FX_TASK"; do
+  runh "$HOOK" "$(j_sub "$c" 'harness:implementer')"
+  printf '  rc=%d  역따옴표 부작용①: %s\n' "$GUARD_RC" "$c"
+  step "도구 이름 뒤 역따옴표가 하위 명령을 비우지 않는다: $c" [ "$GUARD_RC" -eq 2 ]
+done
+# ② **안 막던 것이 막혔다** — mc_segcmd 는 인용 안의 `;|&()` 만 중화하고 역따옴표는 안 해서,
+#    작은따옴표 안의 **리터럴** 역따옴표가 mc_all_readonly 에서 경계로 읽혔다. 기존 중화가
+#    살아 있는지를 같은 자리에서 함께 든다 — 넷은 이 변경 전부터 통과하던 형태다.
+for c in "grep -n '\`' $MCROOT/repo/README.md" "grep -n 'a;b' $MCROOT/repo/README.md" \
+         "grep -n 'a|b' $MCROOT/repo/README.md" "grep -n 'a&b' $MCROOT/repo/README.md" \
+         "grep -n 'a(b' $MCROOT/repo/README.md"; do
+  runh "$HOOK" "$(j_bash "$c")"
+  printf '  rc=%d  인용 안 경계 문자: %s\n' "$GUARD_RC" "$c"
+  step "인용 안의 리터럴 경계 문자가 읽기 전용 명령을 막지 않는다: $c" [ "$GUARD_RC" -eq 0 ]
+done
 
 # ── `$HOME` 표기 (harness-0ig). mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 이 `$HOME`
 # 뒤 슬래시부터 잡아 엉뚱한 절대 경로를 만들었다 — 틸드는 막히고 `$HOME` 은 새는 비대칭.

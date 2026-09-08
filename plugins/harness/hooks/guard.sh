@@ -165,7 +165,7 @@ COMMAND_RAW="$(field '.tool_input.command')"    # Bash — 인용부호를 걷�
 # 실행하는데 낱말 판정(has_token 의 -w)은 그 글자에 막혀 **미탐**이었다 [실측 2026-08-28,
 # implementer: 둘 다 rc=0 — 리뷰 #6]. 리터럴 `\n`·`\t` 는 먼저
 # 공백으로 되돌린다(걷어내면 `\n/path` 가 `n/path` 로 붙어 경로 추출이 어긋난다).
-# 역따옴표는 남긴다 — 걷어내면 뒤의 경로 추출이 어긋나고, cmd_segments 가 그것을 명령 치환의
+# 역따옴표는 남긴다 — 걷어내면 뒤의 경로 추출이 어긋나고, mc_cand_tokens 가 그것을 명령 치환의
 # 경계로 읽는다(그 함수 주석).
 strip_quotes() { sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g"; }
 COMMAND="$(printf '%s' "$COMMAND_RAW" | strip_quotes)"
@@ -242,7 +242,7 @@ subcmds_after() {  # subcmds_after <도구> <값-받는 옵션 목록> [건초�
 
 # ── 실행 위치 ───────────────────────────────────────────────────────
 # 규칙은 낱말의 **존재**가 아니라 **실행되는 자리**를 본다. 명령 문자열을 조각으로 나누고
-# (경계: `;` `&&` `||` `|` `(` `$(` 역따옴표 개행) 조각의 **첫 실행 낱말**을 그 조각이 실행하는 명령으로
+# (경계: `;` `&&` `||` `|` `(` `$(` 개행) 조각의 **첫 실행 낱말**을 그 조각이 실행하는 명령으로
 # 읽는다. 앞에 붙는 것은 건너뛴다 — `VAR=값` · 옵션(`-x`) · 숫자(`timeout 5` 의 5) · 래퍼
 # (timeout env nice sudo bash sh zsh — `bash -c "bd …"` 의 실행은 bd 다) · 명령 앞에 서는 셸
 # 키워드(if then else elif while until do — `if git push; then` 의 실행은 git 이고 `do cat f` 는 cat 이다).
@@ -254,11 +254,17 @@ subcmds_after() {  # subcmds_after <도구> <값-받는 옵션 목록> [건초�
 # `[` 는 낱말로 남긴다 — tr 이 지우면 `[ -f <경로> ]` 의 첫 실행 낱말이 경로의 basename 이 된다
 # (MC_READ_CMDS 의 `[` 가 그래서 죽어 있었다 — harness-m8gg.8.5 note).
 EXEC_WRAPPERS="timeout env nice sudo bash sh zsh if then else elif while until do"
-# **역따옴표는 `$(` 와 같은 경계다.** 둘 다 명령 치환이고, 그 안의 낱말은 바깥 조각이 아니라
-# **자기 명령**으로 실행된다. 경계로 읽지 않으면 `echo \`git push\`` 의 실행 낱말이 echo 가 되고
-# (r_remote 미탐), `bd -C <루트> note x \`git -C <본 체크아웃> checkout -- .\`` 의 git 이 bd 조각
-# 안에 든 것으로 읽힌다 [skills#239 2회차의 누출 — 실측 rc=0].
-cmd_segments() { printf '%s\n' "${1-$COMMAND}" | sed -E 's/\|\||&&|[;|(`]|\$\(/\n/g'; }
+# **역따옴표는 여기서 경계가 아니다.** `$(` 와 같은 명령 치환이지만, 이 함수는 **모든** 규칙이
+# 공유하는 조각 나누기다 — 여기에 얹으면 사거리가 규칙 전체로 퍼진다. skills#239 3회차가 실제로
+# 그렇게 얹었다가 양방향으로 어긋났다 [실측 2026-09-08, 3회차 리뷰]:
+#   ① 막던 것이 통과 — 도구 이름 **바로 뒤**의 역따옴표가 조각을 잘라 하위 명령이 비고,
+#      subcmds_after 를 보는 규칙들이 그것을 "옵션만 있는 호출 = 읽기" 로 읽었다
+#      (`gh \`echo pr\` create --title x` · `bd \`x\` create foo` 가 rc 2 → rc 0).
+#   ② 안 막던 것이 차단 — mc_segcmd 는 인용 안의 `;|&()` 만 중화하고 역따옴표는 안 해서,
+#      작은따옴표 안의 **리터럴** 역따옴표가 경계로 읽혔다 (`grep -n '\`' <본 체크아웃>/README.md`
+#      가 rc 0 → rc 2 — 읽기 전용 명령이 막혔다).
+# 역따옴표를 경계로 볼 필요가 있는 자리는 mc_cand_tokens 하나뿐이고, 그쪽이 자기 안에서 다룬다.
+cmd_segments() { printf '%s\n' "${1-$COMMAND}" | sed -E 's/\|\||&&|[;|(]|\$\(/\n/g'; }
 seg_exec_word() {  # seg_exec_word <조각> → 첫 실행 낱말 (없으면 빈 줄)
   printf '%s' "$1" | tr -c 'A-Za-z0-9_.:/=[-' '\n' \
     | awk -v w="$EXEC_WRAPPERS" '
@@ -526,9 +532,17 @@ mc_is_harness_root() {  # mc_is_harness_root <경로>
 # 건너뛰기에는 사거리가 없다 — 판정이 **등장 단위**라 다른 등장에 닿지 못한다. 이 레포가 세 번
 # 기록한 "명령 형태를 문자열 수술로 다루면 샌다"(이 파일 머리말 · ../docs/guardrails.md 1절)의 방향이다.
 #
-# 건너뛰는 조건은 둘 다 설 때뿐이다: (a) 그 조각의 실행 낱말이 `bd` 이고 (b) 그 등장이 원장 지정
-# 옵션(`-C`·`--directory`·`--db`) 바로 뒤이며 값이 하네스 루트다. `ledger.sh` 쪽 지정 표기
+# 건너뛰는 조건은 셋 다 설 때뿐이다: (a) 그 조각의 실행 낱말이 `bd` 이고 (b) 그 등장이 원장 지정
+# 옵션(`-C`·`--directory`·`--db`) 바로 뒤이며 (c) 값이 하네스 루트다. `ledger.sh` 쪽 지정 표기
 # (`HARNESS_ROOT=`)는 부르는 쪽이 먼저 걷는다 — 그쪽 사유는 r_main_shell 의 그 절에 있다.
+#
+# **역따옴표는 여기서만 조각 경계다.** 조건 (a) 를 판정할 때 그 안의 낱말은 바깥 조각이 아니라
+# **자기 명령**으로 실행되므로, 경계로 읽지 않으면 `bd -C <루트> note x \`git -C <본 체크아웃>
+# checkout -- .\`` 의 git 이 bd 조각 안에 든 것으로 읽혀 (a) 가 성립해 버린다
+# [skills#239 2회차의 누출 — 실측 rc=0]. 공용 `cmd_segments` 에 얹지 **않는** 이유는 그 함수의
+# 주석에 있다 — 얹으면 subcmds_after 를 보는 규칙들과 mc_all_readonly 가 양방향으로 어긋났다.
+# 여기서 자르는 것은 이 함수가 내는 후보 토큰뿐이라 사거리가 이 함수를 넘지 않고, 아래 후보 grep
+# 의 문자 클래스가 이미 역따옴표를 경로의 끝으로 취급하므로 잘라도 후보가 달라지지 않는다.
 mc_cand_tokens() {  # mc_cand_tokens <명령>
   local seg w prev tok
   while IFS= read -r seg; do
@@ -545,7 +559,7 @@ mc_cand_tokens() {  # mc_cand_tokens <명령>
       printf '%s\n' "$tok"
       prev="$tok"
     done < <(printf '%s\n' "$seg" | tr ' \t' '\n\n')
-  done < <(cmd_segments "$1")
+  done < <(cmd_segments "$(printf '%s' "$1" | tr '`' '\n')")
 }
 
 # 이 호출이 **파일 쓰기**인가 — 아래 두 규칙(r_main_write·r_grader_write)의 공통 판정.
