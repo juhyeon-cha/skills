@@ -116,10 +116,14 @@ fi
 awk -F'\t' -v sess="${SESS}" -v logpath="${LOG}" '
   # 이어지는 바이트(0x80~0xBF) 를 세어 빼면 문자 수다. awk 의 length() 가 바이트라
   # 이 표가 없으면 한글 섞인 온전한 명령이 절단으로 뒤집힌다.
-  # **이 표 자체가 awk 의 바이트 지향을 전제한다** — UTF-8 을 아는 awk 에서는 substr() 이
-  # 문자를 내므로 이어지는 바이트가 하나도 안 잡혀 chars() 가 바이트 계수로 되돌아간다.
-  # 조용하지는 않다: 그때 tests/harness/guard-check.sh ⑯ (h) 의 t6 단언(한글 온전 행 = ok)이
-  # 깨진다. 새 awk 로 옮길 때는 그 단언을 먼저 돌려 볼 것.
+  # **이 표 자체가 awk 의 바이트 지향을 전제한다.** UTF-8 을 아는 awk 에서는 substr() 과
+  # length() 가 둘 다 문자 기준일 수 있고, 그러면 이어지는 바이트가 하나도 안 잡혀
+  # chars() 가 length() 를 그대로 낸다 — 값은 맞지만 전제가 조용히 바뀐 것이다.
+  # 미실측 가설이다 (이 기계에 gawk 등 UTF-8 인식 awk 가 없어 재지 못했다).
+  # **이 경우를 시험하는 단언은 없다.** 위 가설대로면 tests/harness/guard-check.sh ⑯ (h) 의
+  # t6(한글 온전 행 = ok)은 그대로 통과하므로 안전망이 되지 못하고, 그 옆 A/B 는
+  # chars($6) 를 length($6) 로 바꾼 사본을 재는 **다른 시나리오**라 이 경우를 안 든다.
+  # 새 awk 로 옮길 때는 그 awk 로 직접 chars() 를 재 볼 것.
   BEGIN { for (i = 128; i <= 191; i++) cont[sprintf("%c", i)] = 1 }
   function chars(s,   i, n, k) {
     n = length(s); k = 0

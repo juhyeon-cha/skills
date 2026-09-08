@@ -40,6 +40,12 @@ The harness says a gate does not weaken a prohibition. The other side has no pla
 
 Seven TSV columns — time · round · agent · tool · rule · classifiability · command; the summary goes to stderr. `<round>` is a `session_id`; leave it off to take every round in the log. Run it with no argument first — the round column is the axis, not the filter.
 
+That run is hundreds of rows, so group them before reading any:
+
+    bash ${CLAUDE_PLUGIN_ROOT}/scripts/guard-log.sh rows | cut -f2,5,6 | sort | uniq -c
+
+Round × rule × classifiability with a count — that is the denominator per rule, and it is what ② and ③ below are computed over. Then read the full rows of the rules that clear ③'s 5-row floor. **Rules older than the log get their rate quoted per round, never pooled** — ceiling 6 of section 11 says why.
+
 **Read rc before reading a single row.** rc=4 ("blocking really was 0") and rc=6 ("blocking happened, none of it classifiable") are the pair that fabricates a clean rule when folded together, and rc=5 is a missing round, not an empty one. The full rc table and every ceiling on these numbers are **[guardrail-verification.md](../../docs/guardrail-verification.md) section 11, "When firing counts can be used as evidence"** — that section owns them, this one does not restate them. Read it before quoting any rate; two of its ceilings (the 120-character cut halving the denominator, and the log sampling guard firings rather than blocked work) decide how the rate may be worded.
 
 **② What is judged — and by whom**
