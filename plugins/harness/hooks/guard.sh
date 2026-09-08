@@ -476,7 +476,9 @@ mc_locate() {
 #
 # **깊이는 한 칸이다.** 클론 루트의 실제 모양이 `<루트>/<레포>/.harness.json` 이라(scripts/repo.sh 가
 # 만드는 층) 자식 디렉토리 한 겹의 glob 한 번이면 그 층은 전부 잡힌다. 훅은 **모든 도구 호출마다**
-# 도므로 비용을 여기서 못박는다 — 후보 토큰 하나당 readdir 한 번, 재귀 없음.
+# 도므로 비용을 여기서 못박는다 — 후보 토큰 하나당 `mc_norm` 서브셸 하나 + readdir 한 번 +
+# **자식 디렉토리마다 `[ -f ]` stat 한 번**, 재귀 없음. 자식 수에 선형이다.
+# 리뷰 실측(2026-09-08): 훅 한 번 76ms → 88ms, 자식 5000 개인 자리를 겨눈 후보 하나가 약 24ms.
 # 못 잡는 것: 트리보다 **두 칸 이상** 위(`rm -rf ~` 같은 홈 디렉토리). 깊이를 늘리면 비용이 곱으로
 # 늘고, 트리와 무관한 상위 디렉토리까지 함께 막히는 과잉이 된다 — ../docs/guardrails.md "못 막는 것".
 #
@@ -696,7 +698,7 @@ mc_all_readonly() {
 }
 
 r_main_shell() {
-  local cand cmd tail hit hrn prev tok
+  local cand cmd tail hit hrn prev tok seg bdcmd
   # `$HOME`·`${HOME}` 을 먼저 펼친다. mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 은
   # `$HOME` 뒤의 슬래시부터 잡아 엉뚱한 절대 경로를
   # 만든다 — 그래서 틸드는 막히고 `$HOME` 은 새는 비대칭이 생겼다. 셸이 실제로 펼칠
@@ -729,23 +731,36 @@ r_main_shell() {
   # 이 인정하는 그 셋). 클론 루트가 곧 하네스 루트인 배치에서는 이것이 없으면 A4 가 요구하는 지명이
   # 아래 클론 루트 차단에 걸린다 [실측 2026-09-08: guardrail-check S1 의 r_impl_bd 프로브
   # `bd -C <TMP> close probe-1` 이 클론 루트 메시지로 막혀 A/B 귀속이 뒤집혔다].
-  # **토큰은 `bd` 가 실행되는 조각에서만 읽는다.** 명령 문자열 전체에서 읽으면 같은 철자를 쓰는
-  # `git -C <본 체크아웃>` 의 값까지 벗겨져 본 체크아웃 경로가 후보에서 통째로 사라진다
-  # [실측 2026-09-08: 조각을 안 가른 시안에서 `git -C <본 체크아웃> checkout -- .` 등 7건이 rc=0].
-  # 값 다음의 **공백**이 "정확히 그 토큰" 을 보장하는 것도, 정규식을 쓰지 않는 이유도 위와 같다.
-  # 한계: 조각은 원본 명령이라 `$HOME` 이 안 펼쳐져 있다 — 위 두 줄과 같은 리터럴 치환으로 맞춘다.
-  prev=""
-  while IFS= read -r tok; do
-    tok="${tok//\$\{HOME\}/$HOME}"; tok="${tok//\$HOME/$HOME}"
-    case "$prev" in
-      -C|--directory|--db)
-        hrn="$(mc_norm "$tok")"
-        if [ -n "$tok" ] && { [ -f "$hrn/.harness.json" ] || mc_holds_trees "$hrn"; }; then
-          cmd="${cmd//"$prev $tok "/}"
-        fi ;;
-    esac
-    prev="$tok"
-  done < <(exec_segments bd | tr ' \t' '\n\n')
+  # **토큰을 읽는 것도 벗기는 것도 `bd` 가 실행되는 조각 안에서다.** 위 `HARNESS_ROOT=` 면제는
+  # 벗길 문자열이 그 변수 이름으로 고정돼 명령 전체에 치환해도 남의 후보를 건드리지 않지만,
+  # `-C <경로> ` 는 `git`·`gh` 도 쓰는 철자다. 조각을 가려 **읽기만** 하고 치환은 `cmd` 전체에
+  # 하면 같은 철자가 든 **다른 조각**의 후보까지 함께 사라진다
+  # [실측 2026-09-08: `bd -C <본 체크아웃> note x && git -C <본 체크아웃> checkout -- .` 가 rc=0 —
+  #  허용된 `bd … note` 를 앞에 붙이는 것만으로 C3 와 클론 루트 차단이 한 번에 우회됐다].
+  # 그래서 조각 **안에서** 벗기고 조각을 도로 이어 붙인다. 이을 때 넣는 개행은 아래 후보 grep 의
+  # 문자 클래스가 이미 경계로 취급하므로 판정에 들지 않는다.
+  # 조각을 `cmd` 에서 가르므로 `$HOME` 은 이미 펼쳐져 있다. 값 다음의 **공백**이 "정확히 그 토큰"
+  # 을 보장하는 것도, 정규식을 쓰지 않는 이유도 위와 같다 — 조각 끝에 공백 한 칸을 붙여
+  # 마지막 토큰인 형태(`… bd -C <루트>`)도 같은 모양으로 걸리게 한다.
+  bdcmd=""
+  while IFS= read -r seg; do
+    if [ "$(seg_exec_word "$seg")" = bd ]; then
+      seg="$seg "
+      prev=""
+      while IFS= read -r tok; do
+        case "$prev" in
+          -C|--directory|--db)
+            hrn="$(mc_norm "$tok")"
+            if [ -n "$tok" ] && { [ -f "$hrn/.harness.json" ] || mc_holds_trees "$hrn"; }; then
+              seg="${seg//"$prev $tok "/}"
+            fi ;;
+        esac
+        prev="$tok"
+      done < <(printf '%s' "$seg" | tr ' \t' '\n\n')
+    fi
+    bdcmd="$bdcmd$seg"$'\n'
+  done < <(cmd_segments "$cmd")
+  cmd="$bdcmd"
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
     # 레포 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<레포>/f` 는 인용을 걷으면 `s/a/b/w<레포>/f`

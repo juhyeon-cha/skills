@@ -933,7 +933,9 @@ done
 # 메시지가 **무엇을 잃는가**를 말한다 — 품은 트리 이름이 실려야 "레포 하나보다 크다"가 근거가 된다.
 runm "$(j_bash "rm -rf $MCROOT")"
 echo "  holder → $GUARD_OUT"
-step "클론 루트 메시지에 품은 트리 이름이 실린다" has_text 'repo' "$GUARD_OUT"
+# 트리 이름을 **목록 자리째** 짚는다 — 낱말 'repo' 만 보면 메시지의 산문("scripts/repo.sh 가
+# 소유한다")과 픽스처 디렉토리 이름에도 든 부분 문자열이라, 목록이 비어도 통과한다.
+step "클론 루트 메시지에 품은 트리 이름이 실린다" has_text '**품고 있다**: repo' "$GUARD_OUT"
 step "클론 루트 메시지가 무엇을 잃는지 말한다"   has_text '미커밋 변경' "$GUARD_OUT"
 # **과잉 대조군 — 이게 없으면 "위쪽을 전부 막는 규칙"도 위를 통과한다.** 넷 다 rc=0 이어야 한다
 # (skills#239 acceptance ③). 과잉을 고치는 스토리에서 새 과잉을 만드는 것이 최악의 결과다.
@@ -967,6 +969,45 @@ awk 'index($0,"mc_holds_trees \"$cand\" || continue") { print "        continue"
 step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_HOLD"
 runh "$NEG_HOLD" "$(j_bash "rm -rf $MCROOT")"
 step "부정 대조군: 그 줄을 되돌리면 클론 루트 삭제가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
+
+# ── bd 지정 면제가 **조각 밖으로 새지 않는다** (skills#239 리뷰 MUST FIX ①) ────────────
+# `bd -C <경로> ` 면제는 `-C` 라는 철자를 벗긴다 — `git`·`gh` 도 쓰는 철자다. 조각을 가려
+# **읽기만** 하고 치환을 명령 문자열 전체에 하면, 같은 철자를 쓰는 **다른 조각**의 후보까지
+# 함께 사라진다. 그러면 허용된 `bd … note` 를 앞에 붙이는 것만으로 C3(본 체크아웃 보호)와
+# 클론 루트 차단이 한 번에 우회된다 [실측 2026-09-08: 아래 셋이 전부 rc=0 이었다].
+# 통과 픽스처(위 (f)·아래 단독형)만으로는 이 부류가 안 잡힌다 — 대조가 여기 필요한 이유다.
+declare -a BD_LEAK_LABEL=() BD_LEAK_CMD=()
+BD_LEAK_LABEL+=("&& 로 이은 뒤 조각이 본 체크아웃을 건드린다")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT/repo checkout -- .")
+BD_LEAK_LABEL+=("; 로 이은 뒤 조각이 본 체크아웃을 건드린다")
+BD_LEAK_CMD+=("bd -C $MCROOT/repo note $FX_TASK x ; git -C $MCROOT/repo checkout -- .")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — git clean -fdx")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x && git -C $MCROOT clean -fdx")
+BD_LEAK_LABEL+=("뒤 조각이 클론 루트를 겨눈다 — rm -rf")
+BD_LEAK_CMD+=("bd -C $MCROOT note $FX_TASK x && rm -rf $MCROOT")
+BD_LEAK_LABEL+=("--db 표기도 같다")
+BD_LEAK_CMD+=("bd --db $MCROOT/repo note $FX_TASK x && rm -rf $MCROOT/repo")
+for i in "${!BD_LEAK_LABEL[@]}"; do
+  runh "$HOOK" "$(j_sub "${BD_LEAK_CMD[$i]}" 'harness:implementer')"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${BD_LEAK_LABEL[$i]}"
+  step "bd 면제가 조각 밖으로 새지 않는다: ${BD_LEAK_LABEL[$i]}" [ "$GUARD_RC" -eq 2 ]
+done
+# 대조 — 면제 자신은 살아 있어야 한다. 이 둘이 rc=2 로 뒤집히면 A4 가 요구하는 지명이
+# 그 자체로 막히는 배반이 다시 서고, guardrail-check S1 의 A/B 귀속이 무너진다.
+for c in "bd -C $MCROOT note $FX_TASK x" "bd -C $MCROOT/repo note $FX_TASK x"; do
+  runh "$HOOK" "$(j_sub "$c" 'harness:implementer')"
+  printf '  rc=%d  면제 단독형: %s\n' "$GUARD_RC" "$c"
+  step "면제 단독형은 통과한다: $c" [ "$GUARD_RC" -eq 0 ]
+done
+# A/B 귀속 — 조각을 가르는 한 줄을 무력화한 사본에서 위 우회가 되살아난다.
+NEG_BDSEG="$TMP/guard-bd-allseg.sh"
+step "부정 대조군 전제: 조각 판별이 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'if [ "$(seg_exec_word "$seg")" = bd ]; then' "$HOOK")" -eq 1 ]
+awk 'index($0,"if [ \"$(seg_exec_word \"$seg\")\" = bd ]; then") { print "    if true; then"; next } { print }' \
+  "$HOOK" > "$NEG_BDSEG"; chmod +x "$NEG_BDSEG"
+step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BDSEG"
+runh "$NEG_BDSEG" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT/repo checkout -- ." 'harness:implementer')"
+step "부정 대조군: 면제를 모든 조각에 풀면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
 # ── `$HOME` 표기 (harness-0ig). mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 이 `$HOME`
 # 뒤 슬래시부터 잡아 엉뚱한 절대 경로를 만들었다 — 틸드는 막히고 `$HOME` 은 새는 비대칭.
