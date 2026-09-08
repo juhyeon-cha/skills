@@ -485,8 +485,8 @@ mc_locate() {
 # 모든 레포의 클론·워크트리·미커밋 변경이 한 번에 사라진다.
 # 되살리되 **옛 고정 경로 변수로 돌아가지 않는다**(사용자 결정) — 판별자는 `.harness.json` 하나다.
 #
-# **깊이는 한 칸이다.** 클론 루트의 실제 모양이 `<루트>/<레포>/.harness.json` 이라(scripts/repo.sh 가
-# 만드는 층) 자식 디렉토리 한 겹의 glob 한 번이면 그 층은 전부 잡힌다. 훅은 **모든 도구 호출마다**
+# **깊이는 한 칸이다.** 클론 루트의 실제 모양이 `<루트>/<레포>/.harness.json` 이라(사람이 레포를
+# 클론해 두는 층) 자식 디렉토리 한 겹의 glob 한 번이면 그 층은 전부 잡힌다. 훅은 **모든 도구 호출마다**
 # 도므로 비용을 여기서 못박는다 — 후보 토큰 하나당 `mc_norm` 서브셸 하나 + readdir 한 번 +
 # **자식 디렉토리마다 `[ -f ]` stat 한 번**, 재귀 없음. 자식 수에 선형이다.
 # 리뷰 실측(2026-09-08): 훅 한 번 76ms → 88ms, 자식 5000 개인 자리를 겨눈 후보 하나가 약 24ms.
@@ -816,7 +816,7 @@ r_main_shell() {
       if [ -z "$hit" ]; then
         mc_holds_trees "$cand" || continue
         mc_all_readonly && return 0
-        deny "클론 루트 자체 금지 — 명령에 $MC_HOLDER 가 들어 있다. 그 자리는 어느 레포 트리도 아니지만 하네스 트리들을 **품고 있다**:$MC_TREES. 지우거나 옮기면 그 레포들의 클론·워크트리·**미커밋 변경**이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크고 복구 경로가 없다. 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $MC_HOLDER/<레포>/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 \`#\` 때문에 도구가 거부한다)."
+        deny "클론 루트 자체 금지 — 명령에 $MC_HOLDER 가 들어 있다. 그 자리는 어느 레포 트리도 아니지만 하네스 트리들을 **품고 있다**:$MC_TREES. 지우거나 옮기면 그 레포들의 클론·워크트리·**미커밋 변경**이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크고 복구 경로가 없다. 작업은 스토리 워크트리 안에서 한다: $MC_HOLDER/<레포>/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 \`#\` 때문에 도구가 거부한다)."
       fi
     fi
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
