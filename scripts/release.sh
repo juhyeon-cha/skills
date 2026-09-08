@@ -35,6 +35,26 @@ case "$BUMP" in
   *) echo "✗ 폭은 patch·minor·major 중 하나다 — 받은 값: $BUMP" >&2; usage; exit 1 ;;
 esac
 
+# **릴리스는 본 체크아웃의 기본 브랜치에서만 한다**(사용자 결정 2026-09-09). 워크트리는 본
+# 체크아웃이 든 기본 브랜치를 꺼낼 수 없으므로(git 이 막는다) 이 전제가 곧 "본 체크아웃에서
+# 하라" 는 뜻이다. 값이 하나 있다 — **하네스는 릴리스를 대신 돌릴 수 없다.** 대상 레포의 본
+# 체크아웃을 직접 건드리는 것이 절대 금지라, 사람이 손으로 하는 절차가 된다.
+DEFAULT=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
+[ -n "$DEFAULT" ] || DEFAULT=main
+
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$BRANCH" != "$DEFAULT" ]; then
+  echo "✗ 릴리스는 기본 브랜치($DEFAULT)에서 한다 — 지금은 '$BRANCH' 다" >&2
+  # 링크된 워크트리는 두 값이 갈린다. 갈리면 브랜치를 바꾸라는 안내가 무용하므로 자리를 짚어 준다.
+  if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
+    echo "  여기는 워크트리다. 워크트리는 본 체크아웃이 든 '$DEFAULT' 를 꺼낼 수 없다 —" >&2
+    echo "  본 체크아웃으로 가서 돌려라(하네스는 그 자리를 건드리지 않으므로 사람이 한다)." >&2
+  else
+    echo "  'git switch $DEFAULT' 뒤 다시 돌려라" >&2
+  fi
+  exit 1
+fi
+
 MANIFEST="plugins/$NAME/.claude-plugin/plugin.json"
 CHANGELOG="plugins/$NAME/CHANGELOG.md"
 [ -f "$MANIFEST" ] || { echo "✗ $MANIFEST 이 없다 — 플러그인 이름이 맞는가" >&2; exit 1; }
@@ -82,14 +102,6 @@ if ! git diff --cached --quiet; then
   git diff --cached --name-only >&2
   exit 1
 fi
-
-# 어느 브랜치에 서 있는지는 보지 않는다 — **어디로 push 하는지**만 본다. 워크트리는 본 체크아웃이
-# 든 기본 브랜치를 꺼낼 수 없으므로(git 이 막는다) "기본 브랜치 위에 있어라" 를 전제로 걸면
-# 워크트리에서 릴리스할 길이 없어지고, 본 체크아웃에서 하라는 뜻이 되어 하네스의 "본 체크아웃을
-# 직접 건드리지 않는다" 와 부딪힌다. 고아 태그를 막는 데 필요한 것은 그 전제가 아니라 아래 둘이다 —
-# HEAD 가 origin/<기본> 을 담고 있을 것, 그리고 **머지를 거치지 않고 그 브랜치로 바로 push 할 것.**
-DEFAULT=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
-[ -n "$DEFAULT" ] || DEFAULT=main
 
 if ! git fetch --quiet origin "$DEFAULT"; then
   echo "✗ origin/$DEFAULT 를 못 가져왔다 — push 할 수 있는지 확인할 수 없다" >&2
