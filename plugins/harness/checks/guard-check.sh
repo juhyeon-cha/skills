@@ -48,7 +48,9 @@
 #    플러그인 재구조화가 남긴 규칙은 앵커와 무관한 불변식 넷뿐이다. 근거는 훅 머리주석.)
 #   ⑯ S16 — 규칙 발화가 **규칙 이름과 함께** 로그에 남고, 통과도 한 줄 남아 "발화 0" 과
 #      "훅 미실행" 이 갈린다(후자는 계수 명령 scripts/guard-log.sh 의 rc=1). 회차별 계수가
-#      기계값(TSV)이며, 로깅 호출만 뺀 사본에서 그 단언이 무너지는 것으로 귀속한다
+#      기계값(TSV)이며, 로깅 호출만 뺀 사본에서 그 단언이 무너지는 것으로 귀속한다.
+#      (h) 는 `rows` 하위 명령 — 차단 행마다 분류 가능성이 붙고, **"차단 0건"·"회차를 못
+#      찾았다"·"전부 분류 불가" 가 서로 다른 rc 로 갈린다**
 #   ⑱ S16-b — 로그 **부재의 원인 둘**이 갈린다: "훅 미실행"(rc=1)과 "로깅 없는 guard.sh 가
 #      발화 중"(rc=3). 두 상태를 각각 재현해 문구·rc 로 확인하고, 계수 명령에서 구분
 #      로직만 뺀 사본이 가르지 못하는 것으로 귀속한다. 사본이 죽어서 못 가른 것이
@@ -2850,6 +2852,78 @@ step "A/B: 로깅을 뺀 사본은 차단은 그대로인데 로그가 비었다
 : > "$LG"
 runlog "$HOOK" "$(j_sess "$WT_PROBE" "$FX_SESS")"
 step "A/B 대조: 원본은 같은 입력에서 로그를 남긴다" [ -s "$LG" ]
+
+# (h) rows — 분류에 쓸 축. 계수는 "몇 번 발화했나" 만 내고, 그 발화가 정당했는지는 규칙
+#     이름만으로 못 가른다. 여기서 막는 것은 **"차단 0건" 과 "못 셌다" 가 같은 값으로
+#     나오는 상태다** — 잘렸거나 명령이 없는 행을 정당으로도 오탐으로도 세면 오탐률이 그
+#     자리에서 거짓 근거가 된다. 세 부재를 rc 로 가르고, 행마다 분류 가능성을 단언한다.
+ROWSLOG="$TMP/s16-rows.tsv"
+ROWSERR="$TMP/s16-rows.err"
+# 한글이 섞여 **바이트로는 120 을 넘지만 문자로는 못 미치는** 온전한 명령. 길이를 바이트로
+# 재면 이 행이 절단으로 뒤집힌다 — 아래 A/B 가 그 뒤집힘을 귀속한다.
+ROWS_KO="한글이 섞였고 바이트로는 백이십을 넘지만 문자로는 못 미치는 온전한 명령 하나를 여기 둔다"
+ROWS_120=$(printf "a%.0s" {1..120})
+{
+  printf 't1\tfx-r1\timpl\tBash\t-\n'
+  printf 't2\tfx-r1\timpl\tBash\tr_x\tledger.sh close foo\n'
+  printf 't3\tfx-r1\t-\tBash\tSKIP-nojq\n'
+  printf 't4\tfx-r2\timpl\tBash\tr_y\n'
+  printf 't5\tfx-r1\timpl\tBash\tr_x\t%s\n' "$ROWS_120"
+  printf 't6\tfx-r1\timpl\tBash\tr_z\t%s\n' "$ROWS_KO"
+} > "$ROWSLOG"
+# 회차 인자가 빈 문자열이면 전체다 — 인자 개수를 갈라 부르면 이 함수가 두 벌이 된다.
+runrows() {  # runrows <계수 명령> <로그> <회차 또는 빈 문자열>
+  ROWS_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$2" "$1" rows "$3" 2>"$ROWSERR")
+  ROWS_RC=$?; ROWS_ERR=$(cat "$ROWSERR")
+}
+rowstate() {  # rowstate <시각 열 값> — 그 행의 분류 가능성(6열)
+  awk -F'\t' -v t="$1" '$1 == t { print $6 }' <<< "$ROWS_OUT"
+}
+
+runrows "$LOGSH" "$ROWSLOG" ""
+echo "  rows: rc=$ROWS_RC / $ROWS_ERR"
+step "rows rc=0"                                        [ "$ROWS_RC" -eq 0 ]
+step "rows 가 차단 행만 낸다 (통과·SKIP 은 빠진다)"       [ "$(printf '%s\n' "$ROWS_OUT" | wc -l)" -eq 4 ]
+step "rows 는 일곱 열이다"                               [ "$(awk -F'\t' 'END { print NF }' <<< "$ROWS_OUT")" -eq 7 ]
+step "온전한 명령 행은 ok"                               [ "$(rowstate t2)" = "ok" ]
+step "옛 5열 행은 nocmd (0건이 아니라 못 세는 행)"        [ "$(rowstate t4)" = "nocmd" ]
+step "120자에 걸린 행은 truncated (분류 불가)"            [ "$(rowstate t5)" = "truncated" ]
+# 이 한 줄이 길이를 **문자**로 세는지를 든다. 바이트로 세면 truncated 로 뒤집힌다.
+step "한글 섞인 온전한 명령이 ok 다 (길이를 문자로 센다)"  [ "$(rowstate t6)" = "ok" ]
+step "요약이 셋을 따로 센다"                              has_text "분류 가능 2 · 절단(120자 상한) 1 · 명령 없음(옛 5열 행) 1" "$ROWS_ERR"
+step "요약은 stderr 다 (stdout 은 기계값만 든다)"          lacks_text "분류 가능" "$ROWS_OUT"
+
+# 세 부재. **rc 가 서로 달라야 한다** — 같으면 읽는 사람이 "0 이었다" 와 "못 셌다" 를
+# 구분할 수 없고, 그 순간 오탐률 0 이 근거로 쓰인다.
+runrows "$LOGSH" "$ROWSLOG" "fx-r2"; R_ALLBAD=$ROWS_RC; ERR_ALLBAD=$ROWS_ERR
+printf 't1\tfx-r3\timpl\tBash\t-\nt2\tfx-r3\timpl\tBash\tSKIP-nojq\n' > "$TMP/s16-noblock.tsv"
+runrows "$LOGSH" "$TMP/s16-noblock.tsv" ""; R_ZERO=$ROWS_RC; ERR_ZERO=$ROWS_ERR
+runrows "$LOGSH" "$ROWSLOG" "fx-none"; R_NOSESS=$ROWS_RC; ERR_NOSESS=$ROWS_ERR
+runrows "$LOGSH" "$TMP/s16-absent-rows.tsv" ""; R_NOLOG=$ROWS_RC
+echo "  부재 rc: 로그없음=$R_NOLOG 차단0=$R_ZERO 회차없음=$R_NOSESS 전부분류불가=$R_ALLBAD"
+step "차단이 실제로 0 → rc=4"                            [ "$R_ZERO" -eq 4 ]
+step "없는 회차 → rc=5 (0건이 아니라 회차를 못 찾았다)"    [ "$R_NOSESS" -eq 5 ]
+step "차단은 있는데 전부 분류 불가 → rc=6"                [ "$R_ALLBAD" -eq 6 ]
+step "로그 부재 → rc=1 (rows 도 계수와 같은 판정)"         [ "$R_NOLOG" -eq 1 ]
+step "네 rc 가 서로 다르다 (같으면 '0건' 과 '못 셌다' 가 한 값)" \
+  bash -c '[ "$(printf "%s\n" "$@" | sort -u | wc -l)" -eq 4 ]' _ "$R_NOLOG" "$R_ZERO" "$R_NOSESS" "$R_ALLBAD"
+step "차단 0 문구가 '실제로 0' 이라고 말한다"              has_text "차단이 실제로 0" "$ERR_ZERO"
+step "회차 없음 문구가 '못 찾았다' 라고 말한다"            has_text "회차를 못 찾았다" "$ERR_NOSESS"
+step "전부 분류 불가 문구가 '오탐 0 이 아니라' 라고 말한다"  has_text "오탐 0 이 아니라 못 셌다" "$ERR_ALLBAD"
+step "전부 분류 불가여도 행 자체는 나온다 (사람이 볼 재료)"  has_text "nocmd" "$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$ROWSLOG" "$LOGSH" rows fx-r2 2>/dev/null)"
+
+# 모르는 하위 명령이 로그 부재의 rc=1 로 새어나오면 사람이 없는 상태를 고치러 간다.
+BADSUB_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent-rows.tsv" "$LOGSH" nosuchsub 2>&1); BADSUB_RC=$?
+step "모르는 하위 명령 → rc=2 (로그 부재의 1 과 다르다)"   [ "$BADSUB_RC" -eq 2 ]
+step "모르는 하위 명령 문구가 '훅이 한 번도' 가 아니다"     lacks_text "훅이 한 번도" "$BADSUB_OUT"
+
+# A/B 귀속 — 길이를 문자가 아니라 바이트로 재는 사본에서 한글 행이 절단으로 뒤집힌다.
+ROWS_AB="$TMP/s16-rows-bytelen.sh"
+sed 's/chars(\$6) >= 120/length($6) >= 120/' "$LOGSH" > "$ROWS_AB"; chmod +x "$ROWS_AB"
+step "A/B 전제: 사본이 원본과 다르다" not_same "$LOGSH" "$ROWS_AB"
+runrows "$ROWS_AB" "$ROWSLOG" ""
+step "A/B 대조: 사본도 살아 있다 (죽어서 다른 것이 아니다)" [ "$ROWS_RC" -eq 0 ]
+step "A/B: 바이트로 재는 사본은 한글 온전 행을 절단으로 뒤집는다" [ "$(rowstate t6)" = "truncated" ]
 
 # ── ⑱ 부재의 두 원인 (S16-b) ────────────────────────────────────────
 # 막는 것: **로그가 비었을 때 "훅 미실행" 과 "로깅 없는 guard.sh 가 발화 중" 이 같은
