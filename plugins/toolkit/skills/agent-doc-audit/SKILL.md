@@ -84,6 +84,15 @@ documents point into another tree (a plugin pointing at its harness root), pass 
 — it is consulted for path existence but not scanned; otherwise its paths read as dead. `CHANGELOG.md` files are skipped: a changelog is history,
 not a place a command is called from, so its old paths and dates are correct as they stand. A missing directory is rc≠0 with the reason on stderr. rc 0 means the sweep ran, not that nothing was found.
 
+`*.sh` files under the scanned directories are swept too, for criterion 1 only, and only on whole-line
+comments. Those candidates carry the criterion `1-correction-sh`, so they never mix into a `*.md`
+count. Two phrasings are filtered per occurrence rather than per line: `종전대로` and `종전과 같`
+state current behavior, and `정정 보존` is a rule's name — a line carrying only those is not a
+candidate, while a line carrying one of them **and** a real correction still is. A comment tacked
+onto the end of a code line is a deliberate ceiling: reading it would mean guessing whether a `#`
+inside a shell string starts a comment, and a blind spot beats a false positive on code. These are
+warnings — a repo gate calling `check.sh` should count them, not fail on them.
+
 ### 2. Read
 
 Read every scanned file top to bottom with the seven questions in hand. Criteria 2, 3, 5, and the
@@ -119,5 +128,7 @@ Commit under the repo's commit convention.
 
 ## Self-check
 
-The skill is its own first target: `bash check.sh <this skill's folder>` yields zero candidates
-under criteria 1 and 4. Keep it that way when editing this file.
+The skill is its own first target: `bash check.sh <this skill's folder>` yields zero candidates at
+all — criteria 1, 4, and `1-correction-sh` over `check.sh` itself, whose header spells the
+vocabulary out in backticks so the detector reads it as a quotation rather than a claim. Keep it
+that way when editing either file.

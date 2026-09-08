@@ -13,6 +13,9 @@
 #       (a) validate 도 (b) shellcheck 도 보지 않는 자리라, 여기가 유일한 검사 자리다.
 #       6-dead-path 는 harness 플러그인 docs 가 하네스 루트 상대 경로를 쓰므로 HARNESS_ROOT 가 있을 때만
 #       --root 로 판정하고, 없으면 판정하지 않았다고 말한다(조용히 통과하지 않는다).
+#       *.sh 주석의 1-correction-sh 는 **경고 전용이다** — 건수만 한 줄로 내고 게이트를 막지 않는다
+#       (사용자 결정). 훑은 자리와 그 아래 *.sh 파일 수를 같이 내 "후보 0건" 과 "안 훑었다" 를 가르고,
+#       (b) 의 파일 수와 다른 까닭(tests/ 는 (c) 의 훑는 자리가 아니다)을 읽을 수 있게 한다.
 #   (d) 설명 3중 일치 — 플러그인마다 plugin.json description == marketplace.json 의 그 항목 description 이고,
 #       README.md 에 그 문자열이 그대로 있다. jq 가 없으면 판정 자체가 불가능하므로 rc 1.
 set -uo pipefail
@@ -70,6 +73,16 @@ if out=$(bash "$AUDIT" $SCAN ${HARNESS_ROOT:+--root "$HARNESS_ROOT"} 2>&1); then
     fail=1
   else
     echo "✓ (c) agent-doc-audit 회귀 없음 — ${SCAN// / · } 에서 $crit 0줄"
+  fi
+  # 경고 전용: 셸 주석 후보는 세기만 한다 — fail 을 건드리지 않는다.
+  shhits=$(printf '%s\n' "$out" | grep -cE ':1-correction-sh:' || true)
+  # shellcheck disable=SC2086
+  nsh=$(find $SCAN -type f -name '*.sh' | wc -l | tr -d ' ')
+  where="${SCAN// / · } 아래 *.sh ${nsh}개"
+  if [ "$shhits" -eq 0 ]; then
+    echo "  · *.sh 주석 정정 후보 0건 — $where 를 훑었고 하나도 없다"
+  else
+    echo "  · ⚠ *.sh 주석 정정 후보 ${shhits}건 — $where 중 (경고 전용, 게이트를 막지 않는다; 목록: bash $AUDIT $SCAN | grep 1-correction-sh)"
   fi
 else
   printf '%s\n' "$out"
