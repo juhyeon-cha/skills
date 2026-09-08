@@ -3,7 +3,7 @@
 #
 # 판단은 사람(또는 /release 스킬)이 하고 이 스크립트는 그 뒤만 한다.
 #   사람 — 이전 태그부터 훑기 · 폭 결정 · CHANGELOG 항목 본문 작성
-#   여기 — 다음 버전 계산 → 전제 확인 → plugin.json 버전 갱신 → validate → 커밋 → 로컬 태그
+#   여기 — 다음 버전 계산 → 전제 확인 → plugin.json 버전 갱신 → validate → 커밋 → 태그 → push
 #
 # **CHANGELOG 항목은 미리 쓰여 있어야 한다.** 최상단 헤딩이 `## <다음 버전> — YYYY-MM-DD` 가
 # 아니면 아무것도 바꾸지 않고 죽는다 — 버전만 오르고 항목이 없는 릴리스를 막는 자리다.
@@ -12,9 +12,13 @@
 #   (1) plugin.json 버전 갱신 → validate 가 실패하면 **원본으로 되돌리고** rc 1. 남는 변경이 없다.
 #   (2) 커밋 → 실패하면 스테이징이 남는다. 무엇이 스테이징됐는지 출력하고 rc 1.
 #   (3) 태그 → 실패하면 커밋은 남아 있다. 그 사실과 수동 태그 명령을 출력하고 rc 1.
+#   (4) push → 실패하면 커밋과 태그가 로컬에 남는다. 복구 명령과 되돌리는 명령을 함께 출력하고 rc 1.
 # 전제 확인은 전부 (1) 앞에 모아 둔다 — 그래야 흔한 실패가 아무것도 남기지 않는다.
 #
-# 태그 push 와 GitHub 릴리스 발행은 하지 않는다. 명시 지시가 있을 때 손으로 한다.
+# **기본 브랜치에 직접 push 한다. 브랜치도 PR 도 거치지 않는다**(사용자 결정 2026-09-08). PR 을
+# 거치면 스쿼시 머지가 태그를 붙인 커밋을 버려, 태그가 어느 브랜치에도 없는 커밋을 가리킨다.
+# 그 결함이 skills#45 이고 `harness-v1.0.0`·`toolkit-v2.0.0` 이 이미 그 상태다.
+# GitHub 릴리스 발행(`gh release create`)은 여전히 하지 않는다 — 명시 지시가 있을 때 손으로 한다.
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "✗ 레포 루트로 이동하지 못했다" >&2; exit 1; }
@@ -79,7 +83,26 @@ if ! git diff --cached --quiet; then
   exit 1
 fi
 
-echo "· $NAME $CUR → $NEXT ($BUMP), 태그 $TAG"
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+DEFAULT=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
+[ -n "$DEFAULT" ] || DEFAULT=main
+if [ "$BRANCH" != "$DEFAULT" ]; then
+  echo "✗ 릴리스는 기본 브랜치($DEFAULT)에서 한다 — 지금은 '$BRANCH' 다" >&2
+  echo "  브랜치에서 태그를 달면 스쿼시 머지가 그 커밋을 버려 태그가 고아가 된다 (skills#45)" >&2
+  exit 1
+fi
+
+if ! git fetch --quiet origin "$DEFAULT"; then
+  echo "✗ origin/$DEFAULT 를 못 가져왔다 — push 할 수 있는지 확인할 수 없다" >&2
+  exit 1
+fi
+if ! git merge-base --is-ancestor "origin/$DEFAULT" HEAD; then
+  echo "✗ origin/$DEFAULT 가 앞서 있다 — 커밋해 두고 push 가 거부되는 것을 막는다" >&2
+  echo "  먼저 'git pull --rebase origin $DEFAULT' 뒤 다시 돌려라" >&2
+  exit 1
+fi
+
+echo "· $NAME $CUR → $NEXT ($BUMP), 태그 $TAG, push 대상 origin/$DEFAULT"
 
 # ── (1) 버전 갱신 · validate ──────────────────────────────────────────
 BACKUP=$(mktemp) || { echo "✗ 임시 파일을 만들지 못했다" >&2; exit 1; }
@@ -127,5 +150,14 @@ if ! git tag "$TAG"; then
   exit 1
 fi
 
-echo "✓ $NAME $NEXT — 커밋 $COMMIT · 로컬 태그 $TAG"
-echo "  태그 push 와 GitHub 릴리스 발행은 하지 않았다. 명시 지시가 있을 때 손으로 한다."
+# ── (4) push — 커밋과 태그를 한 번에 ──────────────────────────────────
+# --atomic: 둘 다 올라가거나 둘 다 안 올라간다. 태그만 올라간 상태가 곧 고아 태그다.
+if ! git push --atomic origin "$DEFAULT" "$TAG"; then
+  echo "✗ push 에 실패했다. 커밋 $COMMIT 과 태그 $TAG 는 로컬에 남아 있다" >&2
+  echo "  다시 하려면: git pull --rebase origin $DEFAULT && git push --atomic origin $DEFAULT $TAG" >&2
+  echo "  되돌리려면: git tag -d $TAG && git reset --hard HEAD^" >&2
+  exit 1
+fi
+
+echo "✓ $NAME $NEXT — 커밋 $COMMIT · 태그 $TAG · origin/$DEFAULT 에 push 했다"
+echo "  GitHub 릴리스 발행은 하지 않았다. 명시 지시가 있을 때 손으로 한다."

@@ -1,6 +1,6 @@
 ---
 name: release
-description: Release one plugin of the skills marketplace — sweep the changes since its previous tag, settle the bump width, write the CHANGELOG entry, raise the version in plugin.json, validate, commit, and tag locally. Use on a "릴리스해줘" or "<plugin> 버전 올려줘" request. Tag push and a GitHub release stay out of it unless the user says so explicitly.
+description: Release one plugin of the skills marketplace — sweep the changes since its previous tag, settle the bump width, write the CHANGELOG entry, raise the version in plugin.json, validate, commit, tag, and push both to the default branch. Use on a "릴리스해줘" or "<plugin> 버전 올려줘" request. Publishing a GitHub release stays out of it unless the user says so explicitly.
 ---
 
 # Releasing a plugin
@@ -67,20 +67,34 @@ bash scripts/release.sh <name> <patch|minor|major>
 
 It computes the next number, checks the preconditions, raises `version` in
 `plugins/<name>/.claude-plugin/plugin.json`, runs `claude plugin validate --strict` on both the
-marketplace and the plugin, commits, and puts a local tag `<name>-v<version>`. **Everything that
+marketplace and the plugin, commits, tags `<name>-v<version>`, and pushes both. **Everything that
 changes state comes after the preconditions**, so a refusal at that stage leaves nothing behind, and
-a validate failure restores the original `plugin.json`.
+a validate failure restores the original `plugin.json`. Two of those preconditions exist for the
+push: it refuses to run outside the default branch, and it refuses when the remote is ahead.
 
 **rc≠0: read what it printed and fix that.** Do not do the steps by hand instead — the script is
 where the version, the CHANGELOG heading, and the tag name are held to one number.
 
-The tag is local. **Pushing the tag and publishing a GitHub release (`gh release create`) happen
-only on the user's explicit instruction**, and an instruction covers one release. The marketplace
-carries the edition once the commit reaches `main`; installs pick it up with
-`claude plugin marketplace update skills` + `claude plugin update <name>@skills`.
+**The script pushes the commit and the tag to the default branch itself — no branch, no PR.**
+Running it is the instruction to do that, so nothing further is asked. A branch would go through a
+squash merge, and a squash merge throws away the commit the tag sits on: the tag then names a commit
+on no branch, and the next release's sweep in step 1 starts from a range that does not exist. Two
+tags are already in that state.
+
+The push is atomic — the commit and the tag land together or neither does. **A tag alone on the
+remote is the orphan this avoids**, so do not push one by hand after a partial failure; the script
+prints what to rerun and what to undo.
+
+**Publishing a GitHub release (`gh release create`) still happens only on explicit instruction**, and
+an instruction covers one release. The marketplace carries the edition as soon as the commit lands;
+installs pick it up with `claude plugin marketplace update skills` + `claude plugin update <name>@skills`.
 
 ## Completion criterion
 
 `git tag -l '<name>-v<version>'` prints the tag, `jq -r .version plugins/<name>/.claude-plugin/plugin.json`
 prints the same number, and `head -3 plugins/<name>/CHANGELOG.md` shows the dated heading — all three
 read back in this session.
+
+**One more, because the push is what the release is for**: `git merge-base --is-ancestor <name>-v<version> origin/<default branch>`
+returns 0. It is the assertion the orphan defect would fail, and it reads the remote rather than the
+local tag.
