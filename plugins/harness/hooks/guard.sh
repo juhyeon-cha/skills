@@ -467,6 +467,36 @@ mc_locate() {
   return 0
 }
 
+# 겨눈 자리가 하네스 트리를 **품고** 있는가 — mc_root_of 의 대응물이다. 그쪽은 **위로** 거슬러
+# 자기가 속한 트리를 찾고, 이쪽은 **아래를 보고** 자기가 담고 있는 트리를 찾는다. 클론 루트에는
+# 자기 `.harness.json` 이 없어 위로 보는 판정에는 **아예 걸리지 않는다** — 그래서 `rm -rf <클론 루트>`
+# 가 rc=0 으로 통과했다(skills#239 실측: 설치본 2.1.0 rc=2 · origin/main 단독 rc=0). 그 조작 하나로
+# 모든 레포의 클론·워크트리·미커밋 변경이 한 번에 사라진다.
+# 되살리되 **옛 고정 경로 변수로 돌아가지 않는다**(사용자 결정) — 판별자는 `.harness.json` 하나다.
+#
+# **깊이는 한 칸이다.** 클론 루트의 실제 모양이 `<루트>/<레포>/.harness.json` 이라(scripts/repo.sh 가
+# 만드는 층) 자식 디렉토리 한 겹의 glob 한 번이면 그 층은 전부 잡힌다. 훅은 **모든 도구 호출마다**
+# 도므로 비용을 여기서 못박는다 — 후보 토큰 하나당 readdir 한 번, 재귀 없음.
+# 못 잡는 것: 트리보다 **두 칸 이상** 위(`rm -rf ~` 같은 홈 디렉토리). 깊이를 늘리면 비용이 곱으로
+# 늘고, 트리와 무관한 상위 디렉토리까지 함께 막히는 과잉이 된다 — ../docs/guardrails.md "못 막는 것".
+#
+# 0 일 때 MC_HOLDER 에 정규화한 그 자리가, MC_TREES 에 품은 트리들의 이름이 앞에 공백 붙은 채로
+# 담긴다(차단 메시지가 "무엇을 잃는가"를 말하는 자리). MC_PATH 계열은 건드리지 않는다 — 이 함수를
+# 부르는 자리는 mc_locate 가 1 을 낸 뒤라 그 값들이 이미 못 쓰는 상태다(mc_locate 주석).
+# 인용한 "$p" 안의 `[` 는 리터럴이라 메타문자가 든 경로에서도 판정이 산다.
+MC_HOLDER=""; MC_TREES=""
+mc_holds_trees() {
+  local p c
+  p="$(mc_norm "$1")" || return 1
+  MC_HOLDER="$p"; MC_TREES=""
+  for c in "$p"/*/.harness.json; do
+    [ -f "$c" ] || continue
+    c="${c%/.harness.json}"
+    MC_TREES="$MC_TREES ${c##*/}"
+  done
+  [ -n "$MC_TREES" ]
+}
+
 # 이 호출이 **파일 쓰기**인가 — 아래 두 규칙(r_main_write·r_grader_write)의 공통 판정.
 #
 # 도구 **이름 목록**으로 판정하지 않는다. 이름 목록은 허용 목록 극성이라 목록에 없는
@@ -666,7 +696,7 @@ mc_all_readonly() {
 }
 
 r_main_shell() {
-  local cand cmd tail hit
+  local cand cmd tail hit hrn prev tok
   # `$HOME`·`${HOME}` 을 먼저 펼친다. mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 은
   # `$HOME` 뒤의 슬래시부터 잡아 엉뚱한 절대 경로를
   # 만든다 — 그래서 틸드는 막히고 `$HOME` 은 새는 비대칭이 생겼다. 셸이 실제로 펼칠
@@ -685,11 +715,37 @@ r_main_shell() {
   # `.` 은 한 글자만 다른 남의 경로까지 함께 벗기고, `[` 은 sed 를 죽여 후보를 통째로 없앤다
   # (그 순간 이 규칙은 무엇이든 통과시킨다). 인용한 셸 치환은 값을 리터럴로 읽어 그 부류가 없다 —
   # 게이트 ⑨ 의 "원장 지정 대입의 면제" 절이 메타문자 루트로 그 차이를 못박는다.
+  # 판별자는 **하네스 루트의 두 모양**이다 — 자기 `.harness.json` 을 가진 레포 트리(그 레포가
+  # 하네스 루트인 경우)이거나, 트리들을 품은 클론 루트(아래 mc_holds_trees 가 보는 층)다.
+  # 뒤쪽이 빠지면 `HARNESS_ROOT=<클론 루트> ledger.sh …` 가 그 자체로 아래 클론 루트 차단에
+  # 걸려 **지명해도 막히고 안 지명해도 막히는** 배반이 다시 선다 (skills#209 실측 ③ 과 같은 부류).
   while IFS= read -r hr; do
     [ -n "$hr" ] || continue
-    [ -f "$(mc_norm "$hr")/.harness.json" ] || continue
+    hrn="$(mc_norm "$hr")"
+    [ -f "$hrn/.harness.json" ] || mc_holds_trees "$hrn" || continue
     cmd="${cmd//"HARNESS_ROOT=$hr "/}"
   done < <(printf '%s' "$cmd" | tr ' \t' '\n\n' | sed -n 's/^HARNESS_ROOT=//p')
+  # bd 쪽 지정 표기도 같은 면제다 — `bd -C <하네스 루트> …`(·`--directory`·`--db`, ledger_root_given
+  # 이 인정하는 그 셋). 클론 루트가 곧 하네스 루트인 배치에서는 이것이 없으면 A4 가 요구하는 지명이
+  # 아래 클론 루트 차단에 걸린다 [실측 2026-09-08: guardrail-check S1 의 r_impl_bd 프로브
+  # `bd -C <TMP> close probe-1` 이 클론 루트 메시지로 막혀 A/B 귀속이 뒤집혔다].
+  # **토큰은 `bd` 가 실행되는 조각에서만 읽는다.** 명령 문자열 전체에서 읽으면 같은 철자를 쓰는
+  # `git -C <본 체크아웃>` 의 값까지 벗겨져 본 체크아웃 경로가 후보에서 통째로 사라진다
+  # [실측 2026-09-08: 조각을 안 가른 시안에서 `git -C <본 체크아웃> checkout -- .` 등 7건이 rc=0].
+  # 값 다음의 **공백**이 "정확히 그 토큰" 을 보장하는 것도, 정규식을 쓰지 않는 이유도 위와 같다.
+  # 한계: 조각은 원본 명령이라 `$HOME` 이 안 펼쳐져 있다 — 위 두 줄과 같은 리터럴 치환으로 맞춘다.
+  prev=""
+  while IFS= read -r tok; do
+    tok="${tok//\$\{HOME\}/$HOME}"; tok="${tok//\$HOME/$HOME}"
+    case "$prev" in
+      -C|--directory|--db)
+        hrn="$(mc_norm "$tok")"
+        if [ -n "$tok" ] && { [ -f "$hrn/.harness.json" ] || mc_holds_trees "$hrn"; }; then
+          cmd="${cmd//"$prev $tok "/}"
+        fi ;;
+    esac
+    prev="$tok"
+  done < <(exec_segments bd | tr ' \t' '\n\n')
   while IFS= read -r cand; do
     [ -n "$cand" ] || continue
     # 레포 경로가 다른 토큰의 **꼬리**에 붙은 형태 — `sed 's/a/b/w'<레포>/f` 는 인용을 걷으면 `s/a/b/w<레포>/f`
@@ -702,7 +758,13 @@ r_main_shell() {
         tail="${tail#*/}"                       # 앞 한 칸을 벗기고 다시 절대 경로로 본다
         mc_locate "/$tail" && { hit=1; break; }
       done
-      [ -n "$hit" ] || continue
+      # 어느 트리 **안**도 아니면 마지막으로 아래를 본다 — 트리들을 품은 자리(클론 루트)다.
+      # 읽기 면제는 위와 같다(`ls <클론 루트>` 는 통과한다).
+      if [ -z "$hit" ]; then
+        mc_holds_trees "$cand" || continue
+        mc_all_readonly && return 0
+        deny "클론 루트 자체 금지 — 명령에 $MC_HOLDER 가 들어 있다. 그 자리는 어느 레포 트리도 아니지만 하네스 트리들을 **품고 있다**:$MC_TREES. 지우거나 옮기면 그 레포들의 클론·워크트리·**미커밋 변경**이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크고 복구 경로가 없다. 이 층은 scripts/repo.sh 가 소유한다. 작업은 스토리 워크트리 안에서 한다: $MC_HOLDER/<레포>/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 \`#\` 때문에 도구가 거부한다)."
+      fi
     fi
     case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0

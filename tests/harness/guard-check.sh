@@ -913,12 +913,60 @@ step "레포 체크아웃 자체가 Write 도구로도 차단된다" [ "$GUARD_R
 # 거짓 양성 대조군 — 레포와 **접두만** 같은 형제 경로까지 막으면 과차단이다.
 runm "$(j_bash "rm -rf $MCROOT/repo-other")"
 step "대조: 레포와 접두만 같은 형제 경로는 통과한다" [ "$GUARD_RC" -eq 0 ]
-# **못 막는 것 — 레포를 담은 상위 디렉토리.** 종전에는 클론 루트라는 고정 층이 있어
-# `rm -rf <클론루트>` 를 막았다. 그 층을 없앤 대가로, 레포들의 부모를 지우는 조작은 하네스가
-# 판정할 근거가 없다(판별자가 그 디렉토리에 없다). 하위를 훑어 찾는 방법은 비용이 무한정이라
-# 두지 않았다 — plugins/harness/docs/guardrails.md "못 막는 것" 이 이 rc=0 을 한계로 든다.
+# ── ⑨-클론 루트 자체 (skills#239) ──────────────────────────────────────
+# **트리를 품은 자리.** 클론 루트에는 자기 `.harness.json` 이 없어 위로 거슬러 찾는 mc_locate 에는
+# 아예 걸리지 않는다 — 이 자리는 한때 "못 막는 것(rc=0 고정)" 으로 박혀 있었고, 그 사이 실제로
+# `rm -rf <클론 루트>` 가 통과했다(skills#239: 설치본 2.1.0 rc=2 · origin/main 단독 rc=0).
+# mc_holds_trees 가 **아래를 한 칸** 보고 그 층을 되살린다. 판정은 `.harness.json` 어휘뿐이다 —
+# 고정 경로 변수는 되살리지 않았고, 아래 부정 대조군이 그 한 줄에 귀속시킨다.
+declare -a MC_HOLDER_DENY=(
+  "rm -rf $MCROOT"
+  "rm -rf $MCROOT/"
+  "mv $MCROOT /tmp/gone"
+  "HARNESS_ROOT=$MCROOT rm -rf $MCROOT"   # 원장 지정 대입이 붙어도 남은 후보가 걸린다
+)
+for c in "${MC_HOLDER_DENY[@]}"; do
+  runm "$(j_bash "$c")"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
+  step "트리를 품은 자리(클론 루트) 조작이 차단된다: $c" [ "$GUARD_RC" -eq 2 ]
+done
+# 메시지가 **무엇을 잃는가**를 말한다 — 품은 트리 이름이 실려야 "레포 하나보다 크다"가 근거가 된다.
 runm "$(j_bash "rm -rf $MCROOT")"
-step "한계(못 막음, rc=0 고정): 레포를 담은 상위 디렉토리 삭제" [ "$GUARD_RC" -eq 0 ]
+echo "  holder → $GUARD_OUT"
+step "클론 루트 메시지에 품은 트리 이름이 실린다" has_text 'repo' "$GUARD_OUT"
+step "클론 루트 메시지가 무엇을 잃는지 말한다"   has_text '미커밋 변경' "$GUARD_OUT"
+# **과잉 대조군 — 이게 없으면 "위쪽을 전부 막는 규칙"도 위를 통과한다.** 넷 다 rc=0 이어야 한다
+# (skills#239 acceptance ③). 과잉을 고치는 스토리에서 새 과잉을 만드는 것이 최악의 결과다.
+MC_HOLDER_EMPTY="$TMP/holder-empty"; mkdir -p "$MC_HOLDER_EMPTY"          # 트리를 안 품은 빈 디렉토리
+MC_HOLDER_TMP="$TMP/holder-unrelated/sub"; mkdir -p "$MC_HOLDER_TMP"      # 하네스와 무관한 임시 디렉토리
+declare -a MC_HOLDER_LABEL=() MC_HOLDER_JSON=()
+MC_HOLDER_LABEL+=("(a) 워크트리 안의 rm -rf")
+MC_HOLDER_JSON+=("$(j_sub "rm -rf $MCROOT/repo/.claude/worktrees/story-a/build" 'harness:implementer')")
+MC_HOLDER_LABEL+=("(b) 하네스와 무관한 임시 디렉토리 rm -rf")
+MC_HOLDER_JSON+=("$(j_sub "rm -rf ${MC_HOLDER_TMP%/sub}" 'harness:implementer')")
+MC_HOLDER_LABEL+=("(c) 트리를 안 품은 빈 디렉토리 rm -rf")
+MC_HOLDER_JSON+=("$(j_bash "rm -rf $MC_HOLDER_EMPTY")")
+MC_HOLDER_LABEL+=("(d) 채점자의 트리 밖 쓰기")
+MC_HOLDER_JSON+=("$(jq -n --arg p "${MC_HOLDER_TMP}/note.txt" \
+  '{hook_event_name:"PreToolUse",tool_name:"Write",cwd:"/x",agent_id:"aa306a4edf39e7dfe",agent_type:"harness:evaluator",tool_input:{file_path:$p,content:"hi"}}')")
+MC_HOLDER_LABEL+=("(e) 읽기는 면제다 — ls <클론 루트>")
+MC_HOLDER_JSON+=("$(j_bash "ls $MCROOT")")
+MC_HOLDER_LABEL+=("(f) 원장 지정만 있는 명령 — HARNESS_ROOT=<클론 루트> ledger.sh note")
+MC_HOLDER_JSON+=("$(j_sub "HARNESS_ROOT=$MCROOT $FX_LS note $FX_TASK \"메모\"" 'harness:implementer')")
+for i in "${!MC_HOLDER_LABEL[@]}"; do
+  runm "${MC_HOLDER_JSON[$i]}"
+  printf '  rc=%d  %s\n' "$GUARD_RC" "${MC_HOLDER_LABEL[$i]}"
+  step "클론 루트 판정이 넓지 않다: ${MC_HOLDER_LABEL[$i]}" [ "$GUARD_RC" -eq 0 ]
+done
+# 부정 대조군 — **새 판정 한 줄만** 되돌린 사본에서 위 차단이 rc=0 으로 돌아온다.
+NEG_HOLD="$TMP/guard-no-holder.sh"
+step "부정 대조군 전제: 클론 루트 판정이 훅에 1줄 실재한다" \
+  [ "$(grep -cF 'mc_holds_trees "$cand" || continue' "$HOOK")" -eq 1 ]
+awk 'index($0,"mc_holds_trees \"$cand\" || continue") { print "        continue"; next } { print }' \
+  "$HOOK" > "$NEG_HOLD"; chmod +x "$NEG_HOLD"
+step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_HOLD"
+runh "$NEG_HOLD" "$(j_bash "rm -rf $MCROOT")"
+step "부정 대조군: 그 줄을 되돌리면 클론 루트 삭제가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
 # ── `$HOME` 표기 (harness-0ig). mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 이 `$HOME`
 # 뒤 슬래시부터 잡아 엉뚱한 절대 경로를 만들었다 — 틸드는 막히고 `$HOME` 은 새는 비대칭.
