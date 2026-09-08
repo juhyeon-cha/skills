@@ -251,10 +251,14 @@ MAIN_PATH="$TMP/_probe-repo/README.md"
 # 채점자 규칙의 차단 자리. r_grader_write 는 skills#225 이후 **대상 트리 안**만 막으므로
 # 트리 밖($TMP)은 더 이상 차단이 아니다. 워크트리 경로를 쓰는 이유는 **A/B 귀속**이다 —
 # r_main_write 는 `.claude/worktrees/*/*` 를 통과시키고 r_grader_write 는 그것도 막으니,
-# 이 입력의 rc=2 는 오직 r_grader_write 때문이다. 트리 밖 다른 자리(본 체크아웃)를 쓰면
+# 이 입력의 rc=2 는 오직 r_grader_write 때문이다. 트리 안 다른 자리(본 체크아웃)를 쓰면
 # r_main_write 에 먼저 걸려 "그 규칙 등재만 뺀 사본에서 rc 0" 이 거짓이 된다.
 # 조상 `.harness.json` 은 위 픽스처 하나로 충분하다 — r_grader_write 가 부르는 mc_root_of 는
 # 워크트리 필터가 없어 `_probe-repo` 를 루트로 잡는다.
+# **`_probe-wt` 에는 `.harness.json` 을 만들지 마라** — 그러면 MC_ROOT 가 그 워크트리로 잡혀
+# 위 문장의 "`_probe-repo` 를 루트로 잡는다" 가 거짓이 되고 차단 메시지의 레포 이름도
+# `_probe-wt` 가 된다. A/B 귀속 자체는 그래도 유지된다 [실측 2026-09-08: 그 파일이 있어도
+# r_main_write 는 rc=0 이다 — 그쪽이 부르는 mc_locate 가 워크트리 루트를 걸러 내기 때문이다].
 WT_PATH="$TMP/_probe-repo/.claude/worktrees/_probe-wt/README.md"
 
 # 규칙마다 **차단돼야 하는** 입력 하나. 형식: "<규칙>|<PreToolUse 이벤트 JSON>".
