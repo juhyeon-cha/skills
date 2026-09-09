@@ -18,7 +18,9 @@ export function windowsOwner(env = process.env) {
   if (!validJob(env.HARNESS_PREPARE_JOB) || !path.isAbsolute(env.HARNESS_PREPARE_IPC || '')) throw new Error('PREPARE_JOB_UNREACHED: worker must be launched by the owning Job supervisor');
   const supervisor = Number(env.HARNESS_PREPARE_SUPERVISOR);
   if (!Number.isSafeInteger(supervisor) || supervisor <= 1) throw new Error('PREPARE_JOB_UNREACHED: missing supervisor identity');
-  return {job: env.HARNESS_PREPARE_JOB, supervisor};
+  const launcher = Number(env.HARNESS_PREPARE_LAUNCHER);
+  if (!Number.isSafeInteger(launcher) || launcher <= 1) throw new Error('PREPARE_JOB_UNREACHED: missing launcher identity');
+  return {job: env.HARNESS_PREPARE_JOB, supervisor, launcher};
 }
 
 export async function windowsOwnerGone(owner, {cwd, env = process.env}) {
@@ -52,10 +54,12 @@ export async function spawnWindowsWorker(worker, identity, env) {
   const ipc = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-prepare-job-'));
   const request = path.join(ipc, 'launch.json');
   try {
-    await fs.writeFile(request, JSON.stringify({executable: process.execPath, worker, cwd: identity.top, job: `Local\\HarnessPrepare-${randomUUID()}`, ipc}), {flag: 'wx'});
-    // Windows PowerShell must start attached to this console. Its Job handle,
-    // not Node's detached flag, owns the worker tree and outlives a killed waiter.
-    const child = spawn(executable, args('supervise', request), {cwd: identity.top, env, detached: false, stdio: ['ignore', 'pipe', 'pipe']});
+    await fs.writeFile(request, JSON.stringify({executable: process.execPath, powershell:executable, supervisorArgs:args('supervise', request), worker, cwd: identity.top, job: `Local\\HarnessPrepare-${randomUUID()}`, ipc}), {flag: 'wx'});
+    // libuv owns non-detached children in a kill-on-close Job. A detached Node
+    // launcher survives waiter death; its attached PowerShell child starts
+    // reliably and still dies if that launcher crashes.
+    const launcher = fileURLToPath(new URL('../scripts/windows-prepare-launcher.mjs', import.meta.url));
+    const child = spawn(process.execPath, [launcher, request], {cwd: identity.top, env, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
     // A killed waiter must not own this directory or the supervisor lifetime.
     child.on('close', () => { fs.rm(ipc, {recursive: true, force: true}).catch(() => {}); });
     await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });

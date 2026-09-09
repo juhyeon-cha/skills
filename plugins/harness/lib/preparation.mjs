@@ -60,6 +60,10 @@ async function acquire(paths, token, deadline, identity, env) {
     if (owner && Number.isSafeInteger(owner.pid) && owner.pid > 1 && typeof owner.token === 'string') {
       const gone = candidate => process.platform === 'win32' ? windowsOwnerGone(candidate, {cwd: identity.top, env}) : Promise.resolve(!alive(candidate.pid) && !alive(-candidate.pid));
       if (await gone(owner)) {
+        // Job inspection is asynchronous. A successful owner may have released
+        // its lock while that query ran; a stale observation is not a crash.
+        const observed = await read(path.join(paths.lock, 'owner.json'));
+        if (observed?.token !== owner.token || observed?.pid !== owner.pid || observed?.job !== owner.job) continue;
         if (joined === owner.token) throw new Error('PREPARE_JOINED_CRASH: shared preparation worker crashed; retry');
         // Only one contender can recover this lock. Others never remove a
         // missing/malformed owner or a recovery claim abandoned by a crash.

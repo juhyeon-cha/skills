@@ -32,7 +32,14 @@ try {
   await fs.writeFile(script, `import fs from 'node:fs'; import {spawn} from 'node:child_process';
 fs.appendFileSync('attempts','x'); fs.writeFileSync('child.pid',String(process.pid));
 const mode=fs.readFileSync('input','utf8');
-if(mode==='descendant') { const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)'],{stdio:'ignore'}); fs.writeFileSync('descendant.pid',String(child.pid)); child.unref(); }
+if(mode==='descendant') {
+  const child=spawn(process.execPath,['-e',"require('node:fs').writeFileSync('descendant.ready',String(process.pid));setInterval(()=>{},1000)"],{stdio:'ignore',detached:true});
+  fs.writeFileSync('descendant.pid',String(child.pid)); child.unref();
+  const deadline=Date.now()+10000;
+  while(!fs.existsSync('descendant.ready')) { if(Date.now()>deadline) throw new Error('descendant liveness UNREACHED'); await new Promise(r=>setTimeout(r,20)); }
+  if(fs.readFileSync('descendant.ready','utf8')!==String(child.pid)) throw new Error('descendant identity mismatch');
+  process.kill(child.pid,0);
+}
 if(mode==='hold') await new Promise(r=>setTimeout(r,30000));
 else await new Promise(r=>setTimeout(r,1000));
 process.exitCode=mode==='fail'?9:0;
@@ -95,6 +102,7 @@ process.exitCode=mode==='fail'?9:0;
     });
     await check('surviving descendants prevent READY and are reaped by supervisor', async () => {
       await setMode('descendant'); await assert.rejects(prepare());
+      assert.equal(await fs.readFile(path.join(wt, 'descendant.ready'), 'utf8'), await fs.readFile(path.join(wt, 'descendant.pid'), 'utf8'));
       assert.equal(await exists(paths.ready), false);
       const childPid = Number(await fs.readFile(path.join(wt, 'descendant.pid'), 'utf8'));
       assert.throws(() => process.kill(childPid, 0), {code: 'ESRCH'});
@@ -108,6 +116,15 @@ process.exitCode=mode==='fail'?9:0;
       await waitFor(() => { try { process.kill(childPid, 0); return false; } catch (error) { if (error.code === 'ESRCH') return true; throw error; } });
       assert.equal(await exists(paths.ready), false);
       await setMode('retry-supervisor'); assert.equal((await prepare()).ready, true);
+    });
+    await check('launcher crash terminates its attached supervisor and owned worker tree', async () => {
+      await setMode('hold'); const pending = prepare(); await waitFor(() => exists(pidFile));
+      const owner = JSON.parse(await fs.readFile(path.join(paths.lock, 'owner.json'), 'utf8'));
+      const childPid = Number(await fs.readFile(pidFile, 'utf8'));
+      process.kill(owner.launcher, 'SIGKILL'); await assert.rejects(pending);
+      for (const pid of [owner.supervisor,owner.pid,childPid]) await waitFor(() => {try {process.kill(pid,0);return false;} catch(error) {if(error.code==='ESRCH')return true;throw error;}});
+      assert.equal(await exists(paths.ready), false);
+      await setMode('retry-launcher'); assert.equal((await prepare()).ready, true);
     });
     await check('Job identity prevents a reused/live unrelated PID from blocking safe recovery', async () => {
       await setMode('pid-reuse'); await fs.mkdir(paths.lock);
@@ -163,6 +180,6 @@ else { process.stderr.write(diagnostic); process.stdout.write(response); }
       assert.equal(result.code, 1, result.stderr.toString()); assert.match(result.stderr.toString(), /Missing expected rejection/);
     });
   }
-  assert.equal(reached, (process.platform === 'win32' ? 14 : 7) + (process.argv.includes('--mutation-child') ? 0 : 1), 'every host-applicable judgment must run');
+  assert.equal(reached, (process.platform === 'win32' ? 15 : 7) + (process.argv.includes('--mutation-child') ? 0 : 1), 'every host-applicable judgment must run');
   console.log(`PASS native preparation/process ${reached}; host=${process.platform}; actual runtime hooks are separate evidence`);
 } finally { await fs.rm(temp, {recursive: true, force: true}); }
