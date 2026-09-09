@@ -394,8 +394,8 @@ RULES=()
 
 # ── C3 — 대상 레포 본 체크아웃 쓰기 차단 ──────────────────────────────
 #
-# 경계가 한 단계 차이다. 대상 레포의 체크아웃은 전부 금지이고 예외가 딱 하나,
-# `<레포>/.claude/worktrees/<워크트리 이름>/` 다. 워크트리가 본 체크아웃의 **하위 경로**라
+# 대상 레포의 본 체크아웃 쓰기는 금지이고, Git에 등록된 linked worktree는 예외다.
+# 기본 생성 경로는 `<레포>/.claude/worktrees/<워크트리 이름>/` 이다. 워크트리가 본 체크아웃의 **하위 경로**라
 # 접두 일치만 보면 워크트리까지 함께 막힌다 — 그것이 harness-uhy.1.1 note ④ 가 실측한 실패다.
 # `permissions.deny` 로 부모를 막고 자식(워크트리)을 allow 하면 둘 다 막혔고
 # (`main.txt: old  wt.txt: old`), 훅으로 바꾸니 의도대로 갈렸다
@@ -405,7 +405,7 @@ RULES=()
 # 이고, 경로에서 위로 거슬러 올라가 처음 만나는 그 파일의 디렉토리가 레포 루트다
 # (lib/harness-root.sh 와 같은 판별자). 클론을 어디에 두든 규칙이 따라간다.
 # 워크트리는 자기 체크아웃에 `.harness.json` 을 가지므로 **자기 자신이 루트로 잡히고**,
-# 그 루트의 경로가 `.claude/worktrees/` 를 지나면 본 체크아웃이 아니다.
+# 공통 workspace inspect가 top-level·common-dir·등록·브랜치를 확인해야 예외가 된다.
 
 # 경로를 **어휘적으로** 정규화한다. 파일시스템을 보지 않는다 — 아직 없는 파일도
 # 판정해야 하고, 훅의 CWD 는 신뢰할 수 없다. `..` 를 접는 것이 핵심이다:
@@ -432,8 +432,7 @@ mc_norm() (
 
 # 아래 mc_root_of 가 채우는 자리. 경로가 어느 레포 트리 안인가 — 그 함수는 **루트 찾기만
 # 한다. 워크트리 필터가 없다**(워크트리도 그 트리다). 안이면 0 과 함께 MC_PATH(정규화 경로)·
-# MC_ROOT(레포 루트 절대 경로)·MC_REPO(레포 이름)·MC_SUB(레포 루트 아래 상대 경로, 루트
-# 자신이면 빈 문자열)를 채운다.
+# MC_ROOT(레포 루트 절대 경로)·MC_REPO(레포 이름)를 채운다.
 #
 # 루트는 **위로 거슬러 올라가 처음 만나는 `.harness.json`** 의 디렉토리다. 아직 없는
 # 파일도 판정해야 하므로 경로 자신의 실재는 보지 않는다 — 조상 디렉토리만 본다.
@@ -442,7 +441,7 @@ mc_norm() (
 # 판별을 파일시스템에 맡기므로 대소문자 표기로 새지 않는다 — macOS 기본 파일시스템에서
 # `~/.Harness-Workspace/…` 는 문자열 비교로는 다른 경로였지만(실측 2026-08-28, 그 표기의
 # `rm -rf` 가 rc=0 으로 통과했다) `[ -f … ]` 는 같은 파일을 찾아낸다.
-MC_PATH=""; MC_ROOT=""; MC_REPO=""; MC_SUB=""
+MC_PATH=""; MC_ROOT=""; MC_REPO=""
 
 # 이 절반이 따로 있는 이유는 **규칙마다 워크트리의 뜻이 반대**라서다. C3 둘은 워크트리를
 # 통과시켜야 하므로 필터가 붙은 mc_locate 를 부르고, r_grader_write 는 워크트리를 **막아야**
@@ -459,23 +458,35 @@ mc_root_of() {
     d="${d%/*}"; [ -n "$d" ] || d=/
   done
   MC_PATH="$p"; MC_ROOT="$d"; MC_REPO="${d##*/}"
-  if [ "$p" = "$d" ]; then MC_SUB=""; else MC_SUB="${p:$((${#d} + 1))}"; fi
   return 0
 }
 
 # 경로가 어느 레포의 **본 체크아웃** 안인가 — 위 mc_root_of 에 워크트리 필터를 얹은 것이다.
 # **워크트리는 여기서 걸러진다** — 자기 체크아웃에 `.harness.json` 이 있어 자신이 루트로
-# 잡히고, 그 루트 경로가 `.claude/worktrees/` 를 지나면 본 체크아웃이 아니므로 1 이다.
-# 그래도 규칙마다 예외 폭이 달라(각 규칙 주석) MC_SUB 로 한 번 더 가르는 자리가 있다.
+# 잡히고, Git에 등록된 linked worktree이면 본 체크아웃이 아니므로 1 이다.
+# 폴더 이름만 같은 경로와 검증 실패는 예외가 아니다.
 #
 # **1 을 냈다고 MC_* 가 비어 있지 않다.** 필터에 걸린 1 이면 mc_root_of 가 이번 호출로 채운 값
 # (그 워크트리 루트)이 그대로 있고, mc_root_of 자신이 낸 1 이면 직전 호출의 값이 남아 있다.
 # 어느 쪽이든 1 뒤에 MC_* 를 읽으면 안 된다 — 오늘은 읽는 자리가 없어 무해하다.
 mc_locate() {
   mc_root_of "$1" || return 1
-  # 루트가 워크트리면 본 체크아웃이 아니다 — 통과시킨다.
-  case "$MC_ROOT" in */.claude/worktrees/*) return 1 ;; esac
+  # Registered Git identity, shared with create/enter/cleanup, owns this exception.
+  mc_registered_workspace "$MC_ROOT" && return 1
   return 0
+}
+
+MC_LINKED_CACHE=$'\n'; MC_MAIN_CACHE=$'\n'
+mc_registered_workspace() {
+  local root="$1" identity
+  case "$MC_LINKED_CACHE" in *$'\n'"$root"$'\n'*) return 0 ;; esac
+  case "$MC_MAIN_CACHE" in *$'\n'"$root"$'\n'*) return 1 ;; esac
+  if identity=$(node "$GUARD_ROOT/scripts/workspace.mjs" inspect "$root" 2>/dev/null) &&
+     printf '%s' "$identity" | jq -e '.linked == true and (.branch | length > 0)' >/dev/null 2>&1; then
+    MC_LINKED_CACHE+="$root"$'\n'; return 0
+  fi
+  # An unverified identity never grants a workspace exception.
+  MC_MAIN_CACHE+="$root"$'\n'; return 1
 }
 
 # 겨눈 자리가 하네스 트리를 **품고** 있는가 — mc_root_of 의 대응물이다. 그쪽은 **위로** 거슬러
@@ -586,16 +597,12 @@ w_path() {
 }
 
 # 쓰기 도구의 경로. 이 호출들은 **쓰기임이 확정**이라 예외를 최소로 둔다:
-# 스토리 워크트리 **안**(`.claude/worktrees/<워크트리 이름>/<무언가>`)만 통과시키고,
-# 워크트리 디렉토리 직속(`.claude/worktrees/x`)은 워크트리가 아니므로 막는다.
+# Git 등록된 workspace의 파일 쓰기는 통과하고, 본 체크아웃 및 가짜 폴더는 막는다.
 r_main_write() {
   local p
   p="$(w_path)"
   [ -n "$p" ] || return 0
   mc_locate "$p" || return 0
-  # 아직 체크아웃되지 않아 `.harness.json` 이 없는 워크트리 자리도 통과시킨다 — 그 안은
-  # 이미 워크트리의 몫이고, 파일이 생기고 나면 mc_locate 가 스스로 걸러 낸다.
-  case "$MC_SUB" in .claude/worktrees/*/*) return 0 ;; esac
   deny "본 체크아웃 쓰기 금지 — $MC_PATH 는 대상 레포 '$MC_REPO' 의 본 체크아웃 안이다. 쓰기는 스토리 워크트리 안에서만 한다: $MC_ROOT/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
 }
 # 매처가 `*` 인 이유는 위 w_path 주석에 있다 — 도구 이름을 여기 나열하면 그 목록이 곧
@@ -607,15 +614,9 @@ RULES+=("*:r_main_write")
 # harness-uhy.1.1 note ② 의 3연속 누출). 대가로 **읽기 명령도 함께 막힌다**: 명령 문자열만 보고
 # 읽기와 쓰기를 가를 방법이 없고, 가르려면 다시 형태 열거로 돌아가야 한다.
 #
-# 그래서 예외 폭이 위 도구 규칙보다 **넓다**. `.claude/worktrees` 아래면(스토리
-# 디렉토리가 없어도) 통과시킨다 — 워크트리 목록 조회(`ls <클론>/.claude/worktrees/`)와
-# 워크트리 안의 모든 명령이 그 자리다. 좁히면 `cd <워크트리> && git status` 가 막힌다.
-# 그 대가로 `.claude/worktrees` 계층 **자체**에 대한 셸 조작이 전부 통과한다 — 직속 쓰기
-# (`echo x > …/worktrees/f`)뿐 아니라 `rm -rf …/worktrees`·`mv …/worktrees/story-a` 까지다.
-# 워크트리 삭제는 미커밋 변경에 복구 경로가 없으므로 이것은 무해해서가 아니라 **가를 수단이
-# 없어서** 감수하는 것이다. 정리의 정규 경로는 scripts/workspace-cleanup.sh 다.
-# harness-uhy.3.3 note "한계" 5번, 게이트 ⑨ 의 rc=0 단언 4건.
-# **상대 경로**는 payload 의 cwd 로 접어 후보에 넣는다(`./`·`../` 로 시작하는 토큰) — 워크트리에서
+# 읽기 및 canonical workspace CLI는 따로 판정한다. 폴더 이름에 기반한 셸 쓰기
+# 예외는 없으며, Git 등록된 linked worktree인지 공통 inspect로 확인한다.
+# 상대 쓰기는 payload cwd를 기준으로 정규화한다.
 # `echo x > ../../../f` 가 본 체크아웃 쓰기인 자리다. cwd 가 없으면 mc_norm 이 판정하지 않는다.
 # 읽기 전용 명령만으로 된 명령은 본 체크아웃 경로가 있어도 통과한다. 조각(`;` `&&` `||` `|`)
 # **전부**의 첫 실행 낱말이 아래 목록이거나 git 의 읽기 하위 명령(또는 읽기 옵션이 붙은 하위 명령)이거나
@@ -761,6 +762,8 @@ mc_all_readonly() {
 }
 
 r_main_shell() {
+  # Only the canonical, literal workspace CLI delegates its mutations to Git fences.
+  [ -n "$(field '.harness_workspace_action')" ] && return 0
   local cand cmd tail hit hr
   # `$HOME`·`${HOME}` 을 먼저 펼친다. mc_norm 은 `~/` 만 확장하는데 후보 추출 grep 은
   # `$HOME` 뒤의 슬래시부터 잡아 엉뚱한 절대 경로를
@@ -819,7 +822,6 @@ r_main_shell() {
         deny "클론 루트 자체 금지 — 명령에 $MC_HOLDER 가 들어 있다. 그 자리는 어느 레포 트리도 아니지만 하네스 트리들을 **품고 있다**:$MC_TREES. 지우거나 옮기면 그 레포들의 클론·워크트리·**미커밋 변경**이 한 번에 사라진다 — 레포 하나를 겨냥한 조작보다 크고 복구 경로가 없다. 작업은 스토리 워크트리 안에서 한다: $MC_HOLDER/<레포>/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 \`#\` 때문에 도구가 거부한다)."
       fi
     fi
-    case "$MC_SUB" in .claude/worktrees|.claude/worktrees/*) continue ;; esac
     mc_all_readonly && return 0
     deny "본 체크아웃 경로 금지 — 명령에 $MC_PATH 가 들어 있다. 대상 레포 '$MC_REPO' 의 본 체크아웃은 직접 건드리지 않는다(읽기 전용 명령만으로 된 명령 — ls·cat·grep·git status 등 — 은 통과한다. 파일 리다이렉션이나 그 밖의 명령이 하나라도 섞이면 막힌다). 작업은 스토리 워크트리 안에서 한다: $MC_ROOT/.claude/worktrees/<워크트리 이름>/ — 없으면 그 레포 클론에서 연 세션이 EnterWorktree 로 만든다(<워크트리 이름> 은 lib/worktree-name.sh <스토리 ID> 가 내는 이름이고 EnterWorktree 의 name 이 그것이다 — ID 를 그대로 주면 github 형식의 `#` 때문에 도구가 거부한다)."
   done < <(printf '%s' "$cmd" | grep -oE "[~/][^[:space:]\"'\`;|&()<>]*"

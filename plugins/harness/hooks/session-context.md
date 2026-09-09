@@ -17,7 +17,7 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
     | One came up and there is no user instruction or approval | **Do not** |
 
     Even when the table says "do it", **a target repo's own push·PR rules come first.** An unresolved decision = a task whose human-wait signal came up and which the human has not yet decided + a task whose `status` is `blocked`. The signal list is `harness:develop` "사람 대기"; the stages and failure handling are the same skill's "사이클 종결".
-- **Never modify a target repo's main checkout directly** — the checkout carrying `.harness.json` at its root. Work only in its `.claude/worktrees/<worktree name>/` worktree.
+- **Never modify a target repo's main checkout directly** — the checkout carrying `.harness.json` at its root. Work only in the assigned linked worktree. Confirm its path, branch and linked identity with `node ${CLAUDE_PLUGIN_ROOT}/scripts/workspace.mjs inspect <worktree>`; the default `.claude/worktrees/<worktree name>/` layout and external Git-registered paths follow the same check.
 - **Never improve the plugin core (skills · roles · hooks) in the installed copy without explicit user instruction** — the place to fix is the skills repo `plugins/harness/`, and the installed copy receives it through a marketplace update. What is outside the plugin is each target repo's own `.harness.json` and the ledger itself.
 - **Never judge completion by impression** — the only evidence is gate exit codes and the acceptance comparison. Whoever built it does not grade it.
 

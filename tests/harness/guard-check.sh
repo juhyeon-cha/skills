@@ -120,7 +120,12 @@ not_same()  { [ -s "$1" ] && [ -s "$2" ] && ! cmp -s "$1" "$2"; }
 # 본 체크아웃 모양으로 두면 그 순간 r_main_shell 이 이 경로가 든 명령을 먼저 차단해
 # 아래 rc=0 통과 단언이 규칙과 무관한 이유로 뒤집힌다.
 FX_ROOT="$TMP/fx-repo/.claude/worktrees/fx-harness"   # 하네스 루트로 읽히는 경로 (bd -C · --db 의 인자)
-mkdir -p "$FX_ROOT" && printf '{"ledger":{"backend":"beads"}}\n' > "$FX_ROOT/.harness.json"
+mkdir -p "$TMP/fx-repo"
+git init -q "$TMP/fx-repo"
+printf '{"ledger":{"backend":"beads"}}\n' > "$TMP/fx-repo/.harness.json"
+git -C "$TMP/fx-repo" add .harness.json
+git -C "$TMP/fx-repo" -c user.name=fixture -c user.email=fixture@example.invalid commit -qm fixture
+git -C "$TMP/fx-repo" worktree add -q -b worktree-fx-harness "$FX_ROOT"
 FX_CLONE="$TMP/fx-clone"           # 대상 레포 체크아웃으로 읽히는 경로
 FX_STORY="fx-story"                # 스토리 bead id
 FX_TASK="fx-story.1.2"             # 태스크 bead id
@@ -213,7 +218,8 @@ runh() {  # runh <훅경로> <json> [env...]
       set -- "CLAUDE_PLUGIN_ROOT=$copy_root" "$@"
     fi
     mkdir -p "$copy_root/lib" "$copy_root/scripts"
-    cp "$ROOT/lib/operations.mjs" "$ROOT/lib/hook-event.mjs" "$ROOT/lib/harness-root.sh" "$copy_root/lib/"
+    cp "$ROOT/lib/"*.mjs "$ROOT/lib/harness-root.sh" "$copy_root/lib/"
+    cp "$ROOT/scripts/workspace.mjs" "$copy_root/scripts/"
     cp "$ROOT/scripts/normalize-hook.mjs" "$copy_root/scripts/"
   fi
   GUARD_OUT=$(printf '%s' "$json" | env "$@" "$hook" 2>&1); GUARD_RC=$?
@@ -307,7 +313,8 @@ step "GUARD_ROOT ≠ 게이트 루트 → rc=2 (CWD·호출자 트리를 따르�
 runh "$PROBE" "$(j_agent 'x')" "GUARD_EXPECT_ROOT=/nonexistent"
 step "GUARD_ROOT 불일치 → rc=2 (공허한 통과 아님)" [ "$GUARD_RC" -eq 2 ]
 mkdir -p "$TMP/elsewhere/lib" "$TMP/elsewhere/scripts"
-cp "$ROOT/lib/operations.mjs" "$ROOT/lib/hook-event.mjs" "$TMP/elsewhere/lib/"
+cp "$ROOT/lib/"*.mjs "$TMP/elsewhere/lib/"
+cp "$ROOT/scripts/workspace.mjs" "$TMP/elsewhere/scripts/"
 cp "$ROOT/scripts/normalize-hook.mjs" "$TMP/elsewhere/scripts/"
 runh "$PROBE" "$(j_agent 'x')" "GUARD_EXPECT_ROOT=$TMP/elsewhere" "CLAUDE_PLUGIN_ROOT=$TMP/elsewhere"
 step "CLAUDE_PLUGIN_ROOT 가 있으면 그것이 GUARD_ROOT 다 (hooks.json 배선 값이 자기 위치보다 앞선다) → rc=0" [ "$GUARD_RC" -eq 0 ]
@@ -541,6 +548,12 @@ trap 'rm -rf "$HPROBE"' EXIT
 MCROOT="$TMP/clone"
 mkdir -p "$MCROOT/repo"
 printf '{"ledger":{"backend":"beads"}}\n' > "$MCROOT/repo/.harness.json"
+git init -q "$MCROOT/repo"
+git -C "$MCROOT/repo" add .harness.json
+git -C "$MCROOT/repo" -c user.name=fixture -c user.email=fixture@example.invalid commit -qm fixture
+for workspace in story-a s; do
+  git -C "$MCROOT/repo" worktree add -q -b "worktree-$workspace" "$MCROOT/repo/.claude/worktrees/$workspace"
+done
 runm() { runh "$HOOK" "$1"; }
 
 # ── 차단: 도구 경로 (Write·Edit·NotebookEdit). 쓰기임이 확정된 층이라 예외가 가장 좁다.
@@ -846,15 +859,11 @@ MC_LIMIT_N+=(4); MC_LIMIT_CMD+=('bash /tmp/writer.sh')
 for i in "${!MC_LIMIT_CMD[@]}"; do
   runm "$(j_bash "${MC_LIMIT_CMD[$i]}")"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${MC_LIMIT_N[$i]}" "${MC_LIMIT_CMD[$i]}"
-  step "한계(못 막음, rc=0 고정) ${MC_LIMIT_N[$i]}: ${MC_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  expected=0; [ "${MC_LIMIT_N[$i]}" = 2 ] && expected=2
+  step "경로 회귀(expected=$expected) ${MC_LIMIT_N[$i]}: ${MC_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq "$expected" ]
 done
-# 2번은 위에서 만든 실제 링크를 통과한다 — mc_norm 이 어휘적이라 `link` 를 그냥 한 칸으로
-# 세고, 경로가 `.claude/worktrees` 아래라 셸 예외에 걸린다. mc_norm 에 물리적 해석을
-# 주입한 사본에서는 이 줄이 rc=2 로 바뀐다(실측, harness-uhy.3.3 note "한계" 2번).
-# 셸 경유 .claude/worktrees 계층 조작도 못 막는다 — 셸 규칙의 예외가 그 아래 **전부**라
-# 파일 쓰기뿐 아니라 워크트리 디렉토리 자체의 삭제·이동까지 통과한다. harness-uhy.3.3 note
-# "한계" 5번이 이 네 줄이다. 워크트리 정리의 정규 경로는 scripts/workspace-cleanup.sh 이고
-# 수동 조작을 막던 r_worktree 는 뺐다. 여기가 rc=2 로 바뀌면 그 절을 함께 고쳐야 한다.
+# 본 체크아웃을 가리키는 링크와 미등록 worktrees 계층은 차단된다.
+# 실제 등록된 workspace 루트 자체의 셸 삭제/이동은 남아 있는 한계다.
 declare -a MC_WT_LIMIT=(
   "echo x > $MCROOT/repo/.claude/worktrees/notes.txt"
   "rm -rf $MCROOT/repo/.claude/worktrees/story-a"
@@ -864,7 +873,9 @@ declare -a MC_WT_LIMIT=(
 for c in "${MC_WT_LIMIT[@]}"; do
   runm "$(j_bash "$c")"
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
-  step "한계(못 막음, rc=0 고정) 5: $c" [ "$GUARD_RC" -eq 0 ]
+  expected=0
+  case "$c" in *worktrees/notes.txt|*worktrees) expected=2 ;; esac
+  step "workspace 계층 회귀(expected=$expected): $c" [ "$GUARD_RC" -eq "$expected" ]
 done
 # 심각도 역전의 대조군. 커밋으로 복구되는 소스 삭제는 막히는데, 복구 경로가 없는
 # 워크트리 삭제는 위에서 통과한다. 이 두 줄이 나란히 있어야 역전이 보인다.
@@ -1111,8 +1122,8 @@ done
 # 그쪽을 부른다(⑫). 그래서 이 대조군을 빼도 채점자 규칙의 rc 는 움직이지 않는 것이 맞다.
 NEG_WT="$TMP/guard-no-wtexempt.sh"
 step "부정 대조군 전제: 워크트리 예외가 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'case "$MC_ROOT" in */.claude/worktrees/*) return 1 ;; esac' "$HOOK")" -eq 1 ]
-grep -vF 'case "$MC_ROOT" in */.claude/worktrees/*) return 1 ;; esac' "$HOOK" > "$NEG_WT"; chmod +x "$NEG_WT"
+  [ "$(grep -cF 'mc_registered_workspace "$MC_ROOT" && return 1' "$HOOK")" -eq 1 ]
+grep -vF 'mc_registered_workspace "$MC_ROOT" && return 1' "$HOOK" > "$NEG_WT"; chmod +x "$NEG_WT"
 step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_WT"
 mkdir -p "$MCROOT/repo/.claude/worktrees/story-a"
 printf '{"ledger":{"backend":"beads"}}\n' > "$MCROOT/repo/.claude/worktrees/story-a/.harness.json"
