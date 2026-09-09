@@ -47,14 +47,34 @@ export function powershellTargets([name, ...args], cwd) {
   const positionalCount = /^(?:move-item|mi|move|copy-item|cpi|copy|cp|rename-item|rni|ren)$/.test(name) ? 2
     : /^(?:set-content|sc|add-content|ac|out-file|remove-item|ri|rm|del|erase|new-item|ni|mkdir|md|rmdir|rd|clear-content|clc)$/.test(name) ? 1 : 0;
   const targets = [], explicit = /^(?:[A-Za-z]:[\\/]|\\\\|\/|\.\.?[\\/])/;
+  const pathParameters = ['path', 'literalpath', 'destination', 'newname', 'filepath'];
+  const switchParameters = ['force', 'recurse', 'whatif', 'confirm', 'append', 'noclobber', 'nonewline', 'passthru', 'container'];
+  const valueParameters = ['value', 'encoding', 'filter', 'include', 'exclude', 'credential', 'stream', 'itemtype', 'width', 'depth', 'erroraction', 'warningaction', 'informationaction', 'errorvariable', 'warningvariable', 'informationvariable', 'outvariable', 'outbuffer', 'pipelinevariable'];
+  const parameters = [...pathParameters, ...switchParameters, ...valueParameters, 'verbose', 'debug'];
   let position = 0, operand = '';
   for (const value of args) {
-    if (value.startsWith('-')) { operand = /^-(?:force|recurse|whatif|confirm|append|noclobber|nonewline|passthru|container)$/i.test(value) ? '' : value.toLowerCase(); continue; }
+    if (value.startsWith('-')) {
+      if (positionalCount) {
+        if (operand) throw new Error(`PowerShell parameter -${operand} has no literal value`);
+        const colon = value.indexOf(':');
+        const spelling = value.slice(1, colon < 0 ? undefined : colon).toLowerCase();
+        const matches = parameters.includes(spelling) ? [spelling] : parameters.filter(parameter => parameter.startsWith(spelling));
+        if (matches.length !== 1) throw new Error(`unsupported or ambiguous PowerShell write parameter: ${value}`);
+        const parameter = matches[0];
+        if (colon >= 0) {
+          const inline = value.slice(colon + 1);
+          if (!inline) throw new Error(`PowerShell parameter -${parameter} has no literal value`);
+          if (pathParameters.includes(parameter)) targets.push(inline);
+        } else if (!switchParameters.includes(parameter) && !['verbose', 'debug'].includes(parameter)) operand = parameter;
+      } else { const parameter = value.toLowerCase().slice(1); operand = switchParameters.includes(parameter) ? '' : parameter; }
+      continue;
+    }
     if (operand) {
-      if (['-path', '-literalpath', '-destination', '-newname', '-filepath'].includes(operand)) targets.push(value);
+      if (pathParameters.includes(operand)) targets.push(value);
       operand = ''; continue;
     }
     if (position++ < positionalCount || explicit.test(value)) targets.push(value);
   }
+  if (positionalCount && operand) throw new Error(`PowerShell parameter -${operand} has no literal value`);
   return targets.map(value => normalizePath(value, cwd));
 }

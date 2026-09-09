@@ -126,6 +126,21 @@ try {
     assert.equal(workspaceShellCommand(workspaceCommand + ' > out', script, {dialect: 'powershell'}), null);
     assert.equal((await judge(event(workspaceCommand, 'harness:reviewer', 'PowerShell'))).code, 0);
   });
+  await check('PowerShell write path parameters preserve full, colon and abbreviated targets', async () => {
+    for (const target of [path.join(main, '보호 파일.txt'), path.join(workspace, '허용 파일.txt')]) {
+      for (const parameter of [`-Path '${target}'`, `-Path:'${target}'`, `-Pat '${target}'`, `-Pat:'${target}'`, `-LiteralPath:'${target}'`]) {
+        const command = `Set-Content ${parameter} -Value '${main}'`;
+        const result = await judge(event(command, '', 'PowerShell'));
+        assert.equal(result.code, target.startsWith(main + path.sep) ? 2 : 0, command + '\n' + result.stderr);
+      }
+    }
+    assert.equal((await judge(event(`Set-Content -Pat:'${path.join(workspace, 'allowed')}' -Value:'${main}'`, '', 'PowerShell'))).code, 0);
+    for (const parameter of ['-P', '-UnknownWriteParameter']) {
+      const result = await judge(event(`Set-Content ${parameter} '${path.join(main, 'file')}' -Value literal`, '', 'PowerShell'));
+      assert.equal(result.code, 2); assert.match(result.stderr, /UNREACHED/);
+    }
+    assert.equal((await judge(event(`Select-String -Path:'${main}' -Pattern 'Set-Content -Pat protected'`, 'harness:reviewer', 'PowerShell'))).code, 0);
+  });
   const outcomes = new Set();
   const capture = result => { result.outcomes.forEach(outcome => outcomes.add(outcome)); return result; };
   await check('Stop recursion, cancellation and legacy marker ownership', async () => {
