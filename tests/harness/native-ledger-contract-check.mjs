@@ -34,7 +34,9 @@ try{
     await fs.writeFile(path.join(root,'nested','.harness.json'),'invalid JSON is still a discovery marker');
     discovered=await discover(nested);assert.equal(discovered.code,0);assert.equal(discovered.stdout.toString().trim(),path.join(root,'nested'),'nearest worktree marker wins');
     discovered=await discover(nested,'../..');assert.equal(discovered.code,0);assert.equal(discovered.stdout.toString().trim(),'../..','legacy explicit spelling remains unchanged');
-    for(const explicit of [nested,path.join(root,'missing')]){discovered=await discover(nested,explicit);assert.equal(discovered.code,1);assert.equal(discovered.stdout.length,0);assert.equal(discovered.stderr.toString().trim().split('\n').length,1,'failed explicit root cannot fall back');}
+    const invalidRoots=[nested,path.join(root,'missing')];
+    for(const separator of new Set([path.sep,'/']))for(const component of ['missing','.harness.json','nested/../missing'])invalidRoots.push(`${root}${separator}${component.replaceAll('/',separator)}${separator}..`);
+    for(const explicit of invalidRoots){discovered=await discover(nested,explicit);assert.equal(discovered.code,1,explicit);assert.equal(discovered.stdout.length,0);assert.equal(discovered.stderr.toString().trim().split('\n').length,1,'failed explicit root cannot fall back');}
     await fs.rm(path.join(root,'nested'),{recursive:true});
     assert.equal(worktreeName('skills#한글 /🙂'),'skills------');
     assert.throws(()=>worktreeName(''),/required/);
