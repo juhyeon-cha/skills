@@ -27,6 +27,15 @@ try{
     for(const backend of ['github','notion','beads']){await save(backend);const value=await runCommand({argv:[process.execPath,cli,'--root',root,'has-ui']},{cwd:root,env});assert.equal(value.code,0,value.stderr.toString());assert.equal(Boolean(value.stdout.length),backend!=='beads');}
     await fs.writeFile(path.join(root,'.harness.json'),'{"ledger":{"backend":"unknown"}}');await absent(executeLedger(['has-ui'],{root,process:noProcess}));
     assert.deepEqual(JSON.parse(await must(executeLedger(['--commands']))),[...commands,...beadsCommands]);
+    const discovery=fileURLToPath(new URL('../../plugins/harness/scripts/harness-root.mjs',import.meta.url));
+    const nested=path.join(root,'nested','inside');await fs.mkdir(nested,{recursive:true});
+    const discover=(cwd,explicit)=>runCommand({argv:[process.execPath,discovery]},{cwd,env:{...env,HARNESS_ROOT:explicit??''}});
+    let discovered=await discover(nested);assert.equal(discovered.code,0,discovered.stderr.toString());assert.equal(discovered.stdout.toString().trim(),root,'discovery must not validate backend');
+    await fs.writeFile(path.join(root,'nested','.harness.json'),'invalid JSON is still a discovery marker');
+    discovered=await discover(nested);assert.equal(discovered.code,0);assert.equal(discovered.stdout.toString().trim(),path.join(root,'nested'),'nearest worktree marker wins');
+    discovered=await discover(nested,'../..');assert.equal(discovered.code,0);assert.equal(discovered.stdout.toString().trim(),'../..','legacy explicit spelling remains unchanged');
+    for(const explicit of [nested,path.join(root,'missing')]){discovered=await discover(nested,explicit);assert.equal(discovered.code,1);assert.equal(discovered.stdout.length,0);assert.equal(discovered.stderr.toString().trim().split('\n').length,1,'failed explicit root cannot fall back');}
+    await fs.rm(path.join(root,'nested'),{recursive:true});
     assert.equal(worktreeName('skills#한글 /🙂'),'skills------');
     assert.throws(()=>worktreeName(''),/required/);
     const title=path.join(root,'한글 title.txt'),acceptance=path.join(root,'acceptance.txt');
