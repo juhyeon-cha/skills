@@ -20,15 +20,12 @@ export function workspaceArguments(args) {
 
 // Recognize a single literal invocation, never evaluate shell text. The same
 // argument contract is used by the CLI before any mutation.
-export function workspaceShellCommand(command, script, {dialect = 'posix'} = {}) {
+export function literalShellWords(command, {dialect = 'posix', cwd = process.cwd()} = {}) {
   if (dialect === 'powershell') {
     try {
-      const parsed = powershellOperations(command, path.dirname(script));
+      const parsed = powershellOperations(command, cwd);
       if (parsed.dynamic || parsed.redirect || parsed.commands.length !== 1) return null;
-      const words = parsed.commands[0];
-      if (!['node', 'node.exe', process.execPath].includes(words[0]) || !path.isAbsolute(words[1] ?? '')) return null;
-      if (fs.realpathSync(words[1]) !== fs.realpathSync(script)) return null;
-      return workspaceArguments(words.slice(2));
+      return parsed.commands[0];
     } catch { return null; }
   }
   const words = []; let word = '', quote = '', active = false;
@@ -43,7 +40,12 @@ export function workspaceShellCommand(command, script, {dialect = 'posix'} = {})
   }
   if (quote) return null;
   if (active) words.push(word);
-  if (!['node', process.execPath].includes(words[0]) || !words[1] || !path.isAbsolute(words[1])) return null;
+  return words;
+}
+
+export function workspaceShellCommand(command, script, {dialect = 'posix'} = {}) {
+  const words = literalShellWords(command, {dialect, cwd: path.dirname(script)});
+  if (!words || !['node', ...(dialect === 'powershell' ? ['node.exe'] : []), process.execPath].includes(words[0]) || !words[1] || !path.isAbsolute(words[1])) return null;
   try {
     if (fs.realpathSync(words[1]) !== fs.realpathSync(script)) return null;
     return workspaceArguments(words.slice(2));

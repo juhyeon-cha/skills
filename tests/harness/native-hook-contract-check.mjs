@@ -110,7 +110,8 @@ try {
     for (const role of ['', 'harness:implementer', 'harness:reviewer']) {
       const command = `node '${path.join(main, 'plugins/harness/scripts/ledger.mjs')}' --root '${main}' show task`;
       assert.equal((await judge(event(command, role, 'PowerShell'))).code, 0, command);
-      assert.equal((await judge(event(`git -C '${main}' status`, role, 'PowerShell'))).code, 0);
+      const gitCommand = `git -C '${main}' status`, gitResult = await judge(event(gitCommand, role, 'PowerShell'));
+      assert.equal(gitResult.code, 0, gitCommand + '\n' + gitResult.stderr);
     }
     assert.equal((await judge(event(`node '${path.join(main, 'ledger.mjs')}' --root '${main}' note task fixture`, 'harness:implementer', 'PowerShell'))).code, 0);
     assert.equal((await judge(event(`node '${path.join(main, 'ledger.mjs')}' --root '${main}' close task`, 'harness:implementer', 'PowerShell'))).code, 2);
@@ -126,6 +127,14 @@ try {
     assert.equal(workspaceShellCommand(workspaceCommand + ' > out', script, {dialect: 'powershell'}), null);
     assert.equal((await judge(event(workspaceCommand, 'harness:reviewer', 'PowerShell'))).code, 0);
   });
+  await check('PowerShell policy argv keeps short Windows names and Unicode paths in one coordinate', async () => {
+    for (const coordinate of [String.raw`C:\Users\RUNNER~1\Temp\한글 공백`, path.join(main, 'RUNNER~1', '한글 공백')]) {
+      const command = `git -C '${coordinate}' status`, result = await judge(event(command, 'harness:reviewer', 'PowerShell'));
+      assert.equal(result.code, 0, command + '\n' + result.stderr);
+      const writeCommand = `git -C '${coordinate}' checkout -- .`, denied = await judge(event(writeCommand, 'harness:reviewer', 'PowerShell'));
+      assert.equal(denied.code, 2, writeCommand + '\n' + denied.stderr);
+    }
+  });
   await check('PowerShell write path parameters preserve full, colon and abbreviated targets', async () => {
     for (const target of [path.join(main, '보호 파일.txt'), path.join(workspace, '허용 파일.txt')]) {
       for (const parameter of [`-Path '${target}'`, `-Path:'${target}'`, `-Pat '${target}'`, `-Pat:'${target}'`, `-LiteralPath:'${target}'`]) {
@@ -140,6 +149,54 @@ try {
       assert.equal(result.code, 2); assert.match(result.stderr, /UNREACHED/);
     }
     assert.equal((await judge(event(`Select-String -Path:'${main}' -Pattern 'Set-Content -Pat protected'`, 'harness:reviewer', 'PowerShell'))).code, 0);
+  });
+  await check('exact loaded native check commands accept protected repository coordinates', async () => {
+    for (const tool of ['Bash', 'PowerShell']) for (const name of ['board-check', 'rules-check', 'ledger-check', 'guardrail-check']) {
+      const command = `node '${path.join(root, `checks/${name}.mjs`)}' --root '${main}'`;
+      const result = await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: root});
+      assert.equal(result.code, 0, command + '\n' + result.stderr);
+    }
+    const loaded = path.join(main, 'loaded plugin 공백'); fs.cpSync(root, loaded, {recursive: true});
+    for (const tool of ['Bash', 'PowerShell']) {
+      const command = `node '${path.join(loaded, 'checks/board-check.mjs')}' --root '${main}'`;
+      assert.equal((await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: loaded})).code, 0, 'loaded script path inside main is transport');
+      assert.equal((await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: root})).code, 2, 'another identical artifact is not the loaded entrypoint');
+    }
+  });
+  await check('common CLI coordinate exceptions preserve mutations, roles, redirects and loaded source identity', async () => {
+    const invoke = (relative, args) => `node '${path.join(root, relative)}' ${args}`;
+    const judgeCommand = (command, role = '', tool = 'Bash', extra = {}) => evaluateGuard(event(command, role, tool), {env: {...env, ...extra}, pluginRoot: root});
+    for (const tool of ['Bash', 'PowerShell']) {
+      for (const command of [
+        invoke('checks/workspace-check.mjs', `'${main}'`),
+        invoke('scripts/config.mjs', `validate '${main}'`),
+        invoke('scripts/guard-log.mjs', `--runtime claude --data '${main}' --repo '${main}' rows session`),
+        invoke('scripts/transcript.mjs', `--scope '${path.join(main, 'scope.json')}' --json`),
+        invoke('scripts/state.mjs', `--data '${main}' paths claude '${main}' session`),
+      ]) assert.equal((await judgeCommand(command, 'harness:reviewer', tool)).code, 0, command);
+      const projection = invoke('scripts/board.mjs', `--root '${main}' all`);
+      assert.equal((await judgeCommand(projection, '', tool)).code, 0, projection);
+      for (const role of ['harness:implementer', 'harness:reviewer', 'harness:evaluator']) assert.equal((await judgeCommand(projection, role, tool)).code, 2, role);
+      const remote = invoke('checks/ledger-check.mjs', `--root '${main}' --push`);
+      assert.equal((await judgeCommand(remote, '', tool)).code, 0);
+      assert.equal((await judgeCommand(remote, 'harness:implementer', tool)).code, 2);
+      assert.equal((await judgeCommand(invoke('checks/ledger-check.mjs', `--root '${main}'`), 'harness:implementer', tool, {LEDGER_CHECK_PUSH: '1'})).code, 2);
+      for (const repository of [main, workspace]) {
+        const gate = invoke('scripts/config.mjs', `run '${repository}' check`);
+        assert.equal((await judgeCommand(gate, 'harness:reviewer', tool)).code, repository === main ? 2 : 0, gate);
+      }
+      assert.equal((await judgeCommand(invoke('scripts/config.mjs', `run '${workspace}' bootstrap`), 'harness:reviewer', tool)).code, 2);
+      for (const action of [`bind claude '${main}' session '${main}' task actor`, `cancel claude '${main}' session`]) {
+        const safe = invoke('scripts/state.mjs', `--data '${env.HARNESS_DATA_DIR}' ${action}`);
+        assert.equal((await judgeCommand(safe, '', tool)).code, 0, safe);
+        assert.equal((await judgeCommand(safe, 'harness:reviewer', tool)).code, 2, safe);
+        assert.equal((await judgeCommand(invoke('scripts/state.mjs', `--data '${main}' ${action}`), '', tool)).code, 2);
+      }
+      const read = invoke('checks/board-check.mjs', `--root '${main}'`);
+      for (const command of [read + ` > '${path.join(main, 'overwrite')}'`, read + `; Set-Content '${path.join(main, 'overwrite')}' x`, projection + ` > '${path.join(main, 'overwrite')}'`, read + ' --unknown']) assert.equal((await judgeCommand(command, '', tool)).code, 2, command);
+      const fake = path.join(temp, 'spoof', 'board-check.mjs'); fs.mkdirSync(path.dirname(fake), {recursive: true}); fs.copyFileSync(path.join(root, 'checks/board-check.mjs'), fake);
+      assert.equal((await judgeCommand(`node '${fake}' --root '${main}'`, '', tool)).code, 2, 'same basename/content is not loaded identity');
+    }
   });
   const outcomes = new Set();
   const capture = result => { result.outcomes.forEach(outcome => outcomes.add(outcome)); return result; };

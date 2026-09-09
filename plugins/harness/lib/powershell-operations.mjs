@@ -70,7 +70,7 @@ export function powershellTargets([name, ...args], cwd) {
       continue;
     }
     if (operand) {
-      if (pathParameters.includes(operand)) targets.push(value);
+      if (pathParameters.includes(operand) || (!positionalCount && explicit.test(value))) targets.push(value);
       operand = ''; continue;
     }
     if (position++ < positionalCount || explicit.test(value)) targets.push(value);

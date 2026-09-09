@@ -8,6 +8,7 @@ import {workspaceShellCommand} from './workspace-command.mjs';
 import {inspectWorkspace} from './workspace.mjs';
 import {guardLog} from './state.mjs';
 import {powershellTargets, powershellReadonly} from './powershell-operations.mjs';
+import {commonCommand} from './common-command.mjs';
 
 // Policy inventories have one owner. Developer tests derive their populations
 // from these exports and mutate copies, never an environment injection point.
@@ -169,6 +170,7 @@ function holdsTrees(ctx, value) {
 }
 function isHarnessRoot(ctx, value) { return Boolean(value) && (fs.existsSync(path.join(norm(ctx, value), '.harness.json')) || Boolean(holdsTrees(ctx, value))); }
 function pathCandidates(ctx) {
+  if (ctx.common) return [...ctx.common.paths, ...ctx.common.writes];
   if (ctx.event.harness_shell_dialect === 'powershell') return ctx.event.harness_operations.map(operation => operation.path);
   let command = ctx.command;
   command = command.replaceAll('${HOME}', ctx.env.HOME || os.homedir()); // EXPAND_HOME
@@ -222,6 +224,10 @@ RULES.push({matcher: '*', run: r_main_write});
 
 export async function r_main_shell(ctx) {
   if (ctx.workspace) return;
+  if (ctx.common?.effect === 'projection') {
+    if (child(ctx)) deny(ctx, '원장 투영은 오케스트레이터의 몫이다 — 정확한 board 명령도 서브에이전트는 실행하지 않는다.');
+    return; // The exact loaded renderer confines publication to its docs projection.
+  }
   for (const candidate of pathCandidates(ctx)) {
     let found = await locate(ctx, candidate);
     if (!found) {
@@ -241,6 +247,7 @@ RULES.push({matcher: 'Bash', run: r_main_shell});
 
 export function r_remote(ctx) {
   if (!child(ctx)) return;
+  if (ctx.common?.remote) deny(ctx, remoteReason);
   rejectAlias(ctx, 'git'); rejectAlias(ctx, 'gh');
   const reason = remoteReason;
   for (const segment of execSegments('git', ctx.command)) { const sub = subcommands('git', GIT_VALUE_OPTS, segment)[0]; if (sub === 'push' || (sub === 'subtree' && hasToken(segment, 'push'))) deny(ctx, reason); }
@@ -264,6 +271,7 @@ RULES.push({matcher: '*', run: r_grader_write});
 
 export function r_grader_shell(ctx) {
   if (!grader(ctx)) return;
+  if (['state', 'prepare', 'projection'].includes(ctx.common?.effect)) deny(ctx, '채점자의 공통 명령 쓰기 금지 — ' + graderCan(ctx));
   rejectAlias(ctx, 'git');
   for (const segment of execSegments('git', ctx.command)) {
     const sub = subcommands('git', GIT_VALUE_OPTS, segment)[0] ?? '';
@@ -317,15 +325,19 @@ export async function evaluateGuard(raw, {env = process.env, pluginRoot = env.CL
   try {
     event = normalizeHookEvent(raw, {env});
     const rawCommand = event.tool_input.command ?? '';
+    const common = event.tool_name === 'Bash' ? await commonCommand(rawCommand, {pluginRoot, cwd: event.cwd, dialect: event.harness_shell_dialect, env}) : null;
     const workspace = event.tool_name === 'Bash' && workspaceShellCommand(rawCommand, path.join(pluginRoot, 'scripts/workspace.mjs'), {dialect: event.harness_shell_dialect});
     if (workspace && grader({event}) && !['inspect', 'ready'].includes(workspace.action)) throw new Error('grader cannot mutate workspace lifecycle');
     if (workspace) event.harness_operations = [];
     let policyCommand = stripQuotes(rawCommand);
-    if (event.harness_shell && !workspace) {
+    if (event.harness_shell && !workspace && !common) {
       const parsed = event.harness_shell;
       if (parsed.dynamic) throw new Error('dynamic PowerShell command cannot be classified');
       const policyText = words => words.map((word, index) => {
-        word = word.replaceAll('\\', '/').replace(/[\s;|&()<>]/g, '_');
+        // Policy scanners use an ASCII token alphabet. Replace non-alphabet
+        // data inside each already-lexed argv word, never split a path at ~,
+        // Unicode or whitespace. Filesystem targets retain their original text.
+        word = word.replaceAll('\\', '/').replace(/[^A-Za-z0-9_.:/=\-]/g, '_');
         if (index === 0 && /(?:^|\/)(?:git|gh|bd|dolt|node)(?:\.exe)?$/i.test(word)) word = word.replace(/[^/]+$/, basename(word).toLowerCase().replace(/\.exe$/, ''));
         if (index <= 1 && /(?:^|\/)ledger\.(?:mjs|sh)$/i.test(word)) word = word.replace(/[^/]+$/, basename(word).toLowerCase());
         return word;
@@ -347,9 +359,10 @@ export async function evaluateGuard(raw, {env = process.env, pluginRoot = env.CL
       // Redirection targets are already normalized by the lexer.
       event.harness_operations = [...new Set(parsed.redirect ? [...paths, ...parsed.paths] : paths)].map(path => ({kind: 'update', path}));
     }
+    if (common) event.harness_operations = (common.effect === 'projection' ? [] : common.writes).map(path => ({kind: 'update', path}));
     const operations = event.harness_operations.flatMap(op => op.kind === 'move' ? [op.source, op.destination] : [op.path]);
     if (process.platform !== 'win32' && operations.some(value => /^[A-Za-z]:[\\/]|^\\\\/.test(value))) throw new Error('Windows filesystem policy is unavailable on this host');
-    const ctx = {event, env, pluginRoot, raw: rawCommand, command: policyCommand, workspace, workspaces: new Map(), rule};
+    const ctx = {event, env, pluginRoot, raw: rawCommand, command: policyCommand, workspace, common, workspaces: new Map(), rule};
     await dispatch(ctx);
     for (const target of operations) { ctx.event = {...event, tool_name: 'Write', tool_input: {file_path: target}}; await dispatch(ctx); }
     rule = '-'; result = {code: 0, stdout: '', stderr: '', rule};

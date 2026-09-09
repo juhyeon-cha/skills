@@ -32,6 +32,20 @@ JSON consumer; a jq pipeline is not an installation requirement.
 `guardrail-check` checks the plugin and temporary offline fixtures; supplying the
 repository root does not turn it into a live ledger or runtime activation check.
 
+The guard recognizes a single literal invocation of these exact loaded plugin
+entrypoints. Read-only checks, log/transcript readers and state queries treat
+repository and input paths as coordinates. A same-named script from another
+artifact receives no exception. Dynamic shell composition and redirection do not
+receive this narrow command exception; their paths remain subject to guard rules.
+
+Effects still matter: `board` publishes only its generated documentation through
+the renderer's boundary checks and is reserved for the orchestrator. `ledger-check
+--push` (including its legacy environment switch) is remote reflection and remains
+forbidden to subagents. State `bind`/`cancel` writes are forbidden to graders;
+their actual state destination, including `--data`, remains a protected write
+target. Explicit ledger/repository coordinates do not authorize arbitrary writes
+to those repositories.
+
 Run the repository's gate with
 `node "<plugin-root>/scripts/config.mjs" run "<worktree>" check`. The common runner
 preserves its exit status and output. Structured argv is the native command
