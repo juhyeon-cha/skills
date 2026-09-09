@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {validateConfig, loadConfig, configCommand} from '../../plugins/harness/lib/config.mjs';
+import {validateConfig, loadConfig, loadConfigSnapshot, configCommand} from '../../plugins/harness/lib/config.mjs';
 import {runCommand, executableCandidates, resolveExecutable} from '../../plugins/harness/lib/process.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
@@ -22,6 +22,9 @@ try {
   const loaded = await loadConfig(cwd);
   check(loaded.file === file && JSON.stringify(loaded.config) === JSON.stringify(legacy), 'legacy keys/extensions preserved exactly');
   const bytes = fs.readFileSync(file);
+  const snapshot = await loadConfigSnapshot(cwd);
+  check(snapshot.bytes.equals(bytes) && JSON.stringify(snapshot.config) === JSON.stringify(legacy), 'snapshot bytes and validated config describe the same read');
+  check(Object.keys(loaded).sort().join(',') === 'config,file', 'existing loader return shape remains compatible');
   check(JSON.stringify(JSON.parse(cli('validate', cwd).stdout)) === JSON.stringify(legacy), 'validate CLI preserves source config');
   check(fs.readFileSync(file).equals(bytes), 'reading never rewrites repo config');
   const legacyString = {...legacy, ledger: {...legacy.ledger, project: '5'}, check: 'printf legacy', bootstrap: 'printf legacy'};

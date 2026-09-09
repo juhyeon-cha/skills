@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createHash, randomUUID} from 'node:crypto';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {loadConfig, configCommand} from './config.mjs';
+import {loadConfigSnapshot, configCommand} from './config.mjs';
 import {runCommand} from './process.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -17,13 +17,13 @@ export function preparationPaths(identity) {
   return {root, lock: path.join(root, 'lock'), ready: path.join(root, 'ready.json')};
 }
 async function contract(identity) {
-  const {config, file} = await loadConfig(identity.top);
+  const {config, bytes} = await loadConfigSnapshot(identity.top);
   for (const name of ['settings.json', 'settings.local.json']) {
     const settings = await read(path.join(identity.top, '.claude', name));
     if (settings?.hooks?.PostToolUse?.some(hook => !hook.matcher || hook.matcher === '*' || new RegExp(hook.matcher).test('EnterWorktree'))) throw new Error('LEGACY_HOOK_UNVERIFIED: move preparation to .harness.json bootstrap and exclude EnterWorktree from the repository hook; hook existence is not readiness');
   }
   const command = configCommand(config, 'bootstrap');
-  const digest = createHash('sha256').update(await fs.readFile(file));
+  const digest = createHash('sha256').update(bytes);
   for (const input of config.preparation?.inputs ?? []) {
     const location = await fs.realpath(path.resolve(identity.top, input));
     if (!location.startsWith(identity.top + path.sep) || !(await fs.stat(location)).isFile()) throw new Error('preparation input must be a regular file inside the workspace');

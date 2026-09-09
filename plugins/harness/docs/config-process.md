@@ -2,6 +2,8 @@
 
 The repository owns `.harness.json`. `lib/config.mjs` reads that exact file in the supplied repository directory; it does not search parents, write a projection or choose a default ledger. The `validate` command prints the validated object, including extension keys. Do not print this output where repository extensions may contain secrets.
 
+`loadConfigSnapshot` returns the exact bytes and the validated configuration parsed from that single read. Preparation derives both the executable command and config fingerprint from this snapshot, so replacing the file between reads cannot certify an old command against new settings. `loadConfig` retains its `{file, config}` return shape for existing callers.
+
 ```sh
 node "${CLAUDE_PLUGIN_ROOT}/scripts/config.mjs" validate <repo>
 node "${CLAUDE_PLUGIN_ROOT}/scripts/config.mjs" run <repo> bootstrap

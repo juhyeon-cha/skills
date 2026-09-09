@@ -38,9 +38,15 @@ export function validateConfig(config) {
   return config;
 }
 
-export async function loadConfig(repoRoot) {
+export async function loadConfigSnapshot(repoRoot) {
   const file = path.resolve(repoRoot, '.harness.json');
-  const config = validateConfig(JSON.parse((await fs.readFile(file, 'utf8')).replace(/^\uFEFF/, '')));
+  const bytes = await fs.readFile(file);
+  const config = validateConfig(JSON.parse(bytes.toString('utf8').replace(/^\uFEFF/, '')));
+  return {file, config, bytes};
+}
+
+export async function loadConfig(repoRoot) {
+  const {file, config} = await loadConfigSnapshot(repoRoot);
   return {file, config};
 }
 

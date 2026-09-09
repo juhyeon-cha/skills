@@ -33,6 +33,13 @@ try {
   fs.writeFileSync(path.join(repo, '.harness.json'), JSON.stringify({ledger: {backend: 'github'}}));
   fs.writeFileSync(path.join(plugin, 'scripts/ledger.sh'), '#!/usr/bin/env bash\n[ "$1" = wire-worktree ] || exit 97\nprintf "fixture wiring\\n"\n');
   state = preparationPaths(await inspectWorkspace(wt, {env}));
+  const snapshotConfig = {ledger: {backend: 'github'}, bootstrap: {argv: [process.execPath, '-e', "require('node:fs').writeFileSync('executed', process.argv[1])", 'old']}};
+  fs.writeFileSync(path.join(wt, '.harness.json'), JSON.stringify(snapshotConfig));
+  const race = spawnSync(process.execPath, [fileURLToPath(new URL('./prepare-snapshot-fixture.mjs', import.meta.url)), plugin, wt], {cwd: repo, env, detached: true, encoding: 'utf8'});
+  assert.equal(race.status, 0, race.stderr);
+  const observation = JSON.parse(race.stdout); console.log('snapshot interleave: ' + race.stdout.trim());
+  check(observation.injected && observation.executed === 'old' && !observation.ready && !observation.canDelegate && observation.error?.includes('PREPARE_INPUT_CHANGED'), 'old command cannot receive readiness for replacement config');
+  check((await run()).code === 0 && fs.readFileSync(path.join(wt, 'executed'), 'utf8') === 'new' && (await run('ready')).code === 0, 'retry executes replacement command before granting readiness');
   const commandFile = path.join(wt, 'bootstrap.mjs'), modeFile = path.join(wt, 'input.txt'), attempts = path.join(wt, 'attempts'), pidFile = path.join(wt, 'child.pid');
   fs.writeFileSync(commandFile, `import fs from 'node:fs';\nfs.appendFileSync('attempts', 'attempt\\n'); fs.writeFileSync('child.pid', String(process.pid));\nconst mode=fs.readFileSync('input.txt','utf8');\nif(mode==='fail') { await new Promise(r=>setTimeout(r,300)); process.exit(9); }\nif(mode==='crash') process.kill(process.pid,'SIGKILL');\nawait new Promise(r=>setTimeout(r, mode==='hold'?5000:300)); console.log('fixture prepared');\n`);
   let config = {ledger: {backend: 'github'}, bootstrap: {argv: [process.execPath, commandFile]}, preparation: {inputs: ['input.txt', 'bootstrap.mjs'], timeout_ms: 2000}};
