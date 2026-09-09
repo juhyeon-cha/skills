@@ -27,9 +27,11 @@ export function inspectRuntimeContract(evidence) {
   require('signals', signals.length > 0 && signals.every(s => typeof s === 'string' && /^[A-Z_]+$/.test(s)));
   const starts = own.filter(e => e.hook_event_name === 'SubagentStart' && e.agent_type === role && typeof e.agent_id === 'string' && e.agent_id.length > 0);
   require('SubagentStart:role', starts.length > 0);
-  require('PreToolUse:role', starts.some(start => own.some(e => e.hook_event_name === 'PreToolUse' && e.agent_id === start.agent_id && e.agent_type === role)));
-  require('SubagentStop:role', starts.some(start => own.some(e => e.hook_event_name === 'SubagentStop' && e.agent_id === start.agent_id && e.agent_type === role)));
-  // A parent summary is insufficient: pin the response to the delegated instance.
-  require('role:result', starts.some(start => own.some(e => e.hook_event_name === 'SubagentStop' && e.agent_id === start.agent_id && e.agent_type === role && signals.includes(/^SIGNAL: ([A-Z_]+)(?:\r?\n|$)/.exec(e.last_assistant_message ?? '')?.[1]))));
+  const invoked = starts.filter(start => own.some(e => e.hook_event_name === 'PreToolUse' && e.agent_id === start.agent_id && e.agent_type === role));
+  require('PreToolUse:role', invoked.length > 0);
+  // Carry the same instance through each stage; partial children cannot combine.
+  const stopped = own.filter(e => e.hook_event_name === 'SubagentStop' && e.agent_type === role && invoked.some(start => start.agent_id === e.agent_id));
+  require('SubagentStop:role', stopped.length > 0);
+  require('role:result', stopped.some(e => signals.includes(/^SIGNAL: ([A-Z_]+)(?:\r?\n|$)/.exec(e.last_assistant_message ?? '')?.[1])));
   return {status: missing.length ? 'UNREACHED' : 'PASS', origin: evidence?.origin ?? 'unknown', missing};
 }

@@ -28,9 +28,19 @@ if (process.argv[2]) {
       {hook_event_name: 'SubagentStop', session_id: 'parent', agent_id: 'child', agent_type: 'harness-reviewer', last_assistant_message: 'SIGNAL: LGTM\nfixture'},
     ],
   });
+  const splitChildren = runtime => {
+    const evidence = make(runtime);
+    evidence.events.push({...evidence.events[3], agent_id: 'other-child'});
+    evidence.events[5].agent_id = 'other-child';
+    return evidence;
+  };
   for (const runtime of ['claude', 'codex']) {
     const good = make(runtime);
     assert.equal(inspectRuntimeContract(good).status, 'PASS');
+    assert.equal(inspectRuntimeContract(splitChildren(runtime)).status, 'UNREACHED', 'partial child chains cannot combine');
+    const completeChild = splitChildren(runtime);
+    completeChild.events.push({...completeChild.events[4], agent_id: 'other-child'});
+    assert.equal(inspectRuntimeContract(completeChild).status, 'PASS', 'one complete child supplies capability evidence');
     for (let i = 0; i < good.events.length; i++) {
       const bad = structuredClone(good); bad.events.splice(i, 1);
       assert.notDeepEqual(bad, good);
@@ -49,7 +59,7 @@ if (process.argv[2]) {
   assert.deepEqual(roleSignals('unknown format'), []);
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'runtime-contract-check-'));
   try {
-    for (const evidence of [null, {...make('codex'), runtime: 'unknown'}, {...make('claude'), events: []}]) {
+    for (const evidence of [null, {...make('codex'), runtime: 'unknown'}, {...make('claude'), events: []}, splitChildren('codex'), splitChildren('claude')]) {
       const file = path.join(temp, 'negative.json');
       fs.writeFileSync(file, JSON.stringify(evidence));
       const run = spawnSync(process.execPath, [process.argv[1], file], {encoding: 'utf8'});
