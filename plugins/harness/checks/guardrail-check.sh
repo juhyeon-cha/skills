@@ -681,6 +681,11 @@ else
   PTMP="$TMP/stopguard"
   mkdir -p "$PTMP/bin" "$PTMP/proj" "$PTMP/data" "$PTMP/hroot"
   printf '{"ledger":{"backend":"beads"}}\n' > "$PTMP/hroot/.harness.json"   # 판별자 — 훅의 오라클은 어댑터(ledger.sh)를 거쳐 PATH 앞의 스텁 bd 에 닿는다
+  git -C "$PTMP/hroot" init -q
+  git -C "$PTMP/hroot" add .harness.json
+  git -C "$PTMP/hroot" -c user.name=fixture -c user.email=fixture@example.invalid commit -qm fixture
+  rmdir "$PTMP/proj"
+  git -C "$PTMP/hroot" worktree add -q -b fixture "$PTMP/proj"
   SDATA="$PTMP/data"
   SLOG="$SDATA/stop-resume.log"
   SORACLE="$PTMP/oracle"
@@ -697,6 +702,10 @@ else
 #!/bin/sh
 # 훅은 어댑터를 거쳐 `bd -C <하네스루트> list …` 로 부른다 — 원장 지정을 건너뛰고 하위 명령을 본다.
 if [ "$1" = "-C" ]; then shift 2; fi
+if [ "$1" = "show" ]; then
+  printf '[{"id":"fixture","status":"in_progress","actor":"%s"}]\n' "${SCOPE_ACTOR:-probe-actor}"
+  exit 0
+fi
 if [ "$1" = "list" ]; then
   v=$(cat "$ORACLE_FILE" 2>/dev/null || echo 0)
   if [ "$v" = "FAIL" ]; then echo "Error: no beads database found" >&2; exit 1; fi
@@ -712,7 +721,7 @@ fi
 exit 0
 STUB
   chmod +x "$PTMP/bin/bd"
-  SPATH="$PTMP/bin:$(dirname "$(command -v jq)"):/usr/bin:/bin"
+  SPATH="$PTMP/bin:$(dirname "$(command -v node)"):$(dirname "$(command -v jq)"):/usr/bin:/bin"
 
   # 사거리 재료. 훅은 세션→actor 매핑(guard.sh 가 claim 을 관측해 적는 파일)을 읽어
   # 이 세션이 잡은 것만 센다. 실사용 매핑을 읽으면 판정이 그 머신의 세션 이력에 흔들리므로
@@ -728,15 +737,17 @@ STUB
   # lib/harness-root.sh 를 못 찾아 ORACLE_FAIL 로 통과하고, 그러면 "판정 줄을 뺐다" 가 공허해진다.
   SCWD="$PTMP/proj"
   SOUT=""; SRC=0
-  runstop() {  # runstop <훅경로> <session_id> <stop_hook_active> → SOUT/SRC
+  state_path() { env HARNESS_RUNTIME=claude HARNESS_DATA_DIR="$SDATA" node "$ROOT/scripts/state.mjs" paths claude "$SCWD" "$1" | jq -r ".$2"; }
+  runstop() {  # actual source bind verifies against the isolated adapter
+    SLOG="$(state_path "$2" stopLog)"
+    actor_file="$(state_path "$2" actors)"
     case "$SCOPE_MODE" in
-      none)  rm -f "$SACTOR" ;;
-      other) printf '%s\t%s\t%s\n' 2026-01-01T00:00:00Z "다른-세션" "$SCOPE_ACTOR" > "$SACTOR" ;;
-      *)     printf '%s\t%s\t%s\n' 2026-01-01T00:00:00Z "$2" "$SCOPE_ACTOR" > "$SACTOR" ;;
+      none|other) rm -f "$actor_file" ;;
+      *) env PATH="$SPATH" HARNESS_RUNTIME=claude HARNESS_DATA_DIR="$SDATA" SCOPE_ACTOR="$SCOPE_ACTOR" node "$ROOT/scripts/state.mjs" bind claude "$SCWD" "$2" "$PTMP/hroot" fixture "$SCOPE_ACTOR" >/dev/null ;;
     esac
     SOUT="$(cd "$SCWD" && printf '{"session_id":"%s","stop_hook_active":%s,"cwd":"%s"}' "$2" "$3" "$SCWD" \
       | env PATH="$SPATH" ORACLE_FILE="$SORACLE" SCOPE_ACTOR="$SCOPE_ACTOR" \
-            HARNESS_SESSION_ACTOR_LOG="$SACTOR" HARNESS_DATA_DIR="$SDATA" HARNESS_ROOT="$SHROOT" \
+            HARNESS_RUNTIME=claude HARNESS_SESSION_ACTOR_LOG="$SACTOR" HARNESS_DATA_DIR="$SDATA" HARNESS_ROOT="$SHROOT" \
             CLAUDE_PLUGIN_ROOT="$ROOT" bash "$1" 2>"$PTMP/err")"
     SRC=$?
   }
@@ -771,6 +782,7 @@ STUB
   stop_case() {  # stop_case <마지막 줄의 기대 경로> <session_id> <stop_hook_active> <오라클값> [기대 줄 수=1]
     local want="$1" sid="$2" active="$3" oracle="$4" want_n="${5:-1}" before after added got t
     printf '%s' "$oracle" > "$SORACLE"
+    SLOG="$(state_path "$sid" stopLog)"
     before="$(slog_lines)"
     runstop "$STOPABS" "$sid" "$active"
     after="$(slog_lines)"
@@ -874,60 +886,28 @@ STUB
   step "출구 안내: 차단 메시지가 DELEGATED 를 든다" grep -q 'DELEGATED' "$PTMP/dg-ab.json"
   step "출구 안내: 차단 메시지가 VERIFY_PENDING 도 든다" grep -q 'VERIFY_PENDING' "$PTMP/dg-ab.json"
 
-  # CANCEL — **소유자는 파일 이름에 있다** (harness-o59). 빈 입구 마커를 처음 본 세션이 자기
-  # 자리로 mv 하고, 그 뒤로는 자기 자리만 보고 통과한다. 다른 세션의 Stop 이 지나가도 남의
-  # 자리를 읽지도 지우지도 않는다 — 옛 형태는 여기서 rm 했고 실사용 귀속 8건이 전부 그렇게
-  # 뺏겼다. 그래서 "B 가 지나가도 A 의 파일이 실재한다"가 판정 대상이다.
-  SRC_MARK="$SDATA/stop-resume-cancel"
-  MARK_A="$SRC_MARK.s-cancel"
-  : > "$SRC_MARK"
-  stop_case CANCEL      s-cancel  false 2
-  mk=0; [[ -f "$MARK_A" && ! -f "$SRC_MARK" ]] && mk=1
-  step "경로 CANCEL: 사람 입구를 이 세션의 자리로 옮긴다 (입구는 사라지고 자기 자리에 생긴다)" [ "$mk" -eq 1 ]
-  stop_case CANCEL      s-cancel  false 2
-  step "경로 CANCEL: 같은 세션이면 자기 자리의 마커를 소비하지 않는다" [ -f "$MARK_A" ]
-  # 소유자 보존 — B 의 Stop 은 A 의 마커에 손대지 않는다. B 자신은 마커가 없으니 종전대로 막힌다.
-  stop_case BLOCK       s-other   false 2
-  step "경로 CANCEL: 남의 세션 Stop 이 지나가도 A 의 마커가 그대로 있다" [ -f "$MARK_A" ]
-  stop_case CANCEL      s-cancel  false 2
-  step "경로 CANCEL: 그 뒤에도 A 는 CANCEL 로 통과하고 마커를 유지한다" [ -f "$MARK_A" ]
-  # A/B 귀속 — 귀속 mv 줄만 뺀 사본은 입구를 옮기지 못한다(그 세션의 자리가 생기지 않는다).
-  HOOK_OWN="$PTMP/stop-resume-own.sh"
-  grep -v 'CANCEL_OWN' "$STOPHOOK" > "$HOOK_OWN"
-  step "A/B 사본: 귀속 줄 하나만 빠졌다 ($(wc -l < "$STOPHOOK" | tr -d ' ') → $(wc -l < "$HOOK_OWN" | tr -d ' '))" \
-    [ "$(wc -l < "$HOOK_OWN" | tr -d ' ')" -eq "$(( $(wc -l < "$STOPHOOK" | tr -d ' ') - 1 ))" ]
-  step "A/B 사본이 실재하고 원본과 다르다" not_same "$STOPHOOK" "$HOOK_OWN"
-  : > "$SRC_MARK"; printf '2' > "$SORACLE"; runstop "$HOOK_OWN" s-own-ab false
-  ab_own=0; [[ ! -f "$SRC_MARK.s-own-ab" && -f "$SRC_MARK" ]] && ab_own=1
-  step "A/B 귀속: 귀속 줄을 뺀 사본에서는 입구가 그 세션의 자리로 옮겨지지 않는다" [ "$ab_own" -eq 1 ]
-  step "A/B 사본도 비-0 으로 죽지 않는다 (rc=${SRC})" [ "$SRC" -eq 0 ]
-  # 실패 경로 — 마커 자리에 쓸 수 없어도 죽지 않는다. 로그는 **이미 있는 파일에 append** 라
-  # 디렉토리 쓰기 권한 없이도 남는다(그것이 이 시험이 성립하는 조건이고, 그래서 mv 만 죽는다).
-  chmod a-w "$SDATA"
-  stop_case CANCEL      s-nowrite false 2
-  chmod u+w "$SDATA"
-  nw=0; [[ -f "$SRC_MARK" && ! -f "$SRC_MARK.s-nowrite" ]] && nw=1
-  step "경로 CANCEL: 마커를 옮기지 못하면 입구가 남고 로그 한 줄로 그 사실이 구분된다" [ "$nw" -eq 1 ]
+  # Explicit cancellation belongs to one scoped session. The legacy entrance stays untouched.
+  SRC_MARK="$SDATA/stop-resume-cancel"; : > "$SRC_MARK"
+  MARK_A="$(state_path s-cancel cancel)"
+  env HARNESS_RUNTIME=claude HARNESS_DATA_DIR="$SDATA" node "$ROOT/scripts/state.mjs" cancel claude "$SCWD" s-cancel >/dev/null
+  stop_case CANCEL s-cancel false 2
+  step "cancel: 명시 session 마커와 legacy 입구를 보존한다" test -f "$SRC_MARK"
+  stop_case CANCEL s-cancel false 2
+  stop_case BLOCK s-other false 2
+  step "cancel: 다른 session이 지나가도 소유 마커가 남는다" test -f "$MARK_A"
+  stop_case CANCEL s-cancel false 2
   rm -f "$SRC_MARK"
 
-  # ── 데이터 디렉토리 — 상태 파일이 프로젝트 밖의 한 자리에만 떨어진다 ────────────
-  # 종전에는 로그가 본 체크아웃의 .claude/ 에, 마커가 CWD 에 떨어졌다(harness-o59 의 로그 앵커).
-  # 이제 둘 다 HARNESS_DATA_DIR 아래다 — 기본값은 $HOME/.claude/plugins/data/harness. 위 시험은
-  # 전부 그 변수를 샌드박스로 돌려 돌았으므로, **기본값 경로**와 **만들 수 없는 경로**를 따로 본다.
   DHOME="$PTMP/home"; mkdir -p "$DHOME"
-  printf '0' > "$SORACLE"
-  DOUT="$(cd "$SCWD" && printf '{"session_id":"s-default","stop_hook_active":true}' \
-    | env -u HARNESS_DATA_DIR PATH="$SPATH" HOME="$DHOME" HARNESS_ROOT="$SHROOT" CLAUDE_PLUGIN_ROOT="$ROOT" bash "$STOPABS" 2>"$PTMP/derr")"; DRC=$?
-  step "데이터 디렉토리 기본값: HOME 아래 .claude/plugins/data/harness/stop-resume.log 에 한 줄이 남는다" \
-    [ "$(wc -l < "$DHOME/.claude/plugins/data/harness/stop-resume.log" 2>/dev/null | tr -d ' ')" = "1" ]
-  step "데이터 디렉토리 기본값: 실행 디렉토리에는 아무것도 떨어지지 않는다" [ -z "$(ls -A "$SCWD")" ]
-  step "데이터 디렉토리 기본값: rc=0 (실제 ${DRC})" [ "$DRC" -eq 0 ]
-  : > "$PTMP/notadir"    # 일반 파일 — 그 아래에는 디렉토리를 만들 수 없다 (없는 경로는 mkdir -p 가 만들어 버린다)
-  DOUT="$(cd "$SCWD" && printf '{"session_id":"s-nodir","stop_hook_active":false}' \
-    | env -u HARNESS_DATA_DIR PATH="$SPATH" HOME="$PTMP/notadir" HARNESS_ROOT="$SHROOT" bash "$STOPABS" 2>"$PTMP/derr")"; DRC=$?
-  step "데이터 디렉토리를 만들 수 없으면 막지 않는다 (rc=0, 실제 ${DRC})" [ "$DRC" -eq 0 ]
-  step "그때 stdout 은 비어 있다 (판정하지 않는다)" [ -z "$DOUT" ]
-  step "그 사실이 stderr 한 줄로 남는다" grep -q '데이터 디렉토리' "$PTMP/derr"
+  DLOG="$(env -u HARNESS_DATA_DIR HOME="$DHOME" HARNESS_RUNTIME=claude node "$ROOT/scripts/state.mjs" paths claude "$SCWD" s-default | jq -r .stopLog)"
+  DOUT="$(printf '{"session_id":"s-default","stop_hook_active":true,"cwd":"%s"}' "$SCWD" | env -u HARNESS_DATA_DIR PATH="$SPATH" HOME="$DHOME" HARNESS_RUNTIME=claude CLAUDE_PLUGIN_ROOT="$ROOT" bash "$STOPABS" 2>"$PTMP/derr")"; DRC=$?
+  step "기본 경로는 공통 resolver의 session 경로다" test -s "$DLOG"
+  step "기본 경로의 Stop rc0" [ "$DRC" -eq 0 ]
+  : > "$PTMP/notadir"
+  DOUT="$(printf '{"session_id":"s-nodir","stop_hook_active":true,"cwd":"%s"}' "$SCWD" | env HARNESS_DATA_DIR="$PTMP/notadir" PATH="$SPATH" HARNESS_RUNTIME=claude CLAUDE_PLUGIN_ROOT="$ROOT" bash "$STOPABS" 2>"$PTMP/derr")"; DRC=$?
+  step "상태 실패 Stop은 stdout 판정을 내지 않는다" [ -z "$DOUT" ]
+  step "상태 기록 실패는 Stop을 가두지 않는다" [ "$DRC" -eq 0 ]
+  step "기록 실패는 UNREACHED 진단이다" grep -q 'UNREACHED' "$PTMP/derr"
 
   # GAVE_UP — 같은 세션이 상한만큼 막힌 뒤에는 막지 않는다. 상한 계산의 출처가 로그
   # 자신이므로, 이 시험은 위 BLOCK 줄들이 실제로 쌓였다는 것까지 함께 확인한다.
@@ -961,9 +941,9 @@ STUB
   tail -1 "$SLOG" | cut -f4 | grep -q -- "$SCOPE_ACTOR" && sc_scoped=1
   step "사거리 ②: 차단 로그의 4열이 좁힌 범위(${SCOPE_ACTOR})를 든다" [ "$sc_scoped" -eq 1 ]
   # ③ 매핑은 읽혔는데 이 세션의 actor 가 한 줄도 없다 → NO_CLAIM 으로 통과.
-  SCOPE_MODE=other; stop_case NO_CLAIM s-sc-noclaim false "$FX_SC_MINE"; SCOPE_MODE=mine
+  SCOPE_MODE=other; stop_case BLOCK s-sc-noclaim false "$FX_SC_MINE" 2; SCOPE_MODE=mine
   SCOPE_FX+=("매핑에 이 세션 없음→NO_CLAIM")
-  step "사거리 ③: NO_CLAIM 은 막지 않는다" [ -z "$SOUT" ]
+  step "사거리 ③: 미검증 매핑은 scope를 좁히지 않는다" [ -n "$SOUT" ]
   # ④ 매핑 파일이 없다 → SCOPE_FAIL 을 남기고 **원장 전체**로 판정한다. 통과로 폴백하면
   #    가드가 조용히 꺼지므로, 남의 actor 픽스처가 여기서는 막혀야 한다.
   SCOPE_MODE=none; stop_case BLOCK s-sc-nomap false "$FX_SC_OTHER" 2; SCOPE_MODE=mine
@@ -1003,26 +983,11 @@ STUB
   step "A/B 귀속: 좁히기 판정 줄을 뺀 사본에서 남의 actor 가 block 이 된다" is_block "$PTMP/sc-ab.json"
   step "A/B 사본도 비-0 으로 죽지 않는다 (rc=${SRC})" [ "$SRC" -eq 0 ]
 
-  # 부정 대조군 — 매핑을 **쓰는** 쪽(guard.sh 의 관측 호출)만 뺀 사본은 같은 claim 입력에서
-  # 줄을 남기지 않는다. 여기가 없으면 위 픽스처들은 "훅이 매핑을 읽는다"만 세우고
-  # "그 매핑이 실제로 claim 관측으로 채워진다"는 아무도 안 본다.
-  GHOOK_SC="$PTMP/guard-noobserve.sh"
-  grep -v 'SA_OBSERVE_CALL' "$HOOK" > "$GHOOK_SC"
-  step "부정 대조군 사본: 관측 호출 한 줄만 빠졌다 ($(wc -l < "$HOOK" | tr -d ' ') → $(wc -l < "$GHOOK_SC" | tr -d ' '))" \
-    [ "$(wc -l < "$GHOOK_SC" | tr -d ' ')" -eq "$(( $(wc -l < "$HOOK" | tr -d ' ') - 1 ))" ]
-  step "부정 대조군 사본이 실재하고 원본과 다르다" not_same "$HOOK" "$GHOOK_SC"
+  # PreToolUse is not successful claim evidence, including an explicitly selected legacy TSV.
   SA_MAP="$PTMP/sa-map.tsv"; : > "$SA_MAP"
   SA_PROBE='{"tool_name":"Bash","session_id":"sa-1","cwd":"/tmp","tool_input":{"command":"bd -C /h update t-1 --claim --actor probe-actor"}}'
-  sa_run() { printf '%s' "$SA_PROBE" | env HARNESS_SESSION_ACTOR_LOG="$SA_MAP" bash "$1" >/dev/null 2>&1 || true; }
-  sa_run "$HOOK";      sa_n1="$(wc -l < "$SA_MAP" | tr -d ' ')"
-  sa_run "$GHOOK_SC";  sa_n2="$(wc -l < "$SA_MAP" | tr -d ' ')"
-  step "관측 양성: claim 명령 하나가 매핑에 정확히 한 줄을 남긴다 (${sa_n1}줄)" [ "$sa_n1" -eq 1 ]
-  sa_shape=0
-  awk -F'\t' 'NF == 3 && $1 ~ /T.*Z$/ && $2 == "sa-1" && $3 == "probe-actor" { ok = 1 } END { exit !ok }' \
-    "$SA_MAP" && sa_shape=1
-  step "관측 양성: 그 줄이 <UTC 시각>\\t<session_id>\\t<actor> 다" [ "$sa_shape" -eq 1 ]
-  step "부정 대조군: 관측 호출을 뺀 사본은 같은 입력에 줄을 남기지 않는다 (${sa_n1} → ${sa_n2})" \
-    [ "$sa_n2" -eq "$sa_n1" ]
+  printf '%s' "$SA_PROBE" | env HARNESS_SESSION_ACTOR_LOG="$SA_MAP" bash "$ROOT/$HOOK" >/dev/null 2>&1 || true
+  step "PreToolUse는 actor 매핑을 성공으로 기록하지 않는다" test ! -s "$SA_MAP"
 
   step "시험이 0건이 아니다 (훅을 ${runs}회 실행했다)" [ "$runs" -gt 0 ]
   step "판정 도달: 실행 ${runs}회의 기록이 기대 줄 수와 같다 (기록 ${logged}줄 / 기대 ${wantlines}줄) — 무기록은 통과가 아니라 미실행이다" \

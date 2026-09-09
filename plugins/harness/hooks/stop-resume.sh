@@ -28,50 +28,25 @@ set -euo pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
-# 상태 파일은 전부 **하네스 데이터 디렉토리** 아래다 (스토리 harness-lzs3 "결정됨" — 런타임 상태는
-# 프로젝트 디렉토리 밖). 종전의 자리(본 체크아웃의 .claude/stop-resume.log · CWD 의 취소 마커)는
-# 대상 레포 트리에 하네스 파일을 떨어뜨렸고, 워크트리가 지워지면 기록도 함께 사라졌다.
-# 세션이 어느 레포·워크트리에서 열리든 한 자리에 모이므로 git 앵커도 CWD 폴백도 없다.
-# **디렉토리를 만들 수 없으면 판정하지 않고 통과한다** — 정지 가드가 사람을 가두면 가드가 아니다.
-# 그 사실은 stderr 한 줄로 남긴다(조용히 꺼지지 않는다).
-DATA="${HARNESS_DATA_DIR:-$HOME/.claude/plugins/data/harness}"
-if ! mkdir -p "$DATA" 2>/dev/null; then
-  echo "정지 가드: 데이터 디렉토리를 만들 수 없다 ($DATA) — 판정하지 않고 통과한다" >&2
-  exit 0
-fi
-LOG="$DATA/stop-resume.log"
-# 세션→actor 매핑. hooks/guard.sh 가 claim 을 관측해 적는 파일이고(그쪽의
-# "세션→actor 매핑 관측" 절) 여기서는 읽기만 한다. 경로 규약을 그쪽과 같게 둔다.
-SESSION_ACTOR_LOG="${HARNESS_SESSION_ACTOR_LOG:-$HOME/.claude/harness-session-actor.tsv}"
-# 전용 취소 마커 — 다른 장치와 나눠 쓰지 않는다. 한 마커로 두 장치를 끄면 무엇을
-# 껐는지 기록이 구분하지 못한다.
-# **소유자는 파일 내용이 아니라 이름에 있다** (harness-o59). 이 경로는 사람이 touch 하는
-# 입구이고, 처음 본 세션이 자기 자리($CANCEL.<session_id>)로 mv 한다 — 어느 경로도 남의
-# 마커를 rm 하지 않으므로 동시에 도는 세션이 서로의 마커를 뺏지 못한다. 죽은 세션의 잔존은
-# 소비 대상이 아니라 무해한 빈 파일이다.
-CANCEL="$DATA/stop-resume-cancel"
-# ponytail: 세션당 재주입 상한. 넘으면 막지 않고 GAVE_UP 을 남긴 뒤 통과한다 —
-# 사람이 못 빠져나가는 가드는 가드가 아니다. 상한 계산에 새 상태 파일을 쓰지 않고
-# 아래 log 가 남긴 BLOCK 줄을 센다(상태의 출처를 둘로 늘리지 않는다).
-MAX_BLOCKS=3
-
-# Stop 페이로드만 입력이다. 인자도 환경 변수도 상태의 출처로 쓰지 않는다.
+# Runtime/session come from an explicit adapter identity and the actual event.
+# A missing state contract is UNREACHED, never an idle-work assertion.
 payload="$(cat)"
-
-SID="unknown"
-log() {  # log <경로> <사유>
-  printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$SID" "$1" "$2" >> "$LOG"
+for dependency in node jq; do
+  if ! command -v "$dependency" >/dev/null 2>&1; then
+    echo "STATE UNREACHED: Stop $dependency dependency missing; stop allowed" >&2
+    exit 0
+  fi
+done
+SID="$(printf '%s' "$payload" | jq -er '.session_id | select(type == "string" and length > 0)')" || { echo "STATE UNREACHED: Stop session missing" >&2; exit 0; }
+PCWD="$(printf '%s' "$payload" | jq -er '.cwd | select(type == "string" and length > 0)')" || { echo "STATE UNREACHED: Stop cwd missing" >&2; exit 0; }
+STATE="$(node "$PLUGIN_ROOT/scripts/state.mjs" paths "${HARNESS_RUNTIME:-}" "$PCWD" "$SID")" || { echo "STATE UNREACHED: Stop state resolution failed; stop allowed" >&2; exit 0; }
+RUNTIME="$(printf '%s' "$STATE" | jq -er '.runtime')"
+LOG="$(printf '%s' "$STATE" | jq -er '.stopLog')"
+MAX_BLOCKS=3
+log() {
+  node "$PLUGIN_ROOT/scripts/state.mjs" stop-log "$RUNTIME" "$PCWD" "$SID" "$1" "$2" || echo "STATE UNREACHED: Stop observation was not persisted" >&2
 }
-
-# jq 가 없으면 페이로드도 원장 출력도 읽을 수 없다. 0 으로 폴백하지 않는다 —
-# 읽지 못한 것을 "진행 중인 일 없음"으로 읽으면 가드가 조용히 꺼진다.
-if ! command -v jq >/dev/null 2>&1; then
-  log ORACLE_FAIL "jq 없음 — 페이로드와 원장을 읽을 수 없다. 0 으로 폴백하지 않고 통과한다"
-  exit 0
-fi
-
-SID="$(printf '%s' "$payload" | jq -r '.session_id // "unknown"' 2>/dev/null || echo unknown)"
-ACTIVE="$(printf '%s' "$payload" | jq -r 'if .stop_hook_active == true then "true" else "false" end' 2>/dev/null || echo false)"
+ACTIVE="$(printf '%s' "$payload" | jq -r '.stop_hook_active == true')"
 
 # 1) 재귀 통과 — 이미 이 훅이 되민 턴이다. 다시 막으면 세션이 영영 멈추지 못한다.
 if [[ "$ACTIVE" == "true" ]]; then
@@ -79,28 +54,17 @@ if [[ "$ACTIVE" == "true" ]]; then
   exit 0
 fi
 
-# 2) 전용 취소 마커 — **세션 지속형이고 소유자는 파일 이름에 있다**. 빈 입구 마커(`touch`)를
-#    처음 보면 이 세션의 자리로 mv 해 귀속시키고, 그 뒤로는 자기 자리만 보고 통과한다 —
-#    무관한 태스크 하나가 in_progress 로 남아 있는 동안 턴마다 다시 켜야 하는 일을 없앤다.
-#    **남의 자리는 읽지도 지우지도 않는다** — 옛 형태(소유자를 내용에 적고 남의 것이면 rm)는
-#    실사용 귀속 8건이 전부 다른 세션에 소비되는 결과를 냈다(harness-o59 본문의 실측).
-#    session_id 를 모르는 호출은 귀속시킬 자리가 없으므로 입구를 1회 소비하고, 그 사실을
-#    로그가 다른 문면으로 구분해 남긴다.
-CANCEL_MINE="$CANCEL.$SID"
-if [[ -f "$CANCEL_MINE" ]]; then
-  log CANCEL "전용 취소 마커($CANCEL_MINE)가 이 세션의 것이다 — 통과한다 (마커 유지)"
+# 2) Cancellation is created for an explicit runtime/repository/session only.
+# Legacy entrance markers are left untouched: the next observer is not their owner.
+if node "$PLUGIN_ROOT/scripts/state.mjs" cancelled "$RUNTIME" "$PCWD" "$SID"; then
+  log CANCEL "이 세션의 명시적 취소 — 통과한다 (마커 유지)"
   exit 0
-fi
-if [[ -f "$CANCEL" ]]; then
-  if [[ "$SID" == "unknown" ]]; then
-    rm -f "$CANCEL" 2>/dev/null || true
-    log CANCEL "입구 마커($CANCEL)를 소비했다 — session_id 를 몰라 귀속시킬 자리가 없다"
-  elif mv "$CANCEL" "$CANCEL_MINE" 2>/dev/null; then  # CANCEL_OWN
-    log CANCEL "입구 마커($CANCEL)를 이 세션의 자리($CANCEL_MINE)로 옮겼다 — 이 세션이 끝날 때까지 통과한다"
-  else
-    log CANCEL "입구 마커($CANCEL)를 이 세션의 자리로 옮기지 못했다(쓸 수 없다) — 귀속 없이 이번 정지를 허용한다"
+else
+  cancel_rc=$?
+  if [[ "$cancel_rc" -ne 1 ]]; then
+    echo "STATE UNREACHED: cancellation could not be evaluated; stop allowed" >&2
+    exit 0
   fi
-  exit 0
 fi
 
 # 3) 오라클 — 원장의 in_progress 이슈 수.
@@ -125,42 +89,16 @@ if ! [[ "$n" =~ ^[0-9]+$ ]]; then
   exit 0
 fi
 
-# 3b) 사거리 — 이 세션이 claim 한 actor 로 좁힌다.
-#     매핑은 파생이 아니라 관측이다: actor 는 무작위 6자라 session_id 에서 계산될 수 없고
-#     세션을 넘어 재사용되는 것이 이어받기 규약이라(harness:develop 3절 0번),
-#     guard.sh 가 claim 이 지나가는 순간에 (session_id, actor) 를 적어 둔 것을 여기서 읽는다.
-#     actor 의 원천은 스토리 bead 의 note `ACTOR: <레포> <값>` 이다(harness:develop 1절 "ACTOR
-#     note" — 세션 단위가 (스토리, 레포)라 레포가 앞에 붙는다). **여기 오는 것은 `<값>` 뿐이다** —
-#     claim 의 `--actor <값>` 을 guard.sh 가 관측하고, 원장의 actor 도 그 값이다. 이 훅은
-#     note 를 읽지 않으므로 레포 접두는 판정에 들어오지 않는다.
-#     **읽는 필드는 `.actor // .assignee` 다** (harness-kw0l.3.1 — 백로그 harness-gkfq 의 답).
-#     정규화 JSON 의 `actor` 는 "이 항목을 잡은 세션"이고 백엔드마다 사는 자리가 다르다:
-#     github 은 마지막 `ACTOR:` 코멘트(assignee 에는 claim 을 돌린 사람의 GitHub 로그인이 들어가
-#     두 값이 갈린다), notion·beads 는 그 개념이 assignee 하나뿐이라 actor 가 같은 값이다 —
-#     그래서 beads 판정은 종전과 같다. **키는 세 백엔드에 전부 있다**(어댑터의 계약): 뒤쪽
-#     `// .assignee` 는 actor 가 null 인 항목(ACTOR 코멘트 없는 github 이슈)을 위한 것이다.
-#     이 자리는 종전에 github 백엔드에서 좁히기가 하나도 못 짚어 in_progress 가 있어도 0건으로
-#     통과하던 곳이다(harness-m8gg.4 note NIT 3 이 짚은 천장).
-#
-#     **폴백의 방향이 둘로 갈린다 — 하나로 합치면 가드가 조용히 꺼지거나 아무것도 안 고쳐진다.**
-#       · 매핑을 **읽지 못했다**(없다·읽기 실패) → 종전대로 **원장 전체**로 판정한다(SCOPE_FAIL).
-#         0 으로도 통과로도 폴백하지 않는다 — 읽지 못한 것은 "잡은 것이 없다"가 아니다.
-#       · 읽었는데 이 세션의 actor 가 **하나도 없다** → 통과한다(NO_CLAIM). 잡은 것이 없는
-#         세션은 하다 만 일도 없다. 이것이 이 좁히기가 실제로 고치는 자리다.
-#     아래 표지가 달린 한 줄이 좁히기의 판정이고 guardrail-check S7 의 A/B 가 그 줄만 뺀
-#     사본을 돌린다 — 빠지면 남의 actor 로도 다시 막힌다(좁히기 전의 동작).
-SCOPE="원장 전체(매핑 없음)"
-if actors="$(awk -F'\t' -v s="$SID" '$2 == s && $3 != "" { print $3 }' "$SESSION_ACTOR_LOG" 2>/dev/null | sort -u)"; then
-  if [[ -z "$actors" ]]; then
-    log NO_CLAIM "매핑($SESSION_ACTOR_LOG)에 이 세션의 actor 가 없다 — 잡은 것이 없는 세션은 하다 만 일도 없다. in_progress ${n}건은 남의 것이다"
-    exit 0
-  fi
+# 3b) Only ledger-confirmed bindings narrow the scope. Legacy TSV records
+# are preserved but cannot prove a successful claim or runtime/repo ownership.
+SCOPE="원장 전체(검증된 매핑 없음)"
+if actor_state="$(node "$PLUGIN_ROOT/scripts/state.mjs" actors "$RUNTIME" "$PCWD" "$SID")"; then
+  actors="$(printf '%s' "$actor_state" | jq -er '.actors | join("\n")')"
   narrowed="$(printf '%s' "$oracle" | jq --arg a "$actors" '($a | split("\n")) as $act | [.[] | . as $i | select($act | index($i.actor // $i.assignee // ""))]' 2>/dev/null)" && oracle="$narrowed"  # SCOPE_NARROW
-  # 좁힌 결과를 셀 수 없으면 좁히기 **전** 값을 쓴다 — 0 으로 폴백하지 않는다.
   n="$(printf '%s' "$oracle" | jq 'length' 2>/dev/null || echo "$n")"
   SCOPE="이 세션의 actor $(printf '%s' "$actors" | tr '\n' ' ')"
 else
-  log SCOPE_FAIL "매핑($SESSION_ACTOR_LOG)을 읽지 못했다 — 사거리를 좁히지 않고 종전대로 원장 전체로 판정한다(통과로 폴백하지 않는다)"
+  log SCOPE_FAIL "검증된 actor 매핑을 읽지 못했다 — legacy 상태는 미검증이고 사거리를 좁히지 않는다"
 fi
 
 # 4) 오라클 0 통과 — 막을 이유가 없다.
@@ -200,7 +138,7 @@ fi
 # 5) 상한 포기 — 이 세션이 이미 상한만큼 되밀렸다. 막지 않는다.
 blocks=0
 if [[ -f "$LOG" ]]; then
-  blocks="$(awk -F'\t' -v s="$SID" '$2 == s && $3 == "BLOCK"' "$LOG" | wc -l | tr -d ' ')"
+  blocks="$(awk -F'\t' -v s="$SID" '$3 == "BLOCK"' "$LOG" | wc -l | tr -d ' ')"
 fi
 if [[ "$blocks" -ge "$MAX_BLOCKS" ]]; then
   # ${n} 의 중괄호는 장식이 아니다 — 뒤에 한글이 붙으면 bash 가 그것을 변수 이름의
@@ -211,6 +149,6 @@ fi
 
 # 6) 막음.
 log BLOCK "in_progress ${n}건(표시 없음 $((n - ${pending:-0}))건 · 검증 대기 ${vp}건 · 위임 직후 ${dg}건 · 범위: $SCOPE) — 재주입 $((blocks + 1))/$MAX_BLOCKS"
-jq -n --argjson n "$n" --argjson m "$((n - ${pending:-0}))" --arg cancel "$CANCEL" --arg scope "$SCOPE" --arg log "$LOG" \
-  '{decision: "block", reason: ("범위 \($scope) 안에 in_progress 인 일이 \($n)건 남아 있고 그중 \($m)건은 표시가 없다. 마감했다면 ledger.sh close 로 닫고, 배치 모드로 구현만 끝난 것이면 ledger.sh note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를, 배치 위임 직후라 아직 구현이 시작되지 않은 것이면 ledger.sh note <ID> \"DELEGATED: <마일스톤ID>\" 를 남기고, 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 `touch \($cancel)` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — " + $log + " 참고.")}'
+jq -n --argjson n "$n" --argjson m "$((n - ${pending:-0}))" --arg runtime "$RUNTIME" --arg cwd "$PCWD" --arg sid "$SID" --arg state "$PLUGIN_ROOT/scripts/state.mjs" --arg scope "$SCOPE" --arg log "$LOG" \
+  '{decision: "block", reason: ("범위 \($scope) 안에 in_progress 인 일이 \($n)건 남아 있고 그중 \($m)건은 표시가 없다. 마감했다면 ledger.sh close 로 닫고, 배치 모드로 구현만 끝난 것이면 ledger.sh note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를, 배치 위임 직후라 아직 구현이 시작되지 않은 것이면 ledger.sh note <ID> \"DELEGATED: <마일스톤ID>\" 를 남기고, 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 `node \($state | @sh) cancel \($runtime | @sh) \($cwd | @sh) \($sid | @sh)` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — " + $log + " 참고.")}'
 exit 0

@@ -3,6 +3,7 @@ import path from 'node:path';
 import {randomBytes, createHmac} from 'node:crypto';
 import {inspectDistribution, digest, readJson, pluginRoot} from './distribution.mjs';
 import {verifyRegistration, roleCall, roleResult} from './roles.mjs';
+import {formatStateContext} from './state.mjs';
 
 const signature = (value, secret) => createHmac('sha256', secret).update(JSON.stringify(value)).digest('hex');
 
@@ -31,7 +32,12 @@ export function recordHook(directory, root, event, hook, execution) {
     const output = JSON.parse(execution.stdout);
     const context = output.hookSpecificOutput?.additionalContext;
     if (typeof context !== 'string' || !context) throw new Error('context output missing');
-    receipt.contextHash = digest(context);
+    const suffix = execution.stateContext ? formatStateContext(execution.stateContext) : '';
+    if (execution.stateContext && (execution.stateContext.sessionId !== event.session_id || execution.stateContext.runtime !== challenge.runtime)) throw new Error('state context runtime/session mismatch');
+    if (suffix && !context.endsWith(suffix)) throw new Error('emitted state context differs from wrapper output');
+    receipt.contextHash = digest(suffix ? context.slice(0, -suffix.length) : context);
+    receipt.emittedContextHash = digest(context);
+    if (execution.stateContext) receipt.stateContext = execution.stateContext;
   }
   fs.appendFileSync(path.join(directory, 'receipts.jsonl'), JSON.stringify({receipt, signature: signature(receipt, challenge.secret)}) + '\n', {mode: 0o600});
 }
@@ -56,6 +62,10 @@ export function diagnose(root, directory, sessionId, expectedRoot = pluginRoot) 
     }).filter(r => r.sessionId === sessionId);
     const contexts = receipts.filter(r => r.hook === 'context' && r.code === 0 && r.contextHash === artifact.contextHash);
     if (contexts.length !== 1) throw new Error('context hook not observed exactly once in this session');
+    const observedContext = contexts[0];
+    if (observedContext.stateContext && (observedContext.stateContext.sessionId !== sessionId || observedContext.stateContext.runtime !== challenge.runtime)) throw new Error('state context scope mismatch');
+    const expectedContext = fs.readFileSync(path.join(root, 'hooks/session-context.md'), 'utf8') + (observedContext.stateContext ? formatStateContext(observedContext.stateContext) : '');
+    if (observedContext.emittedContextHash !== digest(expectedContext)) throw new Error('full emitted context mismatch');
     const events = receipts.filter(r => r.code === 0).map(r => r.event);
     const starts = events.filter(e => e.hook_event_name === 'SubagentStart');
     const identities = new Map();

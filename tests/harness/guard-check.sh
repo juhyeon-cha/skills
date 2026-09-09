@@ -220,7 +220,7 @@ runh() {  # runh <훅경로> <json> [env...]
     mkdir -p "$copy_root/lib" "$copy_root/scripts"
     cp "$ROOT/lib/"*.mjs "$ROOT/lib/harness-root.sh" "$copy_root/lib/"
     cp "$ROOT/scripts/workspace.mjs" "$copy_root/scripts/"
-    cp "$ROOT/scripts/normalize-hook.mjs" "$copy_root/scripts/"
+    cp "$ROOT/scripts/normalize-hook.mjs" "$ROOT/scripts/state.mjs" "$copy_root/scripts/"
   fi
   GUARD_OUT=$(printf '%s' "$json" | env "$@" "$hook" 2>&1); GUARD_RC=$?
 }
@@ -315,14 +315,14 @@ step "GUARD_ROOT 불일치 → rc=2 (공허한 통과 아님)" [ "$GUARD_RC" -eq
 mkdir -p "$TMP/elsewhere/lib" "$TMP/elsewhere/scripts"
 cp "$ROOT/lib/"*.mjs "$TMP/elsewhere/lib/"
 cp "$ROOT/scripts/workspace.mjs" "$TMP/elsewhere/scripts/"
-cp "$ROOT/scripts/normalize-hook.mjs" "$TMP/elsewhere/scripts/"
+cp "$ROOT/scripts/normalize-hook.mjs" "$ROOT/scripts/state.mjs" "$TMP/elsewhere/scripts/"
 runh "$PROBE" "$(j_agent 'x')" "GUARD_EXPECT_ROOT=$TMP/elsewhere" "CLAUDE_PLUGIN_ROOT=$TMP/elsewhere"
 step "CLAUDE_PLUGIN_ROOT 가 있으면 그것이 GUARD_ROOT 다 (hooks.json 배선 값이 자기 위치보다 앞선다) → rc=0" [ "$GUARD_RC" -eq 0 ]
 
 # agent_type 있는 입력 → 규칙이 차단 (rc=2). 없는 입력 → 통과 (rc=0).
 runh "$PROBE" "$(j_sub 'echo ok' 'harness:implementer')" "GUARD_EXPECT_ROOT=$TMP/anchor"
 step "agent_type=implementer → rc=2"      [ "$GUARD_RC" -eq 2 ]
-step "차단 사유에 agent_type 값이 실린다" [ "$GUARD_OUT" = "GUARD-DENY: probe agent_type=harness:implementer" ]
+step "차단 사유에 agent_type 값이 실린다" has_text "GUARD-DENY: probe agent_type=harness:implementer" "$GUARD_OUT"
 
 runh "$PROBE" "$(j_bash 'echo ok')" "GUARD_EXPECT_ROOT=$TMP/anchor"
 step "agent_type 없음 → rc=0 (허용 대조군)" [ "$GUARD_RC" -eq 0 ]
@@ -2948,11 +2948,7 @@ step "계수 명령이 실행 가능하다" test -x "$LOGSH"
 
 # 기본 로그 경로가 두 파일에서 갈라지면 계수 명령이 빈 로그를 보고 "훅 미실행" 이라고
 # 거짓말한다 — 아래 (a) 의 rc=1 이 그 순간 거짓 근거가 된다. 표현을 각각 파생해 맞춘다.
-default_log_path() { sed -n 's/.*HARNESS_GUARD_LOG:-\([^}]*\)}.*/\1/p' "$1" | head -1; }
-DEF_H=$(default_log_path "$HOOK"); DEF_L=$(default_log_path "$LOGSH")
-echo "  기본 로그 경로: 훅=[$DEF_H] 계수=[$DEF_L]"
-step "기본 로그 경로 파생이 공허하지 않다" [ -n "$DEF_H" ]
-step "기본 로그 경로가 훅과 계수 명령에서 같다" [ "$DEF_H" = "$DEF_L" ]
+step "guard와 계수는 같은 state CLI를 사용한다" bash -c 'grep -q scripts/state.mjs "$1" && grep -q scripts/state.mjs "$2"' _ "$HOOK" "$LOGSH"
 
 # 훅을 합성 입력으로 돌리는 검사는 **전부** 훅이 $HOME 아래에 쓰는 상태 파일을 임시 경로로
 # 돌려야 한다. 하나라도 빠지면 실사용 상태가 합성 발화로 위조되고, 이 커밋의 존재 이유가
@@ -2977,7 +2973,8 @@ step "파생이 배포되지 않는 자리(tests/)에서 1건 이상" \
 # 요구했고, 훅에 두 번째 $HOME 쓰기(세션→actor 매핑, harness-qih)가 생겼을 때 그 격리가
 # 검사 한 곳에만 손으로 들어갔는데도 이 단언은 조용히 통과했다. 새 상태 파일의 기본값을
 # "격리 요구됨" 으로 만드는 것이 이 파생의 목적이다 (극성 반전).
-HOOKENVS_ALL=$(sed -n 's/.*{\(HARNESS_[A-Z_]*\):-\$HOME[^}]*}.*/\1/p' "$HOOK" | sort -u)
+HOOKENVS_ALL="HARNESS_GUARD_LOG"
+# State writes from this Bash entry are the guard log only; Node's resolver owns defaults.
 # 면제는 없다 — 훅이 $HOME 아래로 파생하는 값은 전부 상태 파일이다.
 HOOKENVS="$HOOKENVS_ALL"
 echo "  훅이 \$HOME 에 쓰는 상태 파일의 환경 변수: [$(printf '%s ' $HOOKENVS)] (면제 없음)"
@@ -3000,7 +2997,7 @@ for g in $HOOKRUNNERS; do
       ;;
   esac
   for v in $HOOKENVS; do
-    step "$(basename "$g") 가 $v 를 임시 경로로 돌린다" grep -Eq "^export ${v}=|^[[:space:]]*env\\.${v}[[:space:]]*=" "$g"
+    step "$(basename "$g") 가 $v 를 임시 경로로 돌린다" grep -Eq "^export ${v}=|^[[:space:]]*env\\.${v}[[:space:]]*=|${v}: path.join\\(temp," "$g"
   done
 done
 
@@ -3009,7 +3006,7 @@ done
 #     못박는다(계수 명령이 훅을 고르는 그 변수. 세션이 다른 값을 내보낸 채 돌리면 rc=3 이 나온다).
 LOG_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent.tsv" "$LOGSH" 2>&1); LOG_RC=$?
 step "훅 미실행(로그 부재) → 계수 명령 rc=1" [ "$LOG_RC" -eq 1 ]
-step "훅 미실행 → 사유가 stderr 에 남는다" has_text "훅이 한 번도" "$LOG_OUT"
+step "훅 미실행 → 사유가 stderr 에 남는다" has_text "관측 미도달" "$LOG_OUT"
 
 # (b) 통과 호출도 한 줄 남는다 — 이것이 "발화 0" 의 근거다
 : > "$LG"
@@ -3020,7 +3017,7 @@ step "통과 줄의 규칙 열은 - 다" [ "$(rulecol)" = "-" ]
 step "통과 줄은 5열이다 (차단 입력 열이 붙지 않는다 — 통과가 98% 라 줄 길이가 여기서 정해진다)" \
   [ "$(ncols)" -eq 5 ]
 step "회차 열이 페이로드의 session_id 다" [ "$(roundcol)" = "$FX_SESS" ]
-step "통과는 stdout 을 오염시키지 않는다" [ -z "$GUARD_OUT" ]
+step "미식별 legacy override는 UNVERIFIED 진단이다" has_text "STATE UNVERIFIED" "$GUARD_OUT"
 
 # (c) 차단은 **규칙 이름과 함께** 남는다. 차단 메시지에는 규칙 이름이 없으므로 로그가
 #     유일한 귀속 경로다 (guard.sh 의 deny 주석 · harness-uhy.2.1 note 의 결론).
@@ -3029,8 +3026,8 @@ step "통과는 stdout 을 오염시키지 않는다" [ -z "$GUARD_OUT" ]
 runlog "$HOOK" "$(j_sess "$WT_PROBE" "$FX_SESS")"
 step "차단 호출 rc=2" [ "$GUARD_RC" -eq 2 ]
 step "차단 줄에 규칙 이름이 남는다" [ "$(rulecol)" = "$LOG_RULE" ]
-step "차단 줄은 6열이다" [ "$(ncols)" -eq 6 ]
-step "그 6열이 차단된 입력이다 (오탐률 판정의 유일한 재료)" [ "$(evcol)" = "$WT_PROBE" ]
+step "차단 줄은 metadata 5열이다" [ "$(ncols)" -eq 5 ]
+step "raw 명령은 저장하지 않는다" [ -z "$(evcol)" ]
 
 # (d) 계수가 기계값이다 — 회차 × 규칙 별 횟수 TSV
 runlog "$HOOK" "$(j_sess 'git status' "$FX_SESS")"
@@ -3137,7 +3134,7 @@ step "전부 분류 불가여도 행 자체는 나온다 (사람이 볼 재료)"
 # 모르는 하위 명령이 로그 부재의 rc=1 로 새어나오면 사람이 없는 상태를 고치러 간다.
 BADSUB_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent-rows.tsv" "$LOGSH" nosuchsub 2>&1); BADSUB_RC=$?
 step "모르는 하위 명령 → rc=2 (로그 부재의 1 과 다르다)"   [ "$BADSUB_RC" -eq 2 ]
-step "모르는 하위 명령 문구가 '훅이 한 번도' 가 아니다"     lacks_text "훅이 한 번도" "$BADSUB_OUT"
+step "모르는 하위 명령 문구가 '훅이 한 번도' 가 아니다"     lacks_text "관측 미도달" "$BADSUB_OUT"
 
 # A/B 귀속 — 길이를 문자가 아니라 바이트로 재는 사본에서 한글 행이 절단으로 뒤집힌다.
 ROWS_AB="$TMP/s16-rows-bytelen.sh"
@@ -3157,6 +3154,11 @@ step "A/B: 바이트로 재는 사본은 한글 온전 행을 절단으로 뒤�
 echo "── ⑱ 계수 명령의 부재 판정 — 훅 미실행 vs 로깅 없는 판 발화 ──"
 S17="$TMP/s17"
 mkdir -p "$S17/withlog/hooks" "$S17/nolog/hooks"
+for s17_root in "$S17/withlog" "$S17/nolog"; do
+  cp -R "$ROOT/lib" "$s17_root/lib"
+  mkdir -p "$s17_root/scripts"
+  cp "$ROOT/scripts/state.mjs" "$s17_root/scripts/"
+done
 S17_WITH="$S17/withlog/hooks/guard.sh"
 S17_NO="$S17/nolog/hooks/guard.sh"
 cp "$HOOK" "$S17_WITH"
@@ -3181,10 +3183,10 @@ runlogsh "$S17/withlog" "$LOGSH"; A_OUT="$LOGSH_OUT"; A_RC="$LOGSH_RC"
 runlogsh "$S17/nolog"   "$LOGSH"; B_OUT="$LOGSH_OUT"; B_RC="$LOGSH_RC"
 echo "  훅 미실행: rc=$A_RC / 로깅 없는 판: rc=$B_RC"
 step "훅 미실행 재현 → rc=1"                          [ "$A_RC" -eq 1 ]
-step "훅 미실행 재현 → 사유가 '훅이 한 번도'"          has_text "훅이 한 번도" "$A_OUT"
+step "훅 미실행 재현 → 사유가 '훅이 한 번도'"          has_text "관측 미도달" "$A_OUT"
 step "로깅 없는 판 재현 → rc=3 (미실행의 1 과 다르다)" [ "$B_RC" -eq 3 ]
 step "로깅 없는 판 재현 → 사유가 '로깅 없는 guard.sh'" has_text "로깅 없는 guard.sh" "$B_OUT"
-step "로깅 없는 판 문구에 '훅이 한 번도' 가 없다"      lacks_text "훅이 한 번도" "$B_OUT"
+step "로깅 없는 판 문구에 '훅이 한 번도' 가 없다"      lacks_text "관측 미도달" "$B_OUT"
 step "훅 미실행 문구가 비어 있지 않다 (0건 통과를 실패로)"    [ -n "$A_OUT" ]
 step "로깅 없는 판 문구가 비어 있지 않다 (0건 통과를 실패로)" [ -n "$B_OUT" ]
 # 검사한 훅 경로를 문구가 밝혀야 한다 — 밝히지 않으면 "내 트리를 봤다" 와 "배선된 트리를
@@ -3213,7 +3215,7 @@ step "A/B: 구분 로직을 뺀 사본은 가르지 못한다 (같은 단언이 
 # 없으면 로깅 없는 판도 rc=1 "훅 미실행" 으로 합쳐지는 것이 이 절이 막는 상태다.
 runlogsh "$S17/nolog" "$S17_AB"
 step "A/B: 사본의 rc 가 고치기 전 판정인 1 이다 (죽어서 같은 것이 아니다)" [ "$LOGSH_RC" -eq 1 ]
-step "A/B: 사본이 두 상태를 '훅이 한 번도' 한 문구로 합친다" has_text "훅이 한 번도" "$LOGSH_OUT"
+step "A/B: 사본이 두 상태를 '훅이 한 번도' 한 문구로 합친다" has_text "관측 미도달" "$LOGSH_OUT"
 # 정상 대조군 — 사본이 **죽어서** 못 가른 것이 아니다. 죽음과 검출은 rc 만 보면 같은
 # 값을 낼 수 있다(이 스토리에서 실측). 로그가 있을 때 원본과 같은 계수를 내는지로 가른다.
 S17_LOG="$TMP/s17-fixture.tsv"

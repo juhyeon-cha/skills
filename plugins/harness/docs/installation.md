@@ -36,3 +36,7 @@ Receipts expire after thirty minutes and belong to one challenge and session. Mi
 # Skill registration names
 
 Distribution inspection reads names only from the opening YAML frontmatter. It supports flat mappings with bare keys and lower-case hyphenated names written as plain, single-quoted, or JSON-compatible double-quoted scalars, including surrounding spaces and trailing comments. Names are decoded before duplicate detection. Duplicate keys, quoted keys, nested mappings, multiline names, tags, aliases, and unsupported escapes fail inspection; they are not treated as different registrations. A `name:` line in the Markdown body never supplies registration metadata.
+
+## State compatibility
+
+Runtime state paths, explicit claim binding and per-session cancellation follow [Runtime state](state.md). Existing Claude plugin-data execution variables select the Claude path without a new setting; standalone scripts need explicit runtime identity. Preserve old state files during migration or rollback. Ordinary event metadata is distinct from doctor receipts and does not independently prove a completed role contract.

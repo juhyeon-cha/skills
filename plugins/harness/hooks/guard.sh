@@ -60,74 +60,13 @@ set -uo pipefail
 GUARD_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # ── 발화 로그 ────────────────────────────────────────────────────────
-# **줄 하나를 호출마다 남긴다 — 차단이든 통과든.** 차단만 기록하면 "발화 0" 과
-# "훅이 안 돌았다" 가 둘 다 무기록이라 구분되지 않는다. 그 구분이 이 로그의 존재
-# 이유다 (harness-pl7 S16 의 전제: "지금은 무기록이라 '발화 0' 과
-# '훅이 안 돌았다' 가 구분되지 않는다").
-#
-# **회차의 정의는 페이로드의 session_id 다.** ADR 이 적은 회차 경계는 스프린트 라벨인데
-# 훅은 그것을 볼 수 없다 — 도구 호출마다 원장을 읽어야 하고 그 비용은 이 훅이 감당할
-# 수 없다. 페이로드에서 확실히 얻는 것으로 정의하고 나머지는 한계로 남긴다.
-#   한계 ①  session_id ↔ 스프린트·담당자 대응은 **미검증 가설**이다 (harness-dg0.3.1 note 9.6-7,
-#            harness-dg0.6.17 이 처분 대상으로 등재). 여기서 그 가설에 기대지 않는다 —
-#            회차는 세션이고 그 이상을 주장하지 않는다.
-#   한계 ②  PreToolUse 페이로드에 session_id 가 없으면 그 열이 `-` 가 되고 계수는 회차
-#            구분 없는 총계로 무너진다. **조용히 무너지지는 않는다** — 로그의 그 열이
-#            전부 `-` 인 것으로 보인다.
-#            **실린다는 것은 실측됐다** [2026-08-29, harness-qih]: 이 로그
-#            (~/.claude/harness-guard-log.tsv) 3777줄의 2열이 `-` 1종 + UUID 6종이다.
-#            남는 것은 부재의 가능성뿐이다 — 없으면 위와 같이 `-` 로 보인다.
-#   한계 ③  회전은 오래된 회차의 계수를 **지운다**. 상한 안의 최근분만 기계값이다.
-#
-# 위치: `~/.claude/harness-guard-log.tsv`. 어느 레포도 어느 워크트리도 아니라 git·원장을
-# 오염시키지 않으면서, 훅 사본이 워크트리마다 배포돼도 계수가 한 파일로 모인다.
-# GUARD_ROOT 아래에 두면 워크트리 수만큼 쪼개진다.
-# **대상 레포 안에는 둘 수 없다**: 이 훅 자신의 C3(r_main_shell)가 본 체크아웃 경로를 명령
-# 문자열에서 보면 차단하므로, 거기 두면 로그를 들여다보는 명령이 rc=2 로 막힌다.
-#
-# 회전: 줄 수 상한 하나. **새 상태 파일을 만들지 않는다** — harness-dg0.3.1 note 9.3(2) 가
-# 재주입 상한을 별도 상태 없이 로그 줄 수로 센 것과 같은 형태다. 넘으면 최근 절반만 남긴다.
-GUARD_LOG="${HARNESS_GUARD_LOG:-$HOME/.claude/harness-guard-log.tsv}"
-GUARD_LOG_MAX="${HARNESS_GUARD_LOG_MAX:-20000}"
-
-# log_guard <발화한 규칙 이름 또는 -> [차단된 입력 — 차단일 때만]
-# **로그 실패가 훅을 죽이면 안 된다** — 난간의 판정은 로그와 무관하다. 모든 실패 경로가
-# return 0 이다(디스크·권한, 그리고 jq 없는 환경의 PATH 부재로 mkdir 조차 없는 경우까지).
+# Node resolver owns runtime/repository paths, escaping, append and rotation.
+# Explicit legacy HARNESS_GUARD_LOG stays readable but has no verified scope.
+# Logging failure is diagnostic only; policy still reaches its own decision.
 log_guard() {
-  # 디렉토리 생성은 없을 때만 — 이 함수는 도구 호출마다 돈다. 매번 mkdir 을 부르면
-  # 아무 일도 하지 않는 포크가 호출마다 하나씩 는다. 경로 분리도 셸 확장으로 한다.
-  local d="${GUARD_LOG%/*}"
-  [ "$d" = "$GUARD_LOG" ] && d=.   # 슬래시 없는 값(상대 파일명)이면 현재 디렉토리
-  [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || return 0
-  # 6열은 **차단일 때만** 붙는다. 통과 줄에도 달면 계수 명령(scripts/guard-log.sh)이 보는
-  # 마지막 필드가 빈 문자열로 바뀌고, 로그 줄이 호출마다 길어진다 — 이 로그는 차단이 아니라
-  # **통과가 압도적 다수**라 줄 길이가 거기서 정해진다. 열 수가 줄마다 다른 것은 의도이며,
-  # 두 소비자 모두 위치로 읽는다($2·$5).
-  local ev="${2-}"
-  if [ -n "$ev" ]; then
-    # 탭·개행은 열을 쪼갠다. 걷어내고 앞 120자만 남긴다 — 오탐 판정에 필요한 것은
-    # 명령의 머리이지 전문이 아니고, 전문을 남기면 이 파일이 명령 사본이 된다.
-    ev="$(printf '%s' "$ev" | tr '\n\t' '  ')"
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-      "$(date -u +%FT%TZ 2>/dev/null)" "${SESSION_ID:--}" "${AGENT_TYPE:--}" \
-      "${EVENT_TOOL_NAME:-${TOOL_NAME:--}}" "$1" "${ev:0:120}" >> "$GUARD_LOG" 2>/dev/null || return 0
-  else
-    printf '%s\t%s\t%s\t%s\t%s\n' \
-      "$(date -u +%FT%TZ 2>/dev/null)" "${SESSION_ID:--}" "${AGENT_TYPE:--}" \
-      "${EVENT_TOOL_NAME:-${TOOL_NAME:--}}" "$1" >> "$GUARD_LOG" 2>/dev/null || return 0
+  if ! printf '%s' "${INPUT:-}" | node "$GUARD_ROOT/scripts/state.mjs" guard "$1" >/dev/null; then
+    echo "STATE UNREACHED: guard observation was not persisted" >&2
   fi
-  # **상한 1 이면 회전하지 않는다.** tail -n 0 이 로그를 통째로 비우고, 그 빈 로그는
-  # 계수 명령에서 "훅이 한 번도 돌지 않았다"로 읽힌다 — 이 로그가 없애려는 바로 그
-  # 혼동이 상한 값 하나로 되살아난다. 자르지 않고 두는 쪽이 거짓말하지 않는다.
-  [ "$GUARD_LOG_MAX" -ge 2 ] 2>/dev/null || return 0
-  local n
-  n=$(wc -l < "$GUARD_LOG" 2>/dev/null) || return 0
-  [ "${n:-0}" -gt "$GUARD_LOG_MAX" ] 2>/dev/null || return 0
-  # 한계: 회전 중간 파일 이름이 고정이라 두 훅이 동시에 상한에 닿으면 서로 덮는다.
-  # 상한 도달 시점에만 나는 경합이라 빈도가 낮아 그대로 둔다 — 잃는 것은 로그 줄이고
-  # 난간 판정은 영향받지 않는다.
-  tail -n "$((GUARD_LOG_MAX / 2))" "$GUARD_LOG" > "$GUARD_LOG.tmp" 2>/dev/null \
-    && mv "$GUARD_LOG.tmp" "$GUARD_LOG" 2>/dev/null
   return 0
 }
 
@@ -151,14 +90,12 @@ fi
 field() { printf '%s' "$INPUT" | jq -r "$1 // \"\"" 2>/dev/null; }
 
 TOOL_NAME="$(field '.tool_name')" || exit 2
-EVENT_TOOL_NAME="$TOOL_NAME"
 AGENT_ID="$(field '.agent_id')" || exit 2       # 서브에이전트 호출에만 채워진다
 AGENT_TYPE="$(field '.agent_type')" || exit 2   # 역할별 차등 규칙의 근거 (implementer 등)
 # `.cwd` 는 **상대 경로의 기준**으로만 쓴다 — 앵커가 아니다. 워크트리 안에서 `echo x > ../../../f` 는
 # 본 체크아웃 쓰기인데 경로 문자열만 보면 판정할 수 없었다. 키가 없으면 상대 경로는 종전대로
 # 판정하지 않는다(한계). 명령 안의 `cd` 는 못 따라간다 — 서브에이전트는 호출마다 cd 한다(한계).
 CWD="$(field '.cwd')" || exit 2
-SESSION_ID="$(field '.session_id')" || exit 2   # 발화 로그의 회차 열. 판정에는 쓰지 않는다
 COMMAND_RAW="$(field '.tool_input.command')" || exit 2    # Bash — 인용부호를 걷기 전 원문 (mc_all_readonly 가 조각 경계를 인용 안팎으로 가를 때 쓴다)
 # 판정용 정규화 — 인용부호와 백슬래시를 걷어낸다. 셸은 `git pu\sh`·`git p""ush` 를 push 로
 # 실행하는데 낱말 판정(has_token 의 -w)은 그 글자에 막혀 **미탐**이었다 [실측 2026-08-28,
@@ -176,16 +113,9 @@ NOTEBOOK_PATH="$(field '.tool_input.notebook_path')" || exit 2 # NotebookEdit �
 # **어느 규칙이 발화했는지는 여기서만 알 수 있다** — 차단 메시지에는 규칙 이름이 없고,
 # 겹치는 판정 지점에서 메시지만으로는 귀속이 안 된다(harness-uhy.2.1 note 의 결론). 디스패처가
 # CURRENT_RULE 에 지금 도는 규칙을 담아 두므로 그것을 그대로 로그에 남긴다.
-# **차단된 입력도 함께 남긴다(6열).** 규칙 이름만으로는 그 발화가 정탐이었는지 오탐이었는지
-# 사후에 가릴 수 없고, 이 난간은 오탐을 의도적으로 감수하는 설계라 그 대가의 크기를 재는
-# 수단이 있어야 한다 — 없으면 "규칙을 유지할 값어치가 있는가" 가 영영 기억으로만 판정된다.
-# 근거는 harness-guau.1.2.
+# Raw commands and target paths are not persisted in the observation log.
 deny() {
-  # 명령이 없는 호출(경로만 받는 도구)은 그 경로가 판정 재료였다 — 같은 열에 넣는다.
-  local ev="$COMMAND"
-  [ -n "$ev" ] || ev="$FILE_PATH"
-  [ -n "$ev" ] || ev="$NOTEBOOK_PATH"
-  log_guard "${CURRENT_RULE:--}" "$ev"
+  log_guard "${CURRENT_RULE:--}"
   echo "GUARD-DENY: $*" >&2
   GUARD_DONE=1; exit 2
 }
@@ -329,59 +259,8 @@ ledger_root_given() {  # ledger_root_given <도구> <하위 명령 앞 조각> �
 }
 ledger_exec_present() { local t; for t in $LEDGER_TOOLS; do [ -n "$(exec_segments "$t")" ] && return 0; done; return 1; }
 
-# ── 세션→actor 매핑 관측 ─────────────────────────────────────────────
-# **관측이지 판정이 아니다.** 여기서는 아무것도 막지 않는다 — 하는 일은 claim 명령이
-# 지나갈 때 (session_id, actor) 쌍을 파일에 한 줄 적는 것뿐이고, 그 파일을 읽는 것은 정지
-# 가드(hooks/stop-resume.sh)다. 그쪽 오라클이 원장 단위라 **자기가 잡지 않은**
-# in_progress 로도 막히던 것을, 이 매핑이 세션 사거리로 좁힌다 (../docs/guardrail-verification.md 8절).
-#
-# **파생이 아니라 관측인 이유.** actor 는 `sess-` + 무작위 6자라 session_id 에서 계산될 수
-# 없고, 한 actor 가 세션을 넘어 재사용되는 것이 이어받기 규약이다
-# (harness:develop 3절 0번). 파생은 그 규약을 깨지만, claim 이
-# **일어나는 순간**을 적는 것은 깨지 않는다.
-#
-# 한계 ①  PreToolUse 는 명령 실행 **전**이라 claim 의 성공 여부를 모른다. 거부된 claim 도 그
-#          세션 **자신의** actor 값이라 매핑을 오염시키지 않으므로 대응하지 않는다.
-# 한계 ②  매핑 파일이 지워지면 정지 가드는 SCOPE_FAIL 을 남기고 종전(원장 전체) 동작으로
-#          돌아간다 — 통과로 폴백하지 않는다. 잃는 것은 사거리이지 가드가 아니다.
-# 회전은 두지 않는다 — 줄이 느는 것은 claim 마다 한 번이라 발화 로그와 자릿수가 다르다.
-# 위치가 GUARD_LOG 과 같은 자리인 이유도 그쪽 주석과 같다(워크트리마다 배포돼도 한 파일).
-SESSION_ACTOR_LOG="${HARNESS_SESSION_ACTOR_LOG:-$HOME/.claude/harness-session-actor.tsv}"
-
-# **로그 실패가 훅을 죽이면 안 된다** — log_guard 와 같은 계약이다(모든 실패 경로가 return 0).
-sa_observe() {
-  [ "$TOOL_NAME" = "Bash" ] || return 0
-  # 귀속할 수 없는 기록은 남기지 않는다 — session_id 없는 줄은 사거리를 좁히지 못하고,
-  # 빈 열은 정지 가드 쪽에서 "이 세션의 actor" 로 잘못 읽힐 재료가 된다.
-  [ -n "$SESSION_ID" ] || return 0
-  local seg actor d t
-  # **원장 도구(ledger.sh·bd)를 실행하는 조각만 본다.** 다른 명령이 인자로 --claim --actor 를 담은 경우
-  # (grep · 설명 · 커밋 메시지)는 claim 이 아니다 — 실행 위치 판정을 그대로 쓴다.
-  for t in $LEDGER_TOOLS; do
-  while IFS= read -r seg; do
-    actor="$(printf '%s' "$seg" | tr -c 'A-Za-z0-9_.:/=-' '\n' | awk '
-        $0 != "" { t[++n] = $0 }
-        END {
-          for (i = 1; i <= n; i++) if (t[i] == "--claim") c = 1
-          if (!c) exit 1
-          for (i = 1; i <= n; i++) {
-            if (t[i] == "--actor" && i < n && substr(t[i+1], 1, 1) != "-") { print t[i+1]; exit 0 }
-            if (index(t[i], "--actor=") == 1 && length(t[i]) > 8) { print substr(t[i], 9); exit 0 }
-          }
-          exit 1
-        }')" || continue
-    [ -n "$actor" ] || continue
-    d="${SESSION_ACTOR_LOG%/*}"
-    [ "$d" = "$SESSION_ACTOR_LOG" ] && d=.
-    [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || return 0
-    printf '%s\t%s\t%s\n' "$(date -u +%FT%TZ 2>/dev/null)" "$SESSION_ID" "$actor" \
-      >> "$SESSION_ACTOR_LOG" 2>/dev/null || return 0
-    return 0
-  done < <(exec_segments "$t")
-  done
-  return 0
-}
-sa_observe || :   # SA_OBSERVE_CALL — 관측 호출. 실패해도 판정은 그대로 돈다
+# Actor binding is explicit after ledger success and a confirming ledger read.
+# PreToolUse cannot establish claim success; it writes no actor mapping.
 
 # ── 규칙 등록부 ───────────────────────────────────────────────────────
 # 형식: "<도구이름 또는 *>:<함수이름>". 비어 있으면 아무것도 차단하지 않는다.

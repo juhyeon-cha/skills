@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {pluginRoot, readJson} from '../../plugins/harness/lib/distribution.mjs';
+import {createHmac} from 'node:crypto';
+import {pluginRoot, readJson, digest} from '../../plugins/harness/lib/distribution.mjs';
 import {createChallenge, diagnose} from '../../plugins/harness/lib/doctor.mjs';
 import {registerRoles, loadRole} from '../../plugins/harness/lib/roles.mjs';
 
@@ -13,6 +14,9 @@ const check = (condition, message) => { assert.ok(condition, message); count++; 
 try {
   const env = {...process.env, HOME: temp, HARNESS_GUARD_LOG: path.join(temp, 'guard.tsv'), HARNESS_SESSION_ACTOR_LOG: path.join(temp, 'actors.tsv'), HARNESS_DATA_DIR: path.join(temp, 'data')};
   delete env.HARNESS_ROOT;
+  for (const key of ['PLUGIN_ROOT', 'PLUGIN_DATA', 'CLAUDE_PLUGIN_DATA', 'HARNESS_RUNTIME']) delete env[key];
+  const git = args => { const result = spawnSync('git', ['-C', temp, ...args], {env, encoding: 'utf8'}); assert.equal(result.status, 0, result.stderr); };
+  git(['init', '-q']); fs.writeFileSync(path.join(temp, 'README'), 'fixture'); git(['add', 'README']); git(['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture']);
   for (const runtime of ['claude', 'codex']) {
     const registration = registerRoles(runtime, path.join(temp, runtime, 'agents'));
     const state = path.join(temp, runtime, 'challenge');
@@ -20,7 +24,7 @@ try {
     createChallenge(state, runtime, pluginRoot, registration);
     check(diagnose(pluginRoot, state, 'session').loaded === 'UNREACHED', `${runtime} disabled/untrusted/managed-only: no execution receipt`);
     const invoke = (id, event) => {
-      const result = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts/hook.mjs'), id], {cwd: temp, env: {...env, HARNESS_DOCTOR_DIR: state}, input: JSON.stringify({session_id: 'session', cwd: temp, ...event}), encoding: 'utf8'});
+      const result = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts/hook.mjs'), id], {cwd: temp, env: {...env, HARNESS_RUNTIME: runtime, HARNESS_DOCTOR_DIR: state}, input: JSON.stringify({session_id: 'session', cwd: temp, ...event}), encoding: 'utf8'});
       assert.equal(result.status, 0, result.stderr); return result;
     };
     invoke('context', {hook_event_name: 'SessionStart'});
@@ -36,6 +40,21 @@ try {
     const good = diagnose(pluginRoot, state, 'session'); check(good.static === 'PASS' && good.loaded === 'PASS' && good.live === 'PASS', 'direct hook fixture reaches all stages');
     check(diagnose(pluginRoot, state, 'other').loaded === 'UNREACHED', 'wrong session');
     const receipts = path.join(state, 'receipts.jsonl'); const before = fs.readFileSync(receipts, 'utf8');
+    for (const mutation of ['body', 'suffix']) {
+      const secret = readJson(path.join(state, 'challenge.json')).secret;
+      const faulty = before.trim().split('\n').map(line => {
+        const envelope = JSON.parse(line);
+        if (envelope.receipt.hook === 'context') {
+          if (mutation === 'body') envelope.receipt.emittedContextHash = digest('policy body omitted');
+          else envelope.receipt.stateContext.data += '/wrong';
+          envelope.signature = createHmac('sha256', secret).update(JSON.stringify(envelope.receipt)).digest('hex');
+        }
+        return JSON.stringify(envelope);
+      }).join('\n') + '\n';
+      fs.writeFileSync(receipts, faulty);
+      check(diagnose(pluginRoot, state, 'session').loaded === 'UNREACHED', `issued context mismatch (${mutation}) cannot certify whole emitted policy and state suffix`);
+      fs.writeFileSync(receipts, before);
+    }
     check(!before.includes('tool_input') && !before.includes('not retained'), 'no command or role body persisted');
     fs.writeFileSync(receipts, before.split('\n').filter(line => !line || JSON.parse(line).receipt.hook !== 'role-stop').join('\n'));
     check(diagnose(pluginRoot, state, 'session').live === 'UNREACHED', 'observed starts without role completion');

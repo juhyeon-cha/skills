@@ -29,3 +29,5 @@ Supply one invocation per child instance: exactly one Start and one Stop, with a
 Missing identity, missing/unregistered SIGNAL, interrupted execution, stale registration and self-judgment produce `UNREACHED` with rc 1. Preserve the task and wait for a human under develop's procedure. Only an independently reached evaluator MATCH can ground ordinary close; the explicit human scope-excess decision in verify-implement remains its own branch. A passing test or parent-written SIGNAL cannot replace delegated judgment.
 
 The existing guard owns file/Git/ledger permissions through the common identity mapping. Role prompts and generated registration alone are not enforcement: disabled or unidentified hooks invalidate the runtime capability prerequisite. Transcript layouts are not used by this contract.
+
+Ordinary hook observations and the immutable call/outcome/result storage seam are owned by [Runtime state](state.md). A stored file or doctor result is not task evidence; the matching native instance and role result still need validation. Missing ordinary call/outcome association is UNREACHED.

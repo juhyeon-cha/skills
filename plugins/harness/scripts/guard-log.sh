@@ -26,7 +26,8 @@
 # 밖($HOME·플러그인)에 있어 lib/harness-root.sh 를 부르지 않는다. 계수를 근거로
 # 쓸 수 있는 조건과 이 셋의 천장은 ../docs/guardrail-verification.md 11절이 든다.
 #
-# 나머지 한계는 guard.sh 의 "발화 로그" 주석이 든다 (회차 정의·session_id 부재·회전 소실).
+# 현재 경로·동시 기록·회전·legacy 신뢰 한계는 docs/state.md가 든다.
+# 새 행은 raw 명령을 저장하지 않는다. 아래 rows 분류는 명령이 남아 있는 legacy 행에만 적용된다.
 #
 # ── 하위 명령 ──────────────────────────────────────────────────────────────
 #   guard-log.sh                  회차 × 규칙 별 횟수 (위 출력. 기본값)
@@ -85,10 +86,11 @@ case "${CMD}" in
   *)     printf '%s\n' "모르는 하위 명령: ${CMD} — count | rows [<회차>]" >&2; exit 2 ;;
 esac
 
-# 기본 경로는 guard.sh 의 GUARD_LOG 와 **같은 표현이어야 한다** — 갈라지면 이 명령이 빈
-# 로그를 보고 "훅 미실행" 이라고 거짓말한다. tests/harness/guard-check.sh ⑮ 가 두 파일에서
-# 기본값을 각각 파생해 대조한다 (한쪽만 고치면 게이트가 비-0).
-LOG="${HARNESS_GUARD_LOG:-$HOME/.claude/harness-guard-log.tsv}"
+# Resolve through the same Node owner as guard.sh. An explicit old TSV is read
+# without migration; its historical rows are not verified runtime/repo evidence.
+STATE_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+LOG="$(node "$STATE_ROOT/scripts/state.mjs" guard-path)" || exit 2
+[ -z "${HARNESS_GUARD_LOG:-}" ] || echo "STATE UNVERIFIED: explicit legacy TSV; counts are historical observations" >&2
 
 if [ ! -s "${LOG}" ]; then
   HOOK="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/hooks/guard.sh"
@@ -101,7 +103,7 @@ if [ ! -s "${LOG}" ]; then
     printf '%s\n' "로깅 없는 guard.sh 가 발화 중이다 — 훅은 돌아도 로그를 남기지 않는다. 이 빈 로그는 '훅 미실행' 도 '발화 0' 도 아니다. 훅=${HOOK} 로그=${LOG}" >&2
     exit 3
   fi
-  printf '%s\n' "발화 로그가 없거나 비었다 — 훅이 한 번도 돌지 않았다는 뜻이지 '발화 0' 이 아니다 (${WHY}: ${HOOK}): ${LOG}" >&2
+  printf '%s\n' "발화 로그가 없거나 비었다 — 관측 미도달: 훅 실행과 로그 쓰기를 확인해야 하며 '발화 0' 이 아니다 (${WHY}: ${HOOK}): ${LOG}" >&2
   exit 1
 fi
 
