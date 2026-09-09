@@ -4,6 +4,14 @@ export function roleSignals(body) {
   return [...line.matchAll(/`([A-Z_]+)`/g)].map(match => match[1]);
 }
 
+export function roleChain(events, session, role, agentId) {
+  const own = events.filter(e => e?.session_id === session && e.agent_type === role && e.agent_id === agentId);
+  const start = own.findIndex(e => e.hook_event_name === 'SubagentStart');
+  const tool = own.findIndex((e, i) => i > start && e.hook_event_name === 'PreToolUse');
+  const stop = own.findIndex((e, i) => i > tool && e.hook_event_name === 'SubagentStop');
+  return {started: start >= 0, invoked: start >= 0 && tool >= 0, stopped: start >= 0 && tool >= 0 && stop >= 0, result: own[stop]?.last_assistant_message};
+}
+
 export function inspectRuntimeContract(evidence) {
   const missing = [];
   const require = (name, condition) => { if (!condition) missing.push(name); };
@@ -27,11 +35,11 @@ export function inspectRuntimeContract(evidence) {
   require('signals', signals.length > 0 && signals.every(s => typeof s === 'string' && /^[A-Z_]+$/.test(s)));
   const starts = own.filter(e => e.hook_event_name === 'SubagentStart' && e.agent_type === role && typeof e.agent_id === 'string' && e.agent_id.length > 0);
   require('SubagentStart:role', starts.length > 0);
-  const invoked = starts.filter(start => own.some(e => e.hook_event_name === 'PreToolUse' && e.agent_id === start.agent_id && e.agent_type === role));
+  const invoked = starts.filter(start => roleChain(own, session, role, start.agent_id).invoked);
   require('PreToolUse:role', invoked.length > 0);
   // Carry the same instance through each stage; partial children cannot combine.
-  const stopped = own.filter(e => e.hook_event_name === 'SubagentStop' && e.agent_type === role && invoked.some(start => start.agent_id === e.agent_id));
+  const stopped = invoked.map(start => roleChain(own, session, role, start.agent_id)).filter(chain => chain.stopped);
   require('SubagentStop:role', stopped.length > 0);
-  require('role:result', stopped.some(e => signals.includes(/^SIGNAL: ([A-Z_]+)(?:\r?\n|$)/.exec(e.last_assistant_message ?? '')?.[1])));
+  require('role:result', stopped.some(e => signals.includes(/^SIGNAL: ([A-Z_]+)(?:\r?\n|$)/.exec(e.result ?? '')?.[1])));
   return {status: missing.length ? 'UNREACHED' : 'PASS', origin: evidence?.origin ?? 'unknown', missing};
 }

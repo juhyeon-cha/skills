@@ -7,6 +7,8 @@ description: Code-quality review procedure for a task's changes — reviewer del
 
 The reviewer role definition (`${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`) holds the review discipline. This procedure holds delegation and signal handling only.
 
+Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for registration, native invocation identity and result validation. A result must be REACHED before the branches below apply.
+
 ## 1. Delegate
 
 Delegate to reviewer. The message carries ① first line: harness root absolute path + worktree absolute path + the commit range under review + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every task in that milestone awaiting verification, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ claims in the implementer's report that reviewer must fact-check. That is the whole message — the discipline for receiving a list (one SIGNAL · attributing each finding to a task · relationships between changes across tasks) is held by `${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`, so leave it out of the delegation message.

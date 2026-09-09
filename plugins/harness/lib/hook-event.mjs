@@ -1,15 +1,15 @@
 import {normalizePath, patchOperations, isReadonlySearch, quotedPathCandidates} from './operations.mjs';
 
-const identities = new Map(['implementer', 'reviewer', 'evaluator'].flatMap(role => [[`harness:${role}`, `harness:${role}`], [`harness-${role}`, `harness:${role}`]]));
+import {canonicalRole} from './role-identities.mjs';
 
 export function normalizeHookEvent(raw) {
   if (!raw || Array.isArray(raw) || typeof raw !== 'object') throw new Error('hook input must be an object');
   if (typeof raw.tool_name !== 'string' || !raw.tool_name || typeof raw.cwd !== 'string' || !raw.cwd || !raw.tool_input || typeof raw.tool_input !== 'object' || Array.isArray(raw.tool_input)) throw new Error('required hook input missing');
   if (!/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(raw.cwd) || /[\0\r\n]/.test(raw.cwd)) throw new Error('absolute cwd required');
   for (const key of ['agent_id', 'agent_type']) if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
-  if (raw.agent_id && !identities.has(raw.agent_type)) throw new Error('child role is unidentified');
-  if (raw.agent_type && !identities.has(raw.agent_type)) throw new Error('unknown role');
-  const event = {...raw, agent_type: identities.get(raw.agent_type) ?? '', harness_operations: [], harness_shell_readonly: false};
+  if (raw.agent_id && !canonicalRole(raw.agent_type)) throw new Error('child role is unidentified');
+  if (raw.agent_type && !canonicalRole(raw.agent_type)) throw new Error('unknown role');
+  const event = {...raw, agent_type: canonicalRole(raw.agent_type) ?? '', harness_operations: [], harness_shell_readonly: false};
   if (raw.tool_name === 'exec_command') event.tool_name = 'Bash';
   if (event.tool_name === 'Bash') {
     const command = raw.tool_input.command ?? raw.tool_input.cmd;

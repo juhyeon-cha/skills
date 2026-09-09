@@ -30,8 +30,8 @@ if (process.argv[2]) {
   });
   const splitChildren = runtime => {
     const evidence = make(runtime);
-    evidence.events.push({...evidence.events[3], agent_id: 'other-child'});
-    evidence.events[5].agent_id = 'other-child';
+    evidence.events.splice(5, 0, {...evidence.events[3], agent_id: 'other-child'});
+    evidence.events[6].agent_id = 'other-child';
     return evidence;
   };
   for (const runtime of ['claude', 'codex']) {
@@ -39,7 +39,7 @@ if (process.argv[2]) {
     assert.equal(inspectRuntimeContract(good).status, 'PASS');
     assert.equal(inspectRuntimeContract(splitChildren(runtime)).status, 'UNREACHED', 'partial child chains cannot combine');
     const completeChild = splitChildren(runtime);
-    completeChild.events.push({...completeChild.events[4], agent_id: 'other-child'});
+    completeChild.events.splice(6, 0, {...completeChild.events[4], agent_id: 'other-child'});
     assert.equal(inspectRuntimeContract(completeChild).status, 'PASS', 'one complete child supplies capability evidence');
     for (let i = 0; i < good.events.length; i++) {
       const bad = structuredClone(good); bad.events.splice(i, 1);
