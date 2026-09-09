@@ -17,6 +17,8 @@ Both the procedure and the verification differ per branch. **Decide the branch f
 
 ## 0. Branch decision — first action
 
+Before installation or verification in any branch, follow `${CLAUDE_PLUGIN_ROOT}/docs/installation.md` for common prerequisites, the selected runtime's installation, and static/loaded/live doctor evidence. Keep runtime installation checks separate from the repository and ledger checks below.
+
 ```bash
 ls .harness.json          # the harness root marker — run this at the target repo's root
 ```
@@ -39,12 +41,7 @@ The three observations are mutually exclusive and cover every case.
 
 ### 1.1 Install the plugin
 
-The harness plugin is installed **once, at user scope** — never per repo. Pass no scope: user is the default, and a project or local install writes `enabledPlugins` into the tree it is run in and shows up as a second registration in `~/.claude/plugins/installed_plugins.json`.
-
-```bash
-claude plugin marketplace add juhyeon-cha/skills   # once per machine; a no-op if it is already added
-claude plugin install harness@skills
-```
+Install through the selected runtime branch in `${CLAUDE_PLUGIN_ROOT}/docs/installation.md`. Finish its static checks before creating repository configuration; loaded/live checks require a new diagnostic session.
 
 ### 1.2 Write `.harness.json` and commit it
 
@@ -133,7 +130,7 @@ Confirm the backend answers: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list`
 | `bash ${CLAUDE_PLUGIN_ROOT}/scripts/board.sh all` | rc 0, and **what it means differs by backend.** On one with its own UI (`github`·`notion`) it draws nothing and says so in one line — the ledger's own screens are the projection. On `beads` it draws, and even with no story an empty table `docs/backlog/index.md` comes out |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0. With no sprint yet, the ledger has **0 `sprint:` labels and the registry answers 0 entries**, so the two-way comparison passes with 0 on both sides. On `beads` **even an empty registry needs the `sprints.json` file itself to exist** — without it the adapter fails and this is rc=1 (section 5 creates it); on `github`·`notion` it is derived from the ledger and no registry file is read |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/rules-check.sh` | rc 0 |
-| `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — the plugin is registered at user scope and nowhere else |
+| runtime installation and doctor in `docs/installation.md` | inventory and static checks pass; current-session loaded/live are reported separately |
 
 #### backend: beads — one more row
 
@@ -154,12 +151,10 @@ The ledger already stands. **This is the two-step branch**, and which two depend
 ### 2.1 The repo already carries it — clone and go
 
 ```bash
-claude plugin marketplace add juhyeon-cha/skills   # once per machine
-claude plugin install harness@skills               # user scope; see 1.1
 git clone <url> && cd <the clone>                  # anywhere you like — no fixed location
 ```
 
-That is the whole join. The clone brought the ledger coordinates with it, so `lib/harness-root.sh` recognizes the repo the moment you stand in it. Go to 2.3 for what still needs credentials, then 2.4 to verify.
+Install through 1.1, then clone. The clone brought the ledger coordinates with it, so `lib/harness-root.sh` recognizes the repo the moment you stand in it. Go to 2.3 for what still needs credentials, then 2.4 to verify.
 
 ### 2.2 The repo does not carry it yet — write the marker
 
@@ -176,7 +171,7 @@ Someone stood up the ledger without committing `.harness.json` to this repo (or 
 | Run | Expected |
 |---|---|
 | `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0, and rows. rc 0 with rows means this machine reads the same ledger as the others |
-| `jq -e '.plugins["harness@skills"] \| map(.scope) == ["user"]' ~/.claude/plugins/installed_plugins.json` | rc 0 — user scope and nowhere else |
+| runtime installation and doctor in `docs/installation.md` | inventory and static checks pass; current-session loaded/live are reported separately |
 | `git config beads.role` (backend: beads only) | `maintainer` |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0. Dying here means there is a `rail:` or `sprint:` label the registry does not have — on `beads` fix the file (section 5), on `github`·`notion` the registry comes from the ledger and the label is what is wrong |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/guardrail-check.sh` | rc 0 |
@@ -189,16 +184,11 @@ Then **ask the user to restart the session** — hooks and permissions load at s
 
 ## 3. C — Update
 
-The core is the plugin, so an update touches no file of the repo. Two commands, and `claude plugin update` applies only after a session restart.
-
-```bash
-claude plugin marketplace update skills
-claude plugin update harness@skills
-```
+The core is the plugin, so an update touches no file of the repo. Follow the selected runtime's update and role-projection procedure in `${CLAUDE_PLUGIN_ROOT}/docs/installation.md`, then start a new session.
 
 ### 3.1 Confirm what was pulled
 
-`jq -r '.plugins["harness@skills"][] | "\(.scope)\t\(.version)"' ~/.claude/plugins/installed_plugins.json` — one `user` line whose version is the marketplace's latest (`claude plugin list` shows the same). Read the new edition's `CHANGELOG.md` entry at `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md` after the restart: a MAJOR entry names the hand work an install has to do, and that hand work is what 3.2 and 3.3 look for.
+Run the runtime inventory and static doctor checks in `docs/installation.md`; matching versions alone cannot establish current-session load. Read the new edition's `CHANGELOG.md` entry at `${CLAUDE_PLUGIN_ROOT}/CHANGELOG.md` after the restart: a MAJOR entry names the hand work an install has to do, and that hand work is what 3.2 and 3.3 look for.
 
 ### 3.2 What the new edition requires of `.harness.json`
 
@@ -223,7 +213,7 @@ A sprint in progress is `active`, one already finished is `closed`. If you do no
 
 | Run | Expected |
 |---|---|
-| the `jq` of 3.1 (re-run after the restart) | one `user` line · the marketplace's latest version |
+| the runtime doctor of 3.1 (after the restart) | report static, loaded and live independently; unresolved observations stay UNREACHED |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/guardrail-check.sh` | rc 0 |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/rules-check.sh` | rc 0 |
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/workspace-check.sh` | rc 0 |
@@ -231,7 +221,7 @@ A sprint in progress is `active`, one already finished is `closed`. If you do no
 | `bash ${CLAUDE_PLUGIN_ROOT}/checks/board-check.sh` | rc 0 |
 | `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list` | rc 0 |
 
-### 3.4 Move the plugin to user scope — one time only
+### 3.4 Claude only: move the plugin to user scope — one time only
 
 Installs made before the plugin moved to user scope registered `harness@skills` per tree. Those registrations stay behind after an update and load the same plugin several times over. Look at the scopes first.
 

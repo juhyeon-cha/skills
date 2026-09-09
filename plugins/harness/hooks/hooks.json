@@ -1,12 +1,12 @@
 {
-  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks). PostToolUse (EnterWorktree): enter-worktree.sh wires the harness ledger into the new story worktree (.beads/redirect + clone exclude) and uses common workspace preparation with repository-owned bootstrap, shared locking and verified readiness; legacy repository hooks require migration. Stop: stop-resume.sh (stop guard — pushes back while the ledger has in_progress work claimed by this session); it keeps its state under ${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}.",
+  "description": "Generated from lib/hook-definitions.json; shared runtime hooks, Node prerequisite.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-context.sh\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" context || exit 2",
             "timeout": 10
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" guard || exit 2",
             "timeout": 10
           }
         ]
@@ -29,7 +29,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" workspace || exit 2",
             "timeout": 600
           }
         ]
@@ -40,8 +40,30 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.sh\"",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" stop || exit 2",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" role-start || exit 2",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" role-stop || exit 2",
+            "timeout": 10
           }
         ]
       }

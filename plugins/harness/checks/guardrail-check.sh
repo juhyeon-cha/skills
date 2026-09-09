@@ -73,6 +73,7 @@ unset CLAUDE_PLUGIN_ROOT
 HOOK="hooks/guard.sh"
 HOOKSJSON="hooks/hooks.json"
 STOPHOOK="hooks/stop-resume.sh"
+command -v node >/dev/null 2>&1 || { echo "UNREACHED: hook transport inspection requires Node" >&2; exit 1; }
 
 # 환경 사유의 미가용은 **fail-open + 경고**다 — 코드와 무관한 사유로 게이트를 막지 않는다. 같은
 # 판단의 선례: guard.sh 자신이 jq 없으면 통과+경고로 넘어간다. **대신 조용히 넘어가지 않는다.**
@@ -248,17 +249,13 @@ IMPL_T="harness:implementer"; GR_R="harness:reviewer"                     # agen
 mkdir -p "$TMP/_probe-repo"
 printf '{"ledger":{"backend":"beads"}}\n' > "$TMP/_probe-repo/.harness.json"
 MAIN_PATH="$TMP/_probe-repo/README.md"
-# 채점자 규칙의 차단 자리. r_grader_write 는 skills#225 이후 **대상 트리 안**만 막으므로
-# 트리 밖($TMP)은 더 이상 차단이 아니다. 워크트리 경로를 쓰는 이유는 **A/B 귀속**이다 —
-# r_main_write 는 `.claude/worktrees/*/*` 를 통과시키고 r_grader_write 는 그것도 막으니,
-# 이 입력의 rc=2 는 오직 r_grader_write 때문이다. 트리 안 다른 자리(본 체크아웃)를 쓰면
-# r_main_write 에 먼저 걸려 "그 규칙 등재만 뺀 사본에서 rc 0" 이 거짓이 된다.
-# 조상 `.harness.json` 은 위 픽스처 하나로 충분하다 — r_grader_write 가 부르는 mc_root_of 는
-# 워크트리 필터가 없어 `_probe-repo` 를 루트로 잡는다.
-# **`_probe-wt` 에는 `.harness.json` 을 만들지 마라** — 그러면 MC_ROOT 가 그 워크트리로 잡혀
-# 위 문장의 "`_probe-repo` 를 루트로 잡는다" 가 거짓이 되고 차단 메시지의 레포 이름도
-# `_probe-wt` 가 된다. A/B 귀속 자체는 그래도 유지된다 [실측 2026-09-08: 그 파일이 있어도
-# r_main_write 는 rc=0 이다 — 그쪽이 부르는 mc_locate 가 워크트리 루트를 걸러 내기 때문이다].
+# 실제 Git 등록 workspace에서 채점자 차단만 귀속한다. 경로 이름만 만든 폴더는
+# main-write 검사도 거부하므로 그 규칙을 제거하지 않은 A/B 대조군이 될 수 없다.
+PROBE_WT="$TMP/_probe-repo/.claude/worktrees/_probe-wt"
+git -C "$TMP/_probe-repo" init -q
+git -C "$TMP/_probe-repo" add .harness.json
+git -C "$TMP/_probe-repo" -c user.name=fixture -c user.email=fixture@example.invalid commit -qm fixture
+git -C "$TMP/_probe-repo" worktree add -qb fixture "$PROBE_WT"
 WT_PATH="$TMP/_probe-repo/.claude/worktrees/_probe-wt/README.md"
 
 # 규칙마다 **차단돼야 하는** 입력 하나. 형식: "<규칙>|<PreToolUse 이벤트 JSON>".
@@ -271,7 +268,7 @@ PROBES=(
   "r_grader_write|{\"tool_name\":\"Write\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"file_path\":\"$WT_PATH\"}}"
   "r_grader_shell|{\"tool_name\":\"Bash\",\"agent_type\":\"$GR_R\",\"tool_input\":{\"command\":\"git commit -m probe\"}}"
   "r_impl_bd|{\"tool_name\":\"Bash\",\"agent_type\":\"$IMPL_T\",\"tool_input\":{\"command\":\"bd -C $TMP close probe-1\"}}"
-  "r_bd_root|{\"tool_name\":\"Bash\",\"agent_id\":\"sess-probe\",\"tool_input\":{\"command\":\"bd close probe-1\"}}"
+  "r_bd_root|{\"tool_name\":\"Bash\",\"agent_id\":\"child-probe\",\"agent_type\":\"$IMPL_T\",\"tool_input\":{\"command\":\"bd note probe-1 receipt\"}}"
 )
 
 probe_keys() { local p; for p in "${PROBES[@]}"; do echo "${p%%|*}"; done; }
@@ -300,12 +297,12 @@ step "EXEMPT_RULE 의 면제 키가 실재한다" \
   assert_exempt_keys EXEMPT_RULE ${EXEMPT_RULE[@]+"${EXEMPT_RULE[@]}"} -- ${RULE_SET[@]+"${RULE_SET[@]}"}
 
 # 훅 실행 — rc 는 파이프 밖에서 채집한다.
-# **`bash <경로>` 로 부른다.** hooks.json 이 배선한 명령도 `bash "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh"`
-# 이므로 실행 비트는 실제 발화 경로의 조건이 아니다. 직접 실행(`./guard.sh`)하면 이 절이
+# **`bash <경로>` 로 부른다.** 공통 Node transport도 같은 Bash 파일을 실행하므로
+# 실행 비트는 실제 발화 경로의 조건이 아니다. 직접 실행(`./guard.sh`)하면 이 절이
 # 실행 비트를 요구하게 되어, 발화에는 아무 영향이 없는 변화에 "규칙이 안 막힌다"고 시끄러운
 # 오탐을 낸다. 검사 스크립트의 실행 비트는 S5 가 따로 본다 (그쪽은 실제로 필요하다).
 GUARD_RC=0; GUARD_OUT=""
-runh() { GUARD_OUT="$(printf '%s' "$2" | bash "$1" 2>&1)"; GUARD_RC=$?; }
+runh() { GUARD_OUT="$(printf '%s' "$2" | jq --arg cwd "$PROBE_WT" '. + {cwd: $cwd}' | bash "$1" 2>&1)"; GUARD_RC=$?; }
 
 # 규칙 **등재만** 뺀 사본을 만든다. 함수 정의는 남기므로 등록부 무결성(guard-check ⑦)의
 # 관심사와 섞이지 않고, 오직 "이 규칙이 디스패치되지 않는" 상태만 만든다.
@@ -314,6 +311,7 @@ mk_without() {  # mk_without <규칙> → 사본 경로를 stdout 으로
   local dir="$TMP/wo-$fn" copy
   copy="$dir/hooks/guard.sh"   # GUARD_ROOT 파생이 플러그인 배치와 같은 형태가 되게
   mkdir -p "$dir/hooks"
+  cp -R lib scripts "$dir/"
   # 주소를 RULES+= 줄로 한정한다 — 파일 전체에 걸면 규칙 이름을 담은 주석·차단
   # 메시지까지 건드려 A/B 대조가 "등재를 뺐기 때문"이 아닌 이유로 갈릴 수 있다.
   sed -E "/^RULES\+=/ s/\"[^\"]*:${fn}\"//g" "$HOOK" > "$copy"
@@ -388,7 +386,7 @@ else
 fi
 
 # ── S2: 훅 배선 (hooks.json ↔ hooks/*.sh) ─────────────────────────────
-# 플러그인의 훅은 hooks/hooks.json 이 배선한다 — 이벤트마다 `bash "${CLAUDE_PLUGIN_ROOT}/hooks/<파일>"`.
+# 공통 wiring 조회가 실제 Node transport를 검증하고 연결된 Bash 파일을 해석한다.
 # 파일이 있는데 배선이 없으면 훅은 한 번도 돌지 않고, 배선이 있는데 파일이 없으면 이벤트마다
 # 조용히 실패한다 — 둘 다 rc=0 에 무출력이라 여기서 양방향으로 맞춘다.
 #
@@ -400,7 +398,7 @@ section "S2 훅 배선 (${HOOKSJSON} ↔ hooks/*.sh)"
 
 jq -e '.hooks | type == "object"' "$HOOKSJSON" >/dev/null 2>&1 || { say_fail "$HOOKSJSON 의 .hooks 가 객체가 아니다 — 배선 파생이 공허해진다"; fail=1; }
 # 파생: "<이벤트>\t<matcher>\t<명령>". matcher 가 없으면 빈 문자열이다.
-wired="$(jq -r '(.hooks // {}) | to_entries[] | .key as $e | .value[]? | (.matcher // "") as $m | (.hooks // [])[] | select(.type == "command") | "\($e)\t\($m)\t\(.command)"' "$HOOKSJSON" 2>/dev/null)"
+wired="$(node scripts/distribution.mjs wiring "$ROOT" "$HOOKSJSON" | jq -r '.[] | select(.script != null) | "\(.event)\t\(.matcher)\tbash \"${CLAUDE_PLUGIN_ROOT}/\(.script)\""')" || { say_fail "공통 hook transport 배선 해석 실패"; fail=1; }
 wired_arr=()
 while IFS= read -r _l; do [[ -n "$_l" ]] && wired_arr+=("$_l"); done < <(printf '%s\n' "$wired")
 step "hooks.json 에서 배선 집합을 파생했다 (${#wired_arr[@]}개)" [ "${#wired_arr[@]}" -gt 0 ]
@@ -1068,8 +1066,8 @@ STUB
   # ③④ 대상 단언과 A/B 귀속은 둘 다 **배선**이 출처다 — hooks.json 이다.
   if true; then
     stop_wired() {  # stop_wired <hooks.json> → Stop 에 배선된 훅 파일 경로들
-      jq -r '(.hooks.Stop // [])[] | (.hooks // [])[] | select(.type == "command") | .command' "$1" \
-        | grep -oE 'hooks/[A-Za-z0-9_.-]+\.sh' | sort -u
+      node scripts/distribution.mjs wiring "$ROOT" "$1" \
+        | jq -r '[.[] | select(.event == "Stop") | .script // empty] | unique[]'
     }
     WIRED=()
     while IFS= read -r p; do [[ -n "$p" ]] && WIRED+=("$p"); done < <(stop_wired "$HOOKSJSON")
@@ -1092,7 +1090,8 @@ STUB
     # 순서 차이만으로 not_same 이 참이 되어, 등재를 하나도 못 지운 사본이 "다르다"로 읽힌다
     # — 선단언이 조용히 공허해지는 자리다 (실측: 대조군 f 에서 그렇게 통과했다).
     jq -S . "$HOOKSJSON" > "$PTMP/settings-base.json" 2>/dev/null
-    jq -S --arg f "$STOPHOOK" \
+    STOP_COMMAND="$(node scripts/distribution.mjs wiring "$ROOT" "$HOOKSJSON" | jq -r --arg file "$STOPHOOK" '.[] | select(.event == "Stop" and .script == $file) | .command')"
+    jq -S --arg f "$STOP_COMMAND" \
       '(.hooks.Stop) |= [ .[] | .hooks |= [ .[] | select((.command // "") | contains($f) | not) ] ]' \
       "$HOOKSJSON" > "$PTMP/settings-wo.json" 2>/dev/null
     if ! not_same "$PTMP/settings-base.json" "$PTMP/settings-wo.json"; then

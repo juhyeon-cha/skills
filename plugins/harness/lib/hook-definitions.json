@@ -1,0 +1,8 @@
+[
+  {"id":"context","event":"SessionStart","script":"hooks/session-context.sh","timeout":10},
+  {"id":"guard","event":"PreToolUse","script":"hooks/guard.sh","timeout":10},
+  {"id":"workspace","event":"PostToolUse","matcher":"EnterWorktree","script":"hooks/enter-worktree.sh","timeout":600},
+  {"id":"stop","event":"Stop","script":"hooks/stop-resume.sh","timeout":30},
+  {"id":"role-start","event":"SubagentStart","timeout":10},
+  {"id":"role-stop","event":"SubagentStop","timeout":10}
+]
