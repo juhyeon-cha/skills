@@ -30,6 +30,8 @@
 | Claude Code hooks | plugin `hooks/hooks.json` — SessionStart · PreToolUse (every tool) · PostToolUse (`EnterWorktree`) · Stop | `guard.sh` fires the guardrails (four anchor-free invariants), `enter-worktree.sh` wires the ledger, `stop-resume.sh` is the **stop guard** (pushes back when this session's claimed `in_progress` work has no `VERIFY_PENDING`/`DELEGATED` mark). Runtime state lives under `${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}`; guard log and session→actor mapping under `~/.claude/` — nothing is dropped into a project tree |
 | Task loop | the built-in `/loop` | Unattended repetition. Termination rules: `harness:develop` "장기 실행" |
 
+The incremental Node configuration and process API is described in [config-process.md](config-process.md). It preserves repository-owned settings and separates legacy Bash strings from direct argv execution; entry points migrate to it individually.
+
 **What the plugin does not carry**, and therefore what a person sets up, is the list in [guardrails.md](guardrails.md) section 5 — permissions, the repo's `.harness.json`, and the fact that settings and plugin versions load at session start.
 
 ## Session location and session unit
