@@ -144,12 +144,17 @@ export async function prepareWorkspaceIdentity(identity, {env = process.env, say
   const worker = fileURLToPath(new URL('../scripts/prepare-worker.mjs', import.meta.url));
   const child = process.platform === 'win32' ? await spawnWindowsWorker(worker, identity, env) : spawn(process.execPath, [worker, identity.top], {cwd: identity.top, env, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
   return new Promise((resolve, reject) => {
-    let output = '';
-    child.stdout.on('data', data => { output += data; }); child.stderr.on('data', data => say(data.toString()));
+    let output = '', diagnostics = '';
+    child.stdout.on('data', data => { output += data; });
+    child.stderr.on('data', data => { diagnostics = (diagnostics + data.toString()).slice(-16384); say(data.toString()); });
     child.on('error', reject);
     child.on('close', (code, signal) => {
-      if (code !== 0) return reject(new Error(`PREPARE_FAILED_OR_CRASHED: ${signal || code}; workspace preserved; retry after owner/group exits`));
-      try { resolve(JSON.parse(output)); } catch (error) { reject(error); }
+      if (code !== 0) return reject(new Error(`PREPARE_FAILED_OR_CRASHED: ${signal || code}; workspace preserved; retry after owner/group exits${diagnostics ? '\n' + diagnostics : ''}`));
+      try {
+        const result = JSON.parse(output);
+        if (typeof result?.ready !== 'boolean' || typeof result?.canDelegate !== 'boolean' || !['ready', 'not-configured'].includes(result.preparation)) throw new Error('invalid preparation result shape');
+        resolve(result);
+      } catch (error) { reject(new Error(`PREPARE_PROTOCOL_UNREACHED: ${output.trim() ? 'invalid worker response' : 'empty worker response'} (${error.message})${diagnostics ? '\n' + diagnostics : ''}`)); }
     });
   });
 }

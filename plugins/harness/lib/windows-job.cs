@@ -107,6 +107,15 @@ public static class HarnessJob {
       Require(TerminateJobObject(job, 124)); // also reap descendants after worker crash
       DateTime deadline = DateTime.UtcNow.AddSeconds(10);
       while (Active(job) != 0) { if (DateTime.UtcNow > deadline) throw new TimeoutException("job termination not observed"); Thread.Sleep(10); }
+      // PowerShell's native inherited handles are not the result channel.
+      // The worker atomically publishes one response in its private IPC scope.
+      string diagnostics = Path.Combine(ipc, "diagnostics.log");
+      if (File.Exists(diagnostics)) Console.Error.Write(File.ReadAllText(diagnostics, Encoding.UTF8));
+      if (exit == 0) {
+        string result = Path.Combine(ipc, "result.json");
+        if (!File.Exists(result)) throw new InvalidOperationException("PREPARE_PROTOCOL_UNREACHED: worker exited without result.json");
+        Console.Out.Write(File.ReadAllText(result, Encoding.UTF8));
+      }
       return unchecked((int)exit);
     } finally {
       // Closing the only owning handle is the final crash/failure backstop.

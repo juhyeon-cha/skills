@@ -41,10 +41,12 @@ process.exitCode=mode==='fail'?9:0;
   const save = () => fs.writeFile(configFile, JSON.stringify(config));
   const setMode = async value => { await fs.writeFile(input, value); await fs.rm(pidFile, {force: true}); await save(); };
   const count = () => fs.readFile(countFile, 'utf8').then(x => x.length, () => 0);
-  const prepare = () => prepareWorkspaceIdentity(identity, {env});
+  const prepare = () => prepareWorkspaceIdentity(identity, {env, say: text => process.stderr.write(text)});
   await setMode('fail');
   await check('failed bootstrap is not ready and is retryable', async () => {
-    await assert.rejects(prepare()); assert.equal((await preparationStatus(identity)).ready, false);
+    const before = await count();
+    await assert.rejects(prepare(), /부트스트랩 실패: 9/); assert.equal(await count(), before + 1);
+    assert.equal((await preparationStatus(identity)).ready, false);
     await setMode('ok'); assert.equal((await prepare()).ready, true);
   });
   await check('unchanged receipt avoids duplicate execution', async () => {
@@ -131,6 +133,21 @@ process.exitCode=mode==='fail'?9:0;
       assert.equal((await preparationStatus(identity)).ready, true);
     });
   } else console.log('UNREACHED Windows Job/cmd-specific controls: requires native Windows; common preparation executed on ' + process.platform);
+  await check('empty and malformed worker responses remain UNREACHED with Unicode diagnostics', async () => {
+    const copy = path.join(temp, 'protocol-plugin');
+    await fs.cp(fileURLToPath(new URL('../../plugins/harness', import.meta.url)), copy, {recursive: true});
+    const module = await import(pathToFileURL(path.join(copy, 'lib/preparation.mjs')));
+    for (const response of ['', 'invalid-json']) {
+      await setMode('protocol-' + response);
+      await fs.writeFile(path.join(copy, 'scripts/prepare-worker.mjs'), `import fs from 'node:fs'; import path from 'node:path';
+const response=${JSON.stringify(response)}, diagnostic='한글 진단 protocol';
+if(process.platform==='win32') { const ipc=process.env.HARNESS_PREPARE_IPC; fs.writeFileSync(path.join(ipc,'diagnostics.log'),diagnostic); if(response) fs.writeFileSync(path.join(ipc,'result.json'),response); }
+else { process.stderr.write(diagnostic); process.stdout.write(response); }
+`);
+      await assert.rejects(module.prepareWorkspaceIdentity(identity, {env}), error => error.message.includes('PREPARE_PROTOCOL_UNREACHED') && error.message.includes('한글 진단 protocol'));
+      assert.equal((await preparationStatus(identity)).canDelegate, false);
+    }
+  });
   if (!process.argv.includes('--mutation-child')) {
     await check('removing failed-command rejection makes this suite fail', async () => {
       const copy = path.join(temp, 'mutation');
@@ -146,6 +163,6 @@ process.exitCode=mode==='fail'?9:0;
       assert.equal(result.code, 1, result.stderr.toString()); assert.match(result.stderr.toString(), /Missing expected rejection/);
     });
   }
-  assert.equal(reached, (process.platform === 'win32' ? 13 : 6) + (process.argv.includes('--mutation-child') ? 0 : 1), 'every host-applicable judgment must run');
+  assert.equal(reached, (process.platform === 'win32' ? 14 : 7) + (process.argv.includes('--mutation-child') ? 0 : 1), 'every host-applicable judgment must run');
   console.log(`PASS native preparation/process ${reached}; host=${process.platform}; actual runtime hooks are separate evidence`);
 } finally { await fs.rm(temp, {recursive: true, force: true}); }
