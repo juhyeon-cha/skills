@@ -242,9 +242,9 @@ This file lives **at the root of the target repo and is committed there**. It ho
 
 ```json
 {
-  "check": ["<native executable>", "<argument>"],
+  "check": { "argv": ["<native executable>", "<argument>"] },
   "default_branch": "main",
-  "bootstrap": ["<native preparation executable>", "<argument>"],
+  "bootstrap": { "argv": ["<native preparation executable>", "<argument>"] },
   "ledger": { "backend": "github", "owner": "<github login>", "project": 4 }
 }
 ```
