@@ -17,18 +17,11 @@ There are three inputs — **the ledger (notes)**, **the subagent transcripts**,
 
 ### 1-2. Subagent transcripts
 
-- **Path**: `~/.claude/projects/<project directory>/<session UUID>/subagents/agent-*.jsonl`. **This round's session UUID is the last UUID in the scratchpad path the system prompt gives** — pass that to the call below.
-- **`${CLAUDE_PLUGIN_ROOT}/checks/transcript-check.sh` is the one place that reads them.** The retrospective **only calls it** — this skill parses no transcript itself. Two parsers make the aggregate diverge.
-- **Call**: `bash ${CLAUDE_PLUGIN_ROOT}/checks/transcript-check.sh --since <story start time> --session <session UUID> --json`. `--since` takes ISO8601 or `Nd` / `Nh` — cut the window at the Started of `ledger.sh show <story ID>`. rc is 0 no violations / 1 violations found / 2 judgment unreached.
-- **The two are independent axes, so pass both.** `--session` alone leaves a session that ran several stories undivided by round, and `--since` alone mixes in other sessions from the same window — their intersection is this story's this round. **When the session UUID is unknown** (an inherited session, someone else's story), drop `--session`, run it, write that fact into the aggregate quotation, and screen attribution with the fallback in section 3.
-- **Aggregate — quote the four JSON keys verbatim.**
-  - `signals.<role>`: SIGNAL counts per role. The reviewer rejection rate is `CHANGES_REQUESTED / (CHANGES_REQUESTED + LGTM)`, the evaluator's is `VIOLATION / (MATCH + VIOLATION)`.
-  - `tools.<role>`: tool-call distribution — `calls_per_response` · `parallel_responses` · `max_per_response` · `top`. Compliance with the parallel-call discipline comes out here.
-  - `reuse`: instance reuse — the count and the combinations of transcripts holding two or more SIGNALs. `CHANGES_REQUESTED,LGTM` in one transcript means the same instance carried the re-review.
-  - `a9.verdicts`: violation count for the first-line `SIGNAL:` discipline in role responses.
-- **What lives in the transcripts and not in the notes** — at least two come only from this side: ① **the tool-call distribution** (which role fires how many calls in parallel per response, and what it uses — nobody writes that into a note) ② **the role signal counts** (how many times the evaluator rejected — `close_reason` keeps the final MATCH alone).
-- **Quote ratios rather than totals.** The directory is live, so totals grow every session. Everything from the transcripts is **observation** — proposals live elsewhere.
-- **The failure path is recorded as unmeasured, and stays recorded.** On rc=2 (no transcript directory · 0 delegations completed in the window · no python3), put the `UNREACHED:` lines from stderr (the `unreached` array in JSON) verbatim on the story bead with `ledger.sh note` — "전사 미실측: <UNREACHED 원문>". Then proceed on the ledger alone, and treat the transcript-only items (rejection rate · parallel rate · reuse) as **unmeasured** rather than "no observation" — they enter the 2-observation count in section 3 as nothing at all, not as 0.
+- Read `${CLAUDE_PLUGIN_ROOT}/docs/transcripts.md` for adapter selection and completeness semantics. `${CLAUDE_PLUGIN_ROOT}/checks/transcript-check.sh` is the aggregate entry; this skill parses no transcript itself.
+- For ordinary workflow inventory, call `bash ${CLAUDE_PLUGIN_ROOT}/checks/transcript-check.sh --scope <scope.json> --json`. Use the actual session metadata retained at begin; a missing inventory is UNREACHED. This aggregate covers the session, including failed and unfinished attempts. Identify the story's calls from their recorded task scope rather than discarding failures.
+- For historical Claude transcripts, the documented directory adapter accepts `--projects`, `--session` and `--since` together. Pass the known session and story start time. An unknown session must be recorded as an attribution limit; wider observations are trends, not automatically this story's population.
+- Quote `signals`, `tools`, `reuse` and `a9.verdicts` together with `population`, `complete`, and `unreached`. `complete: false` makes counts partial observations, unsuitable as a full rejection-rate denominator. Token `UNKNOWN` and `total: null` are unmeasured cost, independent of A9's SIGNAL judgment.
+- On rc 2, record the `unreached` reasons verbatim in the story note and proceed using the reached observations and ledger with those limits. Missing observations contribute nothing to the two-observation promotion bar. Never report missing tools, tokens, unfinished calls or unsupported formats as zero.
 
 ### 1-3. The guard log — false-positive rate per rule
 
@@ -38,9 +31,9 @@ The harness says a gate does not weaken a prohibition. The other side has no pla
 
     bash ${CLAUDE_PLUGIN_ROOT}/scripts/guard-log.sh rows [<round>]
 
-Seven TSV columns — time · round · agent · tool · rule · classifiability · command; the summary goes to stderr. `<round>` is a `session_id`; leave it off to take every round in the log. Run it with no argument first — the round column is the axis, not the filter.
+Use the state resolver context and actual hook data directory described in `${CLAUDE_PLUGIN_ROOT}/docs/state.md`. Seven TSV columns — time · round · agent · tool · rule · classifiability · command; the summary goes to stderr. Metadata-only rows have no command, so their false-positive classification is unmeasured; do not reconstruct commands from transcript text. `<round>` is a `session_id`; leave it off to take every round in the log. Run it with no argument first — the round column is the axis, not the filter.
 
-That run is hundreds of rows, so group them before reading any:
+Group retained rows before reading individual entries:
 
     bash ${CLAUDE_PLUGIN_ROOT}/scripts/guard-log.sh rows | cut -f2,5,6 | sort | uniq -c
 
