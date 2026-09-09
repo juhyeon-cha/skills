@@ -31,7 +31,7 @@ try {
   fs.mkdirSync(repo); git('init', '-q'); git('-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--allow-empty', '-qm', 'seed');
   git('worktree', 'add', '-qb', 'worktree-fixture', wt);
   fs.writeFileSync(path.join(repo, '.harness.json'), JSON.stringify({ledger: {backend: 'github'}}));
-  fs.writeFileSync(path.join(plugin, 'scripts/ledger.sh'), '#!/usr/bin/env bash\n[ "$1" = wire-worktree ] || exit 97\nprintf "fixture wiring\\n"\n');
+  fs.writeFileSync(path.join(plugin, 'scripts/ledger.mjs'), "if(process.argv[2]!=='--root'||process.argv[4]!=='wire-worktree')process.exit(97);console.log('fixture wiring');\n");
   state = preparationPaths(await inspectWorkspace(wt, {env}));
   const snapshotConfig = {ledger: {backend: 'github'}, bootstrap: {argv: [process.execPath, '-e', "require('node:fs').writeFileSync('executed', process.argv[1])", 'old']}};
   fs.writeFileSync(path.join(wt, '.harness.json'), JSON.stringify(snapshotConfig));

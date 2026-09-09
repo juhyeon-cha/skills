@@ -29,6 +29,8 @@ jobs:
         run: node tests/harness/platform-contract-check.mjs ${{ matrix.host.platform }} platform-contract.json
       - name: Run native process and configured preparation contracts
         run: node tests/harness/native-preparation-contract-check.mjs ${{ matrix.host.platform }}
+      - name: Run identical native ledger contracts with offline transports
+        run: node tests/harness/native-ledger-contract-check.mjs ${{ matrix.host.platform }}
       - name: Diagnose Windows PowerShell native launch channels
         if: always() && runner.os == 'Windows'
         continue-on-error: true

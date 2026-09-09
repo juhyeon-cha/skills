@@ -2539,10 +2539,7 @@ step "어댑터 전용 읽기가 bd 하위 명령과 겹치지 않는다 (겹치
 # sync-check…)은 BD_ALL 에 없어 ⑩ 의 전수 시험이 닿지 않는 자리였다. 손으로 적은 낱말 몇 개로
 # 대신하면 새 하위 명령의 기본값이 "시험 안 됨"이 된다.
 # 두 줄 모양을 다 읽는다: `  <이름> <인자…>` 와 beads 전용 절의 `  a · b · c` 나열.
-LEDGER_ALL=$(sed -n "/^usage()/,/^}/p" "$ROOT/scripts/ledger.sh" | sed -n "/^사용:/,/^EOF$/p" \
-  | grep -E '^  [a-z]' \
-  | awk '{ n=split($0, p, "·"); for (i=1;i<=n;i++) { split(p[i], w, " "); if (w[1] ~ /^[a-z][a-z-]*$/) print w[1] } }' \
-  | sort -u)
+LEDGER_ALL=$(node "$ROOT/scripts/ledger.mjs" --commands | jq -r '.[]' | sort -u)
 LEDGER_ALL_N=$(printf '%s\n' "$LEDGER_ALL" | grep -c . || true)
 step "ledger.sh usage() 에서 하위 명령 집합을 파생했다 (25개 이상)" [ "$LEDGER_ALL_N" -ge 25 ]
 echo "  ledger.sh 하위 명령 ${LEDGER_ALL_N}개"

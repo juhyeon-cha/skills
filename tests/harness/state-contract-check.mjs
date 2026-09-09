@@ -80,6 +80,13 @@ esac
   cancelSession(claude);
   check(isCancelled(claude) && !isCancelled(codex) && !isCancelled(resumed), 'cancel only one explicit session/runtime');
   check(fs.existsSync(path.join(claude.data, 'stop-resume-cancel')), 'legacy shared cancellation is untouched');
+  const explicitData = path.join(temp, '한글 separate state');
+  const outsideHook = {...env}; delete outsideHook.HARNESS_DATA_DIR;
+  const explicitCancel = command(['--data', explicitData, 'cancel', 'codex', first, 'explicit-session'], {env:outsideHook});
+  check(explicitCancel.status === 0, 'explicit CLI data supports cancellation outside hook environment');
+  const explicitScope = await resolveState({runtime:'codex', cwd:first, sessionId:'explicit-session'}, {...outsideHook,HARNESS_DATA_DIR:explicitData});
+  check(isCancelled(explicitScope) && !isCancelled(codex), 'CLI data cancellation keeps scope isolated');
+  check(command(['--data','relative','cancel','codex',first,'bad']).status === 2, 'relative CLI data is rejected');
   const parallelLog = path.join(temp, 'parallel.tsv');
   const children = Array.from({length: 6}, (_, child) => new Promise((resolve, reject) => {
     const code = `import {appendState} from ${JSON.stringify(modulePath)}; for(let i=0;i<20;i++) appendState(${JSON.stringify(parallelLog)}, ${JSON.stringify('child-' + child + '-')}+i,{maxLines:0,waitMs:3000});`;

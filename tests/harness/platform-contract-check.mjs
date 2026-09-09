@@ -20,7 +20,7 @@ const report = {schema: 1, host: process.platform, expectedHost: expected, node:
   core: 'UNREACHED', fullProduct: 'UNREACHED', checks,
   boundaries: {
     hooksAndGuard: 'Bash/jq consumers; native transport integration UNREACHED',
-    workspaceLifecycle: 'create/enter/cleanup still call Bash ledger; inspect tested separately',
+    workspaceLifecycle: 'native ledger and story naming; full lifecycle integration tested separately',
     preparation: 'configured preparation exercised by native-preparation-contract-check.mjs',
     legacyCommands: 'Bash strings retain shell semantics; structured argv uses no shell',
     windowsLaunchers: 'explicit cmd.exe adapter; constrained batch argv; arbitrary argv uses native executable',
@@ -103,17 +103,18 @@ try {
     await assert.rejects(inspectWorkspace(fake, {env: gitEnv}), /not a worktree root/);
     await assert.rejects(inspectWorkspace(linked, {env: emptyPath}), /git .*failed/);
   });
-  await check('dependency audit exposes existing shell adapters rather than relabeling them native', async () => {
+  await check('dependency audit exposes native backend executables and remaining hook transport', async () => {
     const read = name => fs.readFile(path.join(root, 'plugins/harness', name), 'utf8');
-    assert.match(await read('scripts/ledger.sh'), /jq/);
+    assert.match(await read('scripts/ledger.sh'), /exec node/);
     report.ledgerDependencies = {};
-    for (const [backend, executable] of Object.entries({github: 'gh', beads: 'bd', notion: 'curl'})) {
-      const source = await read(`scripts/ledger-${backend}.sh`);
-      assert.match(source, /^#!.*bash/); assert.match(source, new RegExp(`\\b${executable}\\b`));
-      report.ledgerDependencies[backend] = {required: ['bash', 'jq', executable],
-        coverage: 'direct dependency floor; POSIX utilities/transitive dependencies also required', integration: 'UNREACHED'};
+    for (const [backend, executable] of Object.entries({github: 'gh', beads: 'bd', notion: null})) {
+      const source = await read(`lib/ledger/${backend}.mjs`);
+      assert.doesNotMatch(source, /['"](?:bash|jq|python3|curl)['"]/);
+      if (executable) assert.match(source, new RegExp(`\\b${executable}\\b`));
+      report.ledgerDependencies[backend] = {required: ['node', ...(executable ? [executable] : [])],
+        coverage: 'offline native ledger suite; beads sync additionally uses optional dolt', integration: 'live backend UNREACHED'};
     }
-    assert.match(await read('lib/workspace.mjs'), /argv: \['bash', path.join\(plugin, 'scripts\/ledger.sh'\)/);
+    assert.match(await read('lib/workspace.mjs'), /process.execPath, path.join\(plugin, 'scripts\/ledger.mjs'\), '--root'/);
     assert.match(await read('lib/preparation.mjs'), /spawnWindowsWorker/);
     assert.match(await read('scripts/hook.mjs'), /bash/);
   });

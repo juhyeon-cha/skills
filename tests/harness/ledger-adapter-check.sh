@@ -24,6 +24,12 @@ set -uo pipefail
 
 PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../plugins/harness" && pwd)"
 LEDGER="$PLUGIN_ROOT/scripts/ledger.sh"
+NODE_EXEC="$(command -v node)"
+# Node parses quotes in NODE_OPTIONS itself; this is not shell word splitting.
+# shellcheck disable=SC2089
+NODE_OPTIONS="${NODE_OPTIONS:-} --import=\"$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/ledger-fetch-fixture.mjs\""
+# shellcheck disable=SC2090
+export NODE_OPTIONS
 ROOT="$(bash "$PLUGIN_ROOT/lib/harness-root.sh")" || exit 1
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — 이 검사는 jq 없이 판정할 수 없다" >&2; exit 1; }
 BACKEND="$(jq -r '.ledger.backend // empty' "$ROOT/.harness.json" 2>/dev/null)"
@@ -309,6 +315,7 @@ echo "── ④ github 오프라인 — 가짜 gh ──"
 # jq·bash 만 보이고 gh 는 없는 PATH. 가짜 gh 는 호출 전부를 LOG 에 남기고 정해진 답을 낸다.
 mkdir -p "$TMP/jqbin" "$TMP/ghbin"
 ln -s "$(command -v jq)" "$TMP/jqbin/jq"
+ln -s "$NODE_EXEC" "$TMP/jqbin/node"
 NOGH_PATH="$TMP/jqbin:/usr/bin:/bin"
 GH="$TMP/ghbin"; mkdir -p "$GH"
 printf '{"ledger":{"backend":"github","owner":"juhyeon-cha","project":4}}\n' > "$GH/.harness.json"
@@ -541,14 +548,11 @@ step "item-add 가 rc 0 이면 소속을 다시 읽지 않는다 (통과 · proj
 
 # 부정 대조군 — 판정 한 줄만 옛 형태(rc 만 본다)로 되돌린 어댑터 사본에서는 첫 픽스처가 죽는다
 # (plugins/harness/docs/engineering.md "Checking that a check is alive"). 사본이 비지 않고 원본과 다름을 먼저 단언한다.
-NEGP="$TMP/negplug"; mkdir -p "$NEGP/scripts"
-cp "$PLUGIN_ROOT/scripts/ledger.sh" "$NEGP/scripts/ledger.sh"
-step "부정 대조군 전제: 소속 재확인이 어댑터에 1줄 실재한다" \
-  [ "$(grep -cE '^ *\[ "\$add_rc" -eq 0 \] \|\| in_project "\$slug" "\$num" \\$' "$PLUGIN_ROOT/scripts/ledger-github.sh")" -eq 1 ]
-sed 's#^ *\[ "\$add_rc" -eq 0 \] || in_project "\$slug" "\$num" \\$#    [ "$add_rc" -eq 0 ] \\#' \
-  "$PLUGIN_ROOT/scripts/ledger-github.sh" > "$NEGP/scripts/ledger-github.sh"
+NEGP="$TMP/negplug"
+step "부정 대조군 전제: Node 소속 재확인이 1개이고 제거한 사본을 만들었다" \
+  "$NODE_EXEC" "$(dirname "${BASH_SOURCE[0]}")/ledger-membership-mutation.mjs" "$PLUGIN_ROOT" "$NEGP"
 step "부정 대조군 사본이 원본과 다르다" bash -c '[ -s "$1" ] && [ -s "$2" ] && ! cmp -s "$1" "$2"' \
-  _ "$PLUGIN_ROOT/scripts/ledger-github.sh" "$NEGP/scripts/ledger-github.sh"
+  _ "$PLUGIN_ROOT/lib/ledger/github.mjs" "$NEGP/lib/ledger/github.mjs"
 : > "$LOG"
 OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$GH" \
       CLAUDE_PLUGIN_ROOT="$NEGP" FAKE_GH_ITEM_ADD_FAIL=1 bash "$NEGP/scripts/ledger.sh" \
@@ -876,8 +880,8 @@ step "NOTION_TOKEN 없음 → rc≠0 · stderr 한 줄이 NOTION_TOKEN 을 든�
 # curl 만 없는 /usr/bin 사본 — 나머지 도구(dirname·sed·grep)는 그대로 보여야 어댑터 자신이 돈다.
 mkdir -p "$TMP/usrbin-nocurl"
 for f in /usr/bin/*; do b="${f##*/}"; [ "$b" = curl ] || ln -s "$f" "$TMP/usrbin-nocurl/$b"; done
-OUT=$(PATH="$TMP/jqbin:$TMP/usrbin-nocurl:/bin" NOTION_TOKEN=x HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" show "$E" 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
-step "curl 없음 → rc≠0 · stderr 한 줄" bash -c '[ "$1" -ne 0 ] && [ "$(printf "%s\n" "$2" | grep -c .)" -eq 1 ] && printf "%s" "$2" | grep -q curl' _ "$RC" "$ERR"
+OUT=$(PATH="$TMP/jqbin:$TMP/usrbin-nocurl:/bin" FAKE_NATIVE_NOTION=1 NOTION_TOKEN=x HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" show "$E" --json 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
+step "curl 없음 → native fetch 응답을 정상 정규화 (네트워크는 테스트 함수로 격리)" bash -c '[ "$1" -eq 0 ] && [ -z "$2" ] && printf "%s" "$3" | jq -e ".[0].id == \"native-fixture\"" >/dev/null' _ "$RC" "$ERR" "$OUT"
 OUT=$(PATH="$NPATH" FAKE_CURL_LOG="$NLOG" FAKE_NOTION_401=1 NOTION_TOKEN=bad HARNESS_ROOT="$TMP/ntroot" bash "$LEDGER" show "$E" 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
 step "401 → rc≠0 · stderr 에 상태와 응답의 code(unauthorized)" bash -c '[ "$1" -ne 0 ] && printf "%s" "$2" | grep -q 401 && printf "%s" "$2" | grep -q unauthorized' _ "$RC" "$ERR"
 nrun show missing-0000 --json

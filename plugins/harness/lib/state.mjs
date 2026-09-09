@@ -114,7 +114,7 @@ export async function bindActor(scope, {ledgerRoot, task, actor}, env = process.
   const ledgerIdentity = await inspectWorkspace(absolute(ledgerRoot), {env});
   if (ledgerIdentity.common !== scope.common) throw new Error('claim mapping UNREACHED: ledger root belongs to another repository');
   ledgerRoot = ledgerIdentity.top;
-  const result = await runCommand({argv: ['bash', path.join(plugin, 'scripts/ledger.sh'), 'show', task, '--json']}, {cwd: scope.top, env: {...env, HARNESS_ROOT: absolute(ledgerRoot), CLAUDE_PLUGIN_ROOT: plugin}});
+  const result = await runCommand({argv: [process.execPath, path.join(plugin, 'scripts/ledger.mjs'), '--root', absolute(ledgerRoot), 'show', task, '--json']}, {cwd: scope.top, env: {...env, HARNESS_ROOT: absolute(ledgerRoot), CLAUDE_PLUGIN_ROOT: plugin}});
   if (result.status !== 'exited' || result.code !== 0) throw new Error('claim mapping UNREACHED: ledger verification failed; claim itself was not changed');
   const rows = JSON.parse(result.stdout.toString());
   const row = Array.isArray(rows) && rows.length === 1 && rows[0];

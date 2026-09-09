@@ -111,7 +111,9 @@ try {
   // Its invalid-version assertion must fail, establishing a live negative gate.
   if (!process.argv.includes('--mutation-child')) {
     const copy = path.join(temp, 'mutated');
-    for (const relative of ['plugins/harness/lib/config.mjs', 'plugins/harness/lib/process.mjs', 'plugins/harness/scripts/config.mjs', 'plugins/harness/scripts/ledger.sh', 'plugins/harness/scripts/ledger-github.sh', 'tests/harness/config-contract-check.mjs']) {
+    fs.mkdirSync(path.join(copy, 'plugins'), {recursive:true});
+    fs.cpSync(path.join(root, 'plugins/harness'), path.join(copy, 'plugins/harness'), {recursive:true});
+    for (const relative of ['tests/harness/config-contract-check.mjs']) {
       const target = path.join(copy, relative); fs.mkdirSync(path.dirname(target), {recursive: true}); fs.copyFileSync(path.join(root, relative), target);
     }
     const target = path.join(copy, 'plugins/harness/lib/config.mjs');

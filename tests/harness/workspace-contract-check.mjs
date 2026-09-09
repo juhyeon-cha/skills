@@ -59,7 +59,12 @@ try {
   check(fs.readFileSync(sentinel, 'utf8').trim().split('\n').length === 2, 'sentinel negative controls counted');
   fs.writeFileSync(sentinel, ''); // Only deliberate sentinel controls are excluded below.
   // Replace only the adapter boundary in a temporary copy, never policy code.
-  fs.writeFileSync(path.join(plugin, 'scripts/ledger.sh'), '#!/usr/bin/env bash\nexec node "$FIXTURE_RUNNER" --adapter "$@"\n');
+  fs.writeFileSync(path.join(plugin, 'scripts/ledger.mjs'), `import {spawnSync} from 'node:child_process';
+const args=process.argv.slice(2);
+if(args[0]!=='--root'||args[1]!==process.env.HARNESS_ROOT)process.exit(96);
+const child=spawnSync(process.execPath,[process.env.FIXTURE_RUNNER,'--adapter',...args.slice(2)],{stdio:'inherit'});
+process.exitCode=child.status??98;
+`);
   const targets = ['hooks/enter-worktree.sh', 'scripts/workspace-cleanup.sh', 'hooks/guard.sh'];
   if (fault === '--missing-target') fs.unlinkSync(path.join(plugin, targets[0]));
   for (const target of targets) {

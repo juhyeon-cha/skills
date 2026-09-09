@@ -69,8 +69,13 @@ try {
   check((await loadConfig(wt)).config.ledger.project === '5', 'unversioned numeric-string coordinates retain legacy shape');
   // Only the adapter is substituted. No real ledger backend command is reachable.
   const sentinel = path.join(temp, 'unexpected-adapter'); env.MIGRATION_SENTINEL = sentinel;
-  write(path.join(candidate, 'scripts/ledger.sh'), '#!/usr/bin/env bash\ncase "$1" in\nwire-worktree) exit 0 ;;\nshow) printf \'%s\\n\' \'[{"id":"migration-1","status":"in_progress","actor":"actor-original"}]\' ;;\n*) printf \'unexpected\\n\' >> "$MIGRATION_SENTINEL"; exit 97 ;;\nesac\n');
-  const forbidden = run(['bash', path.join(candidate, 'scripts/ledger.sh'), 'create']);
+  write(path.join(candidate, 'scripts/ledger.mjs'), `import fs from 'node:fs';
+const args=process.argv.slice(2);if(args[0]==='--root')args.splice(0,2);
+if(args[0]==='wire-worktree')process.exit(0);
+if(args[0]==='show')console.log('[{"id":"migration-1","status":"in_progress","actor":"actor-original"}]');
+else {fs.appendFileSync(process.env.MIGRATION_SENTINEL,'unexpected\\n');process.exit(97);}
+`);
+  const forbidden = run([process.execPath, path.join(candidate, 'scripts/ledger.mjs'), 'create']);
   check(forbidden.status === 97 && bytes(sentinel) === 'unexpected\n', 'fake adapter rejects and records mutation attempts');
   fs.unlinkSync(sentinel); // Exclude only this deliberate negative control.
   const workspace = (action, runtime = 'codex') => {

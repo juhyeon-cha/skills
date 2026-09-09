@@ -64,7 +64,7 @@ export async function commandLaunch(argv, {cwd, env = process.env, platform = pr
 
 // Completion is explicit: an exit code, a terminating signal, or a launch error.
 // stdout/stderr remain buffers; no shell quoting or text re-encoding is applied.
-export async function runCommand(command, {cwd, env = process.env} = {}) {
+export async function runCommand(command, {cwd, env = process.env, input, inheritStdin = false} = {}) {
   validateCommand(command);
   let launch;
   const argv = typeof command === 'string' ? ['bash', '-c', command] : command.argv;
@@ -73,10 +73,11 @@ export async function runCommand(command, {cwd, env = process.env} = {}) {
   return new Promise(resolve => {
     const stdout = [], stderr = []; let error;
     let child;
-    try { child = spawn(launch.executable, launch.args, {cwd, env, windowsVerbatimArguments: launch.windowsVerbatimArguments, shell: false, stdio: ['ignore', 'pipe', 'pipe']}); }
+    try { child = spawn(launch.executable, launch.args, {cwd, env, windowsVerbatimArguments: launch.windowsVerbatimArguments, shell: false, stdio: [input !== undefined ? 'pipe' : inheritStdin ? 'inherit' : 'ignore', 'pipe', 'pipe']}); }
     catch (err) { resolve({status: 'spawn_error', code: null, signal: null, error: {code: err.code, message: err.message}, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0)}); return; }
     child.stdout.on('data', data => stdout.push(data));
     child.stderr.on('data', data => stderr.push(data));
+    if (child.stdin) { child.stdin.on('error', err => { if (err.code !== 'EPIPE') error = {code: err.code, message: err.message}; }); child.stdin.end(input); }
     child.on('error', err => { error = {code: err.code, message: err.message}; });
     child.on('close', (code, signal) => resolve({status: error ? 'spawn_error' : signal ? 'signaled' : 'exited', code, signal, ...(error ? {error} : {}), stdout: Buffer.concat(stdout), stderr: Buffer.concat(stderr)}));
   });

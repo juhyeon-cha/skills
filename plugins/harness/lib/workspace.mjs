@@ -4,6 +4,7 @@ import {fileURLToPath} from 'node:url';
 import {loadConfig} from './config.mjs';
 import {prepareWorkspaceIdentity, preparationStatus, preparationPaths} from './preparation.mjs';
 import {runCommand} from './process.mjs';
+import {worktreeName} from './worktree-name.mjs';
 
 const plugin = fileURLToPath(new URL('../', import.meta.url));
 const exists = async p => fs.stat(p).then(() => true, error => { if (error.code === 'ENOENT') return false; throw error; });
@@ -39,15 +40,14 @@ export async function inspectWorkspace(location, {exact = true, env = process.en
   if (mainCommon !== common) throw new Error('Git common directory differs from main registration');
   return {top, main, common, gitDir, branch, linked: gitDir !== common && top !== main, registrations: canonical};
 }
-export async function storyName(story, {cwd, env = process.env}) {
-  const result = await runCommand({argv: ['bash', path.join(plugin, 'lib/worktree-name.sh'), story]}, {cwd, env});
-  const name = result.stdout.toString().trim();
-  if (result.code !== 0 || !name || !/^[A-Za-z0-9._-]+$/.test(name) || ['.', '..'].includes(name)) throw new Error('invalid story workspace name');
+export async function storyName(story) {
+  const name = worktreeName(story);
+  if (!name || !/^[A-Za-z0-9._-]+$/.test(name) || ['.', '..'].includes(name)) throw new Error('invalid story workspace name');
   return name;
 }
 async function ledger(root, cwd, args, env) {
   await loadConfig(root); // Root identity and ledger coordinates are separate from Git.
-  const result = await runCommand({argv: ['bash', path.join(plugin, 'scripts/ledger.sh'), ...args]}, {cwd, env: {...gitEnvironment(env), CLAUDE_PLUGIN_ROOT: plugin, HARNESS_ROOT: root}});
+  const result = await runCommand({argv: [process.execPath, path.join(plugin, 'scripts/ledger.mjs'), '--root', root, ...args]}, {cwd, env: {...gitEnvironment(env), CLAUDE_PLUGIN_ROOT: plugin, HARNESS_ROOT: root}});
   if (result.status !== 'exited' || result.code !== 0) throw new Error(`ledger.sh ${args[0]} 실패 — 어댑터: ${result.stderr.toString() || result.error?.message || result.signal}`);
   return result.stdout.toString();
 }
