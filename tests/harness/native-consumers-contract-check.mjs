@@ -15,7 +15,9 @@ import {ledgerIndex} from '../../plugins/harness/lib/ledger-view.mjs';
 assert.equal(process.platform, process.argv[2] || process.platform, 'actual native host must match requested evidence');
 const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'harness-consumers-'));
 const root = path.join(temp, '원장 repo space');
-const env = {...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: os.devNull, GIT_TERMINAL_PROMPT: '0'};
+const gitConfig = path.join(temp, 'empty.gitconfig');
+await fs.writeFile(gitConfig, '');
+const env = {...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: gitConfig, GIT_TERMINAL_PROMPT: '0'};
 for (const key of Object.keys(env)) if (key.startsWith('GIT_') && !['GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT'].includes(key)) delete env[key];
 delete env.LEDGER_CHECK_PUSH;
 let reached = 0;
@@ -176,6 +178,18 @@ try {
     await assert.rejects(renderBoard('2026-S01', fixture({data: changed(epic.id, {labels: []})})), /닫힌 스프린트만/);
     assert.equal(await fs.readFile(index, 'utf8'), before);
   });
+  await check('outside docs symlink/junction is rejected before creating any external directory', async () => {
+    for (const depth of ['docs','sprints']) {
+      const guardedRoot=path.join(temp,'guarded '+depth),outside=path.join(temp,'outside '+depth);
+      await fs.mkdir(guardedRoot);await fs.mkdir(outside);await fs.writeFile(path.join(outside,'sentinel'),'preserve');
+      if(depth==='sprints')await fs.mkdir(path.join(guardedRoot,'docs'));
+      const link=path.join(guardedRoot,'docs',...(depth==='sprints'?['sprints']:[]));
+      await fs.symlink(outside,link,process.platform==='win32'?'junction':'dir');
+      await assert.rejects(renderBoard('2026-S02',{...fixture({data:[],sprintRows:[{id:'2026-S02',status:'closed'}]}),root:guardedRoot}),/루트 밖/);
+      assert.deepEqual(await fs.readdir(outside),['sentinel'],'rejection must leave outside directory unchanged');
+      assert.equal(await fs.readFile(path.join(outside,'sentinel'),'utf8'),'preserve');
+    }
+  });
   await check('ledger sync remains read-only by default and preserves adapter rc/output', async () => {
     const calls = [], ledger = async argv => { calls.push(argv); return {code: 7, stdout: 'ahead', stderr: 'detail'}; };
     assert.deepEqual(await checkLedger({root, env, ledger}), {code: 7, stdout: 'ahead', stderr: 'detail'});
@@ -209,6 +223,6 @@ try {
       }
     });
   }
-  assert.equal(reached, process.argv.includes('--mutation-child') ? 18 : 19, 'every native consumer judgment must execute');
+  assert.equal(reached, process.argv.includes('--mutation-child') ? 19 : 20, 'every native consumer judgment must execute');
   console.log(`PASS native consumers ${reached}; host=${process.platform}; live backend/runtime integration is separate evidence`);
 } finally { await fs.rm(temp, {recursive: true, force: true}); }

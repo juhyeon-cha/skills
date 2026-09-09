@@ -98,12 +98,21 @@ export function renderDocuments(target, rows, rails = [], sprints = []) {
 }
 
 async function publish(root, target, files) {
-  const parent = path.join(root, 'docs', ...(targetMode(target) === 'sprint' ? ['sprints'] : []));
-  await fs.mkdir(parent, {recursive: true});
   // Projections must remain inside the target root, including when a docs
-  // ancestor is a symlink. Never recursively remove an external destination.
-  const canonicalRoot = await fs.realpath(root), canonicalParent = await fs.realpath(parent);
-  if (!canonicalParent.startsWith(canonicalRoot + path.sep)) throw new Error('투영 경로가 하네스 루트 밖이다');
+  // ancestor is a symlink/junction. Validate each existing ancestor before
+  // creating its child, then use canonical paths for publication.
+  const canonicalRoot = await fs.realpath(root);
+  let parent = canonicalRoot;
+  for (const component of ['docs', ...(targetMode(target) === 'sprint' ? ['sprints'] : [])]) {
+    const next = path.join(parent, component);
+    try { parent = await fs.realpath(next); }
+    catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      try { await fs.mkdir(next); } catch (createError) { if (createError.code !== 'EEXIST') throw createError; }
+      parent = await fs.realpath(next);
+    }
+    if (!parent.startsWith(canonicalRoot + path.sep)) throw new Error('투영 경로가 하네스 루트 밖이다');
+  }
   const lock = path.join(parent, `.render-lock-${target}`), destination = path.join(parent, target);
   try { await fs.mkdir(lock); } catch (error) { if (error.code === 'EEXIST') throw new Error(`오류: ${target} 렌더가 이미 진행 중이다 (${lock} 존재). 비정상 종료 잔존물이면 확인 후 정리하라`); throw error; }
   let temporary;

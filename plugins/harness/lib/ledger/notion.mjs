@@ -1,4 +1,4 @@
-import fs from 'node:fs/promises';
+import {loadConfig} from '../config.mjs';
 import {parse,createOptions,updateOptions,csv,unique,json,fail,listOptions,filterRows,rowsText,showText,description,noteBody,bodyFile,dependencyPairs,railsFrom,replaceJSON} from './common.mjs';
 
 export const richText = value => {const chars=[...value],parts=[];for(let i=0;i<chars.length;i+=2000)parts.push({type:'text',text:{content:chars.slice(i,i+2000).join('')}});return parts;};
@@ -36,7 +36,7 @@ export async function notionLedger(argv,ctx) {
     case 'init':{
       const options=parse(args,{'--parent-page':'parent','--title':'title'});if(options.positional.length)fail('init: 모르는 인자');
       const base={Name:{title:{}},Type:{select:{options:['epic','feature','task','bug','chore','decision'].map(name=>({name}))}},Status:{select:{options:['open','in_progress','blocked','deferred','closed'].map(name=>({name}))}},Acceptance:{rich_text:{}},Labels:{multi_select:{}},Description:{rich_text:{}},Assignee:{rich_text:{}}};
-      if(!database){if(!options.parent)fail('새로 만들려면 init --parent-page <통합이 공유된 페이지 id>');const result=await request('POST','databases',{parent:{type:'page_id',page_id:options.parent},title:richText(options.title??'harness-ledger'),properties:base});database=result.id;if(!database)fail('DB 생성 응답에 id 가 없다');const config=JSON.parse(await fs.readFile(ctx.file,'utf8'));config.ledger.database_id=database;await replaceJSON(ctx.file,config);}
+      if(!database){if(!options.parent)fail('새로 만들려면 init --parent-page <통합이 공유된 페이지 id>');const result=await request('POST','databases',{parent:{type:'page_id',page_id:options.parent},title:richText(options.title??'harness-ledger'),properties:base});database=result.id;if(!database)fail('DB 생성 응답에 id 가 없다');const {config}=await loadConfig(ctx.root);config.ledger.database_id=database;await replaceJSON(ctx.file,config);}
       await request('PATCH',`databases/${database}`,{properties:{Parent:{relation:{database_id:database,single_property:{}}},'Blocked by':{relation:{database_id:database,single_property:{}}},Description:{rich_text:{}},Assignee:{rich_text:{}}}});ctx.out(`✓ notion 원장: database_id=${database} (${ctx.file})\n`);break;
     }
     case 'create':{

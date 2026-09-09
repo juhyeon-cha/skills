@@ -44,7 +44,7 @@ export async function beadsLedger(argv,ctx){
           let count=await ahead();
           if(!count)verdict='확인됨';
           else if(!args.includes('--push')){warn(`원장이 원격보다 ${count}개 커밋 앞서 있다 — 쓰기 모드가 아니라 반영하지 않는다`);verdict='앞서 있음(반영하지 않음 — 쓰기 모드 아님)';}
-          else{const result=await ctx.command('bd',['dolt','push'],{cwd:ctx.root,allowFailure:true});ctx.err(result.stderr.toString()+result.stdout.toString());count=await ahead();if(count)fail(`원장이 여전히 원격보다 ${count}개 커밋 앞서 있다 — 자동 반영이 해소하지 못했다`);verdict='이번에 수행함';}
+          else{warn(`원장이 원격보다 ${count}개 커밋 앞서 있다 — bd dolt push 로 함께 반영한다`);const result=await ctx.command('bd',['dolt','push'],{cwd:ctx.root,allowFailure:true});ctx.err(result.stderr.toString()+result.stdout.toString());if(result.code!==0)warn('bd dolt push 가 비-0 으로 끝났다');count=await ahead();if(count)fail(`원장이 여전히 원격보다 ${count}개 커밋 앞서 있다 — 자동 반영이 해소하지 못했다`);verdict='이번에 수행함';}
         }
       }
     }

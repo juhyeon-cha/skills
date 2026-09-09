@@ -142,6 +142,21 @@ try{
     authFailure=true;await absent(g(['show','repo#1','--json']));authFailure=false;await absent(g(['delete','repo#1']));
   });
   await check('GitHub registry/init/sprint replacement retains complete request contract',async()=>{await must(g(['init']));await must(g(['rails','--json']));assert.deepEqual(JSON.parse(await must(g(['sprints','--json']))),[]);await must(g(['sprint-add','2026-S02']));const payload=JSON.parse(ghCalls.findLast(call=>call.input?.includes('iterationConfiguration')).input);assert.equal(payload.variables.it[0].title,'2026-S02');assert.equal(payload.variables.d,14);});
+  await check('BOM/CRLF init preserves extensions and persisted coordinates prevent retry duplicates', async()=>{
+    for (const backend of ['github','notion']) for (const failSetup of [false,true]) {
+      const initial=config(backend);delete initial.ledger[backend==='github'?'project':'database_id'];
+      await fs.writeFile(path.join(root,'.harness.json'),'\uFEFF'+JSON.stringify(initial,null,2).replaceAll('\n','\r\n')+'\r\n');
+      const countCreates=()=>backend==='github'?ghCalls.filter(call=>call.args[0]==='project'&&call.args[1]==='create').length:requests.filter(call=>call.method==='POST'&&call.endpoint==='databases').length;
+      const before=countCreates();let failOnce=failSetup;
+      const invoke=()=>executeLedger(['init',...(backend==='notion'?['--parent-page','parent']:[])],{root,cwd:root,env:{NOTION_TOKEN:'fixture-token'},
+        process:async(command,options)=>{if(failOnce&&command.argv[1]==='project'&&command.argv[2]==='view'){failOnce=false;return result('fixture setup failed',9);}return gh(command,options);},
+        request:async(method,endpoint,body)=>{if(failOnce&&method==='PATCH'&&endpoint.startsWith('databases/')){failOnce=false;throw new Error('fixture setup failed');}return request(method,endpoint,body);}});
+      const first=await invoke();if(failSetup){assert.notEqual(first.code,0);assert.match(first.stderr,/fixture setup failed|gh 실패/);}else assert.equal(first.code,0,first.stderr);
+      const persisted=JSON.parse(await fs.readFile(path.join(root,'.harness.json'),'utf8'));
+      assert.equal(persisted.extension.한글,'preserve');assert.equal(persisted.ledger[backend==='github'?'project':'database_id'],backend==='github'?5:'database');
+      await must(invoke());assert.equal(countCreates()-before,1,'retry must reuse '+backend+' coordinates');
+    }
+  });
   await save('beads');const bdCalls=[];let childLabels=['slug:parent','repo:wrong','rail:r1'],created=false;
   const beadProcess=async(command,options)=>{assert.equal(command.argv[0],'bd');assert.deepEqual(command.argv.slice(1,3),['-C',root]);const args=command.argv.slice(3);bdCalls.push({args,input:options.input});
     if(args[0]==='show')return result([{id:args[1],labels:args[1]==='parent'?['slug:parent','rail:r1','repo:wrong']:childLabels,assignee:'owner'}]);
@@ -161,7 +176,8 @@ try{
     const transport=async(command)=>{const [executable,...args]=command.argv;if(executable==='bd'){if(args.includes('where'))return result('database: '+database+'\n');assert.deepEqual(args,['dolt','push']);pushes++;ahead=0;return result('');}
       assert.equal(executable,'dolt');if(args[0]==='version')return result('dolt');if(args[0]==='remote')return result('origin fixture');if(args[0]==='branch')return result('remotes/origin/main');if(args[0]==='merge-base')return result('base');if(args[0]==='log')return result(ahead?'commit\n':'');throw new Error('unreached fixture');};
     const read=await executeLedger(['sync-check'],{root,cwd:root,process:transport});assert.equal(read.code,0,read.stderr);assert.equal(pushes,0);assert.match(read.stdout,/반영하지 않음/);
-    await must(executeLedger(['sync-check','--push'],{root,cwd:root,process:transport}));assert.equal(pushes,1);assert.equal(ahead,0);
+    assert.doesNotMatch(read.stderr,/함께 반영한다/);
+    const pushed=await executeLedger(['sync-check','--push'],{root,cwd:root,process:transport});assert.equal(pushed.code,0,pushed.stderr);assert.match(pushed.stderr,/bd dolt push 로 함께 반영한다/);assert.equal(pushes,1);assert.equal(ahead,0);
   });
-  assert.equal(reached,14,'nonempty complete native judgment set');console.log(`PASS native ledger ${reached}; host=${process.platform}; offline transports, no remote writes`);
+  assert.equal(reached,15,'nonempty complete native judgment set');console.log(`PASS native ledger ${reached}; host=${process.platform}; offline transports, no remote writes`);
 }finally{await fs.rm(root,{recursive:true,force:true});}

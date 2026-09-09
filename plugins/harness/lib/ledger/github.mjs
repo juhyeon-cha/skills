@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import {loadConfig} from '../config.mjs';
 import {parse, createOptions, updateOptions, csv, json, fail, listOptions, filterRows, rowsText, showText, description, noteBody, bodyFile, dependencyPairs, railsFrom, replaceJSON} from './common.mjs';
 
 const fields = 'id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body}} parent{number repository{name}} blockedBy(first:50){totalCount nodes{number state repository{name}}}';
@@ -70,7 +71,7 @@ export async function githubLedger(argv, ctx) {
   switch(cmd) {
     case 'init': {
       const options=parse(args,{'--title':'title'}); if(options.positional.length) fail('init: 모르는 인자');
-      if(!project) {const result=await read(['project','create','--owner',owner,'--title',options.title??'harness-ledger','--format','json']); project=result.number; if(!project) fail('Projects v2 를 만들지 못했다'); const current=JSON.parse(await fs.readFile(ctx.file,'utf8')); current.ledger.project=project; await replaceJSON(ctx.file,current);}
+      if(!project) {const result=await read(['project','create','--owner',owner,'--title',options.title??'harness-ledger','--format','json']); project=result.number; if(!project) fail('Projects v2 를 만들지 못했다'); const {config:current}=await loadConfig(ctx.root); current.ledger.project=project; await replaceJSON(ctx.file,current);}
       await gh(['project','view',String(project),'--owner',owner,'--format','json']);
       const found=await iteration();
       if(found.field) ctx.out(`✓ ITERATION 필드 '${found.field.name}' 가 이미 있다 — 다시 만들지 않는다\n`);
