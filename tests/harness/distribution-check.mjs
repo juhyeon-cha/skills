@@ -45,6 +45,17 @@ try {
   assert.throws(() => generateDistribution(copy)); count++; fs.copyFileSync(path.join(pluginRoot, 'lib/hook-definitions.json'), registry);
   fs.writeFileSync(registry, '[]'); assert.throws(() => generateDistribution(copy)); count++; fs.copyFileSync(path.join(pluginRoot, 'lib/hook-definitions.json'), registry);
   const skill = baseline.skills[0].path;
+  const duplicateDir = path.join(copy, 'skills/name-variant'); fs.mkdirSync(duplicateDir);
+  const develop = fs.readFileSync(path.join(copy, 'skills/develop/SKILL.md'), 'utf8');
+  for (const declaration of ['name: "develop"', "name: 'develop'", 'name: develop # comment', 'name :    develop   ', 'name: "\\u0064evelop"', '"name": develop']) {
+    fs.writeFileSync(path.join(duplicateDir, 'SKILL.md'), develop.replace(/^name: develop$/m, declaration));
+    assert.throws(() => inspectDistribution(copy), undefined, `duplicate or unsupported YAML: ${declaration}`); count++;
+  }
+  fs.writeFileSync(path.join(duplicateDir, 'SKILL.md'), '---\ndescription: fixture\n---\nname: body-only\n');
+  assert.throws(() => inspectDistribution(copy), undefined, 'body name cannot replace missing frontmatter name'); count++;
+  fs.writeFileSync(path.join(duplicateDir, 'SKILL.md'), '---\nname: "unique-fixture" # comment\ndescription: fixture\n---\nname: develop\n');
+  check(inspectDistribution(copy).skills.some(s => s.name === 'unique-fixture'), 'quoted unique name normalized; body ignored');
+  fs.rmSync(duplicateDir, {recursive: true});
   fs.mkdirSync(path.join(copy, 'skills/duplicate')); fs.copyFileSync(path.join(copy, skill), path.join(copy, 'skills/duplicate/SKILL.md'));
   assert.throws(() => inspectDistribution(copy)); count++; fs.rmSync(path.join(copy, 'skills/duplicate'), {recursive: true});
   const registration = registerRoles('codex', path.join(temp, 'agents'), copy);

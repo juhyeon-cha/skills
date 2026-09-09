@@ -11,6 +11,26 @@ export const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const encoded = value => JSON.stringify(value, null, 2) + '\n';
 const hookCommand = id => `node "\${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs" ${id} || exit 2`;
 
+// Deliberately limited YAML: flat mappings and a single scalar skill name.
+// Reject unsupported structure instead of guessing a registration identity.
+function skillName(body) {
+  const frontmatter = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(body)?.[1];
+  if (frontmatter === undefined) throw new Error('skill frontmatter missing');
+  const fields = new Map();
+  for (const line of frontmatter.split(/\r?\n/)) {
+    if (/^\s*(?:#.*)?$/.test(line)) continue;
+    const field = /^([A-Za-z_][A-Za-z0-9_-]*)[ \t]*:[ \t]*(.*)$/.exec(line);
+    if (!field || fields.has(field[1])) throw new Error('unsupported/duplicate skill frontmatter key');
+    fields.set(field[1], field[2]);
+  }
+  const raw = fields.get('name') ?? '';
+  const scalar = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[a-z0-9]+(?:-[a-z0-9]+)*)(?:[ \t]+#.*|[ \t]*)$/.exec(raw)?.[1];
+  if (!scalar) throw new Error('unsupported skill name scalar');
+  const name = scalar.startsWith('"') ? JSON.parse(scalar) : scalar.startsWith("'") ? scalar.slice(1, -1).replaceAll("''", "'") : scalar;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name)) throw new Error('invalid skill name');
+  return name;
+}
+
 export function hookWiring(root = pluginRoot, configFile = path.join(root, 'hooks/hooks.json')) {
   const definitions = readJson(path.join(root, 'lib/hook-definitions.json'));
   const rows = [];
@@ -57,7 +77,7 @@ export function inspectDistribution(root = pluginRoot) {
   const skills = fs.readdirSync(path.join(root, 'skills')).sort().map(directory => {
     const relative = `skills/${directory}/SKILL.md`;
     const body = fs.readFileSync(path.join(root, relative), 'utf8');
-    const name = /^name: (.+)$/m.exec(body)?.[1];
+    const name = skillName(body);
     if (!name || names.has(name)) throw new Error('missing/duplicate skill name');
     names.add(name); return {name, path: relative, hash: digest(body)};
   });
