@@ -118,6 +118,7 @@ try {
     const normalized = normalizeHookEvent(event('Get-Content a'), {platform: 'win32', env: {HARNESS_RUNTIME: 'codex'}});
     assert.equal(normalized.harness_shell_dialect, 'powershell');
     assert.equal(normalized.harness_shell_readonly, true);
+    assert.equal(normalizeHookEvent(event('cat a'), {platform: 'win32', env: {HARNESS_RUNTIME: 'claude', CODEX_HOME: 'C:\\codex'}}).harness_shell_dialect, 'posix');
     const script = path.join(root, 'scripts/workspace.mjs');
     const workspaceCommand = `node '${script}' inspect '${main}'`;
     assert.equal(workspaceShellCommand(workspaceCommand, script, {dialect: 'powershell'}).action, 'inspect');

@@ -16,7 +16,7 @@ export function normalizeHookEvent(raw, {env = process.env, platform = process.p
     const command = raw.tool_input.command ?? raw.tool_input.cmd;
     if (typeof command !== 'string' || !command.trim()) throw new Error('shell command missing');
     event.tool_input = {...raw.tool_input, command};
-    event.harness_shell_dialect = raw.tool_name === 'PowerShell' || (platform === 'win32' && (raw.tool_name === 'exec_command' || env.HARNESS_RUNTIME === 'codex' || env.CODEX_HOME)) ? 'powershell' : 'posix';
+    event.harness_shell_dialect = raw.tool_name === 'PowerShell' || (platform === 'win32' && (raw.tool_name === 'exec_command' || env.HARNESS_RUNTIME === 'codex' || (!env.HARNESS_RUNTIME && env.CODEX_HOME))) ? 'powershell' : 'posix';
     if (event.harness_shell_dialect === 'powershell') {
       const parsed = powershellOperations(command, raw.cwd);
       event.harness_shell = parsed;
