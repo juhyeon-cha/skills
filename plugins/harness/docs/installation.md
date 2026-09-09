@@ -4,7 +4,7 @@ Use this procedure from setup A, B or C. Repository-owned `.harness.json` remain
 
 ## Common prerequisites
 
-Check `node --version`, `git --version`, `bash --version`, `jq --version` and `python3 --version` before setup. The common Node commands require Node 22 or later. Bash, jq and Python remain dependencies of the existing policy/ledger checks; Node wrappers do not remove them. Add the selected backend's tools and credentials as setup specifies. macOS and Linux use the POSIX adapters; WSL is the transitional Windows route. Native Windows support is not established by these wrappers: Bash hooks and process-group preparation still need the later native adapter work.
+Check `node --version`, `git --version`, `bash --version`, `jq --version` and `python3 --version` before setup. The common Node commands require Node 22 or later. Bash, jq and Python remain dependencies of existing shell checks; Node wrappers do not remove them. Add the selected backend's tools and credentials as setup specifies. Before choosing native Windows, Git Bash or WSL, read [Platform boundaries](platforms.md): core fixtures, transitional routes and full runtime support require different evidence. POSIX adapter availability alone is not an execution result for every macOS/Linux combination.
 
 Run `node <expected plugin source>/scripts/distribution.mjs check` to verify the generated metadata and shared source tree. Development builds regenerate with `generate`; version and description come exclusively from `.claude-plugin/plugin.json`. The Codex compatibility manifest uses the default `skills/` and `hooks/hooks.json` locations, so no second skill/hook tree is registered. A release copies the same plugin artifact; never hand-edit projections in an installed cache.
 

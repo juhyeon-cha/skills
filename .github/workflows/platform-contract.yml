@@ -1,0 +1,38 @@
+name: Harness native core contracts
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+        host:
+          - {runner: macos-latest, platform: darwin, shell: bash}
+          - {runner: ubuntu-latest, platform: linux, shell: bash}
+          - {runner: windows-latest, platform: win32, shell: pwsh}
+    runs-on: ${{ matrix.host.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      # pwsh is the native Windows runner shell; the test spawns no shell.
+      - name: Run identical Node/Git core suite (not full product certification)
+        shell: ${{ matrix.host.shell }}
+        run: node tests/harness/platform-contract-check.mjs ${{ matrix.host.platform }} platform-contract.json
+      - name: Preserve reached scope even when a contract fails
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: platform-${{ matrix.host.platform }}-node-${{ matrix.node }}
+          path: platform-contract.json
+          if-no-files-found: error
+          retention-days: 14
