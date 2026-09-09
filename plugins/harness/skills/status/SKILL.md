@@ -5,6 +5,8 @@ description: One-screen harness status, read-only — the active sprint, open/cl
 
 # Harness status
 
+Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` and resolve the plugin and harness roots.
+
 Six items, always the same six, always in this order, each as a table. **This procedure only
 reads** — the ledger calls are `list`, `show`, and the registry query `sprints`. When one
 item has nothing to show, its table has one row saying so; the item is never dropped, so a missing
@@ -12,22 +14,24 @@ item means the report was cut short.
 
 ## 0. The active sprint — and the two ways it is absent
 
-```bash
-HARNESS_ROOT=<harness root> bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh sprints --json \
-  | jq -r '.[] | select(.status == "active") | .id'
+```text
+node "<plugin-root>/scripts/ledger.mjs" --root "<harness-root>" sprints --json
 ```
 
-**When the adapter fails, or that command prints nothing, that fact is the first line of the
+Replace the path placeholders with this session's absolute plugin and harness roots.
+Read the returned JSON and select rows whose `status` is `active`.
+
+**When the adapter fails, or no active row exists, that fact is the first line of the
 output** — the adapter's stderr as it stands, or `no active sprint` — followed by
 items 3 and 4 only (they do not depend on a sprint). Do not guess a sprint from labels: the registry
 the adapter answers is the only source of sprint state (session context block, mapping table), and
 what backs it — a Projects v2 Iteration, a Notion page of its own, `sprints.json` on `beads` — is the
 backend's business, not this procedure's.
 
-One read covers items 1, 2, and 5 and 6 — hold it as a file:
+One read covers items 1, 2, 5 and 6 — retain the complete returned snapshot:
 
-```bash
-HARNESS_ROOT=<harness root> ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list -l sprint:<ID> --all --json -n 0 > sprint.json
+```text
+node "<plugin-root>/scripts/ledger.mjs" --root "<harness-root>" list -l sprint:<ID> --all --json -n 0
 ```
 
 The adapter's rc≠0 is reported as it is, with its stderr, and the report stops there.
@@ -36,38 +40,31 @@ The adapter's rc≠0 is reported as it is, with its stderr, and the report stops
 
 | Sprint | Stories (open epics) |
 |---|---|
-| `<ID>` | `jq '[.[] | select(.issue_type == "epic" and .status != "closed")] | length' sprint.json` |
+| `<ID>` | Count rows with `issue_type == "epic"` and `status != "closed"` in the snapshot |
 
 ## 2. Open / closed tasks per story
 
 A task's story is its milestone's parent; a task hanging directly under the epic counts too.
 
-```bash
-jq -r '
-  (map(select(.issue_type == "feature")) | map({key: .id, value: (.parent // "")}) | from_entries) as $m2s
-  | (map(select(.issue_type == "task" or .issue_type == "bug"))
-     | map(. + {story: ((.parent // "") as $p | ($m2s[$p] // $p))})) as $tasks
-  | .[] | select(.issue_type == "epic" and .status != "closed") | .id as $sid
-  | ($tasks | map(select(.story == $sid))) as $t
-  | [$sid, .status, ($t | map(select(.status != "closed")) | length), ($t | map(select(.status == "closed")) | length), .title]
-  | @tsv' sprint.json
-```
+For each epic whose status is not `closed`, group its `task` and `bug` rows using that
+parent mapping. Count `status == "closed"` as closed and every other status as open.
 
 | Story | Status | Open | Closed | Title |
 |---|---|---|---|---|
 
 ## 3. In progress — and who holds it
 
-```bash
-HARNESS_ROOT=<harness root> ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list --status in_progress --json -n 0 \
-  | jq -r '.[] | [.id, (.assignee // "-"), .title] | @tsv'
+```text
+node "<plugin-root>/scripts/ledger.mjs" --root "<harness-root>" list --status in_progress --json -n 0
 ```
 
-| Task | Actor (`assignee`) | Title |
-|---|---|---|
+| Task | Actor | Assignee | Title |
+|---|---|---|---|
 
-On the `github` backend the assignee is a GitHub login, not the actor value — say so in the column
-header when `.harness.json` says `ledger.backend` is `github` (`harness:develop` 3-0 holds the reason).
+Display the adapter's explicit `actor` separately from `assignee`. On the `github`
+backend the latter is a GitHub login and cannot identify a session. If no explicit
+actor is available, report it as unknown; do not infer one from the login
+(`harness:develop` 3-0 holds the claim procedure).
 
 ## 4. Blocked
 
@@ -81,11 +78,7 @@ Same call with `--status blocked`.
 A task is waiting on a human when the **last non-empty line of its notes** starts with
 `DECISION_NEEDED` — the same reading the stop guard uses for `VERIFY_PENDING`.
 
-```bash
-jq -r '.[] | select(.status != "closed")
-  | select(((.notes // "") | split("\n") | map(select(length > 0)) | last // "") | startswith("DECISION_NEEDED"))
-  | [.id, .title] | @tsv' sprint.json
-```
+Read `id` and `title` from matching rows whose status is not `closed` in the snapshot.
 
 | Task | Title |
 |---|---|

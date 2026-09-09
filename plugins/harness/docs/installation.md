@@ -6,13 +6,21 @@ Before an artifact update, existing-workspace migration or rollback, follow [Upg
 
 ## Common prerequisites
 
-Check `node --version`, `git --version`, `bash --version`, `jq --version` and `python3 --version` before setup. The common Node commands require Node 22 or later. Bash, jq and Python remain dependencies of existing shell checks; Node wrappers do not remove them. Add the selected backend's tools and credentials as setup specifies. Before choosing native Windows, Git Bash or WSL, read [Platform boundaries](platforms.md): core fixtures, transitional routes and full runtime support require different evidence. POSIX adapter availability alone is not an execution result for every macOS/Linux combination.
+Check `node --version` and `git --version` before setup. The common commands require Node 22 or later. Add the selected backend's native tools and credentials from [native-ledger.md](native-ledger.md). Bash is required only when the repository retains a Bash command string or chooses a legacy shell entrypoint; jq and Python are not common product dependencies. Before choosing native Windows, Git Bash or WSL, read [Platform boundaries](platforms.md): core fixtures, transitional routes and full runtime support require different evidence. Install native Windows executables for the selected backend; a WSL executable does not establish native support.
 
-Run `node <expected plugin source>/scripts/distribution.mjs check` to verify the generated metadata and shared source tree. Development builds regenerate with `generate`; version and description come exclusively from `.claude-plugin/plugin.json`. The Codex compatibility manifest uses the default `skills/` and `hooks/hooks.json` locations, so no second skill/hook tree is registered. A release copies the same plugin artifact; never hand-edit projections in an installed cache.
+Run `node <expected plugin source>/scripts/distribution.mjs check` to verify the generated metadata and shared source tree. Development builds regenerate with `generate`; version and description come exclusively from `.claude-plugin/plugin.json`. Both runtimes read the same `skills/` bodies; their hook metadata is generated from one registry and points to the same Node handlers. Codex's manifest selects its hook metadata instead of registering both hook files. A release copies the same plugin artifact; never hand-edit projections in an installed cache.
 
 ## Claude
 
 Install at user scope with `claude plugin marketplace add juhyeon-cha/skills`, then `claude plugin install harness@skills`. Update with `claude plugin marketplace update skills` and `claude plugin update harness@skills`. Preserve the existing Claude plugin agents directory and hooks discovery. Check `claude plugin list` and the single user-scope entry in `~/.claude/plugins/installed_plugins.json` for installation inventory only. Setup's Claude scope migration handles older project/local duplicates.
+
+The native hook metadata uses Claude's direct executable `command` plus `args`
+form. Strict plugin validation has been observed with Claude Code 2.1.266;
+that does not establish the earliest compatible CLI or prove live hook firing.
+Before upgrading an older CLI installation, validate the candidate artifact with
+that CLI and run the doctor challenge. If it cannot load this form, retain the
+prior artifact until the runtime is upgraded and verified; repository settings
+and the retained legacy wrappers remain available for rollback.
 
 Run `node <installed root>/scripts/roles.mjs register claude` and save the registration JSON. Restart the session after changes. Claude live evidence remains a separately tracked prerequisite (skills#268); fixtures establish compatibility, not current-session activation.
 
@@ -34,7 +42,7 @@ Loaded PASS requires the matching SessionStart context, successful guard executi
 
 Codex's Bash hook `cwd` can remain the session directory when `exec_command` actually runs in a different explicit workdir; the observed hook input carries only `command`. Treat that cwd as session context, not verified process cwd. Doctor PASS proves registration and hook/role execution only; it does not establish complete protection of relative shell writes or visibility of execution workdir. Preserve this uncertainty instead of inventing a workdir from the command text. The isolated probe retains a safe cross-directory `pwd` observation separately from product receipts.
 
-Receipts expire after thirty minutes and belong to one challenge and session. Missing, altered, stale, wrong-source or cross-session receipts cannot certify load. Hooks disabled or untrusted cannot emit receipts, so an external doctor still reports UNREACHED. Boolean settings or caller-written success claims are not evidence. These private local records protect against accidental stale/altered observations, not a hostile process with the same user's filesystem access. They retain event/agent IDs, execution status, hashes and the first role-result line; raw commands and result bodies are omitted. Keep them private and remove them after diagnosis. The state directory is explicit pending the central state resolver. Transcript formats are not parsed.
+Receipts expire after thirty minutes and belong to one challenge and session. Missing, altered, stale, wrong-source or cross-session receipts cannot certify load. Hooks disabled or untrusted cannot emit receipts, so an external doctor still reports UNREACHED. Boolean settings or caller-written success claims are not evidence. These private local records protect against accidental stale/altered observations, not a hostile process with the same user's filesystem access. They retain event/agent IDs, execution status, hashes and the first role-result line; raw commands and result bodies are omitted. Keep them private and remove them after diagnosis. The doctor challenge directory is explicit and separate from ordinary scoped state. Transcript formats are not parsed.
 # Skill registration names
 
 Distribution inspection reads names only from the opening YAML frontmatter. It supports flat mappings with bare keys and lower-case hyphenated names written as plain, single-quoted, or JSON-compatible double-quoted scalars, including surrounding spaces and trailing comments. Names are decoded before duplicate detection. Duplicate keys, quoted keys, nested mappings, multiline names, tags, aliases, and unsupported escapes fail inspection; they are not treated as different registrations. A `name:` line in the Markdown body never supplies registration metadata.

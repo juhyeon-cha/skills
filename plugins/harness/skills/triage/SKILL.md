@@ -5,16 +5,19 @@ description: Backlog triage — sweep the open items that belong to no sprint, p
 
 # Backlog triage
 
+Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` and resolve the plugin and harness roots.
+
 The backlog is every open item without a `sprint:` label. It grows by one line per retrospective and
 shrinks only when someone reads it whole — this procedure is that read. It ends in a table; **nothing
 is written to the ledger until the user confirms a row.**
 
 ## 1. Collect
 
-```bash
-HARNESS_ROOT=<harness root> ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh list --status open --json -n 0 \
-  | jq '[.[] | select(((.labels // []) | map(startswith("sprint:")) | any) | not)]'
+```text
+ledger list --status open --json -n 0
 ```
+
+From the returned JSON, retain rows with no label beginning `sprint:`.
 
 - The adapter's rc is the gate. **rc≠0: report the adapter's stderr as it is and stop — no table.** A
   table built on a partial read proposes closing items it never saw.
@@ -56,9 +59,9 @@ left undecided stays as it is, and silence confirms nothing.
 
 | Confirmed row | What to run |
 |---|---|
-| duplicate pair | write `duplicate of <kept ID>` to a file, then `ledger.sh close <dropped ID> --reason-file <file>` |
-| no longer stands — hold | `ledger.sh update <ID> --status deferred` |
-| no longer stands — rewrite | leave the new wording with `ledger.sh note <ID> --file <file>`; the rewrite itself is the user's or plan-story's |
+| duplicate pair | write `duplicate of <kept ID>` to a file, then `ledger close <dropped ID> --reason-file <file>` |
+| no longer stands — hold | `ledger update <ID> --status deferred` |
+| no longer stands — rewrite | leave the new wording with `ledger note <ID> --file <file>`; the rewrite itself is the user's or plan-story's |
 | sprint candidate | hand the ID to `plan-sprint`; triage does not label sprints |
 
 Bodies (the close reason, the note) go through a file, never inline in the command string — the form
