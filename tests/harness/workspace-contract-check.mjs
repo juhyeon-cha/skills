@@ -52,7 +52,7 @@ try {
   for (const command of ['gh', 'bd', 'curl', 'wget', 'ssh']) {
     fs.writeFileSync(path.join(bin, command), '#!/bin/sh\nprintf "remote command\\n" >> "$FIXTURE_SENTINEL"\nexit 97\n', {mode: 0o755});
   }
-  fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nfor arg do\n  case "$arg" in push|send-pack) printf "git remote write\\n" >> "$FIXTURE_SENTINEL"; exit 97 ;; esac\n  if [ "${FIXTURE_FAIL_BRANCH:-0}" = 1 ] && [ "$arg" = -D ]; then exit 24; fi\ndone\nexec "$FIXTURE_REAL_GIT" "$@"\n', {mode: 0o755});
+  fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nfor arg do\n  case "$arg" in push|send-pack) printf "git remote write\\n" >> "$FIXTURE_SENTINEL"; exit 97 ;; esac\n  if [ "${FIXTURE_NO_REMOVE:-0}" = 1 ] && [ "$arg" = remove ]; then printf "remove reached\\n" >> "$FIXTURE_REMOVE_CANARY"; exit 25; fi\n  if [ "${FIXTURE_FAIL_BRANCH:-0}" = 1 ] && [ "$arg" = -D ]; then exit 24; fi\ndone\nexec "$FIXTURE_REAL_GIT" "$@"\n', {mode: 0o755});
   check(run('gh', ['api'], temp, env).status === 97, 'remote sentinel reached');
   check(run('git', ['push'], temp, env).status === 97, 'git write sentinel reached');
   check(fs.readFileSync(sentinel, 'utf8').trim().split('\n').length === 2, 'sentinel negative controls counted');
@@ -122,6 +122,12 @@ try {
     const alias = path.join(base, 'alias'); fs.symlinkSync(wt, alias);
     result = run('bash', [path.join(plugin, targets[1]), 'story-1', '--force'], alias, fixtureEnv);
     check(result.status === 1 && result.stderr.includes('안에 서 있다') && fs.existsSync(wt), 'physical cwd check preserves symlinked caller');
+    const removeCanary = path.join(base, 'remove-canary');
+    for (const actualCwd of [wt, alias]) {
+      const direct = run(process.execPath, [path.join(plugin, 'scripts/workspace.mjs'), 'cleanup', repo, 'story-1', '--force'], actualCwd, {...fixtureEnv, FIXTURE_NO_REMOVE: '1', FIXTURE_REMOVE_CANARY: removeCanary});
+      console.log(`cwd protection: backend=${backend}, alias=${actualCwd === alias}, rc=${direct.status}, removeCanary=${fs.existsSync(removeCanary)}`);
+      check(direct.status === 1 && direct.stderr.includes('안에 서 있다') && !fs.existsSync(removeCanary) && fs.existsSync(wt), 'actual process cwd protected when CLI repo differs, including symlink alias');
+    }
     ok(git(repo, 'remote', 'set-url', 'origin', path.join(base, 'missing.git')));
     result = cleanup('--force');
     check(result.status === 1 && result.stderr.includes('fetch --prune 실패') && fs.existsSync(wt), 'fetch failure preserves workspace even with force');

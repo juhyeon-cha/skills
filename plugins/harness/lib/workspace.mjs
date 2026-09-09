@@ -107,8 +107,9 @@ export async function cleanupWorkspace(cwd, story, {force = false, env = process
   const context = await storyContext(cwd, story, env);
   const record = context.registrations.find(row => row.branch === `refs/heads/${context.expectedBranch}`);
   const target = record?.worktree || path.join(context.main, '.claude/worktrees', context.name);
-  const caller = await fs.realpath(cwd);
-  if (inside(caller, target)) throw new Error('호출자가 정리 대상 워크트리 안에 서 있다 — 밖에서 실행하라');
+  const caller = await fs.realpath(process.cwd());
+  const selected = await fs.realpath(cwd);
+  if (inside(caller, target) || inside(selected, target)) throw new Error('호출자가 정리 대상 워크트리 안에 서 있다 — 밖에서 실행하라');
   if (record?.locked || target === context.main) throw new Error('locked or main workspace cannot be removed');
   const present = await exists(target);
   if (present) {
