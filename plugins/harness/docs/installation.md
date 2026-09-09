@@ -2,6 +2,8 @@
 
 Use this procedure from setup A, B or C. Repository-owned `.harness.json` remains the configuration source; installing or updating a plugin does not copy it.
 
+Before an artifact update, existing-workspace migration or rollback, follow [Upgrade, resume and rollback](migration.md). Keep the prior artifact, matching role receipt and repository configuration revision available until the intended runtime checks have reached judgment.
+
 ## Common prerequisites
 
 Check `node --version`, `git --version`, `bash --version`, `jq --version` and `python3 --version` before setup. The common Node commands require Node 22 or later. Bash, jq and Python remain dependencies of existing shell checks; Node wrappers do not remove them. Add the selected backend's tools and credentials as setup specifies. Before choosing native Windows, Git Bash or WSL, read [Platform boundaries](platforms.md): core fixtures, transitional routes and full runtime support require different evidence. POSIX adapter availability alone is not an execution result for every macOS/Linux combination.

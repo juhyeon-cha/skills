@@ -184,7 +184,7 @@ Then **ask the user to restart the session** — hooks and permissions load at s
 
 ## 3. C — Update
 
-The core is the plugin, so an update touches no file of the repo. Follow the selected runtime's update and role-projection procedure in `${CLAUDE_PLUGIN_ROOT}/docs/installation.md`, then start a new session.
+The core is the plugin, so an update touches no file of the repo. Before switching artifacts, follow `${CLAUDE_PLUGIN_ROOT}/docs/migration.md` for retained configuration, workspaces, role receipts, state and rollback. Then follow the selected runtime's update and role-projection procedure in `${CLAUDE_PLUGIN_ROOT}/docs/installation.md` and start a new session. A repository-owned preparation-hook migration is a separate repository change.
 
 ### 3.1 Confirm what was pulled
 
