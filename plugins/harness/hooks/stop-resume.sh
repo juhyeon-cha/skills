@@ -19,7 +19,7 @@
 # 만들어 없는 것보다 나쁘고, 그것이 harness-dg0.3.1 note 가 그 루프 플러그인을 탈락시킨 사유였다.
 # VERIFY_PENDING 이 일곱째다 — 배치 모드의 검증 대기 완료분도, 위임 직후 아직 구현이 시작되지
 # 않은 구간(DELEGATED)도 하다 만 일이 아니다. 두 표시를 한 경로가 건수를 갈라 적는다 (4b).
-# NO_CLAIM 이 여덟째, SCOPE_FAIL 이 아홉째다 — 사거리 좁히기의 두 폴백이다 (3b).
+# SCOPE_FAIL 이 여덟째다 — 검증된 actor 매핑이 없으면 원장 전체를 판단한다 (3b).
 #
 # **사거리는 이 세션이 claim 한 actor 다** — 오라클은 여전히 원장을 읽지만 판정은 그중
 # 이 세션의 몫으로 좁힌다. 잡지 않은 일로 막지 않는 것이 목적이고, 매핑을 못 읽으면
@@ -149,6 +149,6 @@ fi
 
 # 6) 막음.
 log BLOCK "in_progress ${n}건(표시 없음 $((n - ${pending:-0}))건 · 검증 대기 ${vp}건 · 위임 직후 ${dg}건 · 범위: $SCOPE) — 재주입 $((blocks + 1))/$MAX_BLOCKS"
-jq -n --argjson n "$n" --argjson m "$((n - ${pending:-0}))" --arg runtime "$RUNTIME" --arg cwd "$PCWD" --arg sid "$SID" --arg state "$PLUGIN_ROOT/scripts/state.mjs" --arg scope "$SCOPE" --arg log "$LOG" \
-  '{decision: "block", reason: ("범위 \($scope) 안에 in_progress 인 일이 \($n)건 남아 있고 그중 \($m)건은 표시가 없다. 마감했다면 ledger.sh close 로 닫고, 배치 모드로 구현만 끝난 것이면 ledger.sh note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를, 배치 위임 직후라 아직 구현이 시작되지 않은 것이면 ledger.sh note <ID> \"DELEGATED: <마일스톤ID>\" 를 남기고, 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 `node \($state | @sh) cancel \($runtime | @sh) \($cwd | @sh) \($sid | @sh)` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — " + $log + " 참고.")}'
+jq -n --argjson n "$n" --argjson m "$((n - ${pending:-0}))" --argjson state_scope "$STATE" --arg runtime "$RUNTIME" --arg cwd "$PCWD" --arg sid "$SID" --arg state "$PLUGIN_ROOT/scripts/state.mjs" --arg scope "$SCOPE" --arg log "$LOG" \
+  '{decision: "block", reason: ("범위 \($scope) 안에 in_progress 인 일이 \($n)건 남아 있고 그중 \($m)건은 표시가 없다. 마감했다면 ledger.sh close 로 닫고, 배치 모드로 구현만 끝난 것이면 ledger.sh note <ID> \"VERIFY_PENDING: <커밋 해시>\" 를, 배치 위임 직후라 아직 구현이 시작되지 않은 것이면 ledger.sh note <ID> \"DELEGATED: <마일스톤ID>\" 를 남기고, 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 `HARNESS_DATA_DIR=\($state_scope.data | @sh) node \($state | @sh) cancel \($runtime | @sh) \($cwd | @sh) \($sid | @sh)` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — " + $log + " 참고.")}'
 exit 0
