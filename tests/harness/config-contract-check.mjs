@@ -24,8 +24,28 @@ try {
   const bytes = fs.readFileSync(file);
   check(JSON.stringify(JSON.parse(cli('validate', cwd).stdout)) === JSON.stringify(legacy), 'validate CLI preserves source config');
   check(fs.readFileSync(file).equals(bytes), 'reading never rewrites repo config');
+  const legacyString = {...legacy, ledger: {...legacy.ledger, project: '5'}, check: 'printf legacy', bootstrap: 'printf legacy'};
+  fs.writeFileSync(file, JSON.stringify(legacyString));
+  const validation = cli('validate', cwd);
+  check(validation.status === 0 && JSON.parse(validation.stdout).ledger.project === '5', 'legacy numeric project string preserved');
+  for (const field of ['check', 'bootstrap']) {
+    const result = cli('run', cwd, field);
+    check(result.status === 0 && result.stdout === 'legacy', `legacy string project does not block ${field}`);
+  }
+  // Exercise the existing adapter, with only gh replaced by an offline fixture.
+  const fakeBin = path.join(temp, 'fake-gh'); fs.mkdirSync(fakeBin);
+  const issue = {number: 1, title: 'fixture', state: 'OPEN', repository: {name: 'fixture'}, labels: {nodes: []}, comments: {nodes: []}, assignees: {nodes: []}, blockedBy: {totalCount: 0, nodes: []}, projectItems: {nodes: [{project: {number: 5}}]}};
+  const projectResponse = [{data: {user: {projectV2: {items: {nodes: [{content: {repository: {name: 'fixture'}}}]}}}}}];
+  const issuesResponse = [{data: {repository: {issues: {nodes: [issue]}}}}];
+  fs.writeFileSync(path.join(fakeBin, 'gh'), `#!/usr/bin/env node\nconst args = process.argv.slice(2);\nif (args.join(' ') === 'auth status') process.exit(0);\nconst q = args.find(a => a.startsWith('query=')) || '';\nif (args[0] !== 'api' || args[1] !== 'graphql' || !q.startsWith('query=query(')) process.exit(99);\nif (q.includes('projectV2(')) { if (!args.includes('n=5')) process.exit(98); console.log(${JSON.stringify(JSON.stringify(projectResponse))}); }\nelse if (q.includes('repository(owner:')) console.log(${JSON.stringify(JSON.stringify(issuesResponse))});\nelse process.exit(97);\n`, {mode: 0o755});
+  const adapterEnv = {...env, PATH: `${fakeBin}:${env.PATH}`, HARNESS_ROOT: cwd, CLAUDE_PLUGIN_ROOT: path.join(root, 'plugins/harness')};
+  const adapterRead = () => spawnSync('bash', [path.join(root, 'plugins/harness/scripts/ledger.sh'), 'list', '--json'], {env: adapterEnv, encoding: 'utf8'});
+  const stringRead = adapterRead();
+  fs.writeFileSync(file, JSON.stringify(legacy));
+  const numberRead = adapterRead();
+  check(stringRead.status === 0 && numberRead.status === 0 && stringRead.stdout === numberRead.stdout && JSON.parse(stringRead.stdout)[0].id === 'fixture#1', 'actual adapter project string and number select the same nonempty issue');
   for (const backend of ['github', 'beads', 'notion']) check(validateConfig({ledger: {backend}}).ledger.backend === backend, `explicit backend ${backend}`);
-  for (const config of [[], null, {}, {ledger: {}}, {ledger: {backend: 'other'}}, {...legacy, schema_version: 2}, {...legacy, schema_version: '1'}, {...legacy, check: {argv: []}}, {...legacy, bootstrap: {argv: ['node', 2]}}, {...legacy, check: {argv: ['node'], shell: true}}, {...legacy, default_branch: ''}, {...legacy, ledger: {backend: 'github', project: '5'}}]) {
+  for (const config of [[], null, {}, {ledger: {}}, {ledger: {backend: 'other'}}, {...legacy, schema_version: 2}, {...legacy, schema_version: '1'}, {...legacy, check: {argv: []}}, {...legacy, bootstrap: {argv: ['node', 2]}}, {...legacy, check: {argv: ['node'], shell: true}}, {...legacy, default_branch: ''}, {...legacyString, schema_version: 1}, ...['', 'abc', '0', '-5', '5.1', '05', ' 5', '5e0'].map(project => ({...legacy, ledger: {...legacy.ledger, project}}))]) {
     fs.writeFileSync(file, JSON.stringify(config));
     check(cli('validate', cwd).status !== 0, 'invalid config must fail; unsupported versions never fall back');
   }
@@ -88,7 +108,7 @@ try {
   // Its invalid-version assertion must fail, establishing a live negative gate.
   if (!process.argv.includes('--mutation-child')) {
     const copy = path.join(temp, 'mutated');
-    for (const relative of ['plugins/harness/lib/config.mjs', 'plugins/harness/lib/process.mjs', 'plugins/harness/scripts/config.mjs', 'tests/harness/config-contract-check.mjs']) {
+    for (const relative of ['plugins/harness/lib/config.mjs', 'plugins/harness/lib/process.mjs', 'plugins/harness/scripts/config.mjs', 'plugins/harness/scripts/ledger.sh', 'plugins/harness/scripts/ledger-github.sh', 'tests/harness/config-contract-check.mjs']) {
       const target = path.join(copy, relative); fs.mkdirSync(path.dirname(target), {recursive: true}); fs.copyFileSync(path.join(root, relative), target);
     }
     const target = path.join(copy, 'plugins/harness/lib/config.mjs');

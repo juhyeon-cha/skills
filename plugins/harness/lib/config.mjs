@@ -22,7 +22,9 @@ export function validateConfig(config) {
   for (const key of ['owner', 'database_id']) {
     if (key in config.ledger && !string(config.ledger[key])) invalid(`ledger.${key} must be a nonempty string`);
   }
-  if ('project' in config.ledger && (!Number.isSafeInteger(config.ledger.project) || config.ledger.project < 1)) invalid('ledger.project must be a positive integer');
+  const project = config.ledger.project;
+  const legacyProject = !('schema_version' in config) && typeof project === 'string' && /^[1-9][0-9]*$/.test(project) && Number.isSafeInteger(Number(project));
+  if ('project' in config.ledger && !legacyProject && (!Number.isSafeInteger(project) || project < 1)) invalid('ledger.project must be a positive integer (legacy also accepts a canonical decimal string)');
   if ('default_branch' in config && !string(config.default_branch)) invalid('default_branch must be a nonempty string');
   if ('check' in config) validateCommand(config.check);
   if ('bootstrap' in config && config.bootstrap !== null && config.bootstrap !== '') validateCommand(config.bootstrap);
