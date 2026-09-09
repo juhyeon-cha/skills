@@ -47,6 +47,8 @@ try {
   env.FIXTURE_REAL_GIT = process.env.FIXTURE_REAL_GIT || ok(run('which', ['git'], temp, process.env));
   for (const key of Object.keys(env)) if (key.startsWith('GIT_') && !['GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_GLOBAL', 'GIT_ALLOW_PROTOCOL', 'GIT_TERMINAL_PROMPT'].includes(key)) delete env[key];
   delete env.HARNESS_ROOT;
+  env.HARNESS_GUARD_LOG = path.join(temp, 'guard.tsv');
+  env.HARNESS_SESSION_ACTOR_LOG = path.join(temp, 'actors.tsv');
   for (const command of ['gh', 'bd', 'curl', 'wget', 'ssh']) {
     fs.writeFileSync(path.join(bin, command), '#!/bin/sh\nprintf "remote command\\n" >> "$FIXTURE_SENTINEL"\nexit 97\n', {mode: 0o755});
   }
@@ -106,20 +108,20 @@ try {
     ok(git(wt, 'add', 'dirty.txt')); ok(git(wt, 'commit', '-qm', 'unpushed fixture'));
     result = cleanup();
     check(result.status === 1 && result.stderr.includes('미푸시 커밋이 있다') && fs.existsSync(wt), 'unpushed cleanup rejected');
-    // Known guard limitations are direct-input baselines, not desired policy.
+    // Direct-input policy regressions, not native hook-firing evidence.
     const guard = (tool_name, tool_input) => run('bash', [path.join(plugin, targets[2])], repo, fixtureEnv, JSON.stringify({session_id: 'fixture', cwd: wt, tool_name, tool_input}));
     result = guard('Bash', {command: `grep needle '${repo}/README.md'`});
     check(result.status === 0, `ordinary search allowed: ${result.stderr}`);
     check(guard('Write', {file_path: path.join(repo, 'README.md')}).status === 2, 'main checkout file write blocked');
-    check(guard('Bash', {command: `rg needle '${repo}/README.md'`}).status === 2, 'KNOWN-BASELINE: read-only search false positive');
-    check(guard('apply_patch', {command: `*** Begin Patch\n*** Update File: ${repo}/README.md\n@@\n-needle\n+edited\n*** End Patch`}).status === 0, 'KNOWN-BASELINE: apply_patch input missed');
+    check(guard('Bash', {command: `rg needle '${repo}/README.md'`}).status === 0, 'read-only search allowed');
+    check(guard('apply_patch', {command: `*** Begin Patch\n*** Update File: ${repo}/README.md\n@@\n-needle\n+edited\n*** End Patch`}).status === 2, 'apply_patch main checkout write blocked');
     // Local origin is read by fetch; the fixture never pushes, including cleanup.
     result = cleanup('--force');
     check(result.status === 0 && !fs.existsSync(wt), 'explicit forced cleanup positive control');
     const adapterCalls = fs.readFileSync(calls, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse).filter(call => call.backend === backend);
     check(adapterCalls.some(call => call.operation === 'wire-worktree') && adapterCalls.some(call => call.operation === 'show'), 'both adapter boundaries reached');
     check(adapterCalls.every(call => call.root === repo), 'adapter root is isolated');
-    console.log(`PASS ${backend}: reached=${reached - startCount}; direct-script fixture; known baselines=2`);
+    console.log(`PASS ${backend}: reached=${reached - startCount}; direct-script fixture`);
   }
   check(fs.readFileSync(sentinel, 'utf8') === '', 'remote/ledger write sentinel must be zero');
   console.log(`PASS total: reached=${reached}; actual remote/ledger write sentinel=0; hook firing not tested`);

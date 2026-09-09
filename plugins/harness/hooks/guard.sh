@@ -39,7 +39,7 @@
 #   의도대로 잡았다. 대가는 오탐이며 그 교환은 의도적으로 받아들인 것이다.
 # **미도달은 차단이다.** Claude Code 는 rc=2 만 차단으로 읽으므로 훅이 내부 오류(unbound
 # 변수·없는 명령)로 rc=1 에 죽으면 그 호출은 **통과**한다 — fail-open [실측 2026-08-28, 리뷰 #7].
-# 판정에 도달한 출구(deny·SKIP·마지막 exit 0)만 GUARD_DONE=1 을 세우고, 나머지는 여기서 막는다.
+# 판정에 도달한 출구(deny·명시적 미도달 차단·마지막 exit 0)만 GUARD_DONE=1 을 세우고, 나머지는 여기서 막는다.
 # set -u 보다 **앞**에 둔다 — 그 뒤 첫 줄의 오류부터 덮어야 한다.
 GUARD_DONE=0
 trap '[ "$GUARD_DONE" = 1 ] || { echo "GUARD-DENY: 훅이 판정에 도달하지 못했다 (내부 오류 rc=$?) — 통과가 아니라 차단으로 넘어진다. hooks/guard.sh 를 고쳐라" >&2; exit 2; }' EXIT
@@ -55,9 +55,8 @@ set -uo pipefail
 # 대상 레포를 판정하는 규칙(r_main_write·r_main_shell)은 고정 경로를 쓰지 않는다 — 판별자는
 # 그 레포가 커밋한 `.harness.json` 이고, 경로에서 위로 거슬러 찾는다(lib/harness-root.sh 와 같다).
 #
-# agent_type 의 실측 형식은 `harness:<에이전트이름>` 이다 (M0 실측 harness-lzs3.1 note —
-# 플러그인이름:에이전트이름). 역할별 규칙은 그 형식 하나로만 대조한다 — 접두 없는 값을 함께 받으면
-# 플러그인 밖의 동명 에이전트가 이 하네스의 역할로 읽힌다.
+# 이벤트 어댑터가 런타임 역할 이름을 canonical `harness:<역할>`로 매핑한다.
+# 식별되지 않은 자식은 정규화에서 차단되고 아래 정책은 canonical 이름만 대조한다.
 GUARD_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # ── 발화 로그 ────────────────────────────────────────────────────────
@@ -111,11 +110,11 @@ log_guard() {
     ev="$(printf '%s' "$ev" | tr '\n\t' '  ')"
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$(date -u +%FT%TZ 2>/dev/null)" "${SESSION_ID:--}" "${AGENT_TYPE:--}" \
-      "${TOOL_NAME:--}" "$1" "${ev:0:120}" >> "$GUARD_LOG" 2>/dev/null || return 0
+      "${EVENT_TOOL_NAME:-${TOOL_NAME:--}}" "$1" "${ev:0:120}" >> "$GUARD_LOG" 2>/dev/null || return 0
   else
     printf '%s\t%s\t%s\t%s\t%s\n' \
       "$(date -u +%FT%TZ 2>/dev/null)" "${SESSION_ID:--}" "${AGENT_TYPE:--}" \
-      "${TOOL_NAME:--}" "$1" >> "$GUARD_LOG" 2>/dev/null || return 0
+      "${EVENT_TOOL_NAME:-${TOOL_NAME:--}}" "$1" >> "$GUARD_LOG" 2>/dev/null || return 0
   fi
   # **상한 1 이면 회전하지 않는다.** tail -n 0 이 로그를 통째로 비우고, 그 빈 로그는
   # 계수 명령에서 "훅이 한 번도 돌지 않았다"로 읽힌다 — 이 로그가 없애려는 바로 그
@@ -134,33 +133,33 @@ log_guard() {
 
 INPUT="$(cat)"
 
-# jq 를 요구한다. 없으면 죽지 않고 통과시키되 조용히 넘어가지 않는다 —
-# 난간이 꺼진 사실은 보여야 한다. (이 요구는 harness-uhy.3.5 note 에 명시)
-if ! command -v jq >/dev/null 2>&1; then
-  echo "harness guard: jq 없음 — 훅 입력을 해석할 수 없어 검사를 건너뛴다 (통과)." >&2
-  log_guard SKIP-nojq
-  GUARD_DONE=1; exit 0
-fi
-# 객체가 아니면(깨진 JSON·빈 stdin·배열) 건너뛴다. 종전의 `jq empty` 는 빈 입력을 유효로 봤다.
-if ! printf '%s' "$INPUT" | jq -e 'type == "object"' >/dev/null 2>&1; then
-  echo "harness guard: 훅 입력이 JSON 객체가 아니다 — 검사를 건너뛴다 (통과)." >&2
-  log_guard SKIP-badjson
-  GUARD_DONE=1; exit 0
+# Missing dependencies or unrecognized input never count as policy success.
+for dependency in jq node; do
+  if ! command -v "$dependency" >/dev/null 2>&1; then
+    echo "GUARD-DENY: UNREACHED — $dependency 없음" >&2
+    log_guard "UNREACHED-$dependency"
+    GUARD_DONE=1; exit 2
+  fi
+done
+if ! INPUT="$(printf '%s' "$INPUT" | node "$GUARD_ROOT/scripts/normalize-hook.mjs")"; then
+  log_guard UNREACHED-input
+  GUARD_DONE=1; exit 2
 fi
 
 # JSON 은 printf 로 먹인다 — echo 는 backslash 확장 셸에서 필드 안의 이스케이프를
 # 망가뜨려 jq 를 rc=5 로 죽인다 (../docs/engineering.md "Shell traps").
 field() { printf '%s' "$INPUT" | jq -r "$1 // \"\"" 2>/dev/null; }
 
-TOOL_NAME="$(field '.tool_name')"
-AGENT_ID="$(field '.agent_id')"       # 서브에이전트 호출에만 채워진다
-AGENT_TYPE="$(field '.agent_type')"   # 역할별 차등 규칙의 근거 (implementer 등)
+TOOL_NAME="$(field '.tool_name')" || exit 2
+EVENT_TOOL_NAME="$TOOL_NAME"
+AGENT_ID="$(field '.agent_id')" || exit 2       # 서브에이전트 호출에만 채워진다
+AGENT_TYPE="$(field '.agent_type')" || exit 2   # 역할별 차등 규칙의 근거 (implementer 등)
 # `.cwd` 는 **상대 경로의 기준**으로만 쓴다 — 앵커가 아니다. 워크트리 안에서 `echo x > ../../../f` 는
 # 본 체크아웃 쓰기인데 경로 문자열만 보면 판정할 수 없었다. 키가 없으면 상대 경로는 종전대로
 # 판정하지 않는다(한계). 명령 안의 `cd` 는 못 따라간다 — 서브에이전트는 호출마다 cd 한다(한계).
-CWD="$(field '.cwd')"
-SESSION_ID="$(field '.session_id')"   # 발화 로그의 회차 열. 판정에는 쓰지 않는다
-COMMAND_RAW="$(field '.tool_input.command')"    # Bash — 인용부호를 걷기 전 원문 (mc_all_readonly 가 조각 경계를 인용 안팎으로 가를 때 쓴다)
+CWD="$(field '.cwd')" || exit 2
+SESSION_ID="$(field '.session_id')" || exit 2   # 발화 로그의 회차 열. 판정에는 쓰지 않는다
+COMMAND_RAW="$(field '.tool_input.command')" || exit 2    # Bash — 인용부호를 걷기 전 원문 (mc_all_readonly 가 조각 경계를 인용 안팎으로 가를 때 쓴다)
 # 판정용 정규화 — 인용부호와 백슬래시를 걷어낸다. 셸은 `git pu\sh`·`git p""ush` 를 push 로
 # 실행하는데 낱말 판정(has_token 의 -w)은 그 글자에 막혀 **미탐**이었다 [실측 2026-08-28,
 # implementer: 둘 다 rc=0 — 리뷰 #6]. 리터럴 `\n`·`\t` 는 먼저
@@ -169,8 +168,9 @@ COMMAND_RAW="$(field '.tool_input.command')"    # Bash — 인용부호를 걷�
 # 경계로 읽는다(그 함수 주석).
 strip_quotes() { sed -E -e 's/\\[nrt]/ /g' -e "s/[\\\\\"']//g"; }
 COMMAND="$(printf '%s' "$COMMAND_RAW" | strip_quotes)"
-FILE_PATH="$(field '.tool_input.file_path')" # Write·Edit·Read 계열
-NOTEBOOK_PATH="$(field '.tool_input.notebook_path')" # NotebookEdit 은 file_path 를 쓰지 않는다
+SHELL_READONLY="$(field '.harness_shell_readonly')" || exit 2
+FILE_PATH="$(field '.tool_input.file_path')" || exit 2 # Write·Edit·Read 계열
+NOTEBOOK_PATH="$(field '.tool_input.notebook_path')" || exit 2 # NotebookEdit 은 file_path 를 쓰지 않는다
 
 # 차단. stderr 의 사유가 그대로 에이전트에게 보인다.
 # **어느 규칙이 발화했는지는 여기서만 알 수 있다** — 차단 메시지에는 규칙 이름이 없고,
@@ -1293,6 +1293,7 @@ r_bd_root() {
 }
 RULES+=("Bash:r_bd_root")
 
+dispatch_rules() {
 for rule in ${RULES[@]+"${RULES[@]}"}; do
   matcher="${rule%%:*}"; fn="${rule#*:}"
   CURRENT_RULE="$fn"   # deny 가 로그에 남길 발화 규칙 이름. 등록부 파손 차단도 이 이름으로 남는다
@@ -1305,8 +1306,22 @@ for rule in ${RULES[@]+"${RULES[@]}"}; do
   declare -F "$fn" >/dev/null || deny "규칙 등록부가 깨졌다 — '$rule' 이 가리키는 함수 $fn 이 없다"
   # 우변 인용 — 미인용이면 bash 가 glob 패턴으로 해석한다 (../docs/engineering.md "Shell traps").
   [[ "$matcher" = "*" || "$matcher" = "$TOOL_NAME" ]] || continue
+  [[ "$matcher" = Bash && "$SHELL_READONLY" = true ]] && continue
   "$fn"
 done
+}
+operation_paths="$(printf '%s' "$INPUT" | jq -r '.harness_operations[] | if .kind == "move" then .source,.destination else .path end')" || exit 2
+[[ "$TOOL_NAME" != apply_patch || -n "$operation_paths" ]] || deny "UNREACHED — patch targets missing"
+dispatch_rules
+# Normalize the entire patch before judging any target. The actual tool runs only
+# after every path passes, so one protected source or destination denies it all.
+while IFS= read -r operation_path; do
+  [ -n "$operation_path" ] || continue
+  FILE_PATH="$operation_path"
+  NOTEBOOK_PATH=""
+  TOOL_NAME=Write
+  dispatch_rules
+done <<< "$operation_paths"
 
 # 통과도 남긴다. 이 줄이 없으면 무기록이 "훅 미실행" 과 구분되지 않는다 (위 발화 로그 주석).
 log_guard -

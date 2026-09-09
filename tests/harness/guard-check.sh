@@ -205,6 +205,17 @@ GUARD_RC=0
 GUARD_OUT=""
 runh() {  # runh <훅경로> <json> [env...]
   local hook="$1" json="$2"; shift 2
+  local copy_root
+  copy_root="$(dirname "$(dirname "$hook")")"
+  if [ "$hook" != "$HOOK" ] && [ -f "$hook" ]; then
+    if [ "$(basename "$(dirname "$hook")")" != hooks ]; then
+      copy_root="$TMP/support-$(basename "$hook")"
+      set -- "CLAUDE_PLUGIN_ROOT=$copy_root" "$@"
+    fi
+    mkdir -p "$copy_root/lib" "$copy_root/scripts"
+    cp "$ROOT/lib/operations.mjs" "$ROOT/lib/hook-event.mjs" "$ROOT/lib/harness-root.sh" "$copy_root/lib/"
+    cp "$ROOT/scripts/normalize-hook.mjs" "$copy_root/scripts/"
+  fi
   GUARD_OUT=$(printf '%s' "$json" | env "$@" "$hook" 2>&1); GUARD_RC=$?
 }
 run() { runh "$HOOK" "$@"; }
@@ -295,6 +306,9 @@ step "GUARD_ROOT ≠ 게이트 루트 → rc=2 (CWD·호출자 트리를 따르�
 
 runh "$PROBE" "$(j_agent 'x')" "GUARD_EXPECT_ROOT=/nonexistent"
 step "GUARD_ROOT 불일치 → rc=2 (공허한 통과 아님)" [ "$GUARD_RC" -eq 2 ]
+mkdir -p "$TMP/elsewhere/lib" "$TMP/elsewhere/scripts"
+cp "$ROOT/lib/operations.mjs" "$ROOT/lib/hook-event.mjs" "$TMP/elsewhere/lib/"
+cp "$ROOT/scripts/normalize-hook.mjs" "$TMP/elsewhere/scripts/"
 runh "$PROBE" "$(j_agent 'x')" "GUARD_EXPECT_ROOT=$TMP/elsewhere" "CLAUDE_PLUGIN_ROOT=$TMP/elsewhere"
 step "CLAUDE_PLUGIN_ROOT 가 있으면 그것이 GUARD_ROOT 다 (hooks.json 배선 값이 자기 위치보다 앞선다) → rc=0" [ "$GUARD_RC" -eq 0 ]
 
@@ -404,18 +418,18 @@ mkdir -p "$TMP/nojq"
 for t in cat dirname grep env; do ln -s "$(command -v "$t")" "$TMP/nojq/$t"; done
 GUARD_OUT=$(printf '%s' "$(j_bash 'git push')" | PATH="$TMP/nojq" "$HOOK" 2>&1); GUARD_RC=$?
 echo "  rc=$GUARD_RC  stderr: $GUARD_OUT"
-step "jq 없음 → 죽지 않고 rc=0" [ "$GUARD_RC" -eq 0 ]
+step "jq 없음 → 미도달 rc=2" [ "$GUARD_RC" -eq 2 ]
 step "jq 없음 → 경고를 남긴다"  [ "${GUARD_OUT#*jq}" != "$GUARD_OUT" ]
 
 echo "── ⑥ 깨진 입력 ──"
 run 'not json at all'
 echo "  rc=$GUARD_RC  stderr: $GUARD_OUT"
-step "비-JSON 입력 → rc=0"      [ "$GUARD_RC" -eq 0 ]
+step "비-JSON 입력 → rc=2"      [ "$GUARD_RC" -eq 2 ]
 run ''
-step "빈 입력 → rc=0"           [ "$GUARD_RC" -eq 0 ]
+step "빈 입력 → rc=2"           [ "$GUARD_RC" -eq 2 ]
 run '[1,2]'
-step "비객체 JSON → rc=0 (SKIP)" [ "$GUARD_RC" -eq 0 ]
-step "비객체 JSON → 건너뛴다고 밝힌다" has_text 'JSON 객체가 아니다' "$GUARD_OUT"
+step "비객체 JSON → rc=2" [ "$GUARD_RC" -eq 2 ]
+step "비객체 JSON → 미도달을 밝힌다" has_text 'UNREACHED' "$GUARD_OUT"
 
 # ── 내부 오류는 fail-open 이 아니다 (리뷰 #7). Claude Code 는 rc=2 만 차단으로 읽으므로
 #    unbound 변수로 rc=1 에 죽는 훅은 그 호출을 통과시킨다. set -u 직후에 unbound 참조를
@@ -871,7 +885,7 @@ step "상대 읽기(cwd 있음): cat ../../../f 는 읽기라 통과 → rc=0" [
 runm "$(j_bash_cwd 'echo 1 > ./f' "$MC_CWD_WT")"
 step "상대 쓰기(cwd 있음): 워크트리 안의 ./f 는 통과 → rc=0" [ "$GUARD_RC" -eq 0 ]
 runm "$(j_bash_nocwd 'echo 1 > ../../../f')"
-step "상대 쓰기(cwd 없음): 판정하지 않는다 → rc=0 (실패 경로 고정)" [ "$GUARD_RC" -eq 0 ]
+step "상대 쓰기(cwd 없음): 필수 입력 부재 → rc=2" [ "$GUARD_RC" -eq 2 ]
 runm "$(j_bash_nocwd "echo 1 > $MCROOT/repo/f")"
 step "절대 쓰기(cwd 없음): 종전대로 막힌다 → rc=2" [ "$GUARD_RC" -eq 2 ]
 runm "$(j_write_cwd '../../../f' "$MC_CWD_WT")"
@@ -1202,13 +1216,14 @@ j_agentfields() {  # j_agentfields <명령> <agent_id> <agent_type>
     '{hook_event_name:"PreToolUse",tool_name:"Bash",cwd:"/x",agent_id:$i,agent_type:$t,tool_input:{command:$c}}'
 }
 runsub() { run "$(j_sub "$1" 'harness:implementer')"; }
-# **agent_type 이 없는 서브에이전트.** ⑬(A5)이 얹힌 뒤 implementer 의 bd 쓰기는 note 하나로
-# 좁혀졌다 — 그래서 "원장 지정 표기가 인정된다"를 create·update·close 로 보이려면 A4 의
-# 판정 대상이면서 A5·A1/A2 의 판정 대상은 아닌 입력이 필요하다. r_bd_root 는 agent_id
-# **또는** agent_type 으로 판정하고 r_impl_bd·r_grader_* 는 agent_type 값 자체로 판정하므로,
-# agent_id 만 실은 입력이 정확히 그 자리다. 이 줄이 없으면 A4 의 통과 대조군이 A5 의 차단에
-# 덮여, "A4 가 -C 를 인정한다"는 주장이 게이트에서 사라진다.
-runsub_anon() { run "$(j_agentfields "$1" 'aa306a4edf39e7dfe' '')"; }
+# Isolate the ledger-root rule with a known identity; unidentified children are
+# rejected by normalization before any individual rule can judge them.
+ROOT_ONLY="$TMP/root-only/hooks/guard.sh"
+mkdir -p "$(dirname "$ROOT_ONLY")"
+sed -E '/^RULES\+=/ s/"Bash:r_impl_bd"//g' "$HOOK" > "$ROOT_ONLY"
+chmod +x "$ROOT_ONLY"
+step "원장 지정 격리 사본은 implementer 등재만 제거했다" not_same "$HOOK" "$ROOT_ONLY"
+runsub_root_only() { runh "$ROOT_ONLY" "$(j_sub "$1" 'harness:implementer')"; }
 
 # ── 차단: 쓰기 계열. acceptance ① 이 요구하는 create·update·note·close·label 5종이 여기 있다.
 declare -a BD_DENY=(
@@ -1248,9 +1263,7 @@ done
 #    `--db` 의 통과 예시는 **하네스 원장 경로**로 쓴다 — 이 표기는 임의 DB 를 직접 겨눌 수 있어
 #    /tmp 를 통과 예시로 두면 "임의 DB 도 정상"으로 읽힌다. 그 형태는 아래 한계 3 배열에 있다.
 #    (게이트는 bd 를 실행하지 않는다 — 합성 JSON 의 문자열이라 이 경로의 실재는 판정에 무관하다)
-#    쓰기 3종(create·update·close)은 **agent_type 없는 서브에이전트**로 돌린다 — implementer
-#    로 돌리면 ⑬(A5)이 note 외의 쓰기를 막아 rc=2 가 되고, 이 절이 주장하려는 "A4 는 -C 를
-#    인정한다"가 A5 의 차단에 덮인다. 두 규칙이 겹치는 자리는 ⑬ 에서 따로 본다.
+#    쓰기 3종은 known implementer와 A5 등재를 뺀 사본으로 A4만 격리한다.
 declare -a BD_ALLOW=(
   "bd -C $FX_ROOT note $FX_TASK \"메모\""
   "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh 형태의 원장 지정
@@ -1270,15 +1283,15 @@ for c in "${BD_ALLOW[@]}"; do
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "통과: $c" [ "$GUARD_RC" -eq 0 ]
 done
-declare -a BD_ALLOW_ANON=(
+declare -a BD_ALLOW_ROOT_ONLY=(
   "bd --directory $FX_ROOT create \"x\" -t task"
   "bd --db $FX_ROOT/.beads/beads.db update $FX_TASK --status open"
   "bd -C /h close $FX_TASK && bd -C /h note $FX_TASK \"끝\""
 )
-for c in "${BD_ALLOW_ANON[@]}"; do
-  runsub_anon "$c"
-  printf '  rc=%d  [agent_type 없는 서브에이전트] %s\n' "$GUARD_RC" "$c"
-  step "통과(agent_type 없는 서브에이전트): $c" [ "$GUARD_RC" -eq 0 ]
+for c in "${BD_ALLOW_ROOT_ONLY[@]}"; do
+  runsub_root_only "$c"
+  printf '  rc=%d  [원장 지정 규칙 격리] %s\n' "$GUARD_RC" "$c"
+  step "통과(원장 지정 규칙 격리): $c" [ "$GUARD_RC" -eq 0 ]
 done
 
 # ── 오케스트레이터는 막히지 않는다 (acceptance ③). 같은 명령을 두 형태로 돌려 대조한다.
@@ -1378,9 +1391,8 @@ for c in "${BD_FALSEPOS[@]}"; do
 done
 
 # ── 차단 메시지 (acceptance ④). 대안이 없으면 에이전트는 더 창의적인 우회를 찾는다.
-# **agent_type 없는 서브에이전트로 돌린다.** implementer 로 돌리면 ⑬(A5)이 먼저 답해
-# 이 메시지가 아니라 A5 의 메시지가 나온다 — 그 겹침은 ⑬ 에서 따로 단언한다.
-runsub_anon 'bd create "x" -t task'
+# A5 등재를 뺀 사본에서 known implementer로 A4 메시지를 판정한다.
+runsub_root_only 'bd create "x" -t task'
 echo "  deny → $GUARD_OUT"
 step "메시지가 -C <하네스루트> 를 대안으로 지시" has_text "bd -C <하네스루트>" "$GUARD_OUT"
 step "메시지가 다른 표기(--directory·--db)도 인정한다고 밝힌다" has_text '--directory·--db' "$GUARD_OUT"
@@ -1398,10 +1410,10 @@ step "규칙을 서술한 문서를 읽는 명령은 통과한다 (bd 가 실행
 # 하네스 루트 값의 출처. 훅은 lib/harness-root.sh 를 **이 호출의 cwd** 에서 불러 값을 얻는다 —
 # 찾으면 제시하고 못 찾으면 위임 메시지를 출처로 지시한다. 두 분기를 모두 돌린다.
 # 찾는 쪽은 HARNESS_ROOT 로 물린다(헬퍼의 첫 출처) — 판별자(.harness.json)를 갖춘 위 합성 루트다.
-runh "$HOOK" "$(j_agentfields 'bd create x' 'aa306a4edf39e7dfe' '')" "HARNESS_ROOT=$FX_ROOT"
+runh "$ROOT_ONLY" "$(j_sub 'bd create x' 'harness:implementer')" "HARNESS_ROOT=$FX_ROOT"
 echo "  찾음 → ${GUARD_OUT: -140}"
 step "헬퍼가 하네스 루트를 찾으면 그 절대 경로를 제시한다" has_text "하네스 루트는 $FX_ROOT 다" "$GUARD_OUT"
-runh "$HOOK" "$(j_agentfields 'bd create x' 'aa306a4edf39e7dfe' '')" "HARNESS_ROOT=$TMP/not-a-root"
+runh "$ROOT_ONLY" "$(j_sub 'bd create x' 'harness:implementer')" "HARNESS_ROOT=$TMP/not-a-root"
 echo "  못 찾음 → ${GUARD_OUT: -140}"
 step "헬퍼가 못 찾으면 값을 제시하지 않는다" has_text '하네스 루트를 찾지 못했다' "$GUARD_OUT"
 step "그 경우 위임 메시지를 출처로 지시한다" has_text 'DECISION_NEEDED' "$GUARD_OUT"
@@ -1418,7 +1430,11 @@ BD_LIMIT_N+=(4); BD_LIMIT_CMD+=('bash /tmp/ledger-writer.sh'); BD_LIMIT_JSON+=("
 for i in "${!BD_LIMIT_CMD[@]}"; do
   run "${BD_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${BD_LIMIT_N[$i]}" "${BD_LIMIT_CMD[$i]}"
-  step "한계(못 막음, rc=0 고정) ${BD_LIMIT_N[$i]}: ${BD_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  if [[ "${BD_LIMIT_CMD[$i]}" = '[agent_type 없음]'* ]]; then
+    step "미식별 역할 차단: ${BD_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
+  else
+    step "한계(못 막음, rc=0 고정) ${BD_LIMIT_N[$i]}: ${BD_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  fi
 done
 
 echo "── ⑪ A3/C2: 서브에이전트의 원격 반영·GitHub 조작 차단 ──"
@@ -1518,15 +1534,14 @@ for c in "${RM_ALLOW[@]}"; do
   step "통과: $c" [ "$GUARD_RC" -eq 0 ]
 done
 
-# ── sync-check: `--push` 만 원격 반영이다 (harness-m8gg.5 리뷰 MUST FIX 2). **agent_type 없는
-#    서브에이전트**로 돌린다 — implementer 로 두면 ⑬(A5)이 note 외의 쓰기로 막아 통과 대조군이 사라진다.
-runsub_anon "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check --push"
-printf '  rc=%d  [agent_type 없는 서브에이전트] ledger.sh sync-check --push\n' "$GUARD_RC"
-step "차단(agent_type 없는 서브에이전트): ledger.sh sync-check --push" [ "$GUARD_RC" -eq 2 ]
+# ── sync-check: A5를 격리한 사본에서 원격 반영 규칙을 비교한다.
+runsub_root_only "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check --push"
+printf '  rc=%d  [원장 지정 규칙 격리] ledger.sh sync-check --push\n' "$GUARD_RC"
+step "차단(원장 지정 규칙 격리): ledger.sh sync-check --push" [ "$GUARD_RC" -eq 2 ]
 step "그 메시지는 원격 반영 쪽이다" has_text '원격 반영 금지' "$GUARD_OUT"
-runsub_anon "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check"
-printf '  rc=%d  [agent_type 없는 서브에이전트] ledger.sh sync-check\n' "$GUARD_RC"
-step "통과(agent_type 없는 서브에이전트): ledger.sh sync-check (스위치 없음은 판정만이다)" [ "$GUARD_RC" -eq 0 ]
+runsub_root_only "HARNESS_ROOT=$FX_ROOT $FX_LS sync-check"
+printf '  rc=%d  [원장 지정 규칙 격리] ledger.sh sync-check\n' "$GUARD_RC"
+step "통과(원장 지정 규칙 격리): ledger.sh sync-check (스위치 없음은 판정만이다)" [ "$GUARD_RC" -eq 0 ]
 
 # ── 오케스트레이터는 막히지 않는다 (acceptance ②). 사용자 지시를 받으면 실제로 해야 한다.
 declare -a RM_ORCH=(
@@ -2352,11 +2367,13 @@ GR_LIMIT_JSON+=("$(j_agentfields 'git commit -m x' 'aa306a4edf39e7dfe' '')")
 for i in "${!GR_LIMIT_CMD[@]}"; do
   run "${GR_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${GR_LIMIT_N[$i]}" "${GR_LIMIT_CMD[$i]}"
-  step "한계(못 막음, rc=0 고정) ${GR_LIMIT_N[$i]}: ${GR_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  if [[ "${GR_LIMIT_CMD[$i]}" = '[agent_type 없는 위임]'* ]]; then
+    step "미식별 역할 차단: ${GR_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
+  else
+    step "한계(못 막음, rc=0 고정) ${GR_LIMIT_N[$i]}: ${GR_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  fi
 done
-# 한계 4 가 이 규칙만의 것이다. r_bd_root·r_remote 는 agent_id **또는** agent_type 으로
-# 판정하지만 이 규칙은 agent_type 값 자체가 판정 근거라, 유형 없이 위임된 채점자에게는
-# 규칙이 통째로 꺼진다. 열 방법이 없다 — agent_id 만으로는 그 호출이 채점자인지 알 수 없다.
+# 유형 없는 자식은 공통 정규화에서 차단된다. 위 음성 제어가 그 경로를 유지한다.
 
 echo "── ⑬ A5: implementer 의 bd 쓰기 범위 제한 (note 하나만 허용) ──"
 # ⑫ 와 같은 판정 지점(gr_bd_subcmds 로 뽑은 하위 명령)에 **다른 허용 목록**이 붙는다.
@@ -2868,7 +2885,11 @@ IMPL_LIMIT_JSON+=("$(j_agentfields "bd -C $IMPL_H create x" 'aa306a4edf39e7dfe' 
 for i in "${!IMPL_LIMIT_CMD[@]}"; do
   run "${IMPL_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${IMPL_LIMIT_N[$i]}" "${IMPL_LIMIT_CMD[$i]}"
-  step "한계(못 막음, rc=0 고정) ${IMPL_LIMIT_N[$i]}: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  if [[ "${IMPL_LIMIT_CMD[$i]}" = '[agent_type 없는 위임]'* ]]; then
+    step "미식별 역할 차단: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
+  else
+    step "한계(못 막음, rc=0 고정) ${IMPL_LIMIT_N[$i]}: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  fi
 done
 # 값이 하위 명령이 아닌 낱말일 때도 차단된다 — `--actor` 를 건너뛰면 그 다음이 진짜
 # 하위 명령(create)이므로 A5 가 곧바로 잡는다. 종전에는 값 `bob` 이 하위 명령으로 읽혀
@@ -2968,7 +2989,7 @@ for g in $HOOKRUNNERS; do
       ;;
   esac
   for v in $HOOKENVS; do
-    step "$(basename "$g") 가 $v 를 임시 경로로 돌린다" grep -q "^export $v=" "$g"
+    step "$(basename "$g") 가 $v 를 임시 경로로 돌린다" grep -Eq "^export ${v}=|^[[:space:]]*env\\.${v}[[:space:]]*=" "$g"
   done
 done
 
