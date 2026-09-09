@@ -34,7 +34,9 @@ exit 7
     if(transport==='file'){stdout=fs.readFileSync(outFile,'utf8');stderr=fs.readFileSync(errFile,'utf8');}
     report.observations.push({detached,transport,...result,timedOut,started:fs.existsSync(sentinel),stdout,stderr});
   }
-  report.verdict = report.observations.every(row=>row.started&&row.code===7&&row.stdout.includes('CANARY_STDOUT')&&row.stderr.includes('CANARY_STDERR'))?'PASS':'OBSERVED_MISMATCH';
+  report.supportedLaunch = 'attached; Job ownership is independent of console detachment';
+  const supported = report.observations.filter(row=>!row.detached);
+  report.verdict = supported.length===2&&supported.every(row=>row.started&&row.code===7&&row.stdout.includes('CANARY_STDOUT')&&row.stderr.includes('CANARY_STDERR'))?'PASS':'OBSERVED_MISMATCH';
 } catch(error) {report.error=error.message;}
 finally {fs.writeFileSync(reportFile,JSON.stringify(report,null,2));console.log(JSON.stringify(report));fs.rmSync(directory,{recursive:true,force:true});}
 process.exitCode=report.verdict==='PASS'?0:1;

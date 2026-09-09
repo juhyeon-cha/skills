@@ -53,7 +53,9 @@ export async function spawnWindowsWorker(worker, identity, env) {
   const request = path.join(ipc, 'launch.json');
   try {
     await fs.writeFile(request, JSON.stringify({executable: process.execPath, worker, cwd: identity.top, job: `Local\\HarnessPrepare-${randomUUID()}`, ipc}), {flag: 'wx'});
-    const child = spawn(executable, args('supervise', request), {cwd: identity.top, env, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
+    // Windows PowerShell must start attached to this console. Its Job handle,
+    // not Node's detached flag, owns the worker tree and outlives a killed waiter.
+    const child = spawn(executable, args('supervise', request), {cwd: identity.top, env, detached: false, stdio: ['ignore', 'pipe', 'pipe']});
     // A killed waiter must not own this directory or the supervisor lifetime.
     child.on('close', () => { fs.rm(ipc, {recursive: true, force: true}).catch(() => {}); });
     await new Promise((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
