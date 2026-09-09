@@ -30,6 +30,9 @@ jobs:
       - name: Run native process and configured preparation contracts
         if: ${{ !cancelled() }}
         run: node tests/harness/native-preparation-contract-check.mjs ${{ matrix.host.platform }}
+      - name: Check canonical plugin bytes with Windows checkout settings
+        if: ${{ !cancelled() }}
+        run: node tests/harness/native-checkout-contract-check.mjs
       - name: Run identical native ledger contracts with offline transports
         if: ${{ !cancelled() }}
         run: node tests/harness/native-ledger-contract-check.mjs ${{ matrix.host.platform }}

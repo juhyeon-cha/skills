@@ -33,7 +33,9 @@ export async function windowsOwnerGone(owner, {cwd, env = process.env}) {
 export async function windowsHasChildren(env = process.env) {
   windowsOwner(env);
   const nonce = randomUUID(), directory = env.HARNESS_PREPARE_IPC;
-  const temporary = path.join(directory, `query-${nonce}`), query = path.join(directory, 'query'), reply = path.join(directory, `reply-${nonce}`);
+  // Each published request is immutable. Replacing a shared request file can
+  // fail on Windows while the supervisor has an open handle to its old value.
+  const temporary = path.join(directory, `pending-${nonce}`), query = path.join(directory, `query-${nonce}`), reply = path.join(directory, `reply-${nonce}`);
   await fs.writeFile(temporary, nonce, {flag: 'wx'});
   await fs.rename(temporary, query);
   const deadline = Date.now() + 5000;

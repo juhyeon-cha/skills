@@ -1,0 +1,2 @@
+# Canonical plugin bytes are checked by generated-artifact and load receipts.
+plugins/harness/** text=auto eol=lf

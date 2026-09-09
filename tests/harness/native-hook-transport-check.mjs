@@ -7,13 +7,17 @@ import {spawnSync} from 'node:child_process';
 import {hookTransport, projections, hookWiring} from '../../plugins/harness/lib/distribution.mjs';
 
 const source = fileURLToPath(new URL('../../plugins/harness/', import.meta.url));
-const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-hook-launch-')));
+const temp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-hook-launch-')));
 const root = path.join(temp, '플러그인 공백'), repo = path.join(temp, '저장소 공백');
 const baseEnv = {...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(temp, 'gitconfig'), HARNESS_DATA_DIR: path.join(temp, '상태 공백')};
 for (const key of ['HARNESS_RUNTIME', 'HARNESS_ROOT', 'PLUGIN_ROOT', 'PLUGIN_DATA', 'CLAUDE_PLUGIN_ROOT', 'CLAUDE_PLUGIN_DATA', 'HARNESS_GUARD_LOG', 'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR']) delete baseEnv[key];
 fs.writeFileSync(baseEnv.GIT_CONFIG_GLOBAL, '');
 let count = 0;
 function check(label, fn) { fn(); count++; console.log('PASS ' + label); }
+function copyInventory(directory) {
+  try { return fs.readdirSync(directory, {recursive: true}).map(String).sort().slice(0, 80); }
+  catch (error) { return {code: error.code}; }
+}
 function launch(runtime, id, input, extraEnv = {}) {
   const transport = hookTransport(id, runtime);
   const env = {...baseEnv, CLAUDE_PLUGIN_ROOT: root, ...(runtime === 'codex' ? {PLUGIN_ROOT: root} : {}), ...extraEnv};
@@ -24,7 +28,15 @@ function launch(runtime, id, input, extraEnv = {}) {
 }
 try {
   if (process.argv[2]) assert.equal(process.platform, process.argv[2], 'actual host must match expected host');
+  const manifest = path.join('.claude-plugin', 'plugin.json');
+  const originalManifest = fs.readFileSync(path.join(source, manifest));
   fs.cpSync(source, root, {recursive: true});
+  check('fixture copy preserves the source manifest before projection generation', () => {
+    try { assert.deepEqual(fs.readFileSync(path.join(root, manifest)), originalManifest); }
+    catch (error) {
+      throw new Error('fixture copy incomplete: ' + JSON.stringify({node: process.version, source, root, sourceInventory: copyInventory(source), destinationInventory: copyInventory(root), cause: error.message}));
+    }
+  });
   for (const [relative, text] of Object.entries(projections(root))) fs.writeFileSync(path.join(root, relative), text);
   const initialized = spawnSync('git', ['init', '-q', repo], {env: baseEnv, encoding: 'utf8'}); assert.equal(initialized.status, 0, initialized.stderr);
   fs.writeFileSync(path.join(repo, '.harness.json'), JSON.stringify({ledger: {backend: 'beads'}}));

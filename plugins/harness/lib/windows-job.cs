@@ -85,21 +85,20 @@ public static class HarnessJob {
       // instruction can execute. Even supervisor death cannot orphan a child.
       Require(CreateProcess(executable, command, IntPtr.Zero, IntPtr.Zero, true, 0x80004, IntPtr.Zero, cwd, ref startup, out child));
       if (ResumeThread(child.thread) == 0xffffffff) throw new Win32Exception(Marshal.GetLastWin32Error());
-      string previous = null;
       for (;;) {
         uint wait = WaitForSingleObject(child.process, 10);
         if (wait == 0) break;
         if (wait != 258) throw new Win32Exception(Marshal.GetLastWin32Error());
-        string request = Path.Combine(ipc, "query");
-        if (File.Exists(request)) {
+        foreach (string request in Directory.GetFiles(ipc, "query-*")) {
           string nonce;
           using (var stream = new FileStream(request, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
           using (var reader = new StreamReader(stream)) nonce = reader.ReadToEnd().Trim();
           Guid parsed;
-          if (nonce != previous && Guid.TryParseExact(nonce, "D", out parsed)) {
+          if (Guid.TryParseExact(nonce, "D", out parsed) && Path.GetFileName(request) == "query-" + nonce) {
             string target = Path.Combine(ipc, "reply-" + nonce);
             File.WriteAllText(target + ".tmp", "{\"nonce\":\"" + nonce + "\",\"active\":" + Active(job) + "}", new UTF8Encoding(false));
-            File.Move(target + ".tmp", target); previous = nonce;
+            File.Move(target + ".tmp", target);
+            File.Delete(request);
           }
         }
       }

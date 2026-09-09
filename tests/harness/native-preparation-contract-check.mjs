@@ -8,6 +8,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import {runCommand, windowsBatchArguments} from '../../plugins/harness/lib/process.mjs';
 import {inspectWorkspace} from '../../plugins/harness/lib/workspace.mjs';
 import {prepareWorkspaceIdentity, preparationPaths, preparationStatus} from '../../plugins/harness/lib/preparation.mjs';
+import {windowsHasChildren} from '../../plugins/harness/lib/windows-preparation.mjs';
 
 assert.equal(process.platform, process.argv[2] || process.platform, 'actual host must match requested evidence');
 const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'native-prepare-'));
@@ -20,6 +21,26 @@ const exists = file => fs.stat(file).then(() => true, error => { if (error.code 
 const waitFor = async predicate => { const deadline = Date.now() + 30000; while (!(await predicate())) { if (Date.now() > deadline) throw new Error('fixture judgment UNREACHED'); await new Promise(r => setTimeout(r, 30)); } };
 let identity, paths;
 try {
+  await check('Windows accounting publishes unique immutable requests for repeated and concurrent calls', async () => {
+    const ipc = path.join(temp, 'accounting'); await fs.mkdir(ipc);
+    const jobEnv = {HARNESS_PREPARE_JOB: 'Local\\HarnessPrepare-12345678-1234-1234-1234-123456789abc', HARNESS_PREPARE_IPC: ipc, HARNESS_PREPARE_SUPERVISOR: '2', HARNESS_PREPARE_LAUNCHER: '3'};
+    const observed = new Set();
+    for (let round = 0; round < 3; round++) {
+      const calls = Array.from({length: 4}, () => windowsHasChildren(jobEnv));
+      await waitFor(async () => (await fs.readdir(ipc)).filter(name => name.startsWith('query-')).length === 4);
+      for (const name of (await fs.readdir(ipc)).filter(name => name.startsWith('query-'))) {
+        const nonce = await fs.readFile(path.join(ipc, name), 'utf8');
+        assert.equal(name, 'query-' + nonce); assert.equal(observed.has(nonce), false); observed.add(nonce);
+        const reply = path.join(ipc, 'reply-' + nonce);
+        await fs.writeFile(reply + '.tmp', JSON.stringify({nonce, active: round === 1 ? 2 : 1}));
+        await fs.rename(reply + '.tmp', reply);
+        await fs.unlink(path.join(ipc, name));
+      }
+      assert.deepEqual(await Promise.all(calls), Array(4).fill(round === 1));
+      assert.deepEqual(await fs.readdir(ipc), []);
+    }
+    assert.equal(observed.size, 12);
+  });
   await fs.writeFile(env.GIT_CONFIG_GLOBAL, '');
   await fs.mkdir(repo);
   const git = async args => { const result = await runCommand({argv: ['git', ...args]}, {cwd: repo, env}); assert.equal(result.code, 0, result.stderr.toString()); };
@@ -180,6 +201,6 @@ else { process.stderr.write(diagnostic); process.stdout.write(response); }
       assert.equal(result.code, 1, result.stderr.toString()); assert.match(result.stderr.toString(), /Missing expected rejection/);
     });
   }
-  assert.equal(reached, (process.platform === 'win32' ? 15 : 7) + (process.argv.includes('--mutation-child') ? 0 : 1), 'every host-applicable judgment must run');
+  assert.equal(reached, (process.platform === 'win32' ? 16 : 8) + (process.argv.includes('--mutation-child') ? 0 : 1), 'every host-applicable judgment must run');
   console.log(`PASS native preparation/process ${reached}; host=${process.platform}; actual runtime hooks are separate evidence`);
 } finally { await fs.rm(temp, {recursive: true, force: true}); }

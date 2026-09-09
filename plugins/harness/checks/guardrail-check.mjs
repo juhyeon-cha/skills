@@ -12,7 +12,8 @@ import {isMain} from '../lib/ledger-view.mjs';
 
 export const SURFACES = ['S1', 'S2', 'S5', 'S6', 'S7'];
 export async function checkGuardrails({pluginRoot = fileURLToPath(new URL('../', import.meta.url)), env = process.env} = {}) {
-  const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-guardrails-')));
+  // Match the native realpath used by ledgerRoot, including Windows 8.3 aliases.
+  const temp = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-guardrails-')));
   const outputs = [], errors = []; let checks = 0;
   const check = async (label, fn) => { try { await fn(); checks++; if (env.GUARDRAIL_VERBOSE === '1') outputs.push(`✓ ${label}`); } catch (error) { errors.push(`✗ ${label}: ${error.message}`); } };
   const isolated = {...env, HARNESS_RUNTIME: 'claude', HARNESS_DATA_DIR: path.join(temp, 'data'), HARNESS_GUARD_LOG: path.join(temp, 'guard.tsv'), GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(temp, 'gitconfig')};
