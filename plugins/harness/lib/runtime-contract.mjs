@@ -6,10 +6,18 @@ export function roleSignals(body) {
 
 export function roleChain(events, session, role, agentId) {
   const own = events.filter(e => e?.session_id === session && e.agent_type === role && e.agent_id === agentId);
+  // One invocation per instance. A later response or unfinished follow-up must
+  // not borrow the verdict from an earlier Stop. Other diagnostic events may
+  // follow Stop, but lifecycle/tool events may not.
+  const lifecycle = own.filter(e => ['SubagentStart', 'PreToolUse', 'SubagentStop'].includes(e.hook_event_name));
+  const unambiguous = lifecycle.filter(e => e.hook_event_name === 'SubagentStart').length === 1
+    && lifecycle.filter(e => e.hook_event_name === 'SubagentStop').length === 1
+    && lifecycle[0]?.hook_event_name === 'SubagentStart'
+    && lifecycle.at(-1)?.hook_event_name === 'SubagentStop';
   const start = own.findIndex(e => e.hook_event_name === 'SubagentStart');
   const tool = own.findIndex((e, i) => i > start && e.hook_event_name === 'PreToolUse');
   const stop = own.findIndex((e, i) => i > tool && e.hook_event_name === 'SubagentStop');
-  return {started: start >= 0, invoked: start >= 0 && tool >= 0, stopped: start >= 0 && tool >= 0 && stop >= 0, result: own[stop]?.last_assistant_message};
+  return {started: start >= 0, invoked: start >= 0 && tool >= 0, stopped: unambiguous && start >= 0 && tool >= 0 && stop >= 0, result: unambiguous ? own[stop]?.last_assistant_message : undefined};
 }
 
 export function inspectRuntimeContract(evidence) {

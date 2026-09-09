@@ -12,6 +12,28 @@ const required = (value, label) => {
   return value;
 };
 
+// Deliberately restricted TOML: flat string assignments, quoted/bare keys,
+// single-line basic/literal strings and comments. Unknown syntax fails closed.
+// Parse every line so tables or multiline text cannot hide a second name.
+function nativeAgentName(text) {
+  const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}))*"';
+  const literal = "'[^'\\x00-\\x1f]*'";
+  const string = `(?:${basic}|${literal})`;
+  const assignment = new RegExp(`^([A-Za-z0-9_-]+|${string})\\s*=\\s*(${string})\\s*(?:#.*)?$`);
+  const decode = value => value.startsWith('"') ? JSON.parse(value) : value.startsWith("'") ? value.slice(1, -1) : value;
+  const values = new Map();
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const match = assignment.exec(line);
+    if (!match) throw new Error('unsupported native agent TOML; require flat single-line strings');
+    const key = decode(match[1]);
+    if (values.has(key)) throw new Error('duplicate native agent key');
+    values.set(key, decode(match[2]));
+  }
+  return required(values.get('name'), 'native agent name');
+}
+
 export function loadRole(role, root = plugin) {
   roleIdentifier('claude', role);
   const source = path.join(root, 'agents', `${role}.md`);
@@ -73,7 +95,7 @@ export function verifyRegistration(registration) {
     if (registration.runtime === 'codex') {
       const duplicates = fs.readdirSync(path.dirname(entry.file)).filter(name => name.endsWith('.toml')).filter(name => {
         const text = fs.readFileSync(path.join(path.dirname(entry.file), name), 'utf8');
-        return /^name\s*=\s*['"]([^'"]+)['"]/m.exec(text)?.[1] === entry.identifier;
+        return nativeAgentName(text) === entry.identifier;
       });
       if (duplicates.length !== 1) throw new Error('duplicate native role name');
     }
