@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {workspaceArguments} from '../lib/workspace-command.mjs';
-import {inspectWorkspace, createWorkspace, enterWorkspace, cleanupWorkspace} from '../lib/workspace.mjs';
+import {inspectWorkspace, createWorkspace, enterWorkspace, cleanupWorkspace, prepareWorkspace, readyWorkspace} from '../lib/workspace.mjs';
 
 const say = text => { if (text) process.stderr.write(text + '\n'); };
 const legacyCleanup = process.argv.includes('--legacy-cleanup');
@@ -25,6 +25,8 @@ try {
     if (legacyCleanup && action !== 'cleanup') throw new Error('legacy output is cleanup-only');
     if (action === 'inspect') report(await inspectWorkspace(cwd));
     else if (action === 'enter') report(await enterWorkspace(cwd, {say}));
+    else if (action === 'prepare') report(await prepareWorkspace(cwd, {say}));
+    else if (action === 'ready') report(await readyWorkspace(cwd));
     else if (action === 'create') report(await createWorkspace(cwd, story, {destination}));
     else report(await cleanupWorkspace(cwd, story, {force, say}));
   }

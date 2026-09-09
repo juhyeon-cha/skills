@@ -276,7 +276,8 @@ This file lives **at the root of the target repo and is committed there**. It ho
 |---|---|
 | `check` | A single line run at the repo root that reports success or failure through its exit code. implementer runs it last, evaluator re-runs it. Knowledge of the language and build tools lives here and nowhere else |
 | `default_branch` | The branching base for worktrees. EnterWorktree cuts them from `origin/<the default branch>` (`worktree.baseRef` default `fresh`) |
-| `bootstrap` | A preparation command run once inside a worktree right after it is created (installing dependencies and the like; optional). Without it, a bare worktree can fail the gate for reasons unrelated to the code — the EnterWorktree hook (`hooks/enter-worktree.sh`) reads it **from the worktree's own copy** and runs it once as the fallback when the repo has no EnterWorktree hook of its own, reporting failure on stderr |
+| `bootstrap` | Repository-owned preparation command, consumed by common workspace `enter`/`prepare`. Strings retain Bash semantics; structured argv runs directly. Success is reused only for matching config and declared inputs. See `${CLAUDE_PLUGIN_ROOT}/docs/workspace.md` for readiness, retry and migration from repository-owned EnterWorktree hooks; a hook or old marker is not preparation evidence |
+| `preparation` | Optional `timeout_ms` and explicit relative-file `inputs`; shared by both runtimes. Leave bootstrap absent when no preparation is needed. Before delegation, require workspace `ready` exit 0 and `canDelegate: true` |
 | `ledger` | The ledger coordinates. **Every repo of one harness carries the same object** — that is what makes them one harness |
 
 The three `ledger` shapes:

@@ -3,8 +3,8 @@ import path from 'node:path';
 
 export function workspaceArguments(args) {
   const [action, cwd, ...rest] = args;
-  if (!['create', 'inspect', 'enter', 'cleanup'].includes(action) || !cwd || !path.isAbsolute(cwd)) throw new Error('workspace action and absolute repository/workspace path required');
-  if (action === 'inspect' || action === 'enter') {
+  if (!['create', 'inspect', 'enter', 'prepare', 'ready', 'cleanup'].includes(action) || !cwd || !path.isAbsolute(cwd)) throw new Error('workspace action and absolute repository/workspace path required');
+  if (['inspect', 'enter', 'prepare', 'ready'].includes(action)) {
     if (rest.length) throw new Error('unexpected workspace arguments');
     return {action, cwd};
   }

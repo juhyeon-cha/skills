@@ -28,6 +28,12 @@ export function validateConfig(config) {
   if ('default_branch' in config && !string(config.default_branch)) invalid('default_branch must be a nonempty string');
   if ('check' in config) validateCommand(config.check);
   if ('bootstrap' in config && config.bootstrap !== null && config.bootstrap !== '') validateCommand(config.bootstrap);
+  if ('preparation' in config) {
+    const options = config.preparation;
+    if (!object(options) || Object.keys(options).some(key => !['timeout_ms', 'inputs'].includes(key))) invalid('preparation supports timeout_ms and inputs only');
+    if ('timeout_ms' in options && (!Number.isSafeInteger(options.timeout_ms) || options.timeout_ms < 1 || options.timeout_ms > 2147483647)) invalid('preparation.timeout_ms must be a positive timer integer');
+    if ('inputs' in options && (!Array.isArray(options.inputs) || !options.inputs.every(input => string(input) && !path.posix.isAbsolute(input) && !path.win32.isAbsolute(input) && !input.split(/[\\/]/).includes('..')))) invalid('preparation.inputs must be workspace-relative file paths');
+  }
   // Preserve repository-owned extensions without projecting a second config.
   return config;
 }

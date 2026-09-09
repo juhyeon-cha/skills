@@ -8,7 +8,7 @@ try {
   if (event.tool_name === 'Bash') {
     const workspace = workspaceShellCommand(event.tool_input.command, fileURLToPath(new URL('./workspace.mjs', import.meta.url)));
     if (workspace) {
-      if (['harness:reviewer', 'harness:evaluator'].includes(event.agent_type) && workspace.action !== 'inspect') throw new Error('grader cannot mutate workspace lifecycle');
+      if (['harness:reviewer', 'harness:evaluator'].includes(event.agent_type) && !['inspect', 'ready'].includes(workspace.action)) throw new Error('grader cannot mutate workspace lifecycle');
       event.harness_workspace_action = workspace.action;
       event.harness_operations = [];
     }

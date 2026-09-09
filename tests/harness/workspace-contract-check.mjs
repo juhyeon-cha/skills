@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {preparationPaths} from '../../plugins/harness/lib/preparation.mjs';
 
 const self = fileURLToPath(import.meta.url);
 if (process.argv[2] === '--adapter') {
@@ -103,14 +104,18 @@ try {
     check(result.status === 2 && result.stderr.includes('부트스트랩 실패'), 'bootstrap failure reached');
     check(fs.existsSync(wt) && !fs.existsSync(marker), 'failure preserves workspace without marker');
     fs.writeFileSync(path.join(wt, 'node_modules/ready'), '');
-    check(hook().status === 0 && fs.existsSync(marker), 'retry prepares workspace');
+    check(hook().status === 0 && workspace('ready', wt).status === 0 && !fs.existsSync(marker), 'retry prepares workspace without legacy marker');
     check(hook().status === 0 && fs.readFileSync(path.join(wt, 'node_modules/attempts'), 'utf8').trim().split('\n').length === 2, 'successful preparation is not repeated');
-    fs.unlinkSync(marker); fs.mkdirSync(path.join(wt, '.claude'), {recursive: true});
+    fs.writeFileSync(marker, 'legacy'); fs.mkdirSync(path.join(wt, '.claude'), {recursive: true});
     fs.writeFileSync(path.join(wt, '.claude/settings.json'), JSON.stringify({hooks: {PostToolUse: [{matcher: 'EnterWorktree', hooks: []}]}}));
     result = hook();
-    check(result.status === 0 && result.stderr.includes('EnterWorktree 훅이 소유한다') && !fs.existsSync(marker), 'own-hook baseline skips preparation even with empty handlers');
+    check(result.status === 2 && result.stderr.includes('LEGACY_HOOK_UNVERIFIED') && fs.existsSync(marker), 'own-hook cannot provide readiness or launch duplicate preparation');
     check(fs.readFileSync(path.join(wt, 'node_modules/attempts'), 'utf8').trim().split('\n').length === 2, 'own-hook did not execute bootstrap');
     fs.unlinkSync(path.join(wt, '.claude/settings.json'));
+    const preparationLock = preparationPaths(inspected).lock;
+    fs.mkdirSync(preparationLock);
+    check(cleanup('--force').status === 1 && fs.existsSync(wt), 'cleanup preserves workspace with unresolved preparation lock');
+    fs.rmdirSync(preparationLock);
     result = hook({FIXTURE_ADAPTER_FAIL: '1'});
     check(result.status === 2 && result.stderr.includes('어댑터'), 'adapter failure is not success');
     result = run('bash', [path.join(plugin, targets[1]), 'story-1'], repo, {...fixtureEnv, FIXTURE_ADAPTER_FAIL: '1'});
@@ -155,7 +160,11 @@ try {
     check(mainGuard(enterShell).status === 0, 'Codex main checkout can enter external workspace');
     const grader = run('bash', [path.join(plugin, targets[2])], repo, fixtureEnv, JSON.stringify({cwd: repo, tool_name: 'Bash', agent_type: 'harness:reviewer', tool_input: {command: enterShell}}));
     check(grader.status === 2, 'grader cannot use lifecycle exemption');
-    check(JSON.parse(ok(run('bash', ['-c', enterShell], repo, fixtureEnv))).preparation === 'legacy-bootstrap-completed', 'external registered workspace enters with compatible bootstrap');
+    for (const [action, expected] of [['ready', 0], ['prepare', 2]]) {
+      const result = run('bash', [path.join(plugin, targets[2])], repo, fixtureEnv, JSON.stringify({cwd: repo, tool_name: 'Bash', agent_type: 'harness:reviewer', tool_input: {command: `node '${plugin}/scripts/workspace.mjs' ${action} '${external}'`}}));
+      check(result.status === expected, `grader ${action} permission follows read/mutation boundary`);
+    }
+    check(JSON.parse(ok(run('bash', ['-c', enterShell], repo, fixtureEnv))).preparation === 'ready', 'external registered workspace enters with verified bootstrap');
     check(JSON.parse(ok(workspace('inspect', external))).main === repo, 'external linked identity uses common-dir and registration');
     check(guard('Write', {file_path: path.join(external, 'new.txt')}).status === 0, 'guard permits registered external workspace');
     const other = path.join(base, 'other-missing');

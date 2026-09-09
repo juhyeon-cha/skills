@@ -1,5 +1,5 @@
 {
-  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks). PostToolUse (EnterWorktree): enter-worktree.sh wires the harness ledger into the new story worktree (.beads/redirect + clone exclude) and runs the target repo's own .harness.json bootstrap fallback once when the target repo has no EnterWorktree hook of its own. Stop: stop-resume.sh (stop guard — pushes back while the ledger has in_progress work claimed by this session); it keeps its state under ${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}.",
+  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks). PostToolUse (EnterWorktree): enter-worktree.sh wires the harness ledger into the new story worktree (.beads/redirect + clone exclude) and uses common workspace preparation with repository-owned bootstrap, shared locking and verified readiness; legacy repository hooks require migration. Stop: stop-resume.sh (stop guard — pushes back while the ledger has in_progress work claimed by this session); it keeps its state under ${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}.",
   "hooks": {
     "SessionStart": [
       {

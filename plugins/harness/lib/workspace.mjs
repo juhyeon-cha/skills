@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {loadConfig, configCommand} from './config.mjs';
+import {loadConfig} from './config.mjs';
+import {prepareWorkspaceIdentity, preparationStatus, preparationPaths} from './preparation.mjs';
 import {runCommand} from './process.mjs';
 
 const plugin = fileURLToPath(new URL('../', import.meta.url));
@@ -75,7 +76,7 @@ function linked(identity) {
 }
 export async function enterWorkspace(location, {env = process.env, say = () => {}} = {}) {
   const identity = await inspectWorkspace(location, {env}); linked(identity);
-  const {config} = await loadConfig(identity.top);
+  await loadConfig(identity.top);
   const root = env.HARNESS_ROOT || identity.top;
   say('원장 배선: ' + (await ledger(root, identity.top, ['wire-worktree', identity.top], env)).trim());
   const exclude = path.join(identity.common, 'info/exclude');
@@ -83,25 +84,17 @@ export async function enterWorkspace(location, {env = process.env, say = () => {
   const lines = (await fs.readFile(exclude, 'utf8').catch(error => { if (error.code === 'ENOENT') return ''; throw error; })).split('\n');
   for (const line of ['.beads', '.claude/worktrees/']) if (!lines.includes(line)) lines.push(line);
   await fs.writeFile(exclude, lines.join('\n') + '\n');
-  // Transitional preparation compatibility. The readiness protocol is separate.
-  for (const file of ['settings.json', 'settings.local.json']) {
-    const settingsPath = path.join(identity.top, '.claude', file);
-    if (!await exists(settingsPath)) continue;
-    const settings = JSON.parse(await fs.readFile(settingsPath, 'utf8'));
-    if (settings.hooks?.PostToolUse?.some(hook => hook.matcher === 'EnterWorktree')) {
-      say('부트스트랩: 대상 레포의 EnterWorktree 훅이 소유한다 — 준비 성공을 검증한 것은 아니다');
-      return {...identity, preparation: 'external-hook-unverified'};
-    }
-  }
-  const marker = path.join(identity.main, '.claude/worktrees', `.bootstrapped-${identity.branch.slice(9)}`);
-  const command = configCommand(config, 'bootstrap');
-  if (!command) return {...identity, preparation: 'not-configured'};
-  if (await exists(marker)) return {...identity, preparation: 'legacy-marker'};
-  const result = await runCommand(command, {cwd: identity.top, env: gitEnvironment(env)});
-  say(result.stdout.toString() + result.stderr.toString());
-  if (result.status !== 'exited' || result.code !== 0) throw new Error(`부트스트랩 실패 — workspace remains for retry: ${result.error?.message || result.signal || result.code}`);
-  await fs.mkdir(path.dirname(marker), {recursive: true}); await fs.writeFile(marker, '');
-  return {...identity, preparation: 'legacy-bootstrap-completed'};
+  return {...identity, ...await prepareWorkspaceIdentity(identity, {env: gitEnvironment(env), say})};
+}
+export async function prepareWorkspace(location, options = {}) {
+  const identity = await inspectWorkspace(location, options); linked(identity);
+  return {...identity, ...await prepareWorkspaceIdentity(identity, options)};
+}
+export async function readyWorkspace(location, options = {}) {
+  const identity = await inspectWorkspace(location, options); linked(identity);
+  const status = await preparationStatus(identity);
+  if (!status.canDelegate) throw new Error('PREPARE_NOT_READY: run workspace prepare; implementation delegation blocked');
+  return {...identity, ...status};
 }
 export async function cleanupWorkspace(cwd, story, {force = false, env = process.env, say = () => {}} = {}) {
   const context = await storyContext(cwd, story, env);
@@ -115,6 +108,7 @@ export async function cleanupWorkspace(cwd, story, {force = false, env = process
   if (present) {
     const actual = await inspectWorkspace(target, {env}); linked(actual);
     if (actual.common !== context.common || actual.branch !== context.expectedBranch) throw new Error('workspace belongs to another repository or branch');
+    if (await exists(preparationPaths(actual).lock)) throw new Error('PREPARE_BUSY_OR_UNREACHED: resolve preparation lock before cleanup');
     const dirty = await git(target, ['status', '--porcelain'], env);
     if (dirty) throw new Error(`미커밋 변경이 있다 — --force 로도 보존한다\n${dirty}`);
   }
