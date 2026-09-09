@@ -5,6 +5,7 @@ import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {loadConfigSnapshot, configCommand} from './config.mjs';
 import {runCommand} from './process.mjs';
+import {windowsOwner, windowsOwnerGone, windowsHasChildren, spawnWindowsWorker} from './windows-preparation.mjs';
 
 const hash = value => createHash('sha256').update(value).digest('hex');
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -43,7 +44,7 @@ export async function preparationStatus(identity) {
   const ready = !lock && receipt?.version === 1 && receipt.fingerprint === current.fingerprint && receipt.top === identity.top && receipt.gitDir === identity.gitDir;
   return {preparation: ready ? 'ready' : 'not-ready', ready, canDelegate: ready, fingerprint: current.fingerprint};
 }
-async function acquire(paths, token, deadline) {
+async function acquire(paths, token, deadline, identity, env) {
   let joined;
   for (;;) {
     try {
@@ -51,13 +52,14 @@ async function acquire(paths, token, deadline) {
       // The worker is already its process-group leader; no bootstrap exists
       // before this immutable owner record has been written.
       const ownerFile = path.join(paths.lock, `owner-${token}.json`);
-      await fs.writeFile(ownerFile, JSON.stringify({token, pid: process.pid}), {flag: 'wx'});
+      await fs.writeFile(ownerFile, JSON.stringify({token, pid: process.pid, ...(process.platform === 'win32' ? windowsOwner(env) : {})}), {flag: 'wx'});
       await fs.rename(ownerFile, path.join(paths.lock, 'owner.json'));
       return joined;
     } catch (error) { if (error.code !== 'EEXIST') throw error; }
     const owner = await read(path.join(paths.lock, 'owner.json'));
     if (owner && Number.isSafeInteger(owner.pid) && owner.pid > 1 && typeof owner.token === 'string') {
-      if (!alive(owner.pid) && !alive(-owner.pid)) {
+      const gone = candidate => process.platform === 'win32' ? windowsOwnerGone(candidate, {cwd: identity.top, env}) : Promise.resolve(!alive(candidate.pid) && !alive(-candidate.pid));
+      if (await gone(owner)) {
         if (joined === owner.token) throw new Error('PREPARE_JOINED_CRASH: shared preparation worker crashed; retry');
         // Only one contender can recover this lock. Others never remove a
         // missing/malformed owner or a recovery claim abandoned by a crash.
@@ -68,7 +70,7 @@ async function acquire(paths, token, deadline) {
         const claims = await fs.readdir(path.dirname(recovery));
         if (claims.length !== 1 || claims[0] !== token) throw new Error('PREPARE_LOCK_UNREACHED: competing recovery; inspect lock manually');
         const currentOwner = await read(path.join(paths.lock, 'owner.json'));
-        if (currentOwner?.token !== owner.token || currentOwner?.pid !== owner.pid || alive(owner.pid) || alive(-owner.pid)) {
+        if (currentOwner?.token !== owner.token || currentOwner?.pid !== owner.pid || currentOwner?.job !== owner.job || !(await gone(owner))) {
           await fs.unlink(recovery); await fs.rmdir(path.dirname(recovery));
           continue;
         }
@@ -86,7 +88,8 @@ async function acquire(paths, token, deadline) {
 }
 // Called only by the detached worker. A POSIX process group lets a dead owner
 // retain the lock while any bootstrap descendants are still running.
-function groupHasChildren() {
+async function groupHasChildren(env) {
+  if (process.platform === 'win32') return windowsHasChildren(env);
   const result = spawnSync('ps', ['-axo', 'pid=,pgid='], {detached: true, encoding: 'utf8'});
   if (result.error || result.status !== 0) throw new Error('PREPARE_UNREACHED: cannot inspect POSIX process group');
   return result.stdout.trim().split('\n').some(line => { const [pid, group] = line.trim().split(/\s+/).map(Number); return group === process.pid && pid !== process.pid; });
@@ -94,10 +97,10 @@ function groupHasChildren() {
 export async function runPreparation(identity, {env = process.env, say = () => {}} = {}) {
   const initial = await contract(identity);
   if (!initial.command) return {preparation: 'not-configured', ready: false, canDelegate: true};
-  if (process.platform === 'win32') throw new Error('PREPARE_UNSUPPORTED: native Windows process-tree ownership requires an adapter');
+  if (process.platform === 'win32') windowsOwner(env);
   const paths = preparationPaths(identity), token = randomUUID();
   await fs.mkdir(paths.root, {recursive: true});
-  const joined = await acquire(paths, token, Date.now() + initial.timeout + 1000);
+  const joined = await acquire(paths, token, Date.now() + initial.timeout + 1000, identity, env);
   let timer;
   try {
     const current = await contract(identity);
@@ -109,10 +112,10 @@ export async function runPreparation(identity, {env = process.env, say = () => {
     if (!current.command) return {preparation: 'not-configured', ready: false, canDelegate: true};
     // SIGKILL removes this worker and its non-detached descendants together.
     // Lock remains for a later caller to recover only after the group is gone.
-    timer = setTimeout(() => { say('PREPARE_TIMEOUT'); process.kill(-process.pid, 'SIGKILL'); }, current.timeout);
+    timer = setTimeout(() => { say('PREPARE_TIMEOUT'); if (process.platform === 'win32') process.exit(124); else process.kill(-process.pid, 'SIGKILL'); }, current.timeout);
     const result = await runCommand(current.command, {cwd: identity.top, env});
     clearTimeout(timer); timer = undefined;
-    if (groupHasChildren()) throw new Error('PREPARE_BUSY: bootstrap descendants still running; lock retained');
+    if (await groupHasChildren(env)) throw new Error('PREPARE_BUSY: bootstrap descendants still running; lock retained');
     say(result.stdout.toString() + result.stderr.toString());
     if (result.status !== 'exited' || result.code !== 0) throw new Error(`부트스트랩 실패: ${result.error?.message || result.signal || result.code}`);
     if ((await contract(identity)).fingerprint !== current.fingerprint) throw new Error('PREPARE_INPUT_CHANGED: no ready receipt; retry');
@@ -128,7 +131,7 @@ export async function runPreparation(identity, {env = process.env, say = () => {
     throw error;
   } finally {
     clearTimeout(timer);
-    if (groupHasChildren()) throw new Error('PREPARE_BUSY: bootstrap descendants still running; lock retained');
+    if (await groupHasChildren(env)) throw new Error('PREPARE_BUSY: bootstrap descendants still running; lock retained');
     const owner = await read(path.join(paths.lock, 'owner.json'));
     if (owner?.token !== token) throw new Error('PREPARE_LOCK_UNREACHED: ownership changed');
     await fs.unlink(path.join(paths.lock, 'owner.json')); await fs.rmdir(paths.lock);
@@ -138,10 +141,9 @@ export async function prepareWorkspaceIdentity(identity, {env = process.env, say
   // Preflight also distinguishes a legitimate no-command repo from own hooks.
   const status = await preparationStatus(identity);
   if (status.canDelegate) return status;
-  if (process.platform === 'win32') throw new Error('PREPARE_UNSUPPORTED: native Windows process-tree ownership requires an adapter');
   const worker = fileURLToPath(new URL('../scripts/prepare-worker.mjs', import.meta.url));
+  const child = process.platform === 'win32' ? await spawnWindowsWorker(worker, identity, env) : spawn(process.execPath, [worker, identity.top], {cwd: identity.top, env, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [worker, identity.top], {cwd: identity.top, env, detached: true, stdio: ['ignore', 'pipe', 'pipe']});
     let output = '';
     child.stdout.on('data', data => { output += data; }); child.stderr.on('data', data => say(data.toString()));
     child.on('error', reject);

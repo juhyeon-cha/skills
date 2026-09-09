@@ -15,7 +15,6 @@ export function executableCandidates(executable, {cwd, env = process.env, platfo
   const p = platform === 'win32' ? path.win32 : path.posix;
   if (typeof cwd !== 'string' || !p.isAbsolute(cwd)) throw failure('EINVAL', 'absolute cwd required');
   if (platform === 'win32' && (/^[A-Za-z]:(?![\\/])/.test(executable) || /^[\\/](?![\\/])/.test(executable))) throw failure('EINVAL', 'ambiguous Windows executable path');
-  if (platform === 'win32' && /\.(cmd|bat)$/i.test(executable)) throw failure('UNSUPPORTED_EXECUTABLE', 'Windows .cmd/.bat require an explicit adapter; no implicit shell wrapping');
   const explicit = platform === 'win32' ? /[\\/]/.test(executable) : executable.includes('/');
   const searchPath = envValue(env, 'PATH', platform);
   const directories = searchPath === undefined ? [] : searchPath.split(platform === 'win32' ? ';' : ':');
@@ -36,24 +35,45 @@ export async function resolveExecutable(executable, options) {
       if (!['ENOENT', 'ENOTDIR'].includes(error.code)) accessError = error;
       continue;
     }
-    if (platform === 'win32' && !/\.(exe|com)$/i.test(candidate)) throw failure('UNSUPPORTED_EXECUTABLE', 'Windows requires a native .exe/.com; .cmd/.bat and scripts are not implicitly shell-wrapped');
+    if (platform === 'win32' && !/\.(exe|com|cmd|bat)$/i.test(candidate)) throw failure('UNSUPPORTED_EXECUTABLE', 'Windows requires .exe/.com or the explicit .cmd/.bat adapter');
     return candidate;
   }
   throw accessError ?? failure('ENOENT', `executable not found: ${executable}`);
+}
+
+// cmd.exe performs expansion even inside quotes. Refuse expansion/control
+// characters, rather than pretend a general argv-to-batch conversion is lossless.
+// Native executable argv retains the full Node contract, including these bytes.
+export function windowsBatchArguments(executable, args) {
+  for (const value of [executable, ...args]) {
+    if (typeof value !== 'string' || /[\x00-\x1f\x7f"%!^&|<>()]/.test(value) || value.endsWith('\\')) throw failure('UNREPRESENTABLE_BATCH_ARGUMENT', 'batch arguments cannot contain control characters, quotes, trailing backslash or cmd expansion/operator characters; invoke the native executable for arbitrary argv');
+  }
+  return ['/d', '/s', '/v:off', '/c', '"' + [executable, ...args].map(value => '"' + value + '"').join(' ') + '"'];
+}
+
+export async function commandLaunch(argv, {cwd, env = process.env, platform = process.platform}) {
+  const executable = await resolveExecutable(argv[0], {cwd, env, platform});
+  if (platform !== 'win32' || !/\.(cmd|bat)$/i.test(executable)) return {executable, args: argv.slice(1), windowsVerbatimArguments: false};
+  const args = windowsBatchArguments(executable, argv.slice(1));
+  // Resolve a native interpreter explicitly. Never turn on Node's shell option.
+  const interpreter = envValue(env, 'COMSPEC', platform) || 'cmd.exe';
+  const cmd = await resolveExecutable(interpreter, {cwd, env, platform});
+  if (path.win32.basename(cmd).toLowerCase() !== 'cmd.exe') throw failure('UNSUPPORTED_EXECUTABLE', 'batch interpreter must be cmd.exe');
+  return {executable: cmd, args, windowsVerbatimArguments: true};
 }
 
 // Completion is explicit: an exit code, a terminating signal, or a launch error.
 // stdout/stderr remain buffers; no shell quoting or text re-encoding is applied.
 export async function runCommand(command, {cwd, env = process.env} = {}) {
   validateCommand(command);
-  let executable;
+  let launch;
   const argv = typeof command === 'string' ? ['bash', '-c', command] : command.argv;
-  try { executable = await resolveExecutable(argv[0], {cwd, env}); }
+  try { launch = await commandLaunch(argv, {cwd, env}); }
   catch (error) { return {status: 'spawn_error', code: null, signal: null, error: {code: error.code, message: error.message}, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0)}; }
   return new Promise(resolve => {
     const stdout = [], stderr = []; let error;
     let child;
-    try { child = spawn(executable, argv.slice(1), {cwd, env, shell: false, stdio: ['ignore', 'pipe', 'pipe']}); }
+    try { child = spawn(launch.executable, launch.args, {cwd, env, windowsVerbatimArguments: launch.windowsVerbatimArguments, shell: false, stdio: ['ignore', 'pipe', 'pipe']}); }
     catch (err) { resolve({status: 'spawn_error', code: null, signal: null, error: {code: err.code, message: err.message}, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0)}); return; }
     child.stdout.on('data', data => stdout.push(data));
     child.stderr.on('data', data => stderr.push(data));

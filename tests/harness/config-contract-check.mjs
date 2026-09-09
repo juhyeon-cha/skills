@@ -105,7 +105,7 @@ try {
   }
   const win = {cwd: 'C:\\repo space', platform: 'win32', env: {Path: 'C:\\Program Files\\bin;\\\\server\\share\\bin', PATHEXT: '.EXE;.CMD'}};
   check(JSON.stringify(executableCandidates('node', win)) === JSON.stringify(['C:\\Program Files\\bin\\node.EXE', 'C:\\Program Files\\bin\\node.CMD', '\\\\server\\share\\bin\\node.EXE', '\\\\server\\share\\bin\\node.CMD']), 'Windows PATH/PATHEXT lexical candidates');
-  for (const name of ['npm.cmd', 'C:\\bin\\npm.BAT']) { await rejects(() => resolveExecutable(name, win), /implicit shell wrapping/, 'Windows script launcher explicitly unsupported'); }
+  for (const name of ['npm.cmd', 'C:\\bin\\npm.BAT']) { check(executableCandidates(name, win).length > 0, 'Windows script launcher reaches explicit adapter discovery'); }
   await rejects(() => resolveExecutable('C:relative.exe', win), /ambiguous/, 'Windows drive-relative executable denied');
   // Run this same suite against a source copy with version validation removed.
   // Its invalid-version assertion must fail, establishing a live negative gate.

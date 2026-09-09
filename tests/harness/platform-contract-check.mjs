@@ -21,9 +21,9 @@ const report = {schema: 1, host: process.platform, expectedHost: expected, node:
   boundaries: {
     hooksAndGuard: 'Bash/jq consumers; native transport integration UNREACHED',
     workspaceLifecycle: 'create/enter/cleanup still call Bash ledger; inspect tested separately',
-    preparation: process.platform === 'win32' ? 'UNSUPPORTED: configured preparation requires POSIX process-group ownership' : 'not exercised by this suite',
+    preparation: 'configured preparation exercised by native-preparation-contract-check.mjs',
     legacyCommands: 'Bash strings retain shell semantics; structured argv uses no shell',
-    windowsLaunchers: 'UNSUPPORTED: implicit .cmd/.bat or shebang launch',
+    windowsLaunchers: 'explicit cmd.exe adapter; constrained batch argv; arbitrary argv uses native executable',
     roles: 'native runtime registration/load/result not exercised',
     wslAndGitBash: 'transitional environments; not established by native core fixtures',
   }};
@@ -61,7 +61,7 @@ try {
   await check('Windows lexical constraints are not host execution evidence', () => {
     const options = {cwd: 'C:\\공백 repo', platform: 'win32', env: {Path: 'C:\\tools', PATHEXT: '.EXE;.CMD'}};
     assert.deepEqual(executableCandidates('node', options), ['C:\\tools\\node.EXE', 'C:\\tools\\node.CMD']);
-    assert.throws(() => executableCandidates('npm.cmd', options), /explicit adapter/);
+    assert.deepEqual(executableCandidates('npm.cmd', options), ['C:\\tools\\npm.cmd']);
     assert.throws(() => executableCandidates('C:relative', options), /ambiguous/);
     assert.equal(normalizePath('..\\새 파일', 'C:\\repo\\src'), 'C:\\repo\\새 파일');
     assert.equal(normalizePath('파일', '\\\\server\\share\\repo'), '\\\\server\\share\\repo\\파일');
@@ -114,10 +114,10 @@ try {
         coverage: 'direct dependency floor; POSIX utilities/transitive dependencies also required', integration: 'UNREACHED'};
     }
     assert.match(await read('lib/workspace.mjs'), /argv: \['bash', path.join\(plugin, 'scripts\/ledger.sh'\)/);
-    assert.match(await read('lib/preparation.mjs'), /PREPARE_UNSUPPORTED/);
+    assert.match(await read('lib/preparation.mjs'), /spawnWindowsWorker/);
     assert.match(await read('scripts/hook.mjs'), /bash/);
   });
-  await check('no-command preparation uses no shell; configured Windows preparation stays refused', async () => {
+  await check('no-command preparation uses no shell; configured preparation requires an execution result', async () => {
     const identity = await inspectWorkspace(linked, {env: gitEnv});
     const file = path.join(linked, '.harness.json');
     await fs.writeFile(file, JSON.stringify({ledger: {backend: 'github'}}));
@@ -125,11 +125,7 @@ try {
       {preparation: 'not-configured', ready: false, canDelegate: true});
     await fs.writeFile(file, JSON.stringify({ledger: {backend: 'github'}, bootstrap: {argv: [process.execPath, script]}}));
     assert.equal((await preparationStatus(identity)).canDelegate, false);
-    if (process.platform === 'win32') {
-      await assert.rejects(prepareWorkspaceIdentity(identity, {env: emptyPath}), /PREPARE_UNSUPPORTED/);
-      assert.equal((await preparationStatus(identity)).ready, false);
-      report.windowsPreparationRefusal = 'PASS on actual win32';
-    } else report.windowsPreparationRefusal = 'UNREACHED: requires actual win32';
+    report.configuredPreparation = 'UNREACHED in core suite: run native-preparation-contract-check.mjs';
   });
   assert.equal(checks.length, 9, 'all judgment points must run');
   report.core = 'PASS';

@@ -12,9 +12,9 @@ jobs:
       matrix:
         node: [22, 24]
         host:
-          - {runner: macos-latest, platform: darwin, shell: bash}
-          - {runner: ubuntu-latest, platform: linux, shell: bash}
-          - {runner: windows-latest, platform: win32, shell: pwsh}
+          - {runner: macos-latest, platform: darwin}
+          - {runner: ubuntu-latest, platform: linux}
+          - {runner: windows-latest, platform: win32}
     runs-on: ${{ matrix.host.runner }}
     steps:
       - uses: actions/checkout@v7
@@ -26,8 +26,9 @@ jobs:
           package-manager-cache: false
       # pwsh is the native Windows runner shell; the test spawns no shell.
       - name: Run identical Node/Git core suite (not full product certification)
-        shell: ${{ matrix.host.shell }}
         run: node tests/harness/platform-contract-check.mjs ${{ matrix.host.platform }} platform-contract.json
+      - name: Run native process and configured preparation contracts
+        run: node tests/harness/native-preparation-contract-check.mjs ${{ matrix.host.platform }}
       - name: Preserve reached scope even when a contract fails
         if: always()
         uses: actions/upload-artifact@v7
