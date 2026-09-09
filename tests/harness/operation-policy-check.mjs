@@ -48,6 +48,36 @@ try {
     check(!isReadonlySearch(command), 'execution/redirect is not readonly');
     check(guard(event('Bash', {command})).status === 2, `write or indirect command remains conservative: ${command}`);
   }
+  // Execute only disposable preprocessing canaries: prove that shell expansion
+  // can turn apparently harmless options into rg's executable --pre option.
+  const preBin = path.join(temp, 'pre-bin'); fs.mkdirSync(preBin);
+  fs.writeFileSync(path.join(preBin, 'pre'), '#!/bin/sh\nprintf invoked > "$PRE_CANARY"\ncat "$1"\n', {mode: 0o755});
+  fs.writeFileSync(path.join(wt, '--pre=pre'), '');
+  fs.writeFileSync(path.join(repo, 'input'), 'needle\n');
+  const expansions = ['--pre{,}=pre', '--pr?=*', '--pr[e]=pre'];
+  const observations = expansions.map(option => {
+    const command = `rg ${option} needle '${repo}/input'`;
+    const canary = path.join(temp, `canary-${expansions.indexOf(option)}`);
+    const probeEnv = {...env, PATH: `${preBin}:${env.PATH}`, PRE_CANARY: canary};
+    delete probeEnv.RIPGREP_CONFIG_PATH;
+    const actual = run('/bin/bash', ['-c', command], {cwd: wt, env: probeEnv});
+    check(actual.status === 0 && fs.existsSync(canary), `actual preprocessor canary: ${option}`);
+    const guarded = guard(event('Bash', {command}), probeEnv);
+    console.log(`expansion canary ${option}: execution=${actual.status}, canary=${fs.existsSync(canary)}, guard=${guarded.status}`);
+    return {command, guarded};
+  });
+  for (const {command, guarded} of observations) {
+    check(!isReadonlySearch(command), `expanded option is not readonly: ${command}`);
+    check(guarded.status === 2, `expanded executable option denies: ${command}`);
+  }
+  for (const syntax of ['{a,b}', '*', '?', '[ab]', '~', '$HOME', '$(pwd)', '`pwd`', '<(pwd)', '>(cat)', '$((1+1))']) {
+    check(!isReadonlySearch(`rg ${syntax} file`), `unquoted expansion excluded: ${syntax}`);
+  }
+  for (const literal of ["'{a,b} * ? [ab] ~ $HOME $(pwd) `pwd`'", '"{a,b} * ? [ab] ~"']) {
+    const command = `rg ${literal} '${repo}/input'`;
+    check(isReadonlySearch(command), 'quoted expansion characters remain literal');
+    check(guard(event('Bash', {command})).status === 0, 'quoted literal search allowed');
+  }
   check(normalizeHookEvent(event('exec_command', {cmd: 'pwd'})).tool_name === 'Bash', 'exec_command maps to Bash');
   for (const extra of [{agent_type: false}, {agent_id: 0}, {cwd: '.'}]) check(guard(event('Bash', {command: 'pwd'}, extra)).status === 2, 'malformed identity/cwd fails closed');
   for (const e of [event('apply_patch', {command: 'unknown'}), event('apply_patch', {command: patch('')}), event('apply_patch', {command: patch('*** Unknown File: x')}), event('Write', {}), event('Bash', {}), event('Bash', {command: 'pwd'}, {agent_id: 'child'}), event('Bash', {command: 'pwd'}, {agent_type: 'unknown'}), {...event('Bash', {command: 'pwd'}), cwd: ''}]) check(guard(e).status === 2, 'unknown/missing input fails closed');

@@ -57,6 +57,9 @@ export function isReadonlySearch(command) {
     if (c === '$' || c === '`' || c === '\\') return false;
     if (quote === '"') { if (c === '"') quote = ''; else word += c; active = true; continue; }
     if (c === '"' || c === "'") { quote = c; active = true; continue; }
+    // Unquoted brace, pathname and tilde expansions can manufacture options.
+    // Quoted literals have already been consumed above and remain read-only.
+    if ('{}*?[]~'.includes(c)) return false;
     if (c === '>' || c === '<' || c === '(' || c === ')' || c === '&') return false;
     if (c === ';' || c === '|' || c === '\n') { finish(); if (!segments.at(-1).length) return false; segments.push([]); continue; }
     if (/\s/.test(c)) { finish(); continue; }
