@@ -25,5 +25,8 @@ CLI registration and live session observations. Bash/jq/Python used by a POSIX
 developer regression runner are not hidden product requirements. A repository's
 legacy Bash command string remains its explicit compatibility dependency. POSIX
 preparation additionally uses the host's `ps` for owned process-group inspection.
+The shipped guardrail check also uses `bash -n` on POSIX to validate retained
+shell wrappers. This is a declared verification dependency; Windows validates
+their source presence without executing Bash, and checks native modules with Node.
 
 Windows Job ownership follows [JOB_LIST process creation](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-updateprocthreadattribute) and [Job Object lifetime](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects). Windows process launch restrictions follow [Node child process documentation](https://nodejs.org/api/child_process.html#spawning-bat-and-cmd-files-on-windows). Host matrix and shell behavior follow [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax).
