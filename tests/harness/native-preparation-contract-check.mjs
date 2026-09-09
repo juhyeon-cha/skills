@@ -12,7 +12,7 @@ import {prepareWorkspaceIdentity, preparationPaths, preparationStatus} from '../
 assert.equal(process.platform, process.argv[2] || process.platform, 'actual host must match requested evidence');
 const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'native-prepare-'));
 const repo = path.join(temp, '원본 repo'), wt = path.join(temp, '준비 workspace');
-const env = {...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: os.devNull, GIT_TERMINAL_PROMPT: '0'};
+const env = {...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: path.join(temp, 'empty.gitconfig'), GIT_TERMINAL_PROMPT: '0'};
 for (const key of Object.keys(env)) if (key.startsWith('GIT_') && !['GIT_CONFIG_NOSYSTEM', 'GIT_CONFIG_GLOBAL', 'GIT_TERMINAL_PROMPT'].includes(key)) delete env[key];
 let reached = 0;
 const check = async (name, fn) => { await fn(); reached++; console.log(`PASS ${name}`); };
@@ -20,6 +20,7 @@ const exists = file => fs.stat(file).then(() => true, error => { if (error.code 
 const waitFor = async predicate => { const deadline = Date.now() + 30000; while (!(await predicate())) { if (Date.now() > deadline) throw new Error('fixture judgment UNREACHED'); await new Promise(r => setTimeout(r, 30)); } };
 let identity, paths;
 try {
+  await fs.writeFile(env.GIT_CONFIG_GLOBAL, '');
   await fs.mkdir(repo);
   const git = async args => { const result = await runCommand({argv: ['git', ...args]}, {cwd: repo, env}); assert.equal(result.code, 0, result.stderr.toString()); };
   await git(['init', '--initial-branch=main']);
