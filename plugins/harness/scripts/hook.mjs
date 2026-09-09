@@ -1,19 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {spawnSync} from 'node:child_process';
 import {pluginRoot, readJson} from '../lib/distribution.mjs';
 import {recordHook} from '../lib/doctor.mjs';
 import {recordStateEvent, formatStateContext} from '../lib/state.mjs';
+import {sessionContext} from '../lib/session-context.mjs';
 
 try {
   const id = process.argv[2];
+  const rest = process.argv.slice(3);
+  if (rest.length) {
+    if (rest.length !== 2 || rest[0] !== '--runtime' || !['claude', 'codex'].includes(rest[1])) throw new Error('invalid hook runtime argument');
+    if (process.env.HARNESS_RUNTIME && process.env.HARNESS_RUNTIME !== rest[1]) throw new Error('hook runtime conflicts with environment');
+    process.env.HARNESS_RUNTIME = rest[1];
+  }
   const definition = readJson(path.join(pluginRoot, 'lib/hook-definitions.json')).find(entry => entry.id === id);
   if (!definition) throw new Error('unknown hook');
   const input = fs.readFileSync(0, 'utf8');
   const event = JSON.parse(input);
   if (event.hook_event_name !== definition.event) throw new Error('hook event mismatch');
-  const run = definition.script ? spawnSync('bash', [path.join(pluginRoot, definition.script)], {input, encoding: 'utf8', env: {...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot}}) : {status: 0, stdout: '', stderr: ''};
-  const code = run.status ?? 2;
+  let run = {code: 0, stdout: '', stderr: ''};
+  if (id === 'context') run.stdout = JSON.stringify(sessionContext(pluginRoot));
+  else if (id === 'guard') run = await (await import('../lib/guard.mjs')).evaluateGuard(event, {pluginRoot});
+  else if (id === 'stop') run = await (await import('../lib/stop.mjs')).evaluateStop(event, {pluginRoot});
+  else if (id === 'workspace') {
+    if (typeof event.cwd !== 'string' || !path.isAbsolute(event.cwd)) throw new Error('payload cwd required');
+    try { await (await import('../lib/workspace.mjs')).enterWorkspace(event.cwd, {say: line => { run.stderr += line + '\n'; }}); }
+    catch (error) { run.code = 2; run.stderr += `원장 배선 실패 — ${error.message}\n`; }
+  }
+  else if (!['role-start', 'role-stop'].includes(id)) throw new Error('registered hook has no native handler');
+  const code = run.code;
   let stateContext;
   try {
     const scope = await recordStateEvent(event, code);

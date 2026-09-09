@@ -17,19 +17,19 @@ try {
   const claude = readJson(path.join(copy, '.claude-plugin/plugin.json'));
   const codex = readJson(path.join(copy, '.codex-plugin/plugin.json'));
   check(claude.version === codex.version && claude.description === codex.description, 'Claude metadata owns version/description');
-  check(!('skills' in codex) && !('hooks' in codex), 'one default skills/hooks registration');
+  check(!('skills' in codex) && codex.hooks === './hooks/codex.json', 'one default skills registration and one Codex hook override');
   const wiring = hookWiring(copy);
-  check(wiring.length === 6 && wiring.filter(e => e.script).length === 4, 'all transports resolved; four Bash owners and two observers');
-  const command = wiring.find(e => e.event === 'PreToolUse').command;
+  check(wiring.length === 6 && wiring.filter(e => e.script).length === 4, 'all transports resolved; four common handlers and two observers');
+  const command = hookWiring(copy, path.join(copy, 'hooks/codex.json')).find(e => e.event === 'PreToolUse').command;
   const missingEnv = {...process.env, PATH: path.join(temp, 'empty-path'), CLAUDE_PLUGIN_ROOT: copy, HARNESS_DOCTOR_DIR: ''};
   const oldCommand = command.replace(' || exit 2', '');
   check(oldCommand !== command && spawnSync('/bin/sh', ['-c', oldCommand], {env: missingEnv}).status === 127, 'negative control: missing Node without transport returns 127');
   check(spawnSync('/bin/sh', ['-c', command], {env: missingEnv}).status === 2, 'actual generated transport maps missing Node to block rc2');
   const nodeOnly = path.join(temp, 'node-only'); fs.mkdirSync(nodeOnly); fs.symlinkSync(process.execPath, path.join(nodeOnly, 'node'));
-  check(spawnSync('/bin/sh', ['-c', command], {env: {...missingEnv, PATH: nodeOnly}, input: JSON.stringify({hook_event_name: 'PreToolUse', session_id: 'fixture', cwd: temp, tool_name: 'Bash', tool_input: {command: 'pwd'}})}).status === 2, 'missing Bash transport blocks');
+  check(spawnSync('/bin/sh', ['-c', command], {env: {...missingEnv, HARNESS_RUNTIME: 'codex', PATH: nodeOnly}, input: JSON.stringify({hook_event_name: 'PreToolUse', session_id: 'fixture', cwd: temp, tool_name: 'Bash', tool_input: {command: 'pwd'}})}).status === 0, 'native policy works without Bash or jq');
   const legacy = path.join(temp, 'legacy-hooks.json');
   fs.writeFileSync(legacy, JSON.stringify({hooks: Object.fromEntries(wiring.filter(e => e.script).map(e => [e.event, [{...e.matcher ? {matcher: e.matcher} : {}, hooks: [{type: 'command', command: `bash "\${CLAUDE_PLUGIN_ROOT}/${e.script}"`}]}]]))}));
-  check(hookWiring(copy, legacy).length === 4, 'existing Claude Bash wiring resolves');
+  assert.throws(() => hookWiring(copy, legacy)); count++; // Old metadata is not evidence that the new native artifact loaded.
   for (const file of ['.codex-plugin/plugin.json', 'hooks/hooks.json', 'agents/reviewer.md', 'hooks/session-context.md']) {
     const full = path.join(copy, file); const before = fs.readFileSync(full);
     fs.unlinkSync(full); assert.throws(() => inspectDistribution(copy)); count++;

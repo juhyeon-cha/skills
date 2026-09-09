@@ -6,7 +6,7 @@ try {
   const event = normalizeHookEvent(JSON.parse(fs.readFileSync(0, 'utf8')));
   event.harness_workspace_action = '';
   if (event.tool_name === 'Bash') {
-    const workspace = workspaceShellCommand(event.tool_input.command, fileURLToPath(new URL('./workspace.mjs', import.meta.url)));
+    const workspace = workspaceShellCommand(event.tool_input.command, fileURLToPath(new URL('./workspace.mjs', import.meta.url)), {dialect: event.harness_shell_dialect});
     if (workspace) {
       if (['harness:reviewer', 'harness:evaluator'].includes(event.agent_type) && !['inspect', 'ready'].includes(workspace.action)) throw new Error('grader cannot mutate workspace lifecycle');
       event.harness_workspace_action = workspace.action;

@@ -9,7 +9,20 @@ export const pluginRoot = fs.realpathSync(fileURLToPath(new URL('../', import.me
 export const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 export const readJson = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 const encoded = value => JSON.stringify(value, null, 2) + '\n';
-const hookCommand = id => `node "\${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs" ${id} || exit 2`;
+const hookCommand = id => `node "\${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs" ${id} --runtime codex || exit 2`;
+// Codex 0.153.4 uses cmd.exe /C with an outer-quoted command on Windows.
+// EncodedCommand avoids embedded cmd quotes. This generated shim only locates
+// the common executable and preserves streams/status; it contains no policy.
+export function windowsHookCommand(id) {
+  if (!/^[a-z-]+$/.test(id)) throw new Error('invalid hook identifier');
+  const source = `$ErrorActionPreference='Stop'; try { $root=$env:PLUGIN_ROOT; if (-not $root) { $root=$env:CLAUDE_PLUGIN_ROOT }; if (-not $root) { throw 'plugin root missing' }; & node (Join-Path $root 'scripts/hook.mjs') '${id}' --runtime codex; if ($null -eq $LASTEXITCODE) { throw 'Node exit status missing' }; exit $LASTEXITCODE } catch { [Console]::Error.WriteLine('UNREACHED: '+$_.Exception.Message); exit 2 }`;
+  return `powershell.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(source, 'utf16le').toString('base64')}`;
+}
+export function hookTransport(id, runtime) {
+  if (runtime === 'claude') return {type: 'command', command: 'node', args: [`\${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs`, id, '--runtime', 'claude']};
+  if (runtime === 'codex') return {type: 'command', command: hookCommand(id), commandWindows: windowsHookCommand(id)};
+  throw new Error('unknown hook runtime');
+}
 
 // Deliberately limited YAML: flat mappings and a single scalar skill name.
 // Reject unsupported structure instead of guessing a registration identity.
@@ -35,16 +48,19 @@ export function hookWiring(root = pluginRoot, configFile = path.join(root, 'hook
   const definitions = readJson(path.join(root, 'lib/hook-definitions.json'));
   const rows = [];
   for (const [event, groups] of Object.entries(readJson(configFile).hooks)) for (const group of groups) for (const hook of group.hooks) {
-    const definition = definitions.find(entry => entry.event === event && (hook.command === hookCommand(entry.id) || (entry.script && hook.command === `bash "\${CLAUDE_PLUGIN_ROOT}/${entry.script}"`)));
+    const definition = definitions.find(entry => entry.event === event && ['claude', 'codex'].some(runtime => {
+      const transport = hookTransport(entry.id, runtime);
+      return hook.command === transport.command && JSON.stringify(hook.args) === JSON.stringify(transport.args) && hook.commandWindows === transport.commandWindows;
+    }));
     if (hook.type !== 'command' || !definition || !fs.existsSync(path.join(root, 'scripts/hook.mjs')) || (definition.script && !fs.existsSync(path.join(root, definition.script)))) throw new Error('unresolved hook transport/target');
-    rows.push({event, matcher: group.matcher ?? '', command: hook.command, script: definition.script ?? null});
+    rows.push({event, matcher: group.matcher ?? '', command: hook.command, ...(hook.args ? {args: hook.args} : {}), ...(hook.commandWindows ? {commandWindows: hook.commandWindows} : {}), script: definition.script ?? null});
   }
   return rows;
 }
 
 export function projections(root = pluginRoot) {
   const manifest = readJson(path.join(root, '.claude-plugin/plugin.json'));
-  const hooks = {};
+  const hooks = {}, codexHooks = {};
   const seen = new Set();
   const registrations = new Set();
   for (const entry of readJson(path.join(root, 'lib/hook-definitions.json'))) {
@@ -53,13 +69,15 @@ export function projections(root = pluginRoot) {
     const registration = JSON.stringify([entry.event, entry.matcher ?? '', entry.script ?? '']);
     if (registrations.has(registration)) throw new Error('duplicate hook registration');
     registrations.add(registration);
-    const hook = {type: 'command', command: hookCommand(entry.id), timeout: entry.timeout};
+    const hook = {...hookTransport(entry.id, 'claude'), timeout: entry.timeout};
     (hooks[entry.event] ??= []).push({...entry.matcher ? {matcher: entry.matcher} : {}, hooks: [hook]});
+    (codexHooks[entry.event] ??= []).push({...entry.matcher ? {matcher: entry.matcher} : {}, hooks: [{...hookTransport(entry.id, 'codex'), timeout: entry.timeout}]});
   }
   for (const id of ['context', 'guard', 'workspace', 'stop', 'role-start', 'role-stop']) if (!seen.has(id)) throw new Error(`required hook missing: ${id}`);
   return {
-    '.codex-plugin/plugin.json': encoded({...manifest, interface: {displayName: manifest.name, shortDescription: manifest.description, longDescription: manifest.description, developerName: manifest.author.name, category: 'Productivity', capabilities: ['Write'], defaultPrompt: []}}),
-    'hooks/hooks.json': encoded({description: 'Generated from lib/hook-definitions.json; shared runtime hooks, Node prerequisite.', hooks}),
+    '.codex-plugin/plugin.json': encoded({...manifest, hooks: './hooks/codex.json', interface: {displayName: manifest.name, shortDescription: manifest.description, longDescription: manifest.description, developerName: manifest.author.name, category: 'Productivity', capabilities: ['Write'], defaultPrompt: []}}),
+    'hooks/hooks.json': encoded({description: 'Generated Claude exec transport from lib/hook-definitions.json; shared Node handlers.', hooks}),
+    'hooks/codex.json': encoded({description: 'Generated Codex transport from lib/hook-definitions.json; replaces default hooks to avoid duplicate registration.', hooks: codexHooks}),
   };
 }
 

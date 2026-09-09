@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {powershellOperations} from './powershell-operations.mjs';
 
 export function workspaceArguments(args) {
   const [action, cwd, ...rest] = args;
@@ -19,7 +20,17 @@ export function workspaceArguments(args) {
 
 // Recognize a single literal invocation, never evaluate shell text. The same
 // argument contract is used by the CLI before any mutation.
-export function workspaceShellCommand(command, script) {
+export function workspaceShellCommand(command, script, {dialect = 'posix'} = {}) {
+  if (dialect === 'powershell') {
+    try {
+      const parsed = powershellOperations(command, path.dirname(script));
+      if (parsed.dynamic || parsed.redirect || parsed.commands.length !== 1) return null;
+      const words = parsed.commands[0];
+      if (!['node', 'node.exe', process.execPath].includes(words[0]) || !path.isAbsolute(words[1] ?? '')) return null;
+      if (fs.realpathSync(words[1]) !== fs.realpathSync(script)) return null;
+      return workspaceArguments(words.slice(2));
+    } catch { return null; }
+  }
   const words = []; let word = '', quote = '', active = false;
   for (const c of command) {
     if (quote === "'") { if (c === "'") quote = ''; else word += c; active = true; continue; }

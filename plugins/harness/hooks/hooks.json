@@ -1,12 +1,18 @@
 {
-  "description": "Generated from lib/hook-definitions.json; shared runtime hooks, Node prerequisite.",
+  "description": "Generated Claude exec transport from lib/hook-definitions.json; shared Node handlers.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" context || exit 2",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "context",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 10
           }
         ]
@@ -17,7 +23,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" guard || exit 2",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "guard",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 10
           }
         ]
@@ -29,7 +41,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" workspace || exit 2",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "workspace",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 600
           }
         ]
@@ -40,7 +58,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" stop || exit 2",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "stop",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 30
           }
         ]
@@ -51,7 +75,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" role-start || exit 2",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "role-start",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 10
           }
         ]
@@ -62,7 +92,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs\" role-stop || exit 2",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "role-stop",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 10
           }
         ]

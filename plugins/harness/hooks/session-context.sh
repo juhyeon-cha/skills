@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
-# SessionStart: inject session-context.md (the always-on harness block) as additionalContext.
-# JSON escaping is done with sed/awk only — the hook must emit valid JSON without jq.
-set -u
-md="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}/hooks/session-context.md"
-tab=$(printf '\t')
-body=$(sed -e 's/\\/\\\\/g' -e 's/"/\\"/g' -e "s/$tab/\\\\t/g" -e 's/\r$//' "$md" | awk '{printf "%s\\n", $0}')
-printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"%s"}}\n' "$body"
+# POSIX compatibility transport; the common Node handler owns behavior.
+set -uo pipefail
+ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+command -v node >/dev/null 2>&1 || { echo "UNREACHED: node executable missing" >&2; exit 2; }
+exec node "$ROOT/scripts/session-context.mjs" "$@"

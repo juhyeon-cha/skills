@@ -78,10 +78,13 @@ cd "$ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $ROOT" 
 # 사본이 전부 그 값을 앵커로 읽어 ④ 가 거짓 실패한다. 아래에서는 명시적으로 넘길 때만 쓴다.
 unset CLAUDE_PLUGIN_ROOT
 
-HOOK="$ROOT/hooks/guard.sh"
+HOOK="$ROOT/lib/guard.mjs"
+SOURCE_FIXTURE="$TESTS_ROOT/harness/guard-source-fixture.mjs"
+source_copy() { node "$SOURCE_FIXTURE" "$1" "$HOOK" "$2" "${3-}"; }
+hook_inventory() { node "$SOURCE_FIXTURE" inventory "$HOOK" "$1"; }
 # 심볼릭 링크를 미리 푼다 — 훅의 GUARD_ROOT 는 `cd && pwd` 로 실경로를 내므로
 # macOS 의 /var → /private/var 차이가 ④ 를 거짓 실패로 만든다.
-TMP=$(cd "$(mktemp -d)" && pwd)
+TMP=$(cd "$(mktemp -d)" && pwd -P)
 trap 'rm -rf "$TMP"' EXIT
 
 # 발화 로그를 임시 경로로 돌린다. 이 게이트는 훅을 수백 번 먹이므로 기본 경로
@@ -183,12 +186,12 @@ step "FX_CLONE 이 본 체크아웃 밖이다 (같은 사유)" outside_main "$FX
 # 경로 실재만으로는 부족하다 — 그 파일이 토큰을 실제로 담지 않으면 명령 문자열에 판정 재료가
 # 없어 픽스처가 공허하게 통과하므로, **낱말이 그 파일에 실제로 있다**까지 여기서 단언한다.
 QUOTE_FX=(
-  "ledger.sh note|agents/implementer.md"
-  "HARNESS_ROOT=|skills/develop/SKILL.md"
+  "ledger note|agents/implementer.md"
+  "--root|skills/develop/SKILL.md"
   "gh pr create|skills/develop/SKILL.md"
-  "ledger.sh close|skills/develop/SKILL.md"
-  "ledger.sh create|hooks/session-context.md"
-  "ledger.sh update|skills/develop/SKILL.md"
+  "ledger close|skills/develop/SKILL.md"
+  "ledger create|hooks/session-context.md"
+  "ledger update|skills/develop/SKILL.md"
 )
 qfx_cmd=()
 for e in "${QUOTE_FX[@]}"; do
@@ -208,22 +211,24 @@ FX_Q_BDUPDATE="${qfx_cmd[5]}"
 # rc 는 파이프 밖에서 채집한다 (plugins/harness/docs/engineering.md "Shell traps").
 GUARD_RC=0
 GUARD_OUT=""
-runh() {  # runh <훅경로> <json> [env...]
+runh() {  # runh <Node policy source> <json> [env...]
   local hook="$1" json="$2"; shift 2
   local copy_root
-  copy_root="$(dirname "$(dirname "$hook")")"
+  copy_root="$ROOT"
   if [ "$hook" != "$HOOK" ] && [ -f "$hook" ]; then
+    copy_root="$(dirname "$(dirname "$hook")")"
     if [ "$(basename "$(dirname "$hook")")" != hooks ]; then
       copy_root="$TMP/support-$(basename "$hook")"
-      set -- "CLAUDE_PLUGIN_ROOT=$copy_root" "$@"
     fi
-    mkdir -p "$copy_root/lib" "$copy_root/scripts"
-    cp "$ROOT/lib/"*.mjs "$ROOT/lib/harness-root.sh" "$copy_root/lib/"
-    cp "$ROOT/scripts/workspace.mjs" "$copy_root/scripts/"
-    cp "$ROOT/scripts/normalize-hook.mjs" "$ROOT/scripts/state.mjs" "$copy_root/scripts/"
+    mkdir -p "$copy_root/lib" "$copy_root/scripts" "$copy_root/hooks"
+    cp -R "$ROOT/lib/." "$copy_root/lib/"
+    cp "$ROOT/hooks/guard.mjs" "$copy_root/hooks/"
+    cp "$ROOT/scripts/workspace.mjs" "$ROOT/scripts/state.mjs" "$copy_root/scripts/"
+    cp "$hook" "$copy_root/lib/guard.mjs"
   fi
-  GUARD_OUT=$(printf '%s' "$json" | env "$@" "$hook" 2>&1); GUARD_RC=$?
+  GUARD_OUT=$(printf '%s' "$json" | env "$@" node "$copy_root/hooks/guard.mjs" 2>&1); GUARD_RC=$?
 }
+
 run() { runh "$HOOK" "$@"; }
 
 # 훅 사본을 <앵커>/hooks/guard.sh 로 만들고 규칙 파일을 RULES=() 바로 뒤에
@@ -234,10 +239,7 @@ mkhook() {  # mkhook <앵커디렉토리> <규칙파일>
   local anchor="$1" rules="$2"
   HOOK_COPY="$anchor/hooks/guard.sh"
   mkdir -p "$anchor/hooks"
-  awk -v f="$rules" '
-    { print }
-    /^RULES=\(\)$/ && !ins { while ((getline l < f) > 0) print l; ins = 1 }
-  ' "$HOOK" > "$HOOK_COPY"
+  source_copy inject "$HOOK_COPY" "$rules"
   chmod +x "$HOOK_COPY"
   # 앵커 줄(`RULES=()`)이 바뀌면 awk 가 조용히 원본을 복사한다 — 그러면 이후 단언이
   # 전부 공허해진다. 삽입이 실제로 일어났음을 먼저 못박는다.
@@ -283,16 +285,15 @@ done
 
 echo "── ③④ 훅 사본에 규칙을 끼워 필드 파싱·디스패치·앵커를 실측 ──"
 cat > "$TMP/probe.sh" <<'EOF'
-# 게이트 전용 검사 규칙 — 배포되는 훅에는 없다.
-probe_agent_type() {
-  [[ "$AGENT_TYPE" = "harness:implementer" ]] && deny "probe agent_type=$AGENT_TYPE"
-  return 0
+// 게이트 전용 검사 규칙 — 배포되는 훅에는 없다.
+function probe_agent_type(ctx) {
+  if (ctx.event.agent_type === 'harness:implementer') deny(ctx, 'probe agent_type=' + ctx.event.agent_type);
 }
-probe_root() {
-  [[ "$GUARD_ROOT" = "${GUARD_EXPECT_ROOT:-}" ]] || deny "probe GUARD_ROOT=$GUARD_ROOT"
-  return 0
+function probe_root(ctx) {
+  if (ctx.pluginRoot !== ctx.env.GUARD_EXPECT_ROOT) deny(ctx, 'probe GUARD_ROOT=' + ctx.pluginRoot);
 }
-RULES+=("Bash:probe_agent_type" "*:probe_root")
+RULES.push({matcher: 'Bash', run: probe_agent_type});
+RULES.push({matcher: '*', run: probe_root});
 EOF
 mkhook "$TMP/anchor" "$TMP/probe.sh"
 PROBE="$HOOK_COPY"
@@ -333,8 +334,8 @@ step "배포되는 훅은 같은 입력에 rc=0 (사본의 검사 규칙 때문�
 
 echo "── ⑦ 등록부 키에 함수가 없으면 차단된다 ──"
 cat > "$TMP/typo.sh" <<'EOF'
-r_push() { has_token 'push' && deny "probe git push"; return 0; }
-RULES+=("Bash:r_pusk")
+function r_push(ctx) { if (hasToken(ctx.command, 'push')) deny(ctx, 'probe git push'); }
+RULES.push({matcher: 'Bash', run: 'r_pusk'});
 EOF
 mkhook "$TMP/typo" "$TMP/typo.sh"
 runh "$HOOK_COPY" "$(j_bash 'git push origin master')"
@@ -344,7 +345,7 @@ step "오타 키 Bash:r_pusk → rc=2 (침묵 통과 아님)" [ "$GUARD_RC" -eq 
 # 매처가 이번 호출에 안 맞는 항목의 오타도 잡아야 한다. 디스패치될 때만 검사하면
 # Write 규칙의 오타는 Write 호출이 올 때까지 아무도 모른 채 꺼져 있다.
 cat > "$TMP/typo2.sh" <<'EOF'
-RULES+=("Write:r_nonexistent")
+RULES.push({matcher: 'Write', run: 'r_nonexistent'});
 EOF
 mkhook "$TMP/typo2" "$TMP/typo2.sh"
 runh "$HOOK_COPY" "$(j_bash 'echo ok')"
@@ -352,8 +353,8 @@ step "매처 불일치 항목의 오타 키 → rc=2" [ "$GUARD_RC" -eq 2 ]
 
 # 대조군: 키가 실재하면 통과한다 (⑦ 이 "전부 차단"으로 통과하는 것이 아님).
 cat > "$TMP/ok.sh" <<'EOF'
-r_noop() { return 0; }
-RULES+=("Bash:r_noop")
+function r_noop() {}
+RULES.push({matcher: 'Bash', run: r_noop});
 EOF
 mkhook "$TMP/okrule" "$TMP/ok.sh"
 runh "$HOOK_COPY" "$(j_bash 'git push origin master')"
@@ -366,67 +367,41 @@ echo "── ⑦-역 등록부 붕괴: 정의됐는데 등재되지 않은 규�
 # 실행 결과가 구별되지 않으므로, 여기서는 **소스를 읽어** 단언한다.
 # .claude/rules/agile.md 의 극성 반전이 요구하는 자리다 — 검사 대상을 손으로 열거하지 않고
 # 소스의 함수 집합에서 파생하므로, 새 규칙의 기본값이 "검사됨"이 된다.
-registry_intact() {  # registry_intact <훅파일> — 어긋난 항목을 stdout 에 적고 1 을 낸다
-  local f="$1" anchor fn ln n=0 bad=0
-  anchor=$(grep -n '^RULES=()$' "$f" | head -1 | cut -d: -f1)
-  if [ -z "$anchor" ]; then echo "    RULES=() 앵커가 없다"; return 1; fi
-  # ① 정의된 규칙 함수가 전부 등재됐는가 (역방향 본체)
-  while read -r fn; do
-    [ -n "$fn" ] || continue
-    n=$((n + 1))
-    grep -Eq "^RULES\+=\(.*\"[^\"]*:${fn}\"" "$f" \
-      || { echo "    규칙 함수 ${fn} 이 RULES+= 에 등재되지 않았다"; bad=1; }
-  done < <(grep -Eo '^r_[A-Za-z0-9_]+\(\)' "$f" | sed 's/()$//')
-  # ② 모든 RULES+= 가 RULES=() 뒤에 오는가. 앞에 오면 그 등재는 지워진다.
-  while read -r ln; do
-    [ -n "$ln" ] || continue
-    [ "$ln" -gt "$anchor" ] \
-      || { echo "    RULES+= 가 ${ln}행 — 등록부 선언(${anchor}행)보다 앞이라 등재가 지워진다"; bad=1; }
-  done < <(grep -n '^RULES+=' "$f" | cut -d: -f1)
-  # ③ 등재된 함수 이름이 전부 r_ 접두인가. ① 의 파생이 이 접두에 기대고 있으므로,
-  #    접두를 벗어난 규칙이 하나 생기면 ① 이 그것을 못 본 채 조용히 공허해진다.
-  while read -r fn; do
-    [ -n "$fn" ] || continue
-    case "$fn" in r_*) ;; *) echo "    등재된 함수 ${fn} 이 r_ 접두가 아니다 — ①의 파생이 놓친다"; bad=1;; esac
-  done < <(grep -Eo '^RULES\+=\(.*' "$f" | grep -Eo '"[^"]*:[^"]*"' | sed 's/.*://; s/"//')
-  # ④ 파생된 집합이 비면 ①③ 이 공허하게 통과한다. 배포되는 훅에는 규칙이 최소 1개 있다.
-  [ "$n" -ge 1 ] || { echo "    규칙 함수를 하나도 파생하지 못했다 — 단언이 공허하다"; bad=1; }
-  return $bad
-}
+registry_intact() { node "$SOURCE_FIXTURE" registry "$1"; }
+
 broken() { ! registry_intact "$1" >/dev/null; }   # 음성 대조군용 — 사유는 삼킨다
 
 step "배포되는 훅: 정의된 규칙 함수가 전부 등재됐다" registry_intact "$HOOK"
-echo "  등재 현황: RULES+= $(grep -c '^RULES+=' "$HOOK")줄 · 규칙 함수 $(grep -cE '^r_[A-Za-z0-9_]+\(\)' "$HOOK")개"
+echo "  등재 현황: RULES.push $(grep -c '^RULES.push' "$HOOK")줄 · 규칙 함수 $(grep -cE '^export (async )?function r_' "$HOOK")개"
 
 # 음성 대조군 3종 — 이 단언이 실제로 무언가를 잡는다는 근거. 전부 훅 **사본**을 변조한다.
 # (a) 함수는 정의돼 있는데 등재 줄이 없다
-grep -v '^RULES+=' "$HOOK" > "$TMP/no-reg.sh"
+source_copy no-registry "$TMP/no-reg.sh"
 step "음성: 등재 줄 삭제 → 미등재로 검출" broken "$TMP/no-reg.sh"
 
 # (b) 리뷰어가 사본으로 재현한 붕괴 — 등재가 RULES=() **위로** 간다.
 #     이 사본은 실행해도 rc=0(빈 등록부)이라 훅을 돌리는 검사로는 영영 잡히지 않는다.
-awk '/^RULES=\(\)$/ && !d { print "RULES+=(\"Bash:r_remote\")"; d=1 }
-     !/^RULES\+=\("Bash:r_remote"\)$/ { print }' "$HOOK" > "$TMP/before-anchor.sh"
+source_copy before-anchor "$TMP/before-anchor.sh"
 chmod +x "$TMP/before-anchor.sh"   # 실행 권한이 없으면 아래 rc 가 126 이라 단언이 헛돈다
 step "음성: 등재가 RULES=() 위 → 순서 역전으로 검출" broken "$TMP/before-anchor.sh"
 runh "$TMP/before-anchor.sh" "$(j_sub 'git push origin x' 'harness:implementer')"
-step "음성(b) 는 훅 실행으로는 안 잡힌다 — 차단이 꺼졌는데 rc=0" [ "$GUARD_RC" -eq 0 ]
+step "음성(b): Node 선언 전 등재는 내부오류이며 rc=2로 변환된다" [ "$GUARD_RC" -eq 2 ]
 
 # (c) 접두 규약 이탈 — ① 의 파생이 놓치는 형태를 ③ 이 잡는다
-sed 's/r_remote/no_remote/g' "$HOOK" > "$TMP/no-prefix.sh"
+source_copy no-prefix "$TMP/no-prefix.sh"
 step "음성: 함수 이름이 r_ 접두를 벗어남 → 파생 공허로 검출" broken "$TMP/no-prefix.sh"
 
 # (d) 통과 대조군 — 손대지 않은 사본은 통과해야 한다 ("전부 실패"로 통과하는 것이 아님)
 cp "$HOOK" "$TMP/intact.sh"
 step "대조군: 손대지 않은 사본 → 통과" registry_intact "$TMP/intact.sh"
 
-echo "── ⑤ jq 없는 환경 ──"
+echo "── ⑤ Bash·jq 없는 환경에서도 Node 정책은 동작한다 ──"
 mkdir -p "$TMP/nojq"
-for t in cat dirname grep env; do ln -s "$(command -v "$t")" "$TMP/nojq/$t"; done
-GUARD_OUT=$(printf '%s' "$(j_bash 'git push')" | PATH="$TMP/nojq" "$HOOK" 2>&1); GUARD_RC=$?
-echo "  rc=$GUARD_RC  stderr: $GUARD_OUT"
-step "jq 없음 → 미도달 rc=2" [ "$GUARD_RC" -eq 2 ]
-step "jq 없음 → 경고를 남긴다"  [ "${GUARD_OUT#*jq}" != "$GUARD_OUT" ]
+ln -s "$(command -v node)" "$TMP/nojq/node"
+runh "$HOOK" "$(j_bash 'echo ok')" "PATH=$TMP/nojq"
+step "jq·Bash 없음 → Node 정책 판정 rc=0" [ "$GUARD_RC" -eq 0 ]
+runh "$HOOK" "$(j_sub 'git push' 'harness:implementer')" "PATH=$TMP/nojq"
+step "jq·Bash 없어도 원격 쓰기는 차단 rc=2" [ "$GUARD_RC" -eq 2 ]
 
 echo "── ⑥ 깨진 입력 ──"
 run 'not json at all'
@@ -443,14 +418,14 @@ step "비객체 JSON → 미도달을 밝힌다" has_text 'UNREACHED' "$GUARD_OU
 #    끼운 사본으로 EXIT trap 이 rc=2 로 바꾸는지 보고, trap 줄을 뺀 사본으로 귀속한다.
 mkdir -p "$TMP/ub/hooks"
 UB_PROBE="$TMP/ub/hooks/guard.sh"
-awk '{print} /^set -uo pipefail$/{print ": \"$GUARD_UNBOUND_PROBE\""}' "$HOOK" > "$UB_PROBE"; chmod +x "$UB_PROBE"
+source_copy internal-error "$UB_PROBE"
 step "unbound 사본이 원본과 다르다"    bash -c '[ -s "$1" ] && ! cmp -s "$1" "$2"' _ "$UB_PROBE" "$HOOK"
 runh "$UB_PROBE" "$(j_bash 'echo ok')"
 echo "  rc=$GUARD_RC  stderr: $GUARD_OUT"
 step "내부 오류(unbound) → rc=2"        [ "$GUARD_RC" -eq 2 ]
 step "내부 오류 → 미도달을 밝힌다"       has_text '판정에 도달하지 못했다' "$GUARD_OUT"
 UB_AB="$TMP/ub/hooks/guard-ab.sh"
-grep -vF "trap '[ \"\$GUARD_DONE\" = 1 ]" "$UB_PROBE" > "$UB_AB"; chmod +x "$UB_AB"
+node "$SOURCE_FIXTURE" no-error-conversion "$UB_PROBE" "$UB_AB"
 step "A/B 사본이 원본과 다르다"          bash -c '[ -s "$1" ] && ! cmp -s "$1" "$2"' _ "$UB_AB" "$UB_PROBE"
 runh "$UB_AB" "$(j_bash 'echo ok')"
 step "A/B: trap 없으면 rc=2 가 아니다 (귀속)" [ "$GUARD_RC" -ne 2 ]
@@ -473,7 +448,7 @@ say_fail() { echo "      $*"; }
 # 로케일을 C 로 고정한다 — git 의 usage 는 번역되고, 번역된 출력에서 앵커를 찾으면
 # 파생이 환경에 따라 조용히 빈다 [실측: ko_KR 에서 "사용법:" 으로 나온다].
 hook_vopts() {  # hook_vopts <변수명> → 훅 소스의 목록을 낱말마다 한 줄로
-  grep -E "^$1=" "$HOOK" | sed "s/^$1=\"//; s/\"$//" | tr ' ' '\n' | grep -v '^$' | sort -u
+  hook_inventory "$1" | tr ' ' '\n' | grep -v '^$' | sort -u
 }
 # 파생: git 은 usage 줄의 `[-C <path>]`·`[--git-dir=<path>]`, bd 는 cobra `Flags:` 절의
 # `--name TYPE` (이름 뒤 **공백 하나** 다음에 타입 토큰 — 공백이 여럿이면 설명이다).
@@ -914,9 +889,7 @@ runm "$(j_bash_cwd 'ls ../; for d in ../*/; do ls $d; done' "${MCROOT}-sibling/d
 step "상대 읽기(cwd 가 레포의 형제): ../ 는 대상 레포가 아니다 → rc=0" [ "$GUARD_RC" -eq 0 ]
 # A/B 귀속 — cwd 를 접는 한 줄(mc_norm 의 상대 분기)을 옛 형태로 되돌린 사본은 같은 입력을 통과시킨다.
 NEG_CWD="$TMP/guard-no-cwd.sh"
-step "부정 대조군 전제: 상대 분기가 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'p="$CWD/$p"' "$HOOK")" -eq 1 ]
-sed 's|\*) \[ -n "\$CWD" \] \|\| return 1; p="\$CWD/\$p" ;;|*) return 1 ;;|' "$HOOK" > "$NEG_CWD"; chmod +x "$NEG_CWD"
+source_copy no-cwd "$NEG_CWD"
 step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_CWD"
 runh "$NEG_CWD" "$(j_bash_cwd 'echo 1 > ../../../f' "$MC_CWD_WT")"
 step "부정 대조군: 상대 분기를 빼면 같은 입력이 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
@@ -987,11 +960,8 @@ for i in "${!MC_HOLDER_LABEL[@]}"; do
 done
 # 부정 대조군 — **새 판정 한 줄만** 되돌린 사본에서 위 차단이 rc=0 으로 돌아온다.
 NEG_HOLD="$TMP/guard-no-holder.sh"
-step "부정 대조군 전제: 클론 루트 판정이 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'mc_holds_trees "$cand" || continue' "$HOOK")" -eq 1 ]
-awk 'index($0,"mc_holds_trees \"$cand\" || continue") { print "        continue"; next } { print }' \
-  "$HOOK" > "$NEG_HOLD"; chmod +x "$NEG_HOLD"
-step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_HOLD"
+source_copy no-holder "$NEG_HOLD"
+step "Node 부정 대조군 원본 차이: NEG_HOLD" not_same "$HOOK" "$NEG_HOLD"
 runh "$NEG_HOLD" "$(j_bash "rm -rf $MCROOT")"
 step "부정 대조군: 그 줄을 되돌리면 클론 루트 삭제가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
@@ -1058,20 +1028,16 @@ done
 # A/B 귀속 ① — 건너뛰기를 **조각의 실행 낱말과 무관**하게 푼 사본에서 우회가 되살아난다.
 # 그 사본이 **다른 이유로 죽지 않았음**을 함께 든다(클론 루트 삭제는 여전히 rc=2).
 NEG_BDSEG="$TMP/guard-bd-allseg.sh"
-step "부정 대조군 전제: 실행 낱말 조건이 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'bd:-C|bd:--directory|bd:--db)' "$HOOK")" -eq 1 ]
-sed 's/bd:-C|bd:--directory|bd:--db)/*:-C|*:--directory|*:--db)/' "$HOOK" > "$NEG_BDSEG"; chmod +x "$NEG_BDSEG"
-step "부정 대조군 ① 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BDSEG"
+source_copy wide-coordinate "$NEG_BDSEG"
+step "Node 부정 대조군 원본 차이: NEG_BDSEG" not_same "$HOOK" "$NEG_BDSEG"
 runh "$NEG_BDSEG" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x && git -C $MCROOT/repo checkout -- ." 'harness:implementer')"
 step "부정 대조군 ①: 건너뛰기를 모든 조각에 풀면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 runh "$NEG_BDSEG" "$(j_bash "rm -rf $MCROOT")"
 step "부정 대조군 ①: 그 사본이 다른 이유로 죽지 않았다 (클론 루트 삭제는 rc=2)" [ "$GUARD_RC" -eq 2 ]
 # A/B 귀속 ② — 역따옴표 경계를 mc_cand_tokens 에서 뺀 사본에서 2회차가 놓친 형태가 되살아난다.
 NEG_BT="$TMP/guard-no-backtick.sh"
-step "부정 대조군 전제: mc_cand_tokens 의 역따옴표 경계가 훅에 1줄 실재한다" \
-  [ "$(grep -cF "| tr '\`' '\\n')\")" "$HOOK")" -eq 1 ]
-sed "s/ | tr '\`' '\\\\n'//" "$HOOK" > "$NEG_BT"; chmod +x "$NEG_BT"
-step "부정 대조군 ② 사본이 원본과 다르다" not_same "$HOOK" "$NEG_BT"
+source_copy no-backticks "$NEG_BT"
+step "Node 부정 대조군 원본 차이: NEG_BT" not_same "$HOOK" "$NEG_BT"
 runh "$NEG_BT" "$(j_sub "bd -C $MCROOT/repo note $FX_TASK x \`git -C $MCROOT/repo checkout -- .\`" 'harness:implementer')"
 step "부정 대조군 ②: 역따옴표가 경계가 아니면 그 우회가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 runh "$NEG_BT" "$(j_bash "rm -rf $MCROOT")"
@@ -1121,10 +1087,8 @@ done
 # **이 줄은 mc_locate 에만 있다** — 루트 찾기(mc_root_of)에는 필터가 없고, r_grader_write 가
 # 그쪽을 부른다(⑫). 그래서 이 대조군을 빼도 채점자 규칙의 rc 는 움직이지 않는 것이 맞다.
 NEG_WT="$TMP/guard-no-wtexempt.sh"
-step "부정 대조군 전제: 워크트리 예외가 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'mc_registered_workspace "$MC_ROOT" && return 1' "$HOOK")" -eq 1 ]
-grep -vF 'mc_registered_workspace "$MC_ROOT" && return 1' "$HOOK" > "$NEG_WT"; chmod +x "$NEG_WT"
-step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_WT"
+source_copy no-workspace "$NEG_WT"
+step "부정 대조군 원본 차이" not_same "$HOOK" "$NEG_WT"
 mkdir -p "$MCROOT/repo/.claude/worktrees/story-a"
 printf '{"ledger":{"backend":"beads"}}\n' > "$MCROOT/repo/.claude/worktrees/story-a/.harness.json"
 runh "$HOOK" "$(j_write "$MCROOT/repo/.claude/worktrees/story-a/deep/f.txt")"
@@ -1133,11 +1097,8 @@ runh "$NEG_WT" "$(j_write "$MCROOT/repo/.claude/worktrees/story-a/deep/f.txt")"
 step "부정 대조군: 그 줄을 빼면 워크트리 안의 쓰기가 막힌다 (rc=2)" [ "$GUARD_RC" -eq 2 ]
 
 NEG_HOME="$TMP/guard-no-homeexp.sh"
-# 대상은 **홈 치환 두 줄**이다 — `cmd="${cmd//` 로만 고르면 바로 아래 절이 얹은 원장 지정
-# 대입의 면제까지 함께 지워져, 이 대조군이 자기 대상 밖의 규칙을 빼고 판정하게 된다.
-step "부정 대조군 전제: 홈 치환이 훅에 2줄 실재한다" \
-  [ "$(grep -cF 'cmd="${cmd//\$' "$HOOK")" -eq 2 ]
-grep -vF 'cmd="${cmd//\$' "$HOOK" > "$NEG_HOME"; chmod +x "$NEG_HOME"
+source_copy no-home "$NEG_HOME"
+step "Node 부정 대조군 원본 차이: NEG_HOME" not_same "$HOOK" "$NEG_HOME"
 runh "$NEG_HOME" "$(j_bash "echo x > \$HOME/$HPROBE_NAME/repo/README.md")"
 step "부정 대조군: 치환을 빼면 홈 표기가 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
@@ -1177,20 +1138,16 @@ done
 
 # 부정 대조군 ① — 면제 한 줄만 뺀 사본에서는 통과 픽스처가 다시 막힌다(배반의 재현).
 NEG_EX="$TMP/guard-no-hrexempt.sh"
-step "부정 대조군 전제: 면제가 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'cmd="${cmd//"HARNESS_ROOT=$hr "/}"' "$HOOK")" -eq 1 ]
-grep -vF 'cmd="${cmd//"HARNESS_ROOT=$hr "/}"' "$HOOK" > "$NEG_EX"; chmod +x "$NEG_EX"
-step "부정 대조군 ① 사본이 원본과 다르다" not_same "$HOOK" "$NEG_EX"
+source_copy no-root-assignment "$NEG_EX"
+step "Node 부정 대조군 원본 차이: NEG_EX" not_same "$HOOK" "$NEG_EX"
 runh "$NEG_EX" "$(j_sub "HARNESS_ROOT=$MC_HR_ROOT $MC_HR_SUB" 'harness:implementer')"
 step "부정 대조군 ①: 면제를 빼면 지명한 원장 쓰기가 다시 막힌다 (rc=2)" [ "$GUARD_RC" -eq 2 ]
 
 # 부정 대조군 ② — 면제를 정규식 시안(skills#209 note 의 형태)으로 되돌린 사본. (f) 의 클론 루트에서
 # sed 가 죽어 후보가 통째로 사라지고, 클론 루트를 지우는 명령이 통과한다. 위 (f) 가 그 차이를 든다.
 NEG_RE="$TMP/guard-re-exempt.sh"
-NEG_RE_LINE='    cmd="$(printf '"'"'%s'"'"' "$cmd" | sed -E "s#(^|[;&|(] *)HARNESS_ROOT=$hr #\\1#g")"'
-awk -v repl="$NEG_RE_LINE" 'index($0,"cmd=\"${cmd//\"HARNESS_ROOT=$hr \"/}\"") { print repl; next } { print }' \
-  "$HOOK" > "$NEG_RE"; chmod +x "$NEG_RE"
-step "부정 대조군 ② 사본이 원본과 다르다" not_same "$HOOK" "$NEG_RE"
+source_copy regex-root-assignment "$NEG_RE"
+step "Node 부정 대조군 원본 차이: NEG_RE" not_same "$HOOK" "$NEG_RE"
 runh "$NEG_RE" "$(j_sub "HARNESS_ROOT=$MC_BRK rm -rf $MC_BRK/repo" 'harness:implementer')"
 step "부정 대조군 ②: 정규식 형태는 메타문자 루트에서 통째로 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
@@ -1199,7 +1156,7 @@ runm "$(j_write "$MCROOT/repo/main.txt")"
 echo "  write  → $GUARD_OUT"
 step "도구 메시지가 워크트리 경로를 대안으로 지시" \
   has_text "$MCROOT/repo/.claude/worktrees/<워크트리 이름>/" "$GUARD_OUT"
-step "도구 메시지가 워크트리 생성 수단(EnterWorktree)을 지시" has_text 'EnterWorktree' "$GUARD_OUT"
+step "도구 메시지가 워크트리 생성 수단(EnterWorktree)을 지시" has_text 'workspace.mjs create' "$GUARD_OUT"
 step "도구 메시지에 문제의 경로가 실린다"     has_text "$MCROOT/repo/main.txt" "$GUARD_OUT"
 
 runm "$(j_bash "echo hi > $MCROOT/repo/main.txt")"
@@ -1231,7 +1188,7 @@ runsub() { run "$(j_sub "$1" 'harness:implementer')"; }
 # rejected by normalization before any individual rule can judge them.
 ROOT_ONLY="$TMP/root-only/hooks/guard.sh"
 mkdir -p "$(dirname "$ROOT_ONLY")"
-sed -E '/^RULES\+=/ s/"Bash:r_impl_bd"//g' "$HOOK" > "$ROOT_ONLY"
+source_copy remove-rule "$ROOT_ONLY" r_impl_bd
 chmod +x "$ROOT_ONLY"
 step "원장 지정 격리 사본은 implementer 등재만 제거했다" not_same "$HOOK" "$ROOT_ONLY"
 runsub_root_only() { runh "$ROOT_ONLY" "$(j_sub "$1" 'harness:implementer')"; }
@@ -1333,7 +1290,7 @@ step "둘 다 비면 통과 (오케스트레이터)" [ "$GUARD_RC" -eq 0 ]
 #    ② 면제 키가 실제 bd 하위 명령 집합에 존재하는지 `bd --help` 로 확인한다
 #    ③ 그 집합에서 면제를 뺀 나머지가 **전부** 차단되는지 본다 — bd 에 새 하위 명령이
 #       생기면 기본값이 "차단됨"이고, 그것을 이 단언이 증명한다
-BD_EXEMPT_SRC=$(grep -E '^BD_READ_EXEMPT=' "$HOOK" | sed 's/^BD_READ_EXEMPT="//; s/"$//')
+BD_EXEMPT_SRC=$(hook_inventory BD_READ_EXEMPT)
 step "면제 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$BD_EXEMPT_SRC" ]
 echo "  면제 목록($(printf '%s' "$BD_EXEMPT_SRC" | wc -w | tr -d ' ')개): $BD_EXEMPT_SRC"
 
@@ -1606,7 +1563,7 @@ step "그 메시지도 원격 반영 쪽이다"                 has_text '원격
 #    ① 면제 목록은 훅 **소스에서** 파생한다  ② 면제 키가 실제 gh 하위 명령인지 확인한다
 #    ③ 파생 집합에서 면제를 뺀 나머지가 **전부** 차단되는지 본다 — gh 에 새 하위 명령이
 #       생기면 기본값이 "차단됨"이고, 그것을 이 단언이 증명한다
-GH_EXEMPT_SRC=$(grep -E '^GH_READ_EXEMPT=' "$HOOK" | sed 's/^GH_READ_EXEMPT="//; s/"$//')
+GH_EXEMPT_SRC=$(hook_inventory GH_READ_EXEMPT)
 step "면제 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$GH_EXEMPT_SRC" ]
 echo "  면제 목록($(printf '%s' "$GH_EXEMPT_SRC" | wc -w | tr -d ' ')개): $GH_EXEMPT_SRC"
 
@@ -1944,13 +1901,13 @@ done
 AB_DIR="$TMP/wo-r_remote"
 AB="$AB_DIR/hooks/guard.sh"      # GUARD_ROOT 파생이 배포본과 같은 형태가 되게
 mkdir -p "$AB_DIR/hooks"
-sed -E '/^RULES\+=/ s/"[^"]*:r_remote"//g' "$HOOK" > "$AB"
+source_copy remove-rule "$AB" r_remote
 chmod +x "$AB"
 step "A/B 사본이 원본과 다르다 (sed 가 실제로 등재를 지웠다)" not_same "$HOOK" "$AB"
 step "A/B 사본에 r_remote 등재가 없다" \
-  [ "$(grep -c '"Bash:r_remote"' "$AB")" -eq 0 ]
+  [ "$(grep -c 'run: r_remote}' "$AB")" -eq 0 ]
 step "A/B 사본에 r_remote 함수 정의는 남아 있다 (등재만 뺐다)" \
-  [ "$(grep -cE '^r_remote\(\)' "$AB")" -eq 1 ]
+  [ "$(grep -cE '^export function r_remote\(' "$AB")" -eq 1 ]
 
 # 케이스 2 (acceptance ②) — 실제 GitHub 쓰기. 원본은 rc=2, 등재를 빼면 rc=0.
 for c in 'gh pr create --title x' 'gh issue create --title x'; do
@@ -2050,10 +2007,8 @@ done
 # 부정 대조군 — 좁힘 한 줄만 되돌린 사본에서 스크래치패드 쓰기가 rc=2 로 돌아온다.
 # 그 줄이 없으면 위 "통과(트리 밖)" 다섯이 "규칙이 꺼져서" 통과한 것과 구별되지 않는다.
 NEG_GRW="$TMP/guard-no-grader-scope.sh"
-step "부정 대조군 전제: 좁힘 한 줄(GRADER_TREE_SCOPE)이 훅에 1줄 실재한다" \
-  [ "$(grep -cF 'GRADER_TREE_SCOPE' "$HOOK")" -eq 1 ]
-grep -vF 'GRADER_TREE_SCOPE' "$HOOK" > "$NEG_GRW"; chmod +x "$NEG_GRW"
-step "부정 대조군 전제: 사본이 실재하고 원본과 다르다" not_same "$HOOK" "$NEG_GRW"
+source_copy no-grader-scope "$NEG_GRW"
+step "Node 부정 대조군 원본 차이: NEG_GRW" not_same "$HOOK" "$NEG_GRW"
 runh "$NEG_GRW" "$(j_tool_agent Write "/private/tmp/claude-501/sess/scratchpad/review-note.md" "$GR_R")"
 step "부정 대조군: 좁힘을 빼면 스크래치패드 쓰기가 rc=2 로 돌아온다" [ "$GUARD_RC" -eq 2 ]
 
@@ -2150,7 +2105,7 @@ step "통과(도구, 오케스트레이터): Write $GR_PATH" [ "$GUARD_RC" -eq 0
 # ── 극성 반전의 역방향 단언. 역할 목록을 게이트에 다시 적지 않는다:
 #    ① 훅 소스에서 파생  ② 그 값이 실제 역할 정의 파일과 일치하는지 **역방향**으로 본다
 #    ③ 역할 정의 전수(3종)를 돌려 채점자만 막히는지 본다 — 새 역할이 생기면 ② 가 깨진다
-GR_ROLES_SRC=$(grep -E '^GR_ROLES=' "$HOOK" | sed 's/^GR_ROLES="//; s/"$//')
+GR_ROLES_SRC=$(hook_inventory GR_ROLES)
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$GR_ROLES_SRC" ]
 echo "  GR_ROLES: $GR_ROLES_SRC"
 # 채점자의 표지는 역할 정의 자신의 문장이다 — reviewer.md·evaluator.md 의 "File edits and
@@ -2342,19 +2297,16 @@ done
 
 # 부정 대조군 — 넓힌 쌍 판정 한 줄만 뺀 사본에서 위 첫 줄이 rc=2 로 돌아온다.
 NEG_GRS="$TMP/guard-no-grader-pair.sh"
-GRS_MARK='case " $MC_GIT_READ_OPT " in *" $gsub:$gnxt "*) continue ;; esac'
-step "부정 대조군 전제: 쌍 판정이 채점자 규칙에 1줄 실재한다" \
-  [ "$(grep -cF "$GRS_MARK" "$HOOK")" -eq 1 ]
-grep -vF "$GRS_MARK" "$HOOK" > "$NEG_GRS"; chmod +x "$NEG_GRS"
-step "부정 대조군 전제: 사본이 실재하고 원본과 다르다" not_same "$HOOK" "$NEG_GRS"
+source_copy no-grader-pair "$NEG_GRS"
+step "Node 부정 대조군 원본 차이: NEG_GRS" not_same "$HOOK" "$NEG_GRS"
 runh "$NEG_GRS" "$(j_sub "gh issue view 42 -R \$(git remote get-url origin | sed -E 's#x#y#')" "$GR_R")"
 step "부정 대조군: 쌍 판정을 빼면 그 읽기가 rc=2 로 돌아온다" [ "$GUARD_RC" -eq 2 ]
 # 목록을 둘로 두지 않았다는 단언 — 채점자 규칙이 C3 와 **같은** 변수를 본다. 여기서 갈리면
 # 한쪽만 늘어났을 때 두 규칙의 판정이 조용히 어긋난다.
 step "채점자 규칙이 C3 와 같은 쌍 목록(MC_GIT_READ_OPT)을 본다" \
-  [ "$(grep -cF 'MC_GIT_READ_OPT " in' "$HOOK")" -eq 2 ]
+  [ "$(grep -cF 'member(MC_GIT_READ_OPT,' "$HOOK")" -eq 2 ]
 step "쌍 추출도 한 자리다 (git_next_token 정의 1 · 호출 2)" \
-  [ "$(grep -cF 'git_next_token' "$HOOK")" -eq 3 ]
+  [ "$(grep -cF 'nextToken(' "$HOOK")" -eq 3 ]
 
 # ── 막지 못하는 것. rc=0 을 단언으로 박아 둔다 — harness-uhy.5.1 note "한계" 와 1:1.
 declare -a GR_LIMIT_N=() GR_LIMIT_JSON=() GR_LIMIT_CMD=()
@@ -2480,7 +2432,7 @@ for w in create update label close remember; do
 done
 
 # ── 극성 반전의 역방향 단언 ①: 허용 목록. 게이트에 다시 적지 않고 훅 소스에서 파생한다.
-IMPL_ALLOW_SRC=$(grep -E '^IMPL_BD_WRITE_ALLOW=' "$HOOK" | sed 's/^IMPL_BD_WRITE_ALLOW="//; s/"$//')
+IMPL_ALLOW_SRC=$(hook_inventory IMPL_BD_WRITE_ALLOW)
 step "허용 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$IMPL_ALLOW_SRC" ]
 echo "  IMPL_BD_WRITE_ALLOW: $IMPL_ALLOW_SRC"
 # 허용 키가 실제 bd 하위 명령인가 (BD_ALL 은 ⑩ 이 `bd --help` 에서 파생했다).
@@ -2522,7 +2474,7 @@ step "전수 시험이 공허하지 않다 (차단 기대가 20개 이상)" [ "$
 #    갈린 목록에 산다. 여기서 보는 것은 **면제를 넓히다 쓰기까지 열리지 않았는가** 다 —
 #    그것이 이 항목이 막는 실패다.
 #    목록은 게이트에 다시 적지 않고 훅 소스에서 파생한다(⑩·⑬ 의 선례).
-LEDGER_EXEMPT_SRC=$(grep -E '^LEDGER_READ_EXEMPT=' "$HOOK" | sed 's/^LEDGER_READ_EXEMPT="//; s/"$//')
+LEDGER_EXEMPT_SRC=$(hook_inventory LEDGER_READ_EXEMPT)
 step "어댑터 전용 읽기 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$LEDGER_EXEMPT_SRC" ]
 echo "  LEDGER_READ_EXEMPT: $LEDGER_EXEMPT_SRC"
 # 그 이름들이 bd 하위 명령이 **아니어야** 갈라 둔 이유가 산다 — 섞였다면 ⑩ 의 역방향 단언이
@@ -2649,12 +2601,12 @@ printf '  rc=%d  [정상 대조군] %s\n' "$GUARD_RC" "bd -C $IMPL_H note $FX_TA
 step "정상 대조군: implementer 의 note(append 통로)는 통과한다" [ "$GUARD_RC" -eq 0 ]
 
 # ── 극성 반전의 역방향 단언 ②: 역할 목록. ⑫ 의 GR_ROLES 와 같은 형태다.
-IMPL_ROLES_SRC=$(grep -E '^IMPL_ROLES=' "$HOOK" | sed 's/^IMPL_ROLES="//; s/"$//')
+IMPL_ROLES_SRC=$(hook_inventory IMPL_ROLES)
 step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$IMPL_ROLES_SRC" ]
 echo "  IMPL_ROLES: $IMPL_ROLES_SRC"
 # 표지는 역할 정의 자신의 문장이다 — implementer.md "**Ledger writes other than `ledger.sh note`**".
 # 손으로 고르지 않고 이 문장에서 파생한다. 접두 `harness:` 는 ⑫ 와 같은 이유로 붙인다.
-IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger.sh note`' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger note`' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
 echo "  'Ledger writes other than ledger.sh note' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 대상 집합을 파생했다 (비어 있지 않다)" [ -n "$IMPL_DECLARED" ]
 step "훅의 IMPL_ROLES 가 역할 정의에서 파생한 집합과 일치한다 (역방향 단언)" \
@@ -2777,7 +2729,7 @@ done
 # 조용히 원본을 복사해 "되돌려도 통과" 가 되고, 그것이 수리의 부재가 아니라 A/B 의 부재로 읽힌다.
 a31_copy() {  # a31_copy <이름> <sed 식> → 경로를 A31_AB 에
   local d="$TMP/wo-$1"; mkdir -p "$d/hooks"; A31_AB="$d/hooks/guard.sh"
-  sed -E "$2" "$HOOK" > "$A31_AB"; chmod +x "$A31_AB"
+  source_copy "$1" "$A31_AB"
   step "A/B 사본($1)이 원본과 다르다" not_same "$HOOK" "$A31_AB"
 }
 # (a) r_impl_bd 의 "옵션만 있는 호출은 읽기" 한 줄을 뺀다 → 1·3 이 종전대로 막힌다.
@@ -2920,7 +2872,17 @@ fi   # ↑↑ 임계 위 절 끝
 # 그래서 통과도 한 줄 남기고, 로그 자체가 없으면 계수 명령이 비-0 으로 끝난다.
 echo "── ⑯ 발화 로그 — 규칙 이름·회차별 계수·발화 0 대 훅 미실행 ──"
 LG="$TMP/s16-log.tsv"
-LOGSH="$ROOT/scripts/guard-log.sh"
+LOGSH="$ROOT/lib/guard-log.mjs"
+logcmd() {
+  local source="$1"; shift
+  local copy_root
+  copy_root="$TMP/logcmd-$(basename "$source")"
+  mkdir -p "$copy_root/lib" "$copy_root/scripts"
+  cp -R "$ROOT/lib/." "$copy_root/lib/"
+  cp "$ROOT/scripts/guard-log.mjs" "$copy_root/scripts/"
+  cp "$source" "$copy_root/lib/guard-log.mjs"
+  node "$copy_root/scripts/guard-log.mjs" "$@"
+}
 FX_SESS="fx-sess-1"
 TAB=$'\t'
 LOG_CLONE="$TMP/log-clone"                      # 발화 프로브용 픽스처 레포의 부모
@@ -2941,11 +2903,11 @@ evcol()    { awk -F'\t' 'END { print $6 }' "$LG"; }
 ncols()    { awk -F'\t' 'END { print NF }' "$LG"; }
 roundcol() { awk -F'\t' 'END { print $2 }' "$LG"; }
 
-step "계수 명령이 실행 가능하다" test -x "$LOGSH"
+step "계수 명령이 실재한다" test -f "$ROOT/scripts/guard-log.mjs"
 
 # 기본 로그 경로가 두 파일에서 갈라지면 계수 명령이 빈 로그를 보고 "훅 미실행" 이라고
 # 거짓말한다 — 아래 (a) 의 rc=1 이 그 순간 거짓 근거가 된다. 표현을 각각 파생해 맞춘다.
-step "guard와 계수는 같은 state CLI를 사용한다" bash -c 'grep -q scripts/state.mjs "$1" && grep -q scripts/state.mjs "$2"' _ "$HOOK" "$LOGSH"
+step "guard와 계수는 같은 state module을 사용한다" bash -c 'grep -q "from .*state.mjs" "$1" && grep -q "from .*state.mjs" "$2"' _ "$HOOK" "$LOGSH"
 
 # 훅을 합성 입력으로 돌리는 검사는 **전부** 훅이 $HOME 아래에 쓰는 상태 파일을 임시 경로로
 # 돌려야 한다. 하나라도 빠지면 실사용 상태가 합성 발화로 위조되고, 이 커밋의 존재 이유가
@@ -3001,7 +2963,7 @@ done
 # (a) 로그가 없으면 계수 명령은 비-0 — 빈 출력 rc=0 이면 "발화 0" 과 다시 섞인다.
 #     아래 rc·문구는 **로깅이 있는 훅을 볼 때**의 값이다 — 대상을 CLAUDE_PLUGIN_ROOT 로 이 트리에
 #     못박는다(계수 명령이 훅을 고르는 그 변수. 세션이 다른 값을 내보낸 채 돌리면 rc=3 이 나온다).
-LOG_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent.tsv" "$LOGSH" 2>&1); LOG_RC=$?
+LOG_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent.tsv" logcmd "$LOGSH" 2>&1); LOG_RC=$?
 step "훅 미실행(로그 부재) → 계수 명령 rc=1" [ "$LOG_RC" -eq 1 ]
 step "훅 미실행 → 사유가 stderr 에 남는다" has_text "관측 미도달" "$LOG_OUT"
 
@@ -3028,7 +2990,7 @@ step "raw 명령은 저장하지 않는다" [ -z "$(evcol)" ]
 
 # (d) 계수가 기계값이다 — 회차 × 규칙 별 횟수 TSV
 runlog "$HOOK" "$(j_sess 'git status' "$FX_SESS")"
-LOG_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$LG" "$LOGSH"); LOG_RC=$?
+LOG_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$LG" logcmd "$LOGSH"); LOG_RC=$?
 echo "  계수: $(printf '%s' "$LOG_OUT" | tr '\n' '|')"
 step "계수 명령 rc=0" [ "$LOG_RC" -eq 0 ]
 step "계수: 통과 2회가 <회차> - 2 로 나온다"        has_text "${FX_SESS}${TAB}-${TAB}2" "$LOG_OUT"
@@ -3056,7 +3018,7 @@ step "상한 1 에서도 로그가 비지 않는다 (회전이 '훅 미실행' �
 # (g) A/B 귀속 — 로깅 호출만 뺀 사본에서 (c) 가 무너진다. 차단(rc=2)은 그대로여야
 #     차이의 원인이 로깅임이 귀속된다.
 NO_LOG="$TMP/no-log.sh"
-sed '/^[[:space:]]*log_guard /d' "$HOOK" > "$NO_LOG"; chmod +x "$NO_LOG"
+source_copy no-log "$NO_LOG"
 step "A/B 전제: 사본이 원본과 다르다 (사본이 없거나 같으면 귀속이 공허하다)" \
   not_same "$HOOK" "$NO_LOG"
 denies_without_log() {  # <훅> — 차단은 그대로인데 로그를 남기지 않는다
@@ -3089,7 +3051,7 @@ ROWS_120=$(printf "a%.0s" {1..120})
 } > "$ROWSLOG"
 # 회차 인자가 빈 문자열이면 전체다 — 인자 개수를 갈라 부르면 이 함수가 두 벌이 된다.
 runrows() {  # runrows <계수 명령> <로그> <회차 또는 빈 문자열>
-  ROWS_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$2" "$1" rows "$3" 2>"$ROWSERR")
+  ROWS_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$2" logcmd "$1" rows "$3" 2>"$ROWSERR")
   ROWS_RC=$?; ROWS_ERR=$(cat "$ROWSERR")
 }
 rowstate() {  # rowstate <시각 열 값> — 그 행의 분류 가능성(6열)
@@ -3126,16 +3088,16 @@ step "네 rc 가 서로 다르다 (같으면 '0건' 과 '못 셌다' 가 한 값
 step "차단 0 문구가 '실제로 0' 이라고 말한다"              has_text "차단이 실제로 0" "$ERR_ZERO"
 step "회차 없음 문구가 '못 찾았다' 라고 말한다"            has_text "회차를 못 찾았다" "$ERR_NOSESS"
 step "전부 분류 불가 문구가 '오탐 0 이 아니라' 라고 말한다"  has_text "오탐 0 이 아니라 못 셌다" "$ERR_ALLBAD"
-step "전부 분류 불가여도 행 자체는 나온다 (사람이 볼 재료)"  has_text "nocmd" "$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$ROWSLOG" "$LOGSH" rows fx-r2 2>/dev/null)"
+step "전부 분류 불가여도 행 자체는 나온다 (사람이 볼 재료)"  has_text "nocmd" "$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$ROWSLOG" logcmd "$LOGSH" rows fx-r2 2>/dev/null)"
 
 # 모르는 하위 명령이 로그 부재의 rc=1 로 새어나오면 사람이 없는 상태를 고치러 간다.
-BADSUB_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent-rows.tsv" "$LOGSH" nosuchsub 2>&1); BADSUB_RC=$?
+BADSUB_OUT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$TMP/s16-absent-rows.tsv" logcmd "$LOGSH" nosuchsub 2>&1); BADSUB_RC=$?
 step "모르는 하위 명령 → rc=2 (로그 부재의 1 과 다르다)"   [ "$BADSUB_RC" -eq 2 ]
 step "모르는 하위 명령 문구가 '훅이 한 번도' 가 아니다"     lacks_text "관측 미도달" "$BADSUB_OUT"
 
 # A/B 귀속 — 길이를 문자가 아니라 바이트로 재는 사본에서 한글 행이 절단으로 뒤집힌다.
 ROWS_AB="$TMP/s16-rows-bytelen.sh"
-sed 's/chars(\$6) >= 120/length($6) >= 120/' "$LOGSH" > "$ROWS_AB"; chmod +x "$ROWS_AB"
+node "$SOURCE_FIXTURE" byte-length "$LOGSH" "$ROWS_AB"
 step "A/B 전제: 사본이 원본과 다르다" not_same "$LOGSH" "$ROWS_AB"
 runrows "$ROWS_AB" "$ROWSLOG" ""
 step "A/B 대조: 사본도 살아 있다 (죽어서 다른 것이 아니다)" [ "$ROWS_RC" -eq 0 ]
@@ -3156,13 +3118,13 @@ for s17_root in "$S17/withlog" "$S17/nolog"; do
   mkdir -p "$s17_root/scripts"
   cp "$ROOT/scripts/state.mjs" "$s17_root/scripts/"
 done
-S17_WITH="$S17/withlog/hooks/guard.sh"
-S17_NO="$S17/nolog/hooks/guard.sh"
+S17_WITH="$S17/withlog/lib/guard.mjs"
+S17_NO="$S17/nolog/lib/guard.mjs"
 cp "$HOOK" "$S17_WITH"
-sed '/^[[:space:]]*log_guard /d' "$HOOK" > "$S17_NO"
+source_copy no-log "$S17_NO"
 S17_ABSENT="$TMP/s17-absent.tsv"        # 만들지 않는다 — 부재가 이 절의 입력이다
 
-has_log_calls()  { grep -q '^[[:space:]]*log_guard ' "$1"; }
+has_log_calls()  { grep -qF 'await guardLog(event ?? {}, rule, env);' "$1"; }
 lacks_log_calls(){ ! has_log_calls "$1"; }
 
 # 재현 전제. 사본이 원본과 같거나 없으면 아래 두 상태가 사실 한 상태라 귀속이 공허하다.
@@ -3174,7 +3136,7 @@ step "재현 전제: 로그가 실제로 없다"                   [ ! -e "$S17_
 # 계수 명령을 두 상태에 각각 돌린다. 어느 훅을 보는지는 배선과 같은 변수로 정해진다
 # (hooks.json 이 `${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh` 를 부른다).
 runlogsh() {  # runlogsh <플러그인 루트> <계수 명령 경로> — LOGSH_OUT/LOGSH_RC 를 채운다
-  LOGSH_OUT=$(CLAUDE_PLUGIN_ROOT="$1" HARNESS_GUARD_LOG="$S17_ABSENT" "$2" 2>&1); LOGSH_RC=$?
+  LOGSH_OUT=$(CLAUDE_PLUGIN_ROOT="$1" HARNESS_GUARD_LOG="$S17_ABSENT" logcmd "$2" 2>&1); LOGSH_RC=$?
 }
 runlogsh "$S17/withlog" "$LOGSH"; A_OUT="$LOGSH_OUT"; A_RC="$LOGSH_RC"
 runlogsh "$S17/nolog"   "$LOGSH"; B_OUT="$LOGSH_OUT"; B_RC="$LOGSH_RC"
@@ -3182,7 +3144,7 @@ echo "  훅 미실행: rc=$A_RC / 로깅 없는 판: rc=$B_RC"
 step "훅 미실행 재현 → rc=1"                          [ "$A_RC" -eq 1 ]
 step "훅 미실행 재현 → 사유가 '훅이 한 번도'"          has_text "관측 미도달" "$A_OUT"
 step "로깅 없는 판 재현 → rc=3 (미실행의 1 과 다르다)" [ "$B_RC" -eq 3 ]
-step "로깅 없는 판 재현 → 사유가 '로깅 없는 guard.sh'" has_text "로깅 없는 guard.sh" "$B_OUT"
+step "로깅 없는 판 재현 → 사유가 '로깅 없는 guard.mjs'" has_text "로깅 없는 guard.mjs" "$B_OUT"
 step "로깅 없는 판 문구에 '훅이 한 번도' 가 없다"      lacks_text "관측 미도달" "$B_OUT"
 step "훅 미실행 문구가 비어 있지 않다 (0건 통과를 실패로)"    [ -n "$A_OUT" ]
 step "로깅 없는 판 문구가 비어 있지 않다 (0건 통과를 실패로)" [ -n "$B_OUT" ]
@@ -3193,7 +3155,7 @@ step "로깅 없는 판 문구가 검사한 훅 경로를 밝힌다"     has_tex
 
 # A/B 귀속 — **구분 로직만** 뺀 사본에서 두 상태가 다시 한 문구로 합쳐진다.
 S17_AB="$TMP/s17-nodisc.sh"
-sed '/^  if \[ ! -r /,/^  fi$/d' "$LOGSH" > "$S17_AB"; chmod +x "$S17_AB"
+node "$SOURCE_FIXTURE" no-log-distinction "$LOGSH" "$S17_AB"
 step "A/B 전제: 사본이 원본과 다르다 (사본이 없거나 같으면 귀속이 공허하다)" \
   not_same "$LOGSH" "$S17_AB"
 # 사본의 두 출력도 **경로 문자열 때문에** 완전히 같지는 않다 — 갈랐는지의 판정은 rc 가 진다.
@@ -3217,8 +3179,8 @@ step "A/B: 사본이 두 상태를 '훅이 한 번도' 한 문구로 합친다" 
 # 값을 낼 수 있다(이 스토리에서 실측). 로그가 있을 때 원본과 같은 계수를 내는지로 가른다.
 S17_LOG="$TMP/s17-fixture.tsv"
 printf 't1\tfx-s17\ta\tBash\t-\nt2\tfx-s17\ta\tBash\tr_x\n' > "$S17_LOG"
-S17_ORIG_CNT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$S17_LOG" "$LOGSH"); S17_ORIG_RC=$?
-S17_AB_CNT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$S17_LOG" "$S17_AB"); S17_AB_RC=$?
+S17_ORIG_CNT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$S17_LOG" logcmd "$LOGSH"); S17_ORIG_RC=$?
+S17_AB_CNT=$(CLAUDE_PLUGIN_ROOT="$ROOT" HARNESS_GUARD_LOG="$S17_LOG" logcmd "$S17_AB"); S17_AB_RC=$?
 step "정상 대조군: 원본이 픽스처 로그를 rc=0 으로 센다"  [ "$S17_ORIG_RC" -eq 0 ]
 step "정상 대조군: 계수가 비어 있지 않다"                [ -n "$S17_ORIG_CNT" ]
 step "정상 대조군: 사본도 픽스처 로그를 rc=0 으로 센다 (사본은 살아 있다)" \

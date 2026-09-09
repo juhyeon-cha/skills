@@ -91,13 +91,15 @@ try {
       const located = run('which', [name]); assert.equal(located.status, 0); fs.symlinkSync(located.stdout.trim(), path.join(bin, name));
     }
     const result = guard(event('Bash', {command: 'pwd'}), {PATH: bin});
-    check(result.status === 2 && result.stderr.includes(missing), `missing ${missing} denies`);
+    check(missing === 'node' ? result.status === 2 && result.stderr.includes(missing) : result.status === 0, missing === 'node' ? 'missing node denies' : 'missing jq does not affect native policy');
   }
   const badJq = path.join(temp, 'bad-jq'); fs.mkdirSync(badJq);
-  const realJq = run('which', ['jq']).stdout.trim();
+  const canary = path.join(badJq, 'executed');
   for (const predicate of ['*harness_operations*', '*tool_name*']) {
-    fs.writeFileSync(path.join(badJq, 'jq'), `#!/bin/sh\ncase "$*" in ${predicate}) exit 23 ;; esac\nexec '${realJq}' "$@"\n`, {mode: 0o755});
-    check(guard(event('apply_patch', {command: multi}), {PATH: `${badJq}:${env.PATH}`}).status === 2, `jq runtime failure denies ${predicate}`);
+    fs.writeFileSync(path.join(badJq, 'jq'), `#!/bin/sh\necho called > '${canary}'\nexit 23\n`, {mode: 0o755});
+    check(guard(event('apply_patch', {command: patch(`*** Add File: ${repo}/blocked\n+x`)}), {PATH: `${badJq}:${env.PATH}`}).status === 2, `protected patch denies independently of unavailable jq ${predicate}`);
+    check(guard(event('apply_patch', {command: multi}), {PATH: `${badJq}:${env.PATH}`}).status === 0, 'allowed patch works independently of unavailable jq');
+    check(guard(event('Bash', {command: 'pwd'}), {PATH: `${badJq}:${env.PATH}`}).status === 0 && !fs.existsSync(canary), 'read policy does not invoke jq');
   }
   console.log(`PASS operation policy: ${count} assertions; direct script and lexical Windows fixtures only`);
 } finally { fs.rmSync(temp, {recursive: true, force: true}); }
