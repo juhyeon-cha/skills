@@ -29,11 +29,17 @@ jobs:
         run: node tests/harness/platform-contract-check.mjs ${{ matrix.host.platform }} platform-contract.json
       - name: Run native process and configured preparation contracts
         run: node tests/harness/native-preparation-contract-check.mjs ${{ matrix.host.platform }}
+      - name: Diagnose Windows PowerShell native launch channels
+        if: always() && runner.os == 'Windows'
+        continue-on-error: true
+        run: node tests/harness/windows-launch-canary.mjs windows-launch-canary.json
       - name: Preserve reached scope even when a contract fails
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: platform-${{ matrix.host.platform }}-node-${{ matrix.node }}
-          path: platform-contract.json
+          path: |
+            platform-contract.json
+            windows-launch-canary.json
           if-no-files-found: error
           retention-days: 14
