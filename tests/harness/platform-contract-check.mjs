@@ -19,7 +19,7 @@ const report = {schema: 1, host: process.platform, expectedHost: expected, node:
   scope: 'native Node/Git core fixtures; not runtime hook or backend integration',
   core: 'UNREACHED', fullProduct: 'UNREACHED', checks,
   boundaries: {
-    hooksAndGuard: 'Bash/jq consumers; native transport integration UNREACHED',
+    hooksAndGuard: 'native policy and runtime transport suites; actual CLI activation separate and UNREACHED here',
     workspaceLifecycle: 'native ledger and story naming; full lifecycle integration tested separately',
     preparation: 'configured preparation exercised by native-preparation-contract-check.mjs',
     legacyCommands: 'Bash strings retain shell semantics; structured argv uses no shell',
@@ -103,7 +103,7 @@ try {
     await assert.rejects(inspectWorkspace(fake, {env: gitEnv}), /not a worktree root/);
     await assert.rejects(inspectWorkspace(linked, {env: emptyPath}), /git .*failed/);
   });
-  await check('dependency audit exposes native backend executables and remaining hook transport', async () => {
+  await check('dependency audit exposes native backend executables and shared hook dispatch', async () => {
     const read = name => fs.readFile(path.join(root, 'plugins/harness', name), 'utf8');
     assert.match(await read('scripts/ledger.sh'), /exec node/);
     report.ledgerDependencies = {};
@@ -116,7 +116,12 @@ try {
     }
     assert.match(await read('lib/workspace.mjs'), /process.execPath, path.join\(plugin, 'scripts\/ledger.mjs'\), '--root'/);
     assert.match(await read('lib/preparation.mjs'), /spawnWindowsWorker/);
-    assert.match(await read('scripts/hook.mjs'), /bash/);
+    const hook = await read('scripts/hook.mjs');
+    assert.doesNotMatch(hook, /spawn(?:Sync)?\(['"](?:bash|jq|python3)['"]/);
+    for (const name of ['guard', 'stop', 'session-context']) {
+      assert.match(hook, new RegExp(name));
+      assert.doesNotMatch(await read(`lib/${name}.mjs`), /spawn(?:Sync)?\(['"](?:bash|jq|python3)['"]/);
+    }
   });
   await check('no-command preparation uses no shell; configured preparation requires an execution result', async () => {
     const identity = await inspectWorkspace(linked, {env: gitEnv});
