@@ -8,7 +8,7 @@ description: Release one plugin of the skills marketplace — sweep the changes 
 Input: the plugin name — `plugins/<name>/` in the skills repo. The version has exactly one source,
 `plugins/<name>/.claude-plugin/plugin.json`, and the marketplace reads it from there; the
 CHANGELOG is `plugins/<name>/CHANGELOG.md`; the tag is `<name>-v<version>`. Nothing else holds the
-number.
+number independently. Generated runtime manifests derive it from that source; never bump them by hand.
 
 ## 1. Sweep the changes since the previous tag
 
@@ -66,10 +66,12 @@ bash scripts/release.sh <name> <patch|minor|major>
 ```
 
 It computes the next number, checks the preconditions, raises `version` in
-`plugins/<name>/.claude-plugin/plugin.json`, runs `claude plugin validate --strict` on both the
-marketplace and the plugin, commits, tags `<name>-v<version>`, and pushes both. **Everything that
+`plugins/<name>/.claude-plugin/plugin.json`, regenerates harness runtime metadata from its common
+distribution module, runs `claude plugin validate --strict` on both the marketplace and the plugin
+and the repository gate, commits, tags `<name>-v<version>`, and pushes both. **Everything that
 changes state comes after the preconditions**, so a refusal at that stage leaves nothing behind, and
-a validate failure restores the original `plugin.json`. Two preconditions exist for the push: it
+a generation, validation or gate failure restores the original manifest and generated metadata.
+Harness releases require Node and a consistent source artifact before the bump. Two preconditions exist for the push: it
 refuses outside the default branch, and it refuses when the remote is ahead. The first is checked
 before anything else, so standing in the wrong place costs one command rather than a written
 CHANGELOG entry.

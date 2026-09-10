@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.2.0 — 2026-09-10
+
+**폭 판단 — MINOR (사용자 지시).** 공통 실행 명령과 Codex·Windows 네이티브 연결을 추가한다.
+Node 22+ 설치, 구형 CLI 갱신, 독립 EnterWorktree 준비 훅의 전환이 필요한 설치본에는 손 작업이
+있으므로 저장소의 버전 기준상 MAJOR 사유를 포함하지만, 이번에는 요청한 2.2.0으로 낸다.
+아래 업데이트 절차를 먼저 확인한다. 단순 플러그인 업데이트만으로 모든 설치가 준비되었다고 보지 않는다.
+
+### Claude·Codex가 공통 실행과 한 원본을 사용한다
+
+- 정책·역할·스킬 본문과 저장소 소유 `.harness.json`을 복제하지 않는다. 공통 Node 코어와
+  런타임 등록·훅 전송을 분리하고, Codex manifest와 훅 메타데이터는 Claude manifest 및 공통
+  registry에서 생성한다. 생성물 불일치와 중복 등록은 검사 실패다.
+- `apply_patch`의 다중 파일 추가·수정·삭제·이동을 정규화하며 이동 양쪽 경로를 보호한다.
+  Bash·PowerShell의 저장소 좌표와 실제 쓰기 대상을 구분하고 읽기 검색·역할별 권한을 검증한다.
+- 원장 세 backend와 board·운영 검사·상태·로그·훅을 공통 실행으로 연결한다. 기존 `.sh`
+  진입점은 호환 wrapper로 남고, 문자열 명령은 기존 Bash 의미를 유지한다.
+
+### Workspace·준비·역할 결과를 공통 계약으로 확인한다
+
+- Git 메타데이터로 실제 작업 트리를 확인한다. 기존 `.claude/worktrees` 경로를 유지할 수 있으며,
+  생성·재진입·준비·정리는 공통 workspace 명령을 사용한다.
+- 준비 명령과 입력은 저장소의 `.harness.json`이 소유한다. 실패를 성공으로 종료하지 않고,
+  재시도·동시 실행·시간 제한·설정 변경을 판정한다. Windows는 Job Object로 준비 자손을 관리한다.
+- 구현자·평가자 분리, SIGNAL, 사람 결정 대기 및 새 검토자의 재검토를 유지한다. 역할 미식별,
+  필수 훅 미발화, 판정 미도달은 성공이 아니다.
+- 상태를 runtime·Git 저장소·session별로 분리한다. 전사 형식은 런타임 어댑터에 격리하고,
+  doctor는 설치 목록·실제 로드·실제 실행을 별도로 판정한다.
+
+### 업데이트와 검증 범위
+
+- 먼저 [설치 요구사항](docs/installation.md)과 [이행·롤백](docs/migration.md)을 따른다.
+  Node 22+와 backend별 도구·인증이 필요하다. Codex 역할은 한 등록 범위에서 생성하고 훅 신뢰를
+  확인한다. 이전 artifact와 역할 receipt, 저장소 설정은 함께 보존한다.
+- 독립 EnterWorktree 준비 훅이 있는 저장소는 실패 전파를 고친 뒤 `.harness.json` 준비 계약으로
+  전환한다. 옛 준비 marker나 훅 존재만으로 ready를 인정하지 않는다. sap-harness 적용 순서는
+  [후속 이행 문서](https://github.com/juhyeon-cha/skills/blob/main/docs/sap-harness-migration.md)에 있으며 이 릴리스가 대상 파일을 바꾸지는 않는다.
+- Node 24의 macOS·Linux·Windows 네이티브 CI에서 같은 계약 검사가 통과했다. Node 22는
+  CI 대상에서 제외했다. PR과 브랜치 push의 중복 실행을 제거하고 이전 실행을 취소한다.
+- 직접 handler·전송·오프라인 원장 검사는 실제 CLI의 신뢰·로드·역할 호출과 사용자 인증을 대신하지
+  않는다. 전체 Windows runtime 인증과 Claude live 검증은 별도이며, Git Bash/WSL은 네이티브
+  Windows 지원의 증거가 아니다. 지원 범위는 [플랫폼 계약](docs/platforms.md)에 둔다.
+
 ## 2.1.3 — 2026-09-09
 
 **폭 판단 — PATCH.** 규칙대로 PATCH 다(앞의 두 판과 달리 넓히지 않기로 한 판단이 아니다).

@@ -9,7 +9,7 @@
 # 아니면 아무것도 바꾸지 않고 죽는다 — 버전만 오르고 항목이 없는 릴리스를 막는 자리다.
 #
 # 되돌리기: 상태를 바꾸는 단계는 셋이고 순서가 곧 롤백 설계다.
-#   (1) plugin.json 버전 갱신 → validate 가 실패하면 **원본으로 되돌리고** rc 1. 남는 변경이 없다.
+#   (1) 버전·생성물 갱신 → 생성·validate·커밋 게이트 실패 시 **모두 원본으로 되돌리고** rc 1.
 #   (2) 커밋 → 실패하면 스테이징이 남는다. 무엇이 스테이징됐는지 출력하고 rc 1.
 #   (3) 태그 → 실패하면 커밋은 남아 있다. 그 사실과 수동 태그 명령을 출력하고 rc 1.
 #   (4) push → 실패하면 커밋과 태그가 로컬에 남는다. 복구 명령과 되돌리는 명령을 함께 출력하고 rc 1.
@@ -62,6 +62,26 @@ CHANGELOG="plugins/$NAME/CHANGELOG.md"
 
 command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 (brew install jq)" >&2; exit 1; }
 command -v claude >/dev/null 2>&1 || { echo "✗ claude 가 없다 — validate 를 돌릴 수 없다" >&2; exit 1; }
+
+# 생성물의 목록과 내용은 배포 모듈 한 곳이 소유한다. 기존 단일 manifest 플러그인은 그대로다.
+ARTIFACTS=("$MANIFEST")
+DISTRIBUTION="plugins/$NAME/scripts/distribution.mjs"
+if [ "$NAME" = harness ]; then
+  command -v node >/dev/null 2>&1 || { echo "✗ node 가 없다 — 하네스 생성물을 검증할 수 없다" >&2; exit 1; }
+  if ! GENERATED=$(node --input-type=module -e '
+    import {inspectDistribution, projections} from "./plugins/harness/lib/distribution.mjs";
+    inspectDistribution();
+    console.log(Object.keys(projections()).join("\n"));
+  '); then
+    echo "✗ 현재 하네스 생성물 검증 실패 — 버전은 바꾸지 않았다" >&2
+    exit 1
+  fi
+  while IFS= read -r relative; do
+    ARTIFACTS+=("plugins/$NAME/$relative")
+  done <<EOF
+$GENERATED
+EOF
+fi
 
 CUR=$(jq -r '.version // empty' "$MANIFEST")
 case "$CUR" in
@@ -120,15 +140,32 @@ if [ "$AHEAD" -gt 0 ]; then
   git log --oneline "origin/$DEFAULT..HEAD" | sed 's/^/    /'
 fi
 
-# ── (1) 버전 갱신 · validate ──────────────────────────────────────────
-BACKUP=$(mktemp) || { echo "✗ 임시 파일을 만들지 못했다" >&2; exit 1; }
-cp "$MANIFEST" "$BACKUP"
-restore() { cp "$BACKUP" "$MANIFEST"; rm -f "$BACKUP"; }
+# ── (1) 버전·생성물 갱신 · validate · 커밋 게이트 ───────────────────────
+BACKUP=$(mktemp -d) || { echo "✗ 임시 디렉토리를 만들지 못했다" >&2; exit 1; }
+for i in "${!ARTIFACTS[@]}"; do
+  cp "${ARTIFACTS[$i]}" "$BACKUP/$i" || { rm -rf "$BACKUP"; exit 1; }
+done
+restore() {
+  local failed=0 i
+  for i in "${!ARTIFACTS[@]}"; do
+    cp "$BACKUP/$i" "${ARTIFACTS[$i]}" || failed=1
+  done
+  if [ "$failed" -eq 0 ]; then rm -rf "$BACKUP";
+  else echo "✗ 원본 복구 실패 — 백업을 보존했다: $BACKUP" >&2; fi
+  return "$failed"
+}
+trap restore EXIT
 
-if ! jq --arg v "$NEXT" '.version = $v' "$BACKUP" > "$MANIFEST"; then
-  restore
+if ! jq --arg v "$NEXT" '.version = $v' "$BACKUP/0" > "$MANIFEST"; then
   echo "✗ plugin.json 버전 갱신에 실패했다 — 원본으로 되돌렸다" >&2
   exit 1
+fi
+
+if [ "$NAME" = harness ]; then
+  if ! node "$DISTRIBUTION" generate "plugins/$NAME" || ! node "$DISTRIBUTION" check "plugins/$NAME"; then
+    echo "✗ 하네스 생성·검증 실패 — 버전과 생성물을 복구한다" >&2
+    exit 1
+  fi
 fi
 
 vfail=0
@@ -142,11 +179,15 @@ for t in . "./plugins/$NAME"; do
   fi
 done
 if [ "$vfail" -ne 0 ]; then
-  restore
-  echo "✗ validate 가 실패해 plugin.json 을 원본($CUR)으로 되돌렸다 — 커밋도 태그도 하지 않았다" >&2
+  echo "✗ validate 실패 — 버전($CUR)과 생성물을 복구한다. 커밋도 태그도 하지 않았다" >&2
   exit 1
 fi
-rm -f "$BACKUP"
+if ! bash scripts/check.sh; then
+  echo "✗ 커밋 게이트 실패 — 버전($CUR)과 생성물을 복구한다. 커밋도 태그도 하지 않았다" >&2
+  exit 1
+fi
+trap - EXIT
+rm -rf "$BACKUP"
 
 # ── (2) 커밋 ──────────────────────────────────────────────────────────
 # README 와 marketplace.json 은 description 이 바뀐 릴리스에서만 실제로 변한다 — 안 변했으면 무해하다.
