@@ -71,20 +71,21 @@ try {
 
   // Exercise shipped guard, not a second permission implementation.
   const repo = path.join(temp, 'repo'); fs.mkdirSync(repo);
-  const env = {...process.env, HOME: temp, CLAUDE_PLUGIN_ROOT: root, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1', HARNESS_GUARD_LOG: path.join(temp, 'guard.tsv'), HARNESS_SESSION_ACTOR_LOG: path.join(temp, 'actors.tsv')};
+  const env = {...process.env, HOME: temp, CLAUDE_PLUGIN_ROOT: root, GIT_CONFIG_GLOBAL: path.join(temp, 'empty.gitconfig'), GIT_CONFIG_NOSYSTEM: '1', HARNESS_GUARD_LOG: path.join(temp, 'guard.tsv'), HARNESS_SESSION_ACTOR_LOG: path.join(temp, 'actors.tsv')};
   for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'HARNESS_ROOT']) delete env[key];
+  fs.writeFileSync(env.GIT_CONFIG_GLOBAL, '');
   const git = (...args) => { const r = spawnSync('git', ['-C', repo, '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', ...args], {env, encoding: 'utf8'}); assert.equal(r.status, 0, r.stderr); };
   git('init', '-q'); fs.writeFileSync(path.join(repo, '.harness.json'), '{"ledger":{"backend":"github"}}'); git('add', '.'); git('commit', '-qm', 'fixture');
   const wt = path.join(repo, '.claude/worktrees/fixture'); git('worktree', 'add', '-qb', 'fixture', wt);
   for (const runtime of ['claude', 'codex']) for (const role of roleNames) {
     const event = {cwd: wt, agent_id: 'child', agent_type: roleIdentifier(runtime, role)};
-    const guard = (tool_name, tool_input) => spawnSync('/bin/bash', [path.join(root, 'hooks/guard.sh')], {cwd: wt, env, encoding: 'utf8', input: JSON.stringify({...event, tool_name, tool_input})}).status;
+    const guard = (tool_name, tool_input) => spawnSync(process.execPath, [path.join(root, 'hooks/guard.mjs')], {cwd: wt, env, encoding: 'utf8', input: JSON.stringify({...event, tool_name, tool_input})}).status;
     check(guard('Bash', {command: 'pwd'}) === 0, `${role} read`);
     check(guard('apply_patch', {command: '*** Begin Patch\n*** Add File: file\n+x\n*** End Patch'}) === (role === 'implementer' ? 0 : 2), `${role} file write`);
     check(guard('Bash', {command: 'git commit -m fixture'}) === (role === 'implementer' ? 0 : 2), `${role} local commit`);
     check(guard('Bash', {command: 'git push origin main'}) === 2, `${role} remote write denied`);
     check(guard('Bash', {command: 'ledger.sh close fixture#1'}) === 2, `${role} ledger close denied`);
-    check(guard('Bash', {command: `HARNESS_ROOT=${repo} ledger.sh note fixture#1 receipt`}) === (role === 'implementer' ? 0 : 2), `${role} ledger note permission`);
+    check(guard('Bash', {command: `HARNESS_ROOT='${repo.replaceAll("\\", "/").replaceAll("'", "'\\''")}' ledger.sh note fixture#1 receipt`}) === (role === 'implementer' ? 0 : 2), `${role} ledger note permission`);
   }
   const develop = fs.readFileSync(path.join(root, 'skills/develop/SKILL.md'), 'utf8');
   const verify = fs.readFileSync(path.join(root, 'skills/verify-implement/SKILL.md'), 'utf8');

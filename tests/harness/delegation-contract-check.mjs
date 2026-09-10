@@ -13,7 +13,7 @@ const plugin = path.join(root, 'plugins/harness');
 const cli = path.join(plugin, 'scripts/delegation.mjs');
 const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'delegation-contract-')));
 const repo = path.join(temp, 'repo');
-const env = { ...process.env, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1' };
+const env = { ...process.env, GIT_CONFIG_GLOBAL: path.join(temp, 'empty.gitconfig'), GIT_CONFIG_NOSYSTEM: '1' };
 for (const key of [
   'GIT_DIR',
   'GIT_WORK_TREE',
@@ -120,6 +120,20 @@ function inventory(call, kind) {
   );
 }
 try {
+  fs.writeFileSync(env.GIT_CONFIG_GLOBAL, '');
+  check(fs.lstatSync(env.GIT_CONFIG_GLOBAL).isFile() && fs.statSync(env.GIT_CONFIG_GLOBAL).size === 0,
+    'Git global configuration is an empty regular file');
+  const userHome = path.join(temp, 'user-home');
+  fs.mkdirSync(userHome);
+  fs.writeFileSync(path.join(userHome, '.gitconfig'), '[harness]\nfixtureInherited = ambient\n');
+  const ambientEnv = { ...env, HOME: userHome, USERPROFILE: userHome, XDG_CONFIG_HOME: userHome };
+  delete ambientEnv.GIT_CONFIG_GLOBAL;
+  const ambient = spawnSync('git', ['config', '--global', '--get', 'harness.fixtureInherited'],
+    { env: ambientEnv, encoding: 'utf8' });
+  check(ambient.status === 0 && ambient.stdout.trim() === 'ambient', 'ambient global configuration control is populated');
+  const isolated = spawnSync('git', ['config', '--global', '--list'],
+    { env: { ...ambientEnv, GIT_CONFIG_GLOBAL: env.GIT_CONFIG_GLOBAL }, encoding: 'utf8' });
+  check(isolated.status === 0 && isolated.stdout === '', 'fixture global file isolates populated user configuration');
   check(
     delegationCapability({ runtime: 'codex', provider: 'collaboration', permission: 'prompt-only' })
       .status === 'AVAILABLE',
