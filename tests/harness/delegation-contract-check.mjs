@@ -194,6 +194,17 @@ try {
   run('bind', binding(good), 1);
   run('complete', completion(good, base), 1);
 
+  for (const data of [`${temp}/noncanonical-trailing/`, `${temp}/noncanonical-dot/./inventory`]) {
+    const call = make({ data });
+    check(!fs.existsSync(path.resolve(data)), 'path regression starts without an inventory');
+    check(
+      /normalized absolute data path required/.test(run('begin', call, 1).reason),
+      'non-normalized data path is rejected before begin persists an unusable call',
+    );
+    run('audit', context(call), 1);
+    check(!fs.existsSync(path.resolve(data)), 'rejected data path creates no state directory');
+  }
+
   for (const key of Object.keys(good)) {
     const bad = make();
     delete bad[key];

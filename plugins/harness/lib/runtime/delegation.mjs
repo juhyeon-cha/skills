@@ -158,6 +158,12 @@ function verifyCommits(call, phase, completedHead) {
 }
 
 async function storage(call, env) {
+  if (
+    typeof call.data !== 'string' ||
+    !path.isAbsolute(call.data) ||
+    path.resolve(call.data) !== call.data
+  )
+    throw new Error('normalized absolute data path required');
   // Explicit data is a local parent-owned inventory, not a hook-delivered directory.
   const scope = await resolveState(
     { runtime: call.runtime, cwd: call.repository, sessionId: call.sessionId },
