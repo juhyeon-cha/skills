@@ -91,9 +91,9 @@ export async function checkGuardrails({
       'fixture',
     );
     git('-C', main, 'worktree', 'add', '-qb', 'worktree-fixture', workspace);
-    const guard = await native('lib/guard.mjs'),
-      stop = await native('lib/stop.mjs'),
-      state = await native('lib/state.mjs');
+    const guard = await native('lib/guard/guard.mjs'),
+      stop = await native('lib/runtime/stop.mjs'),
+      state = await native('lib/runtime/state.mjs');
     const distribution = await native('lib/distribution.mjs'),
       ledger = await native('lib/ledger.mjs'),
       ledgerCheck = await native('checks/ledger-check.mjs');
@@ -123,7 +123,7 @@ export async function checkGuardrails({
     await check('surface inventory is nonempty and complete', () =>
       assert.deepEqual(SURFACES, ['S1', 'S2', 'S5', 'S6', 'S7']),
     );
-    const guardSource = fs.readFileSync(path.join(pluginRoot, 'lib/guard.mjs'), 'utf8');
+    const guardSource = fs.readFileSync(path.join(pluginRoot, 'lib/guard/guard.mjs'), 'utf8');
     const defined = [...guardSource.matchAll(/^export (?:async )?function (r_\w+)\(/gm)].map(
       (match) => match[1],
     );
@@ -138,7 +138,7 @@ export async function checkGuardrails({
         const blocked = await judge(input);
         assert.equal(blocked.code, 2, blocked.stderr);
         assert.equal(blocked.rule, rule);
-        const copy = await mutant('lib/guard.mjs', (text) =>
+        const copy = await mutant('lib/guard/guard.mjs', (text) =>
           text
             .split('\n')
             .filter((line) => !(line.startsWith('RULES.push(') && line.includes(`run: ${rule}}`)))
@@ -451,7 +451,7 @@ export async function checkGuardrails({
         ['DELEGATED_MARK', '  const dg = 0;', [marked('DELEGATED: a')]],
         ['SCOPE_NARROW', '', [{ assignee: 'other' }]],
       ]) {
-        const copy = await mutant('lib/stop.mjs', (text) =>
+        const copy = await mutant('lib/runtime/stop.mjs', (text) =>
           text
             .split('\n')
             .map((line) => (line.includes('// ' + marker) ? replacement : line))
@@ -476,7 +476,7 @@ export async function checkGuardrails({
       },
     );
     await check('S7 outcome population, log count and source declarations agree', () => {
-      const source = fs.readFileSync(path.join(pluginRoot, 'lib/stop.mjs'), 'utf8');
+      const source = fs.readFileSync(path.join(pluginRoot, 'lib/runtime/stop.mjs'), 'utf8');
       const sourceOutcomes = [
         ...new Set([...source.matchAll(/log\('([A-Z_]+)'/g)].map((match) => match[1])),
       ];

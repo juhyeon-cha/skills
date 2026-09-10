@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { registerRoles, verifyRegistration, roleCall, roleResult } from '../lib/roles.mjs';
+import { registerRoles, verifyRegistration, roleCall, roleResult } from '../lib/runtime/roles.mjs';
 
 // JSON files keep delegation text and runtime evidence out of shell quoting.
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));

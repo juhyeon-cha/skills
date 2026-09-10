@@ -78,7 +78,7 @@ cd "$ROOT" || { echo "✗ 플러그인 루트로 이동하지 못했다: $ROOT" 
 # 사본이 전부 그 값을 앵커로 읽어 ④ 가 거짓 실패한다. 아래에서는 명시적으로 넘길 때만 쓴다.
 unset CLAUDE_PLUGIN_ROOT
 
-HOOK="$ROOT/lib/guard.mjs"
+HOOK="$ROOT/lib/guard/guard.mjs"
 SOURCE_FIXTURE="$TESTS_ROOT/harness/guard-source-fixture.mjs"
 source_copy() { node "$SOURCE_FIXTURE" "$1" "$HOOK" "$2" "${3-}"; }
 hook_inventory() { node "$SOURCE_FIXTURE" inventory "$HOOK" "$1"; }
@@ -224,7 +224,7 @@ runh() {  # runh <Node policy source> <json> [env...]
     cp -R "$ROOT/lib/." "$copy_root/lib/"
     cp "$ROOT/hooks/guard.mjs" "$copy_root/hooks/"
     cp "$ROOT/scripts/workspace.mjs" "$ROOT/scripts/state.mjs" "$copy_root/scripts/"
-    cp "$hook" "$copy_root/lib/guard.mjs"
+    cp "$hook" "$copy_root/lib/guard/guard.mjs"
   fi
   GUARD_OUT=$(printf '%s' "$json" | env "$@" node "$copy_root/hooks/guard.mjs" 2>&1); GUARD_RC=$?
 }
@@ -2872,7 +2872,7 @@ fi   # ↑↑ 임계 위 절 끝
 # 그래서 통과도 한 줄 남기고, 로그 자체가 없으면 계수 명령이 비-0 으로 끝난다.
 echo "── ⑯ 발화 로그 — 규칙 이름·회차별 계수·발화 0 대 훅 미실행 ──"
 LG="$TMP/s16-log.tsv"
-LOGSH="$ROOT/lib/guard-log.mjs"
+LOGSH="$ROOT/lib/guard/guard-log.mjs"
 logcmd() {
   local source="$1"; shift
   local copy_root
@@ -2880,7 +2880,7 @@ logcmd() {
   mkdir -p "$copy_root/lib" "$copy_root/scripts"
   cp -R "$ROOT/lib/." "$copy_root/lib/"
   cp "$ROOT/scripts/guard-log.mjs" "$copy_root/scripts/"
-  cp "$source" "$copy_root/lib/guard-log.mjs"
+  cp "$source" "$copy_root/lib/guard/guard-log.mjs"
   node "$copy_root/scripts/guard-log.mjs" "$@"
 }
 FX_SESS="fx-sess-1"
@@ -3118,8 +3118,8 @@ for s17_root in "$S17/withlog" "$S17/nolog"; do
   mkdir -p "$s17_root/scripts"
   cp "$ROOT/scripts/state.mjs" "$s17_root/scripts/"
 done
-S17_WITH="$S17/withlog/lib/guard.mjs"
-S17_NO="$S17/nolog/lib/guard.mjs"
+S17_WITH="$S17/withlog/lib/guard/guard.mjs"
+S17_NO="$S17/nolog/lib/guard/guard.mjs"
 cp "$HOOK" "$S17_WITH"
 source_copy no-log "$S17_NO"
 S17_ABSENT="$TMP/s17-absent.tsv"        # 만들지 않는다 — 부재가 이 절의 입력이다

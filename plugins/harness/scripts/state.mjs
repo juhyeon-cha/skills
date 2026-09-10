@@ -9,7 +9,7 @@ import {
   isCancelled,
   appendState,
   tsv,
-} from '../lib/state.mjs';
+} from '../lib/runtime/state.mjs';
 try {
   const input = process.argv.slice(2),
     env = { ...process.env };

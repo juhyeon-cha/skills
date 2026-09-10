@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { summarizeGuardLog } from '../lib/guard-log.mjs';
+import { summarizeGuardLog } from '../lib/guard/guard-log.mjs';
 import path from 'node:path';
 try {
   const args = process.argv.slice(2),

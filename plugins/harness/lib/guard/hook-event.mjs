@@ -5,7 +5,7 @@ import {
   quotedPathCandidates,
 } from './operations.mjs';
 
-import { canonicalRole } from './role-identities.mjs';
+import { canonicalRole } from '../runtime/role-contract.mjs';
 import { powershellOperations } from './powershell-operations.mjs';
 
 export function normalizeHookEvent(raw, { env = process.env, platform = process.platform } = {}) {

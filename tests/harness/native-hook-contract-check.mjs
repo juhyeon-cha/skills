@@ -4,16 +4,16 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {evaluateGuard, RULES, GR_ROLES, IMPL_ROLES, BD_READ_EXEMPT, LEDGER_READ_EXEMPT, IMPL_BD_WRITE_ALLOW} from '../../plugins/harness/lib/guard.mjs';
-import {evaluateStop, STOP_OUTCOMES, MAX_BLOCKS} from '../../plugins/harness/lib/stop.mjs';
-import {resolveState, cancelSession} from '../../plugins/harness/lib/state.mjs';
-import {powershellOperations} from '../../plugins/harness/lib/powershell-operations.mjs';
-import {patchOperations} from '../../plugins/harness/lib/operations.mjs';
-import {summarizeGuardLog} from '../../plugins/harness/lib/guard-log.mjs';
-import {normalizeHookEvent} from '../../plugins/harness/lib/hook-event.mjs';
-import {workspaceShellCommand} from '../../plugins/harness/lib/workspace-command.mjs';
-import {windowsCommandOperands} from '../../plugins/harness/lib/common-command.mjs';
-import {LEDGER_TOOLS} from '../../plugins/harness/lib/guard.mjs';
+import {evaluateGuard, RULES, GR_ROLES, IMPL_ROLES, BD_READ_EXEMPT, LEDGER_READ_EXEMPT, IMPL_BD_WRITE_ALLOW} from '../../plugins/harness/lib/guard/guard.mjs';
+import {evaluateStop, STOP_OUTCOMES, MAX_BLOCKS} from '../../plugins/harness/lib/runtime/stop.mjs';
+import {resolveState, cancelSession} from '../../plugins/harness/lib/runtime/state.mjs';
+import {powershellOperations} from '../../plugins/harness/lib/guard/powershell-operations.mjs';
+import {patchOperations} from '../../plugins/harness/lib/guard/operations.mjs';
+import {summarizeGuardLog} from '../../plugins/harness/lib/guard/guard-log.mjs';
+import {normalizeHookEvent} from '../../plugins/harness/lib/guard/hook-event.mjs';
+import {workspaceShellCommand} from '../../plugins/harness/lib/workspace/workspace-command.mjs';
+import {windowsCommandOperands} from '../../plugins/harness/lib/guard/common-command.mjs';
+import {LEDGER_TOOLS} from '../../plugins/harness/lib/guard/guard.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness/', import.meta.url));
 const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-native-hooks-')));
@@ -52,7 +52,7 @@ try {
   for (const [rule, input] of Object.entries(probes)) await check(`rule ${rule}: deny, remove only registration, then allow`, async () => {
     const normal = await judge(input); assert.equal(normal.code, 2, normal.stderr); assert.equal(normal.rule, rule);
     const copy = path.join(temp, rule); fs.cpSync(root, copy, {recursive: true});
-    const file = path.join(copy, 'lib/guard.mjs'); const before = fs.readFileSync(file, 'utf8');
+    const file = path.join(copy, 'lib/guard/guard.mjs'); const before = fs.readFileSync(file, 'utf8');
     const after = before.split('\n').filter(line => !(line.startsWith('RULES.push(') && line.includes(`run: ${rule}}`))).join('\n');
     assert.notEqual(after, before); fs.writeFileSync(file, after);
     const mutant = await import(pathToFileURL(file).href);
@@ -291,7 +291,7 @@ try {
   });
   await check('Stop both marker checks have live independent negative controls', async () => {
     for (const [marker, line, notes] of [['VERIFY_MARK', 'const vp = 0;', 'VERIFY_PENDING: abc'], ['DELEGATED_MARK', 'const dg = 0;', 'DELEGATED: milestone']]) {
-      const copy = path.join(temp, marker); fs.cpSync(root, copy, {recursive: true}); const file = path.join(copy, 'lib/stop.mjs');
+      const copy = path.join(temp, marker); fs.cpSync(root, copy, {recursive: true}); const file = path.join(copy, 'lib/runtime/stop.mjs');
       const before = fs.readFileSync(file, 'utf8'); const after = before.split('\n').map(value => value.includes('// ' + marker) ? '  ' + line : value).join('\n'); assert.notEqual(after, before); fs.writeFileSync(file, after);
       const mutant = await import(pathToFileURL(file).href);
       const result = await mutant.evaluateStop({cwd: main, session_id: marker}, {env, ledger: async () => ({code: 0, stdout: JSON.stringify([{notes}])})}); assert.equal(JSON.parse(result.stdout).decision, 'block');

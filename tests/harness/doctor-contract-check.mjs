@@ -5,8 +5,8 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHmac} from 'node:crypto';
 import {pluginRoot, readJson, digest} from '../../plugins/harness/lib/distribution.mjs';
-import {createChallenge, diagnose} from '../../plugins/harness/lib/doctor.mjs';
-import {registerRoles, loadRole} from '../../plugins/harness/lib/roles.mjs';
+import {createChallenge, diagnose} from '../../plugins/harness/lib/runtime/doctor.mjs';
+import {registerRoles, loadRole} from '../../plugins/harness/lib/runtime/roles.mjs';
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-contract-'));
 let count = 0;

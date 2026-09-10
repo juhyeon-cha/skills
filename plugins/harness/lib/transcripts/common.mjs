@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { canonicalRole, roleNames } from '../role-identities.mjs';
+import { canonicalRole, roleNames } from '../runtime/role-contract.mjs';
 
 export function roleName(value) {
   return roleNames.includes(value) ? value : canonicalRole(value)?.split(':')[1];

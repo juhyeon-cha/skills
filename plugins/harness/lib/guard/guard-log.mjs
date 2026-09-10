@@ -1,14 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveState } from './state.mjs';
+import { resolveState } from '../runtime/state.mjs';
 
 export async function summarizeGuardLog(
   args,
   {
     env = process.env,
     cwd = process.cwd(),
-    pluginRoot = env.CLAUDE_PLUGIN_ROOT || fileURLToPath(new URL('../', import.meta.url)),
+    pluginRoot = env.CLAUDE_PLUGIN_ROOT || fileURLToPath(new URL('../../', import.meta.url)),
   } = {},
 ) {
   const [command = 'count', session = ''] = args;
@@ -29,7 +29,7 @@ export async function summarizeGuardLog(
     if (error.code !== 'ENOENT') throw error;
   }
   if (!text) {
-    const hook = path.join(pluginRoot, 'lib/guard.mjs');
+    const hook = path.join(pluginRoot, 'lib/guard/guard.mjs');
     let why = '검사한 훅에는 로깅 호출이 있다';
     try {
       if (!fs.readFileSync(hook, 'utf8').includes('await guardLog(event ?? {}, rule, env);')) {

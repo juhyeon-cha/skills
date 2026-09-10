@@ -1,6 +1,6 @@
 # Runtime observations and ordinary outcomes
 
-`lib/transcripts/` owns format-specific decoding. `lib/transcript.mjs` owns A9 and retrospective aggregation; role names and SIGNAL vocabularies come from the existing role modules and `agents/*.md`. `lib/workflow.mjs` connects the ordinary session store to `roleCall`/`roleResult`. The ledger remains task state and acceptance authority. A retrospective report never closes work.
+`lib/transcripts/` owns format-specific decoding. `lib/transcript.mjs` owns A9 and retrospective aggregation; role names and SIGNAL vocabularies come from the existing role modules and `agents/*.md`. `lib/runtime/workflow.mjs` connects the ordinary session store to `roleCall`/`roleResult`. The ledger remains task state and acceptance authority. A retrospective report never closes work.
 
 ## Ordinary delegation
 

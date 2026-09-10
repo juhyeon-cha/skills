@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { loadRole } from './roles.mjs';
-import { roleNames } from './role-identities.mjs';
+import { loadRole } from './runtime/roles.mjs';
+import { roleNames } from './runtime/role-contract.mjs';
 import { records, tokens } from './transcripts/common.mjs';
 import { decodeClaude } from './transcripts/claude.mjs';
 

@@ -10,8 +10,8 @@ import {
   isMain,
   cli,
 } from '../lib/ledger-view.mjs';
-import { inspectWorkspace } from '../lib/workspace.mjs';
-import { worktreeName } from '../lib/worktree-name.mjs';
+import { inspectWorkspace } from '../lib/workspace/workspace.mjs';
+import { worktreeName } from '../lib/workspace/worktree-name.mjs';
 
 export function judgeR5(rows, byId = ledgerIndex(rows)) {
   const covered = rows.filter(

@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {preparationPaths} from '../../plugins/harness/lib/preparation.mjs';
+import {preparationPaths} from '../../plugins/harness/lib/workspace/preparation.mjs';
 
 const self = fileURLToPath(import.meta.url);
 if (process.argv[2] === '--adapter') {

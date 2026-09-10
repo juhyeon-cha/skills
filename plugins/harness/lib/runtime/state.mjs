@@ -2,11 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { createHash, randomUUID } from 'node:crypto';
-import { inspectWorkspace } from './workspace.mjs';
-import { runCommand } from './process.mjs';
+import { inspectWorkspace } from '../workspace/workspace.mjs';
+import { runCommand } from '../process.mjs';
 import { fileURLToPath } from 'node:url';
 
-const plugin = fileURLToPath(new URL('../', import.meta.url));
+const plugin = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const nonempty = (value, name) => {
   if (typeof value !== 'string' || !value || value.includes('\0'))

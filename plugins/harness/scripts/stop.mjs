@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 try {
-  const { evaluateStop } = await import('../lib/stop.mjs');
+  const { evaluateStop } = await import('../lib/runtime/stop.mjs');
   const result = await evaluateStop(JSON.parse(fs.readFileSync(0, 'utf8')));
   process.stdout.write(result.stdout);
   process.stderr.write(result.stderr);

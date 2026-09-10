@@ -1,7 +1,7 @@
 import fs from 'node:fs';
-import { normalizeHookEvent } from '../lib/hook-event.mjs';
+import { normalizeHookEvent } from '../lib/guard/hook-event.mjs';
 import { fileURLToPath } from 'node:url';
-import { workspaceShellCommand } from '../lib/workspace-command.mjs';
+import { workspaceShellCommand } from '../lib/workspace/workspace-command.mjs';
 try {
   const event = normalizeHookEvent(JSON.parse(fs.readFileSync(0, 'utf8')));
   event.harness_workspace_action = '';

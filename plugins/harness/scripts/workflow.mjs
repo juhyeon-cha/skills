@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { workflowScope, beginWorkflow, completeWorkflow, auditWorkflow } from '../lib/workflow.mjs';
+import { workflowScope, beginWorkflow, completeWorkflow, auditWorkflow } from '../lib/runtime/workflow.mjs';
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const [action, scopeFile, registrationFile, requestOrId, captureOrNativeId] = process.argv.slice(2);
 try {

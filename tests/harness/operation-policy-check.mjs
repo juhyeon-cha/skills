@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {normalizePath, patchOperations, isReadonlySearch} from '../../plugins/harness/lib/operations.mjs';
-import {normalizeHookEvent} from '../../plugins/harness/lib/hook-event.mjs';
+import {normalizePath, patchOperations, isReadonlySearch} from '../../plugins/harness/lib/guard/operations.mjs';
+import {normalizeHookEvent} from '../../plugins/harness/lib/guard/hook-event.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness', import.meta.url));
 const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'operation-policy-')));

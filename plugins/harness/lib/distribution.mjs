@@ -2,8 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadRole } from './roles.mjs';
-import { roleNames } from './role-identities.mjs';
+import { loadRole } from './runtime/roles.mjs';
+import { roleNames } from './runtime/role-contract.mjs';
 
 export const pluginRoot = fs.realpathSync(fileURLToPath(new URL('../', import.meta.url)));
 export const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');

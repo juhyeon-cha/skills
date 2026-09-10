@@ -2,10 +2,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { roleNames, roleIdentifier } from './role-identities.mjs';
-import { roleSignals, roleChain } from './runtime-contract.mjs';
+import { roleNames, roleIdentifier } from './role-contract.mjs';
+import { roleSignals, roleChain } from './role-contract.mjs';
 
-const plugin = fileURLToPath(new URL('../', import.meta.url));
+const plugin = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const required = (value, label) => {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`${label} missing`);

@@ -3,8 +3,8 @@ import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { loadConfigSnapshot, configCommand } from './config.mjs';
-import { runCommand } from './process.mjs';
+import { loadConfigSnapshot, configCommand } from '../config.mjs';
+import { runCommand } from '../process.mjs';
 import {
   windowsOwner,
   windowsOwnerGone,
@@ -282,7 +282,7 @@ export async function prepareWorkspaceIdentity(
   // Preflight also distinguishes a legitimate no-command repo from own hooks.
   const status = await preparationStatus(identity);
   if (status.canDelegate) return status;
-  const worker = fileURLToPath(new URL('../scripts/prepare-worker.mjs', import.meta.url));
+  const worker = fileURLToPath(new URL('../../scripts/prepare-worker.mjs', import.meta.url));
   const child =
     process.platform === 'win32'
       ? await spawnWindowsWorker(worker, identity, env)

@@ -6,8 +6,8 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {loadConfig} from '../../plugins/harness/lib/config.mjs';
 import {inspectDistribution} from '../../plugins/harness/lib/distribution.mjs';
-import {registerRoles, verifyRegistration} from '../../plugins/harness/lib/roles.mjs';
-import {createChallenge, diagnose} from '../../plugins/harness/lib/doctor.mjs';
+import {registerRoles, verifyRegistration} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {createChallenge, diagnose} from '../../plugins/harness/lib/runtime/doctor.mjs';
 
 assert.notEqual(process.platform, 'win32', 'UNREACHED: migration fixture uses existing POSIX adapters');
 assert.ok(!process.argv[2] || process.argv[2] === '--missing-artifact', 'unknown fixture argument');
@@ -111,8 +111,8 @@ else {fs.appendFileSync(process.env.MIGRATION_SENTINEL,'unexpected\\n');process.
   check(finalIdentity.gitDir === initialIdentity.gitDir && finalIdentity.branch === initialIdentity.branch, 'upgrade and rollback preserve Git registration identity');
   check(bytes(dirty) === 'retain my work' && bytes(credential) === 'fixture-only opaque bytes' && bytes(marker) === 'old-marker', 'dirty work, credential sentinel and old marker survive');
 
-  const state = await import(pathToFileURL(path.join(candidate, 'lib/state.mjs')));
-  const olderState = await import(pathToFileURL(path.join(previous, 'lib/state.mjs')));
+  const state = await import(pathToFileURL(path.join(candidate, 'lib/runtime/state.mjs')));
+  const olderState = await import(pathToFileURL(path.join(previous, 'lib/runtime/state.mjs')));
   const actors = path.join(temp, 'legacy-actors.tsv'), guard = path.join(temp, 'legacy-guard.tsv');
   env.HARNESS_SESSION_ACTOR_LOG = actors; env.HARNESS_GUARD_LOG = guard;
   write(actors, 'legacy actor\n'); write(guard, 'legacy guard\n'); write(path.join(env.HARNESS_DATA_DIR, 'stop-resume-cancel'), 'legacy cancel');

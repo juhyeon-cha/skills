@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { resolveState, readActors, isCancelled, appendState, tsv } from './state.mjs';
-import { executeLedger, ledgerRoot } from './ledger.mjs';
+import { executeLedger, ledgerRoot } from '../ledger.mjs';
 
 export const STOP_OUTCOMES = [
   'RECURSE',
@@ -24,7 +24,7 @@ export async function evaluateStop(
     env = process.env,
     ledger = executeLedger,
     rootFinder = ledgerRoot,
-    pluginRoot = fileURLToPath(new URL('../', import.meta.url)),
+    pluginRoot = fileURLToPath(new URL('../../', import.meta.url)),
   } = {},
 ) {
   const result = { code: 0, stdout: '', stderr: '', outcomes: [] };

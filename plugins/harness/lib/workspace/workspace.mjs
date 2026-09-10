@@ -1,12 +1,12 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfig } from './config.mjs';
+import { loadConfig } from '../config.mjs';
 import { prepareWorkspaceIdentity, preparationStatus, preparationPaths } from './preparation.mjs';
-import { runCommand } from './process.mjs';
+import { runCommand } from '../process.mjs';
 import { worktreeName } from './worktree-name.mjs';
 
-const plugin = fileURLToPath(new URL('../', import.meta.url));
+const plugin = fileURLToPath(new URL('../../', import.meta.url));
 const exists = async (p) =>
   fs.stat(p).then(
     () => true,

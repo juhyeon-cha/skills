@@ -4,7 +4,7 @@ import os from 'node:os';
 import assert from 'node:assert/strict';
 import { auditClaude, summarize } from '../lib/transcript.mjs';
 import { decodeClaude } from '../lib/transcripts/claude.mjs';
-import { workflowScope, auditWorkflow } from '../lib/workflow.mjs';
+import { workflowScope, auditWorkflow } from '../lib/runtime/workflow.mjs';
 
 function selfCheck() {
   const invocation = {

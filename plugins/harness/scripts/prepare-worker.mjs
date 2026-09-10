@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-import { inspectWorkspace, gitEnvironment } from '../lib/workspace.mjs';
-import { runPreparation } from '../lib/preparation.mjs';
+import { inspectWorkspace, gitEnvironment } from '../lib/workspace/workspace.mjs';
+import { runPreparation } from '../lib/workspace/preparation.mjs';
 import fs from 'node:fs/promises';
 import { appendFileSync } from 'node:fs';
 import path from 'node:path';

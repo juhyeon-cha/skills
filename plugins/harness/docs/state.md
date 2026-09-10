@@ -1,6 +1,6 @@
 # Runtime state
 
-`lib/state.mjs` owns state paths and writes. Runtime state is observation and coordination data; repository `.harness.json` and the ledger remain the configuration and work sources. Preparation ownership remains in Git worktree metadata and is shared by both runtimes.
+`lib/runtime/state.mjs` owns state paths and writes. Runtime state is observation and coordination data; repository `.harness.json` and the ledger remain the configuration and work sources. Preparation ownership remains in Git worktree metadata and is shared by both runtimes.
 
 ## Identity and paths
 

@@ -4,8 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
-import {registerRoles, verifyRegistration, roleCall, roleResult, loadRole} from '../../plugins/harness/lib/roles.mjs';
-import {roleNames, roleIdentifier, canonicalRole} from '../../plugins/harness/lib/role-identities.mjs';
+import {registerRoles, verifyRegistration, roleCall, roleResult, loadRole} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {roleNames, roleIdentifier, canonicalRole} from '../../plugins/harness/lib/runtime/role-contract.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness', import.meta.url));
 const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'role-contract-')));

@@ -1,4 +1,4 @@
-import { createChallenge, diagnose } from '../lib/doctor.mjs';
+import { createChallenge, diagnose } from '../lib/runtime/doctor.mjs';
 import { readJson } from '../lib/distribution.mjs';
 try {
   const [action, first, second, third, fourth] = process.argv.slice(2);

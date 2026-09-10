@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { literalShellWords } from './workspace-command.mjs';
-import { resolveState } from './state.mjs';
+import { literalShellWords } from '../workspace/workspace-command.mjs';
+import { resolveState } from '../runtime/state.mjs';
 
 // Lexical roles are attached to argv positions, not path values. A second
 // occurrence of the root as an operand must remain a target. Composition and

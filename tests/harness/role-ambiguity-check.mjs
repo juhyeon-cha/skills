@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {registerRoles, verifyRegistration, roleCall, roleResult} from '../../plugins/harness/lib/roles.mjs';
+import {registerRoles, verifyRegistration, roleCall, roleResult} from '../../plugins/harness/lib/runtime/roles.mjs';
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'role-ambiguity-'));
 let failures = 0;

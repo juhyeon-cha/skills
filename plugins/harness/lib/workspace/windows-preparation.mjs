@@ -4,7 +4,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { resolveExecutable, runCommand } from './process.mjs';
+import { resolveExecutable, runCommand } from '../process.mjs';
 
 const adapter = fileURLToPath(new URL('./windows-job.ps1', import.meta.url));
 const validJob = (name) =>
@@ -102,7 +102,7 @@ export async function spawnWindowsWorker(worker, identity, env) {
     // launcher survives waiter death; its attached PowerShell child starts
     // reliably and still dies if that launcher crashes.
     const launcher = fileURLToPath(
-      new URL('../scripts/windows-prepare-launcher.mjs', import.meta.url),
+      new URL('../../scripts/windows-prepare-launcher.mjs', import.meta.url),
     );
     const child = spawn(process.execPath, [launcher, request], {
       cwd: identity.top,

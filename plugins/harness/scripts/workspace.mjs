@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import { workspaceArguments } from '../lib/workspace-command.mjs';
+import { workspaceArguments } from '../lib/workspace/workspace-command.mjs';
 import {
   inspectWorkspace,
   createWorkspace,
@@ -9,7 +9,7 @@ import {
   cleanupWorkspace,
   prepareWorkspace,
   readyWorkspace,
-} from '../lib/workspace.mjs';
+} from '../lib/workspace/workspace.mjs';
 
 const say = (text) => {
   if (text) process.stderr.write(text + '\n');

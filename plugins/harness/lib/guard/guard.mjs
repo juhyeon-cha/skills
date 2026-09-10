@@ -4,9 +4,9 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { normalizeHookEvent } from './hook-event.mjs';
 import { normalizePath } from './operations.mjs';
-import { workspaceShellCommand } from './workspace-command.mjs';
-import { inspectWorkspace } from './workspace.mjs';
-import { guardLog } from './state.mjs';
+import { workspaceShellCommand } from '../workspace/workspace-command.mjs';
+import { inspectWorkspace } from '../workspace/workspace.mjs';
+import { guardLog } from '../runtime/state.mjs';
 import { powershellTargets, powershellReadonly } from './powershell-operations.mjs';
 import { commonCommand, windowsCommandOperands } from './common-command.mjs';
 
@@ -556,7 +556,7 @@ export async function evaluateGuard(
   {
     env = process.env,
     pluginRoot = env.CLAUDE_PLUGIN_ROOT ||
-      path.resolve(fileURLToPath(new URL('../', import.meta.url))),
+      path.resolve(fileURLToPath(new URL('../../', import.meta.url))),
   } = {},
 ) {
   let event = raw,

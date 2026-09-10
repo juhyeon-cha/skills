@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { powershellOperations } from './powershell-operations.mjs';
+import { powershellOperations } from '../guard/powershell-operations.mjs';
 
 export function workspaceArguments(args) {
   const [action, cwd, ...rest] = args;

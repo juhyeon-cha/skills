@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pluginRoot, readJson } from '../lib/distribution.mjs';
-import { recordHook } from '../lib/doctor.mjs';
-import { recordStateEvent, formatStateContext } from '../lib/state.mjs';
-import { sessionContext } from '../lib/session-context.mjs';
+import { recordHook } from '../lib/runtime/doctor.mjs';
+import { recordStateEvent, formatStateContext } from '../lib/runtime/state.mjs';
+import { sessionContext } from '../lib/runtime/session-context.mjs';
 
 try {
   const id = process.argv[2];
@@ -25,15 +25,15 @@ try {
   let run = { code: 0, stdout: '', stderr: '' };
   if (id === 'context') run.stdout = JSON.stringify(sessionContext(pluginRoot));
   else if (id === 'guard')
-    run = await (await import('../lib/guard.mjs')).evaluateGuard(event, { pluginRoot });
+    run = await (await import('../lib/guard/guard.mjs')).evaluateGuard(event, { pluginRoot });
   else if (id === 'stop')
-    run = await (await import('../lib/stop.mjs')).evaluateStop(event, { pluginRoot });
+    run = await (await import('../lib/runtime/stop.mjs')).evaluateStop(event, { pluginRoot });
   else if (id === 'workspace') {
     if (typeof event.cwd !== 'string' || !path.isAbsolute(event.cwd))
       throw new Error('payload cwd required');
     try {
       await (
-        await import('../lib/workspace.mjs')
+        await import('../lib/workspace/workspace.mjs')
       ).enterWorkspace(event.cwd, {
         say: (line) => {
           run.stderr += line + '\n';

@@ -6,9 +6,9 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {runCommand, windowsBatchArguments} from '../../plugins/harness/lib/process.mjs';
-import {inspectWorkspace} from '../../plugins/harness/lib/workspace.mjs';
-import {prepareWorkspaceIdentity, preparationPaths, preparationStatus} from '../../plugins/harness/lib/preparation.mjs';
-import {windowsHasChildren} from '../../plugins/harness/lib/windows-preparation.mjs';
+import {inspectWorkspace} from '../../plugins/harness/lib/workspace/workspace.mjs';
+import {prepareWorkspaceIdentity, preparationPaths, preparationStatus} from '../../plugins/harness/lib/workspace/preparation.mjs';
+import {windowsHasChildren} from '../../plugins/harness/lib/workspace/windows-preparation.mjs';
 
 assert.equal(process.platform, process.argv[2] || process.platform, 'actual host must match requested evidence');
 const temp = await fs.mkdtemp(path.join(os.tmpdir(), 'native-prepare-'));
@@ -161,7 +161,7 @@ process.exitCode=mode==='fail'?9:0;
     });
     await check('killed waiter does not own independent preparation lifetime', async () => {
       await setMode('waiter');
-      const module = fileURLToPath(new URL('../../plugins/harness/lib/preparation.mjs', import.meta.url));
+      const module = fileURLToPath(new URL('../../plugins/harness/lib/workspace/preparation.mjs', import.meta.url));
       const launcher = path.join(temp, 'caller.mjs');
       await fs.writeFile(launcher, `import {prepareWorkspaceIdentity} from ${JSON.stringify(pathToFileURL(module).href)}; await prepareWorkspaceIdentity(${JSON.stringify(identity)});`);
       const caller = spawn(process.execPath, [launcher], {cwd: wt, env, stdio: 'ignore'});
@@ -174,7 +174,7 @@ process.exitCode=mode==='fail'?9:0;
   await check('empty and malformed worker responses remain UNREACHED with Unicode diagnostics', async () => {
     const copy = path.join(temp, 'protocol-plugin');
     await fs.cp(fileURLToPath(new URL('../../plugins/harness', import.meta.url)), copy, {recursive: true});
-    const module = await import(pathToFileURL(path.join(copy, 'lib/preparation.mjs')));
+    const module = await import(pathToFileURL(path.join(copy, 'lib/workspace/preparation.mjs')));
     for (const response of ['', 'invalid-json']) {
       await setMode('protocol-' + response);
       await fs.writeFile(path.join(copy, 'scripts/prepare-worker.mjs'), `import fs from 'node:fs'; import path from 'node:path';
@@ -193,7 +193,7 @@ else { process.stderr.write(diagnostic); process.stdout.write(response); }
       await fs.mkdir(path.join(copy, 'tests/harness'), {recursive: true});
       const test = path.join(copy, 'tests/harness/native-preparation-contract-check.mjs');
       await fs.copyFile(fileURLToPath(import.meta.url), test);
-      const module = path.join(copy, 'plugins/harness/lib/preparation.mjs');
+      const module = path.join(copy, 'plugins/harness/lib/workspace/preparation.mjs');
       const before = await fs.readFile(module, 'utf8');
       const after = before.replace("if (result.status !== 'exited' || result.code !== 0)", 'if (false)');
       assert.notEqual(after, before); await fs.writeFile(module, after);

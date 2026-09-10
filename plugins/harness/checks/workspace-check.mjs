@@ -2,7 +2,7 @@
 // Read-only config + actual Git identity on every backend, without ledger calls.
 import path from 'node:path';
 import { loadConfig } from '../lib/config.mjs';
-import { inspectWorkspace } from '../lib/workspace.mjs';
+import { inspectWorkspace } from '../lib/workspace/workspace.mjs';
 import { isMain, cli } from '../lib/ledger-view.mjs';
 
 export async function checkWorkspace(target = process.cwd(), { env = process.env } = {}) {

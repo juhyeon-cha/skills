@@ -7,9 +7,9 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {runCommand, executableCandidates} from '../../plugins/harness/lib/process.mjs';
 import {loadConfig, validateConfig} from '../../plugins/harness/lib/config.mjs';
-import {patchOperations, normalizePath, isReadonlySearch} from '../../plugins/harness/lib/operations.mjs';
-import {inspectWorkspace} from '../../plugins/harness/lib/workspace.mjs';
-import {prepareWorkspaceIdentity, preparationStatus} from '../../plugins/harness/lib/preparation.mjs';
+import {patchOperations, normalizePath, isReadonlySearch} from '../../plugins/harness/lib/guard/operations.mjs';
+import {inspectWorkspace} from '../../plugins/harness/lib/workspace/workspace.mjs';
+import {prepareWorkspaceIdentity, preparationStatus} from '../../plugins/harness/lib/workspace/preparation.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const expected = process.argv[2] || process.platform;
@@ -114,13 +114,13 @@ try {
       report.ledgerDependencies[backend] = {required: ['node', ...(executable ? [executable] : [])],
         coverage: 'offline native ledger suite; beads sync additionally uses optional dolt', integration: 'live backend UNREACHED'};
     }
-    assert.match(await read('lib/workspace.mjs'), /process.execPath, path.join\(plugin, 'scripts\/ledger.mjs'\), '--root'/);
-    assert.match(await read('lib/preparation.mjs'), /spawnWindowsWorker/);
+    assert.match(await read('lib/workspace/workspace.mjs'), /process.execPath, path.join\(plugin, 'scripts\/ledger.mjs'\), '--root'/);
+    assert.match(await read('lib/workspace/preparation.mjs'), /spawnWindowsWorker/);
     const hook = await read('scripts/hook.mjs');
     assert.doesNotMatch(hook, /spawn(?:Sync)?\(['"](?:bash|jq|python3)['"]/);
-    for (const name of ['guard', 'stop', 'session-context']) {
+    for (const [directory, name] of [['guard', 'guard'], ['runtime', 'stop'], ['runtime', 'session-context']]) {
       assert.match(hook, new RegExp(name));
-      assert.doesNotMatch(await read(`lib/${name}.mjs`), /spawn(?:Sync)?\(['"](?:bash|jq|python3)['"]/);
+      assert.doesNotMatch(await read(`lib/${directory}/${name}.mjs`), /spawn(?:Sync)?\(['"](?:bash|jq|python3)['"]/);
     }
   });
   await check('no-command preparation uses no shell; configured preparation requires an execution result', async () => {

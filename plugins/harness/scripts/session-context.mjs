@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { pluginRoot } from '../lib/distribution.mjs';
-import { sessionContext } from '../lib/session-context.mjs';
+import { sessionContext } from '../lib/runtime/session-context.mjs';
 try {
   console.log(JSON.stringify(sessionContext(pluginRoot)));
 } catch (error) {

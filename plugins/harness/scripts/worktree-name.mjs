@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { worktreeName } from '../lib/worktree-name.mjs';
+import { worktreeName } from '../lib/workspace/worktree-name.mjs';
 try {
   process.stdout.write(worktreeName(process.argv[2]) + '\n');
 } catch (error) {

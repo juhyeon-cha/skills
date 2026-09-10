@@ -8,7 +8,7 @@ import {normalizeGithub} from '../../plugins/harness/lib/ledger/github.mjs';
 import {richText} from '../../plugins/harness/lib/ledger/notion.mjs';
 import {runCommand} from '../../plugins/harness/lib/process.mjs';
 import {fileArguments} from '../../plugins/harness/lib/ledger/common.mjs';
-import {worktreeName} from '../../plugins/harness/lib/worktree-name.mjs';
+import {worktreeName} from '../../plugins/harness/lib/workspace/worktree-name.mjs';
 
 assert.equal(process.platform,process.argv[2]||process.platform);
 const root=await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(),'native-ledger 한글 space-')));

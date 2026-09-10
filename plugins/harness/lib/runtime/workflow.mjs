@@ -3,10 +3,10 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { resolveState, storeWorkflow, readWorkflow, withStateLock } from './state.mjs';
 import { roleCall, roleResult, loadRole } from './roles.mjs';
-import { records, parseRecords } from './transcripts/common.mjs';
-import { decodeCodex, codexOutcome } from './transcripts/codex.mjs';
-import { decodeClaude } from './transcripts/claude.mjs';
-import { summarize } from './transcript.mjs';
+import { records, parseRecords } from '../transcripts/common.mjs';
+import { decodeCodex, codexOutcome } from '../transcripts/codex.mjs';
+import { decodeClaude } from '../transcripts/claude.mjs';
+import { summarize } from '../transcript.mjs';
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const bytes = (file) => (fs.existsSync(file) ? fs.readFileSync(file) : Buffer.alloc(0));
