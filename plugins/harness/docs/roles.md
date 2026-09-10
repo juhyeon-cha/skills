@@ -2,7 +2,40 @@
 
 Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `agents/*.md`; the skill still owns result handling and RETRY limits.
 
-## Register
+## Select the execution contract
+
+The default is the native path below. An explicitly selected `codex` / `collaboration`
+cycle may use `permission: prompt-only` through the generic protocol in
+[Runtime observations](transcripts.md#generic-parent-observations). Record that
+selection in the task notes before delegation. Native failure never selects this
+path automatically. A request requiring enforced role permissions is unavailable
+on this provider: reject it before spawning a child and follow develop's human wait.
+
+`delegation.mjs capability <capability.json>` and `doctor.mjs delegation
+<capability.json>` consume the same capability function as generic begin. The JSON
+contains `runtime`, `provider`, and `permission`; require exit 0 and AVAILABLE.
+This diagnoses contract availability, not execution, hook activation or role loading.
+Doctor's native `check` retains its separate static/loaded/live judgments.
+
+For the selected generic path, require exit 0 and `status: OBSERVED` from complete
+before handling the canonical role's SIGNAL. It attests parent-observed child
+identity and completion with `permission: prompt-only`, `enforcement: unavailable`
+and `nativeRoleEvidence: unavailable`; tool and token measurements are unknown.
+Supply the canonical role file by path as the child's instructions. Those prompts
+remain role discipline, but their prohibitions have no verified enforcement here.
+An OBSERVED evaluator MATCH can ground close only in this explicitly selected path.
+It is not native REACHED, registered-role evidence or proof of semantic acceptance.
+
+Both paths preserve the calling skill's SIGNAL handling and persisted RETRY limits.
+Use independent reviewer and evaluator children, distinct from each other, the
+parent and all implementation authors. On a retry use a fresh child and include
+all earlier attempts in `previousAgentIds`; a follow-up cannot stand in for it.
+Record the call and validated outcome in task notes, keeping private runtime
+identities and response evidence in the parent-owned local inventory when needed.
+PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handling
+or close: preserve the task and use develop's human-wait procedure.
+
+## Register (native)
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It references their original files; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator inserts the role body and resolves its plugin-root pointers. Codex inherits its parent's model; Claude-only frontmatter is not passed as Codex configuration.
 
@@ -12,7 +45,7 @@ The directory verifier accepts a restricted TOML subset: flat string assignments
 
 Registration proves files, not runtime loading or hook activation. Start a new runtime session after registration. Its native delegation capability must expose the requested identifier and deliver role identity in hooks. If it cannot, record UNREACHED and follow develop's human-wait procedure. Claude live verification is tracked separately in skills#268; a fixture is not a live claim.
 
-## Call
+## Call (native)
 
 Save a request JSON containing `role`, `task` (the task or batch unit), `message` (the skill's delegation message), `sessionId`, `parentAgentId`, `implementerIds` and `previousAgentIds`. IDs are runtime instance IDs, not role names. Populate implementation authors and previous attempts from persisted delegation records; an empty previous list is valid only on the first attempt. The task/batch and commit range in the message are the scope of this call.
 
@@ -20,7 +53,7 @@ Before native invocation, persist the required call with `workflow.mjs begin` as
 
 For a retry, follow verify-code's persisted RETRY procedure before creating a new call. Include every earlier attempt's ID in `previousAgentIds` and use a fresh native child. Evaluator/reviewer IDs must differ from the parent and every implementation author. Same-role follow-ups do not become fresh reviews.
 
-## Result
+## Result (native)
 
 Use `workflow.mjs complete-native` with the actual native return recorded by the orchestrator, following [Runtime observations](transcripts.md). It loads ordinary events after begin, checks invocation ownership, and calls the existing `roleResult` contract. Require rc 0 and `status: REACHED` before handling its `signal` through the calling skill. The adapter checks ordered Start → tool → Stop events from the same session, role and instance, and the Stop result's first line against the current source role's vocabulary. Record call, outcome and result paths in the task note so identity and scope survive re-entry. These are evidence records, not an authenticated audit service: only the orchestrator supplies native returns, never a child's summary. `roles.mjs result` remains a direct contract inspector for explicit fixtures/probes; it does not replace ordinary inventory or its observation boundary.
 

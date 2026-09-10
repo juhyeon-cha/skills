@@ -1,0 +1,89 @@
+{
+  "kind": "parent-recorded-observation-excerpts",
+  "provenance": {
+    "ledger": "https://github.com/juhyeon-cha/skills/issues/275",
+    "source_notes": [
+      "실제 일반 자식 capability 초기 관측",
+      "실제 interruption/reuse 관측",
+      "DECIDED: prompt-only 명시 허용, enforced 필수 요청 거절. 사용자 권장안 승인으로 설계 질문 해소."
+    ],
+    "local_memos": [
+      "/tmp/harness-275-probe-initial.md",
+      "/tmp/harness-275-interrupt-probe.md"
+    ],
+    "limits": [
+      "Manually structured excerpts of parent-recorded observations, not an authenticated raw capture.",
+      "Local memos are provenance coordinates, not required fixture inputs or durable evidence stores.",
+      "Only recorded fields and message first lines are preserved; full tool responses and completion bodies are not reconstructed.",
+      "Parsing or replaying this fixture does not authenticate a provider execution."
+    ]
+  },
+  "provider_surface": {
+    "attribution": "parent_observation",
+    "tool": "collaboration.spawn_agent",
+    "argument_names": ["task_name", "message", "fork_turns", "model", "reasoning_effort"],
+    "native_role_selection_argument": "unavailable",
+    "per_child_permission_argument": "unavailable",
+    "scope": "The tool surface exposed in the observed session, not all Codex products or runtimes."
+  },
+  "observations": [
+    {
+      "case": "creation-and-completion",
+      "attribution": "parent_observation",
+      "spawn_return_excerpt": {"task_name": "/root/capability_probe_275"},
+      "completion_message_excerpt": {
+        "sender": "/root/capability_probe_275",
+        "first_line": "PROBE_COMPLETE probe-275-20260910-a"
+      },
+      "list_agents_observation": {
+        "agent_name": "/root/capability_probe_275",
+        "status_variant": "completed",
+        "parent_recorded_comparison": "The completed body matched the actual completion message body."
+      }
+    },
+    {
+      "case": "child-report",
+      "attribution": "child_self_report",
+      "child": "/root/capability_probe_275",
+      "reported_read_only_command": "pwd",
+      "reported_cwd": "/Users/juhyeon/.harness-workspace/skills",
+      "reported_exit_code": 0,
+      "reported_hook_identity": "not observed: agent_type, agent_id, session_id",
+      "limit": "Successful reading does not establish role-specific permission enforcement."
+    },
+    {
+      "case": "interruption",
+      "attribution": "parent_observation",
+      "spawn_return_excerpt": {"task_name": "/root/interrupt_probe_275"},
+      "interrupt_return_excerpt": {"previous_status": "running"},
+      "subsequent_list_agents_observation": {
+        "path_prefix": "/root/interrupt_probe_275",
+        "agent_status": "interrupted"
+      },
+      "limit": "Interrupted is not completed or successful."
+    },
+    {
+      "case": "same-child-followup",
+      "attribution": "parent_observation",
+      "tool": "collaboration.followup_task",
+      "target": "/root/interrupt_probe_275",
+      "response_message_excerpt": {
+        "sender": "/root/interrupt_probe_275",
+        "first_line": "PROBE_FOLLOWUP probe-275-reuse-c"
+      },
+      "limit": "The same child identity can produce a new response; it does not identify a unique invocation."
+    }
+  ],
+  "unobserved_evidence": [
+    "Independent native invocation ID",
+    "Hook-delivered role identity",
+    "Role-specific enforced permissions",
+    "Permission allow/deny probes involving file writes or network access"
+  ],
+  "approved_contract": {
+    "source": "skills#275 user decision recorded by parent",
+    "generic_execution": "Explicit prompt-only selection allowed",
+    "enforced_requirement": "Reject on the observed provider without enforcement evidence",
+    "native_automatic_fallback": false
+  }
+}

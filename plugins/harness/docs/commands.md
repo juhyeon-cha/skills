@@ -21,6 +21,7 @@ Quote each path argument, including paths with spaces or Korean characters.
 | `workspace-check <repo>` | `node "<plugin-root>/checks/workspace-check.mjs" <repo>` |
 | `guardrail-check` | `node "<plugin-root>/checks/guardrail-check.mjs" --root "<harness-root>"` |
 | `guard-log <arguments>` | `node "<plugin-root>/scripts/guard-log.mjs" <arguments>` |
+| `delegation <action> <input.json>` | `node "<plugin-root>/scripts/delegation.mjs" <action> <input.json>` |
 | `transcript <arguments>` | `node "<plugin-root>/scripts/transcript.mjs" <arguments>` |
 
 Use `ledger --help` for supported commands and flags. Write bodies with the file
@@ -57,3 +58,7 @@ The old `.sh` entrypoints remain POSIX convenience wrappers. Windows native
 procedures use the Node entrypoints above. Read [platforms.md](platforms.md) for
 host and backend requirements and [installation.md](installation.md) before
 claiming that an installed artifact or its hooks and roles are actually loaded.
+
+For explicitly selected generic delegation, read [roles.md](roles.md) before using
+`delegation`; its begin/bind/complete/audit operations are parent-owned evidence
+writes. Capability diagnostics do not spawn a child or establish native loading.
