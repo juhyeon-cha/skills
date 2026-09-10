@@ -12,7 +12,8 @@ import { inspectDistribution, generateDistribution } from '../../plugins/harness
 // Synthetic tool returns exercise integration; live provenance is judged separately.
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const plugin = path.join(root, 'plugins/harness');
-const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'delegation-integration-')));
+// Match the runtime's native filesystem canonicalization, including Windows short-name aliases.
+const temp = await fs.promises.realpath(fs.mkdtempSync(path.join(os.tmpdir(), 'delegation-integration-')));
 const repo = path.join(temp, 'repo');
 const env = { ...process.env, GIT_CONFIG_GLOBAL: path.join(temp, 'empty.gitconfig'), GIT_CONFIG_NOSYSTEM: '1' };
 for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_COMMON_DIR', 'HARNESS_ROOT'])
@@ -58,6 +59,13 @@ try {
   fs.writeFileSync(path.join(repo, '.harness.json'), '{}\n');
   git('add', '.'); git('commit', '-qm', 'base');
   const base = git('rev-parse', 'HEAD');
+  const workspace = spawnSync(process.execPath, [path.join(plugin, 'scripts/workspace.mjs'), 'inspect', repo],
+    { env, encoding: 'utf8' });
+  check(workspace.status === 0, `fixture workspace inspection: ${workspace.stdout}\n${workspace.stderr}`);
+  const identity = JSON.parse(workspace.stdout);
+  check(identity.top === repo,
+    `fixture canonical repository mismatch: ${JSON.stringify({ supplied: repo, expected: identity.top, legacy: fs.realpathSync(repo), native: await fs.promises.realpath(repo) })}`);
+
   const common = {
     version: 1, runtime: 'codex', provider: 'collaboration', repository: repo,
     data: path.join(temp, 'data'), sessionId: 'fixture-session', parentAgentId: '/root',

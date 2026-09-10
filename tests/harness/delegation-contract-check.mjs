@@ -11,7 +11,8 @@ import { delegationCapability } from '../../plugins/harness/lib/runtime/delegati
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const plugin = path.join(root, 'plugins/harness');
 const cli = path.join(plugin, 'scripts/delegation.mjs');
-const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'delegation-contract-')));
+// Match the runtime's native filesystem canonicalization, including Windows short-name aliases.
+const temp = await fs.promises.realpath(fs.mkdtempSync(path.join(os.tmpdir(), 'delegation-contract-')));
 const repo = path.join(temp, 'repo');
 const env = { ...process.env, GIT_CONFIG_GLOBAL: path.join(temp, 'empty.gitconfig'), GIT_CONFIG_NOSYSTEM: '1' };
 for (const key of [
@@ -108,7 +109,7 @@ const context = (call) =>
     ),
   );
 function inventory(call, kind) {
-  const repoKey = hash(fs.realpathSync(path.join(repo, '.git')));
+  const repoKey = hash(fs.realpathSync.native(path.join(repo, '.git')));
   return path.join(
     call.data,
     'v1/codex/repos',
@@ -155,6 +156,13 @@ try {
   git('add', '.');
   git('commit', '-qm', 'base');
   const base = git('rev-parse', 'HEAD');
+  const workspace = spawnSync(process.execPath, [path.join(plugin, 'scripts/workspace.mjs'), 'inspect', repo],
+    { env, encoding: 'utf8' });
+  check(workspace.status === 0, `fixture workspace inspection: ${workspace.stdout}\n${workspace.stderr}`);
+  const identity = JSON.parse(workspace.stdout);
+  check(identity.top === repo,
+    `fixture canonical repository mismatch: ${JSON.stringify({ supplied: repo, expected: identity.top, legacy: fs.realpathSync(repo), native: await fs.promises.realpath(repo) })}`);
+
   let id = 0;
   const make = (changes = {}) => ({
     version: 1,
@@ -180,10 +188,17 @@ try {
     return call;
   };
 
+  check(fs.realpathSync.native(path.join(repo, '.git')) === identity.common,
+    `fixture inventory common path mismatch: ${JSON.stringify({ supplied: fs.realpathSync.native(path.join(repo, '.git')), expected: identity.common })}`);
+  const alias = `${repo}${path.sep}.`;
+  check(alias !== repo && await fs.promises.realpath(alias) === repo, 'repository alias addresses the same fixture');
+  const aliasCall = make({ repository: alias });
+  check(run('begin', aliasCall, 1).reason === 'canonical repository root required', 'noncanonical repository alias is rejected');
   const empty = make();
+  const emptyAudit = run('audit', context(empty), 1);
   check(
-    run('audit', context(empty), 1).errors.includes('empty invocation inventory'),
-    'empty is not success',
+    Array.isArray(emptyAudit.errors) && emptyAudit.errors.includes('empty invocation inventory'),
+    `empty is not success: ${JSON.stringify(emptyAudit)}`,
   );
   const good = make();
   check(run('begin', good).status === 'PENDING', 'begin inventory pending');
