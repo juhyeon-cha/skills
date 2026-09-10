@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {ledgerRoot} from '../lib/ledger.mjs';
+import { ledgerRoot } from '../lib/ledger.mjs';
 
 try {
   const explicit = process.env.HARNESS_ROOT;
@@ -18,15 +18,26 @@ try {
     for (const component of explicit.slice(offset).matchAll(components)) {
       if (component[0] !== '..') continue;
       const prefix = explicit.slice(0, offset + component.index) || '.';
-      if (!(await fs.stat(prefix).then(value => value.isDirectory(), () => false))) {
+      if (
+        !(await fs.stat(prefix).then(
+          (value) => value.isDirectory(),
+          () => false,
+        ))
+      ) {
         throw new Error(`HARNESS_ROOT='${explicit}' 는 하네스 루트가 아니다 (.harness.json 없음)`);
       }
     }
   }
-  if (explicit && !(await fs.stat(`${explicit}${path.sep}.harness.json`).then(value => value.isFile(), () => false))) {
+  if (
+    explicit &&
+    !(await fs.stat(`${explicit}${path.sep}.harness.json`).then(
+      (value) => value.isFile(),
+      () => false,
+    ))
+  ) {
     throw new Error(`HARNESS_ROOT='${explicit}' 는 하네스 루트가 아니다 (.harness.json 없음)`);
   }
-  process.stdout.write((explicit || await ledgerRoot(process.cwd())) + '\n');
+  process.stdout.write((explicit || (await ledgerRoot(process.cwd()))) + '\n');
 } catch (error) {
   process.stderr.write(`harness-root: ${error.message}\n`);
   process.exitCode = 1;
