@@ -8,7 +8,7 @@ import {workspaceShellCommand} from './workspace-command.mjs';
 import {inspectWorkspace} from './workspace.mjs';
 import {guardLog} from './state.mjs';
 import {powershellTargets, powershellReadonly} from './powershell-operations.mjs';
-import {commonCommand} from './common-command.mjs';
+import {commonCommand, windowsCommandOperands} from './common-command.mjs';
 
 // Policy inventories have one owner. Developer tests derive their populations
 // from these exports and mutate copies, never an environment injection point.
@@ -180,7 +180,20 @@ function pathCandidates(ctx) {
     const root = word.slice(13);
     if (isHarnessRoot(ctx, root)) command = command.replaceAll('HARNESS_ROOT=' + root + ' ', ''); // ROOT_ASSIGNMENT
   }
-  const candidates = [];
+  // Bash is also a real Windows transport. Keep drive/UNC operands intact;
+  // the POSIX slash scanner alone drops backslash paths without spaces.
+  const literal = ctx.windowsOperands;
+  const candidates = literal ? literal.operands
+    .filter(operand => operand.kind !== 'transport' && (operand.kind !== 'ledger-root' || !isHarnessRoot(ctx, operand.path)))
+    .map(operand => operand.path)
+    : [...ctx.raw.matchAll(/'([^']*)'|"([^"]*)"/g)]
+      .map(match => match[1] ?? match[2]).filter(value => /^[A-Za-z]:[\\/]|^\\\\/.test(value));
+  if (literal) {
+    const handled = new Set(literal.operands.map(operand => operand.index));
+    // Preserve option positions while keeping an already-classified operand
+    // out of the legacy slash scanner (which cannot retain a Windows drive).
+    command = stripQuotes(literal.words.map((word, index) => handled.has(index) ? '__WINDOWS_OPERAND__' : word).join(' '));
+  }
   for (const segment of segments(command.replaceAll('`', '\n'))) { // CANDIDATE_BACKTICKS
     const executable = execWord(segment); let previous = '';
     for (const word of segment.split(/[ \t]/).filter(Boolean)) {
@@ -188,6 +201,7 @@ function pathCandidates(ctx) {
       if (coordinate && isHarnessRoot(ctx, word)) { previous = word; continue; }
       // A native adapter's own file is transport, never its mutation target.
       if (['ledger.sh', 'ledger.mjs'].includes(executable) && basename(word) === executable) { previous = word; continue; }
+      candidates.push(...[...word.matchAll(/(?:^|=)((?:[A-Za-z]:[\\/]|\\\\)[^\s"'`;|&()<>]*)/g)].map(match => match[1]));
       candidates.push(...(word.match(/[~/][^\s"'`;|&()<>]*/g) ?? []));
       if (/^\.\.?\//.test(word)) candidates.push(word);
       previous = word;
@@ -229,6 +243,10 @@ export async function r_main_shell(ctx) {
     return; // The exact loaded renderer confines publication to its docs projection.
   }
   for (const candidate of pathCandidates(ctx)) {
+    if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]|^\\\\/.test(candidate)) {
+      if (allReadonly(ctx.raw)) return;
+      throw new Error('Windows filesystem policy is unavailable on this host');
+    }
     let found = await locate(ctx, candidate);
     if (!found) {
       let tail = candidate.replace(/^\//, '');
@@ -325,15 +343,17 @@ export async function evaluateGuard(raw, {env = process.env, pluginRoot = env.CL
   try {
     event = normalizeHookEvent(raw, {env});
     const rawCommand = event.tool_input.command ?? '';
+    const windowsOperands = event.tool_name === 'Bash' ? windowsCommandOperands(rawCommand, {dialect: event.harness_shell_dialect, ledgerTools: LEDGER_TOOLS.split(' ')}) : null;
+    if (windowsOperands?.ledger && !event.harness_shell) {
+      event.harness_operations = event.harness_operations.filter(operation => !/^[A-Za-z]:[\\/]|^\\\\/.test(operation.path));
+      event.harness_operations.push(...windowsOperands.operands.filter(operand => operand.kind === 'target').map(operand => ({kind: 'update', path: operand.path})));
+    }
     const common = event.tool_name === 'Bash' ? await commonCommand(rawCommand, {pluginRoot, cwd: event.cwd, dialect: event.harness_shell_dialect, env}) : null;
     const workspace = event.tool_name === 'Bash' && workspaceShellCommand(rawCommand, path.join(pluginRoot, 'scripts/workspace.mjs'), {dialect: event.harness_shell_dialect});
     if (workspace && grader({event}) && !['inspect', 'ready'].includes(workspace.action)) throw new Error('grader cannot mutate workspace lifecycle');
     if (workspace) event.harness_operations = [];
     let policyCommand = stripQuotes(rawCommand);
-    if (event.harness_shell && !workspace && !common) {
-      const parsed = event.harness_shell;
-      if (parsed.dynamic) throw new Error('dynamic PowerShell command cannot be classified');
-      const policyText = words => words.map((word, index) => {
+    const policyText = words => words.map((word, index) => {
         // Policy scanners use an ASCII token alphabet. Replace non-alphabet
         // data inside each already-lexed argv word, never split a path at ~,
         // Unicode or whitespace. Filesystem targets retain their original text.
@@ -342,6 +362,10 @@ export async function evaluateGuard(raw, {env = process.env, pluginRoot = env.CL
         if (index <= 1 && /(?:^|\/)ledger\.(?:mjs|sh)$/i.test(word)) word = word.replace(/[^/]+$/, basename(word).toLowerCase());
         return word;
       }).join(' ');
+    if (windowsOperands?.ledger && !event.harness_shell) policyCommand = policyText(windowsOperands.words);
+    if (event.harness_shell && !workspace && !common) {
+      const parsed = event.harness_shell;
+      if (parsed.dynamic) throw new Error('dynamic PowerShell command cannot be classified');
       policyCommand = parsed.commands.map(policyText).join(';');
       // Keep command/option permission checks active for native ledger calls,
       // while excluding the executable and explicit root coordinate from files.
@@ -362,7 +386,7 @@ export async function evaluateGuard(raw, {env = process.env, pluginRoot = env.CL
     if (common) event.harness_operations = (common.effect === 'projection' ? [] : common.writes).map(path => ({kind: 'update', path}));
     const operations = event.harness_operations.flatMap(op => op.kind === 'move' ? [op.source, op.destination] : [op.path]);
     if (process.platform !== 'win32' && operations.some(value => /^[A-Za-z]:[\\/]|^\\\\/.test(value))) throw new Error('Windows filesystem policy is unavailable on this host');
-    const ctx = {event, env, pluginRoot, raw: rawCommand, command: policyCommand, workspace, common, workspaces: new Map(), rule};
+    const ctx = {event, env, pluginRoot, raw: rawCommand, command: policyCommand, workspace, common, windowsOperands, workspaces: new Map(), rule};
     await dispatch(ctx);
     for (const target of operations) { ctx.event = {...event, tool_name: 'Write', tool_input: {file_path: target}}; await dispatch(ctx); }
     rule = '-'; result = {code: 0, stdout: '', stderr: '', rule};

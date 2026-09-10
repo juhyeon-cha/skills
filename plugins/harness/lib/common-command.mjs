@@ -3,6 +3,26 @@ import path from 'node:path';
 import {literalShellWords} from './workspace-command.mjs';
 import {resolveState} from './state.mjs';
 
+// Lexical roles are attached to argv positions, not path values. A second
+// occurrence of the root as an operand must remain a target. Composition and
+// redirection return null and receive no coordinate exception.
+export function windowsCommandOperands(command, {dialect = 'posix', ledgerTools} = {}) {
+  const words = literalShellWords(command, {dialect});
+  if (!words) return null;
+  const base = value => (value ?? '').split(/[\\/]/).at(-1);
+  const executableIndex = ['node', 'node.exe'].includes(base(words[0])) ? 1 : 0;
+  const executable = base(words[executableIndex]);
+  const ledger = ledgerTools.includes(executable);
+  const options = executable === 'bd' ? ['-C', '--directory', '--db'] : ['--root'];
+  const operands = words.flatMap((word, index) => {
+    const value = /^(?:[A-Za-z]:[\\/]|\\\\)/.test(word) ? word : word.match(/^--[^=]+=((?:[A-Za-z]:[\\/]|\\\\).*)$/)?.[1];
+    if (!value) return [];
+    return [{index, path: value, kind: ledger && index === executableIndex ? 'transport'
+      : ledger && index > executableIndex && options.includes(words[index - 1]) ? 'ledger-root' : 'target'}];
+  });
+  return operands.length ? {words, operands, ledger} : null;
+}
+
 // Only a single literal invocation of the loaded artifact receives coordinate
 // semantics. Shell composition, arbitrary Node scripts and unknown argv receive
 // no exception. This classifier never runs a CLI, repository gate or backend.
@@ -11,7 +31,9 @@ export async function commonCommand(command, {pluginRoot, cwd, dialect, env}) {
   if (!words || !['node', 'node.exe', process.execPath].includes(words[0]) || !path.isAbsolute(words[1] ?? '')) return null;
   let relative;
   try {
-    relative = path.relative(fs.realpathSync(pluginRoot), fs.realpathSync(words[1])).split(path.sep).join('/');
+    // On Windows the native resolver expands DOS short names consistently for
+    // both operands; the JavaScript resolver can preserve an ancestor's alias.
+    relative = path.relative(fs.realpathSync.native(pluginRoot), fs.realpathSync.native(words[1])).split(path.sep).join('/');
   } catch { return null; }
   const args = words.slice(2), result = {entry: relative, effect: 'read', paths: [], writes: [], remote: false};
   const absolute = value => typeof value === 'string' && path.isAbsolute(value) && !/[\0\r\n]/.test(value);

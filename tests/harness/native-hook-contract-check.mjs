@@ -12,6 +12,8 @@ import {patchOperations} from '../../plugins/harness/lib/operations.mjs';
 import {summarizeGuardLog} from '../../plugins/harness/lib/guard-log.mjs';
 import {normalizeHookEvent} from '../../plugins/harness/lib/hook-event.mjs';
 import {workspaceShellCommand} from '../../plugins/harness/lib/workspace-command.mjs';
+import {windowsCommandOperands} from '../../plugins/harness/lib/common-command.mjs';
+import {LEDGER_TOOLS} from '../../plugins/harness/lib/guard.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness/', import.meta.url));
 const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'harness-native-hooks-')));
@@ -159,8 +161,69 @@ try {
     const loaded = path.join(main, 'loaded plugin 공백'); fs.cpSync(root, loaded, {recursive: true});
     for (const tool of ['Bash', 'PowerShell']) {
       const command = `node '${path.join(loaded, 'checks/board-check.mjs')}' --root '${main}'`;
-      assert.equal((await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: loaded})).code, 0, 'loaded script path inside main is transport');
+      const result = await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: loaded});
+      assert.equal(result.code, 0, 'loaded script path inside main is transport: ' + tool + '\n' + command + '\n' + result.stderr);
       assert.equal((await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: root})).code, 2, 'another identical artifact is not the loaded entrypoint');
+    }
+  });
+  await check('loaded root and entrypoint aliases share native filesystem identity', async () => {
+    const loaded = path.join(main, 'loaded plugin 공백'), script = path.join(loaded, 'checks/board-check.mjs');
+    const roots = [...new Set([loaded, fs.realpathSync(loaded), fs.realpathSync.native(loaded)])];
+    const scripts = [...new Set([script, fs.realpathSync(script), fs.realpathSync.native(script)])];
+    if (process.platform === 'win32') console.log('Windows loaded aliases: ' + JSON.stringify({roots, scripts}));
+    for (const pluginRoot of roots) for (const entry of scripts) for (const tool of ['Bash', 'PowerShell']) {
+      const command = `node '${entry}' --root '${main}'`;
+      const result = await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot});
+      assert.equal(result.code, 0, JSON.stringify({pluginRoot, command, tool}) + '\n' + result.stderr);
+    }
+  });
+  await check('Bash drive and UNC operands remain protected write candidates without whitespace', async () => {
+    const targets = process.platform === 'win32' ? [path.join(main, 'overwrite')] : [String.raw`C:\Users\RUNNER~1\repo\overwrite`, String.raw`\\server\share\repo\overwrite`];
+    for (const target of targets) {
+      // Bash consumes unquoted backslashes as escapes. Its quoted native path
+      // and unquoted forward-slash drive form are actual path operands.
+      for (const operand of [`'${target}'`, ...(/^[A-Za-z]:/.test(target) && !/\s/.test(target) ? [target.replaceAll('\\', '/')] : [])]) {
+        const command = `echo fixture > ${operand}`, result = await judge(event(command));
+        assert.equal(result.code, 2, command + '\n' + result.stderr);
+      }
+      assert.equal((await judge(event(`cat '${target}'`, 'harness:reviewer'))).code, 0);
+    }
+  });
+  await check('literal Windows ledger operands distinguish coordinates from repeated write operands', () => {
+    for (const dialect of ['posix', 'powershell']) for (const repository of [String.raw`C:\repo 한글`, 'C:/repo', String.raw`\\server\share\repo`]) {
+      const command = `node 'C:/plugin/scripts/ledger.mjs' --root '${repository}'`;
+      for (const sub of ['show task', 'list', 'note task fixture']) {
+        const result = windowsCommandOperands(command + ' ' + sub, {dialect, ledgerTools: LEDGER_TOOLS.split(' ')});
+        assert.deepEqual(result.operands.map(({path, kind}) => ({path, kind})), [
+          {path: 'C:/plugin/scripts/ledger.mjs', kind: 'transport'}, {path: repository, kind: 'ledger-root'},
+        ]);
+      }
+      const repeated = windowsCommandOperands(command + ` note task '${repository}'`, {dialect, ledgerTools: LEDGER_TOOLS.split(' ')});
+      assert.deepEqual(repeated.operands.map(operand => operand.kind), ['transport', 'ledger-root', 'target']);
+      assert.equal(repeated.operands.at(-1).path, repository);
+      for (const tail of [` > '${repository}'`, `; echo fixture > '${repository}'`]) assert.equal(windowsCommandOperands(command + ' show task' + tail, {dialect, ledgerTools: LEDGER_TOOLS.split(' ')}), null);
+    }
+  });
+  await check('native ledger coordinates preserve reads and note permissions in both shell dialects', async () => {
+    for (const tool of ['Bash', 'PowerShell']) {
+      const command = `node '${path.join(main, 'plugins/harness/scripts/ledger.mjs')}' --root '${main}'`;
+      for (const role of ['', 'harness:implementer', 'harness:reviewer', 'harness:evaluator']) {
+        for (const sub of ['show task', 'list']) {
+          const result = await judge(event(command + ' ' + sub, role, tool));
+          assert.equal(result.code, 0, tool + ' ' + role + '\n' + command + ' ' + sub + '\n' + result.stderr);
+        }
+        const note = await judge(event(command + ' note task fixture', role, tool));
+        assert.equal(note.code, ['', 'harness:implementer'].includes(role) ? 0 : 2, tool + ' ' + role + '\n' + note.stderr);
+      }
+      for (const tail of [` > '${path.join(main, 'overwrite')}'`, `; echo fixture > '${path.join(main, 'overwrite')}'`]) {
+        const result = await judge(event(command + ' show task' + tail, '', tool));
+        assert.equal(result.code, 2, tool + '\n' + command + tail + '\n' + result.stderr);
+      }
+      const target = await judge(event(`node '${path.join(main, 'writer.mjs')}' --output '${path.join(main, 'overwrite')}'`, '', tool));
+      assert.equal(target.code, 2, tool + '\n' + target.stderr);
+      const search = tool === 'PowerShell' ? `Select-String -Path '${main}' -Pattern 'ledger.mjs close'` : `rg -n 'ledger.mjs close' '${main}'`;
+      const reading = await judge(event(search, 'harness:reviewer', tool));
+      assert.equal(reading.code, 0, tool + '\n' + search + '\n' + reading.stderr);
     }
   });
   await check('common CLI coordinate exceptions preserve mutations, roles, redirects and loaded source identity', async () => {

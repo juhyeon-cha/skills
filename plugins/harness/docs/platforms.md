@@ -17,6 +17,13 @@ Use `UNSUPPORTED` for a path the implementation explicitly refuses, `UNREACHED` 
 
 The source repository runs `node tests/harness/platform-contract-check.mjs <darwin|linux|win32> <report.json>` directly on each CI host. The report includes reached judgments, native Node/Git versions, dependency boundaries and a separate full-product verdict. The Bash wrapper is a POSIX convenience only. The suite uses disposable local Git repositories and has no remote ledger operations or credential requirements.
 
+The current CI matrix covers Node 24 on macOS, Linux and native Windows. Node 22
+is excluded from CI; the minimum executable Node version is not a claim that
+every compatible version has passed the current suite. Pull requests run once
+per update, without a duplicate working-branch push run. Main-branch pushes and
+manual dispatch remain available; newer runs cancel obsolete runs for the same
+pull request or branch. Run the relevant local contracts before pushing.
+
 The source also runs `node tests/harness/native-preparation-contract-check.mjs <host>` on each native CI host: shared readiness/retry/concurrency/timeout/fingerprint controls plus actual Windows batch, worker/supervisor crash, descendant, Job identity and missing-helper controls. Local non-Windows runs explicitly leave Windows-specific judgments UNREACHED.
 
 Native ledger, operational-consumer and hook suites use offline fixtures and native
