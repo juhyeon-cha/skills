@@ -73,6 +73,9 @@ try {
 
   // Exercise shipped guard, not a second permission implementation.
   const repo = path.join(temp, 'repo'); fs.mkdirSync(repo);
+  // This legacy command fixture uses a single unquoted shell assignment.
+  const ledgerRoot = repo.replaceAll('\\', '/');
+  check(!/[\s'"$`\\;&|<>()*?\[\]{}!]/.test(ledgerRoot), `legacy ledger fixture needs a literal unquoted root: ${ledgerRoot}`);
   const env = {...process.env, HOME: temp, CLAUDE_PLUGIN_ROOT: root, GIT_CONFIG_GLOBAL: path.join(temp, 'empty.gitconfig'), GIT_CONFIG_NOSYSTEM: '1', HARNESS_GUARD_LOG: path.join(temp, 'guard.tsv'), HARNESS_SESSION_ACTOR_LOG: path.join(temp, 'actors.tsv')};
   for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'HARNESS_ROOT']) delete env[key];
   fs.writeFileSync(env.GIT_CONFIG_GLOBAL, '');
@@ -97,7 +100,7 @@ try {
     permission(guard('Bash', {command: 'git commit -m fixture'}) === (role === 'implementer' ? 0 : 2), `${role} local commit`);
     permission(guard('Bash', {command: 'git push origin main'}) === 2, `${role} remote write denied`);
     permission(guard('Bash', {command: 'ledger.sh close fixture#1'}) === 2, `${role} ledger close denied`);
-    permission(guard('Bash', {command: `HARNESS_ROOT='${repo.replaceAll("\\", "/").replaceAll("'", "'\\''")}' ledger.sh note fixture#1 receipt`}) === (role === 'implementer' ? 0 : 2), `${role} ledger note permission`);
+    permission(guard('Bash', {command: `HARNESS_ROOT=${ledgerRoot} ledger.sh note fixture#1 receipt`}) === (role === 'implementer' ? 0 : 2), `${role} ledger note permission`);
   }
   const develop = fs.readFileSync(path.join(root, 'skills/develop/SKILL.md'), 'utf8');
   const verify = fs.readFileSync(path.join(root, 'skills/verify-implement/SKILL.md'), 'utf8');
