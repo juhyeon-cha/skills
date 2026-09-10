@@ -2,9 +2,9 @@
 
 `lib/transcripts/` owns format-specific decoding. `lib/transcript.mjs` owns A9 and retrospective aggregation; role names and SIGNAL vocabularies come from the existing role modules and `agents/*.md`. `lib/runtime/workflow.mjs` connects the ordinary session store to `roleCall`/`roleResult`. The ledger remains task state and acceptance authority. A retrospective report never closes work.
 
-## Ordinary delegation
+## Ordinary native delegation
 
-Use this path before every required implementation/review/evaluation, including a retry. Save the SessionStart `HARNESS_STATE_JSON` object as `scope.json`: `runtime`, `repository`, `sessionId`, and the observed absolute `data` directory. The workflow resolver passes that directory explicitly; hook environment inheritance is unnecessary. Save the registered role receipt and the request described in [roles.md](roles.md), adding a unique `callId`.
+For the native contract selected in [roles.md](roles.md), use this path before every required implementation/review/evaluation, including a retry. Save the SessionStart `HARNESS_STATE_JSON` object as `scope.json`: `runtime`, `repository`, `sessionId`, and the observed absolute `data` directory. The workflow resolver passes that directory explicitly; hook environment inheritance is unnecessary. Save the registered role receipt and the request described in [roles.md](roles.md), adding a unique `callId`.
 
 ```text
 node <plugin>/scripts/workflow.mjs begin <scope.json> <registration.json> <request.json>
@@ -21,6 +21,60 @@ node <plugin>/scripts/workflow.mjs complete-native <scope.json> <registration.js
 Completion loads ordinary hook observations after begin. It rejects changed/truncated history, mismatched session/role/instance, interrupted results and different native/hook SIGNALs, and delegates role discipline to `roleResult`. A session-wide completion lock prevents one native call or child instance from satisfying two inventories. Immutable outcome and result records preserve UNREACHED as well as REACHED; a retry needs a fresh call and child through the existing RETRY procedure. Keep the inventory rather than overwriting a failed attempt. A missing or failed result is exit 2; require REACHED before the calling skill handles its signal.
 
 This is local evidence handling, not authentication of native tool returns. The orchestrator owns their provenance. A manually written completed flag does not prove execution, and stored files do not protect against same-user tampering. The hook chain is an additional necessary observation, not a replacement for that responsibility. Raw response bodies are used for validation and are not copied into the outcome store; only identity, status, format and first-line SIGNAL persist there.
+
+## Generic parent observations
+
+For the explicitly selected prompt-only path in [roles.md](roles.md), use
+`scripts/delegation.mjs`. It shares the capability decision with doctor; it does not
+call the model tool. Parent-supplied observations are a trust boundary, not an
+authenticated provider capture or protection against same-user file edits. Keep
+the original tool returns locally so a grader can compare their provenance.
+
+1. Save a begin JSON with `version: 1`, `runtime: "codex"`,
+   `provider: "collaboration"`, canonical absolute worktree `repository`, normalized
+   absolute parent-owned `data`, actual `sessionId` and `parentAgentId`, a new local
+   `callId`, `role`, `task`, `sourceHash`, `commitScope`, `implementerIds`,
+   `previousAgentIds`, and explicit `permission: "prompt-only"`. Obtain sourceHash
+   from `loadRole(role, pluginRoot).sha256` in `lib/runtime/roles.mjs`. Use the actual
+   parent session identity; this data directory is not an observed hook directory.
+   Implementation scope is `{mode: "implementation", base, branch}` with the clean
+   starting HEAD. Grader scope is `{mode: "fixed", base, head, branch}` pinned before
+   dispatch. Use full commit SHAs. Populate author and earlier child IDs from records.
+2. Run `node <plugin>/scripts/delegation.mjs begin <begin.json>`; require rc 0 and
+   PENDING. Pass the returned `dispatch.task_name` unchanged to the actual
+   `collaboration.spawn_agent` tool, with the role instructions and skill delegation
+   message. This generated name correlates the request; it is not a native invocation
+   ID. Save the actual tool return before waiting.
+3. Run `bind <bind.json>` with `{call, observation}`: `call` is begin's exact returned
+   call and observation is `{source: "parent-tool-return", tool:
+   "collaboration.spawn_agent", value: <actual tool return>}`. Require rc 0 and
+   PENDING. The return shape is `{task_name: "/root/<actual child>"}`. Binding reserves
+   that fresh child once in the session. A repeated or mismatched child is rejected.
+4. After the actual child finishes, run `complete <complete.json>` with `{call, head,
+   observation}`. `head` is the actual clean final HEAD; implementation may advance
+   to a descendant of base on the same branch, while grader HEAD is fixed. Observation
+   is `{source: "parent-tool-return", tool: "collaboration.list_agents", value:
+   <actual tool return>}`. The supported return contains `agents` rows with
+   `agent_name` and `agent_status`; a completed status is `{completed: <full response>}`.
+   Use the real returned body, not the child's account of a tool result. Require rc 0
+   and OBSERVED before handling its signal. Running/interrupted status, missing body,
+   wrong SIGNAL, identity/source/commit mismatch and duplicate completion reject.
+5. Run `audit <context.json>` with only version, runtime, provider, repository, data,
+   sessionId and parentAgentId from the call. It reads every call in this inventory;
+   missing, pending and failed attempts remain visible. An empty inventory cannot
+   succeed. Audit success requires every call OBSERVED; a known negative probe remains
+   a rejected row and cannot be removed to claim whole-inventory success.
+
+All commands take exactly an action and one JSON file. Failed validation returns
+nonzero; PENDING is not completion. A terminal failure needs a fresh call and child
+under the existing RETRY/human-wait procedure, never a reused follow-up. Keep all
+request/outcome files and the actual observation source for re-entry and grading.
+The immutable outcomes store signal and response hash rather than the full body.
+
+This inventory is separate from native workflow records and transcript aggregation.
+`enforcement` and native role evidence remain unavailable; `tools` and `tokens`
+remain unknown. Audit OBSERVED does not measure role restrictions, tool counts or
+semantic acceptance and does not satisfy the native doctor's live check.
 
 ## Optional transcript-to-outcome adapters
 

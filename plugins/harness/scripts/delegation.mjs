@@ -4,6 +4,7 @@ import {
   bindDelegation,
   completeDelegation,
   auditDelegation,
+  delegationCapability,
 } from '../lib/runtime/delegation.mjs';
 
 try {
@@ -13,12 +14,13 @@ try {
     bind: bindDelegation,
     complete: completeDelegation,
     audit: auditDelegation,
+    capability: delegationCapability,
   };
   if (!Object.hasOwn(actions, action) || !input || extra.length)
-    throw new Error('usage: delegation.mjs begin|bind|complete|audit <input.json>');
+    throw new Error('usage: delegation.mjs capability|begin|bind|complete|audit <input.json>');
   const result = await actions[action](JSON.parse(fs.readFileSync(input, 'utf8')));
   console.log(JSON.stringify(result));
-  if (result.status === 'REJECTED') process.exitCode = 1;
+  if (['REJECTED', 'UNAVAILABLE'].includes(result.status)) process.exitCode = 1;
 } catch (error) {
   console.log(
     JSON.stringify({ format: 'harness-delegation-v1', status: 'REJECTED', reason: error.message }),

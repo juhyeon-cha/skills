@@ -4,6 +4,7 @@ import { randomBytes, createHmac } from 'node:crypto';
 import { inspectDistribution, digest, readJson, pluginRoot } from '../distribution.mjs';
 import { verifyRegistration, roleCall, roleResult } from './roles.mjs';
 import { formatStateContext } from './state.mjs';
+export { delegationCapability as diagnoseDelegation } from './delegation.mjs';
 
 const signature = (value, secret) =>
   createHmac('sha256', secret).update(JSON.stringify(value)).digest('hex');

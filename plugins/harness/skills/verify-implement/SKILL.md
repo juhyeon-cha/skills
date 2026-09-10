@@ -9,7 +9,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 The evaluator role definition (`${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`) holds the judgment discipline. This procedure holds delegation, signal handling, and closing only.
 
-Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for registration, native invocation identity and result validation. A result must be REACHED before the branches below apply.
+Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED, or OBSERVED only for explicitly selected generic prompt-only execution, before the branches below apply. That contract owns unavailable-enforcement rejection and the prohibition on automatic native fallback; the SIGNAL and retry rules below hold in both paths.
 
 ## 1. Delegate
 
@@ -20,7 +20,7 @@ Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/do
 
 Then delegate to evaluator. The message carries ① first line: harness root absolute path + worktree absolute path + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every verify-code-passed task awaiting judgment, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ **the items already judged by command and their exit codes** (per task) ④ the items with no command — these are what evaluator judges ⑤ claims from the previous stage's report that evaluator must re-verify. The discipline for receiving a list (one SIGNAL · evaluator writes MATCH/unmet per task in the body) is held by `${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`, so leave it out of the delegation message.
 
-- **Always delegate to an independent evaluator.** That holds even when commands cover every item — hunk attribution and stale acceptance wording remain outside those commands. Unavailable delegation is UNREACHED; use `harness:develop` human wait and keep the task open.
+- **Always delegate to an independent evaluator.** That holds even when commands cover every item — hunk attribution and stale acceptance wording remain outside those commands. An unavailable selected execution contract follows `harness:develop` human wait and keeps the task open.
 - A non-zero command judgment is unmet on its own. Handle it as `VIOLATION` without delegating — evaluator would return the same answer.
 
 ## 2. Signal handling

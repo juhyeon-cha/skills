@@ -52,6 +52,12 @@ jobs:
       - name: Check native guardrail wiring and negative controls
         if: ${{ !cancelled() }}
         run: node plugins/harness/checks/guardrail-check.mjs
+      - name: Run generic delegation and capability integration contracts
+        if: ${{ !cancelled() }}
+        run: node tests/harness/delegation-contract-check.mjs
+      - name: Run delegation procedure and doctor integration contracts
+        if: ${{ !cancelled() }}
+        run: node tests/harness/delegation-integration-check.mjs
       - name: Diagnose Windows PowerShell native launch channels
         if: always() && runner.os == 'Windows'
         continue-on-error: true
