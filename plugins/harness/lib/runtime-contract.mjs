@@ -6,7 +6,7 @@ export function roleSignals(body) {
 
 /**
  * Inspect one role instance within a session; partial instances never combine.
- * A result is exposed only for an unambiguous start/tool/stop lifecycle.
+ * An unambiguous start/stop lifecycle can expose a result without a tool event.
  * @param {object[]} events Hook records in observation order.
  * @param {string} session Session identifier.
  * @param {string} role Runtime role identifier.
