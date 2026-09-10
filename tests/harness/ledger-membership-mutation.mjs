@@ -1,0 +1,11 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const [source,target]=process.argv.slice(2);
+await fs.cp(source,target,{recursive:true});
+const file=path.join(target,'lib/ledger/github.mjs');
+const before=await fs.readFile(file,'utf8');
+const expression='present=(await issueQuery(id,projectField)).projectItems.nodes.some(item=>String(item.project.number)===String(project));';
+assert.equal(before.split(expression).length,2,'exactly one membership read must exist');
+const after=before.replace(expression,'present=false;');assert.notEqual(after,before);
+await fs.writeFile(file,after);

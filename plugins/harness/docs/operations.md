@@ -17,14 +17,25 @@ plan-sprint ─→ plan-story ─→ develop ─┬→ verify-code ─→ verify
 
 ## New-session bootstrap
 
-**One place: inside a target repo.** The session's cwd is what picks the ledger — `lib/harness-root.sh` walks up to the first `.harness.json` — so there is nowhere else to open.
+**Open inside the target repo.** The native ledger resolves an explicit `--root`,
+then `HARNESS_ROOT`, then the first `.harness.json` above cwd. Keep the delegated
+root explicit throughout a task. See [commands.md](commands.md) for the common
+Node invocations corresponding to legacy `.sh` notation below.
 
 | Session | Open where | Why |
 |---|---|---|
 | Planning · retrospective (`harness:plan-sprint` · `harness:plan-story` · `harness:retrospective`) | the **main checkout** of the repo the work concerns | the work is entirely in the ledger; nothing is edited, so the main checkout is where to stand. With several repos any of them answers the same ledger — pick the one the stories concern |
-| Development (`harness:develop` and the verify skills it calls) | the **main checkout of the target repo** | that repo's own `CLAUDE.md`, rules, skills, and hooks load; `EnterWorktree` makes the story worktree inside it. One session per (story, repo) |
+| Development (`harness:develop` and the verify skills it calls) | the **main checkout of the target repo** | read the runtime's effective root instructions and shared references, then create or resume through the common workspace command. Claude EnterWorktree is one transport. One session per (story, repo) |
 
-What loads automatically in both: the project `CLAUDE.md` of the directory the session opened in, and the plugin's SessionStart block (`hooks/session-context.md` — "절대 금지", ledger location, skills and roles, the hierarchy mapping, and where every other rule is owned). No hook primes a backend tool (`bd prime` on `beads` included). Parallel sessions split work **by story** — two sessions on the same (story, repo) are forbidden. Task claiming is `ledger.sh update <task ID> --claim --actor <value>`; the actor's source and the pickup rule are `harness:develop` section 1.
+Claude and Codex have different instruction discovery rules. A nested
+`.agents/AGENTS.md` or a skill-path JSON file alone does not prove that either
+runtime loaded the instructions. Keep one policy body and connect each required
+entrypoint by reference. The shared SessionStart body is
+`hooks/session-context.md`; inventory alone does not prove it fired. Check load
+and role evidence through [installation.md](installation.md). No hook primes a
+backend tool (`bd prime` on `beads` included). Parallel sessions split work
+**by story**. Task claiming uses the adapter's explicit `--actor`; the actor's
+source and pickup rule are owned by `harness:develop` section 1.
 
 **Every ledger call in this document is the adapter** — `bash ${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh <subcommand>`, abbreviated `ledger.sh …`. Which backend answers is `.harness.json`'s `ledger.backend`; where a step only exists for one backend, the backend is named.
 
@@ -34,7 +45,7 @@ What loads automatically in both: the project `CLAUDE.md` of the directory the s
 
 ## Unattended loop
 
-- **Drain permission prompts before an unattended loop.** The worktree is outside the project directory, so the first command there may ask for approval and nobody answers during the loop — run one command in the worktree interactively first, or put the needed allows into `.claude/settings.local.json` of the clone.
+- **Resolve required permissions before an unattended loop.** Verify the intended workspace and runtime's effective permissions interactively. Claude and Codex settings are separate adapter configuration; a Claude settings file does not configure Codex.
 - The loop is `/loop` (built into Claude Code) and follows `harness:develop` "장기 실행" — how it relates to the pipeline, how it is broken from inside, and the stop guard's marker for the outside. **Those rules are not restated here** — that section is their single owner, so a copy necessarily diverges.
 
 ## Documents go nowhere — projections are outside git
@@ -95,4 +106,4 @@ Seconds, and that is normal. Measured: `bd dolt pull` (nothing to receive) 7.6 s
 - **A new machine joining a standing harness — two commands.** Install the plugin at user scope and clone a repo that already carries `.harness.json`; the clone brings the ledger coordinates with it and may live anywhere. What still needs credentials per backend (`gh auth` · `NOTION_TOKEN` · `ledger.sh bootstrap`) is owned by `harness:setup` "2. B — Join an existing harness" and is not restated here. Until `ledger.sh list` is rc 0, every skill and gate is powerless.
 - **On `beads` the remote is the only ledger backup.** Lose `.beads/embeddeddolt/` and the sprint and judgment history is gone — projections are outside git and cannot restore the ledger. A ledger on one machine only is not a normal state. `github`·`notion` have no local copy to lose.
 - **Standing up a new harness**: `harness:setup` "1. A — New harness". The core is never copied into a project — the plugin is installed next to it.
-- **Updating a standing harness**: `harness:setup` "3. C — Update" (`claude plugin marketplace update skills` then `claude plugin update harness@skills`, then restart the session). No file of the repo is overwritten by an update.
+- **Updating a standing harness**: `harness:setup` "3. C — Update" and the selected runtime's [installation procedure](installation.md). Restart the session and verify the installed artifact and role receipts. No repository-owned configuration is overwritten by a plugin update.

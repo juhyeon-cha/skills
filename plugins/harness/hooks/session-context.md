@@ -17,23 +17,26 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
     | One came up and there is no user instruction or approval | **Do not** |
 
     Even when the table says "do it", **a target repo's own push·PR rules come first.** An unresolved decision = a task whose human-wait signal came up and which the human has not yet decided + a task whose `status` is `blocked`. The signal list is `harness:develop` "사람 대기"; the stages and failure handling are the same skill's "사이클 종결".
-- **Never modify a target repo's main checkout directly** — the checkout carrying `.harness.json` at its root. Work only in its `.claude/worktrees/<worktree name>/` worktree.
+- **Never modify a target repo's main checkout directly** — the checkout carrying `.harness.json` at its root. Work only in the assigned linked worktree. Inspect the actual physical cwd with `node ${CLAUDE_PLUGIN_ROOT}/scripts/workspace.mjs inspect <actual physical cwd>` and compare its `top` to the canonical assigned path, with the expected branch and linked identity; the default `.claude/worktrees/<worktree name>/` layout and external Git-registered paths follow the same check.
 - **Never improve the plugin core (skills · roles · hooks) in the installed copy without explicit user instruction** — the place to fix is the skills repo `plugins/harness/`, and the installed copy receives it through a marketplace update. What is outside the plugin is each target repo's own `.harness.json` and the ledger itself.
 - **Never judge completion by impression** — the only evidence is gate exit codes and the acceptance comparison. Whoever built it does not grade it.
 
 ## Ledger
 
-- The ledger is reached only through the adapter `${CLAUDE_PLUGIN_ROOT}/scripts/ledger.sh` — every `ledger.sh …` in this block and in the skill bodies is that path. Subcommands, arguments, and JSON keys are `bd`'s (`ledger.sh --help`). One value picks the backend, `ledger.backend` in the repo's `.harness.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
-- Harness root discovery is two steps: `HARNESS_ROOT` → walking up from the cwd to the first `.harness.json`, which is the discriminator. That file is committed by the target repo, so cloning it is what attaches the harness — the clone may live anywhere. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
-- When delegating to a subagent, give the harness root absolute path on the first line, and the subagent calls only `HARNESS_ROOT=<harness root> ledger.sh …` — a call without the variable can reach another harness's ledger through root discovery.
-- The ledger is the SSOT. `scripts/board.sh all` projects it into `docs/sprints/`·`docs/backlog/`·`docs/adr/` **only on a backend with no UI of its own** — where those exist they are generated, never edited by hand.
+- The ledger is reached only through the common adapter. Resolve the native `ledger` and other command notation through `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` before execution. Legacy `ledger.sh` is a POSIX wrapper for that same boundary. Subcommands, arguments and JSON keys preserve the existing contract. One value picks the backend, `ledger.backend` in the repo's `.harness.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
+- Harness root discovery uses explicit `--root`, then `HARNESS_ROOT`, then the first `.harness.json` above cwd. That repository-owned file is the discriminator; a clone may live anywhere. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
+- When delegating to a subagent, give the harness root absolute path on the first line. Every native ledger call carries that explicit `--root`; the legacy wrapper can carry `HARNESS_ROOT`. Never let an incidental cwd select another harness's ledger.
+- The ledger is the SSOT. `board all` projects it into `docs/sprints/`·`docs/backlog/`·`docs/adr/` **only on a backend with no UI of its own** — where those exist they are generated, never edited by hand.
 - Bodies (note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".
 
 ## Procedure skills (9)
 
 `harness:plan-sprint` (sprint composition) → `harness:plan-story` (breakdown · acceptance) → `harness:develop` (implementation cycle — owner of the operating rules) → `harness:verify-code` (review) → `harness:verify-implement` (judgment · close) → `harness:retrospective` (retrospective) + `harness:setup` (first-time setup) · `harness:triage` (backlog triage) · `harness:status` (status, read-only).
 
-Role definitions (3 — subagents, the Agent tool's `subagent_type`): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
+Role definitions (3): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
+Their single bodies are `agents/*.md`; runtime registration, native identifiers,
+invocation and result evidence follow `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`.
+An unavailable capability or unidentified role is UNREACHED, never success.
 
 ## Agile hierarchy ↔ ledger mapping
 
@@ -45,12 +48,13 @@ Role definitions (3 — subagents, the Agent tool's `subagent_type`): `harness:i
 | Milestone | `--type feature --parent <story ID>` | A stage inside a story. Order goes through `blocks` dependencies |
 | Task | `--type task --parent <milestone ID>` | The unit of execution. `--acceptance` is mandatory. **Exactly one `repo:` label** — under a multi-repo story the parent hands down several, so name the one it actually touches at creation (`-l repo:<name>`, which wins over what is inherited). With several, develop refuses to start |
 
-Creation forms:
+Creation forms (expand `ledger` through the common command table; pass real bodies
+through file options):
 
-```bash
-ledger.sh create "<story title>" -t epic -l sprint:<sprint ID>,rail:<rail ID>,slug:<rail ID>-<slug>,repo:<repo>[,repo:<repo>]
-ledger.sh create "<milestone title>" -t feature --parent <story ID>
-ledger.sh create "<task title>" -t task --parent <milestone ID> -l repo:<repo> --acceptance "<machine-judgeable completion criterion>"
+```text
+ledger create --title-file <story-title-file> -t epic -l sprint:<sprint ID>,rail:<rail ID>,slug:<rail ID>-<slug>,repo:<repo>[,repo:<repo>]
+ledger create --title-file <milestone-title-file> -t feature --parent <story ID>
+ledger create --title-file <task-title-file> -t task --parent <milestone ID> -l repo:<repo> --acceptance-file <criterion-file>
 ```
 
 ## Rules owned elsewhere

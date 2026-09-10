@@ -27,6 +27,10 @@ Two judgement calls that look like exceptions and are not:
 
 ## The development checks — `tests/`
 
+For host portability, run `node tests/harness/platform-contract-check.mjs` (or the POSIX `bash tests/harness/platform-contract-check.sh` convenience wrapper). `.github/workflows/platform-contract.yml` runs the identical Node/Git fixture on native macOS, Linux and Windows. It deliberately reports full-product evidence separately; support boundaries are in the shipped [platform contract](../plugins/harness/docs/platforms.md). Existing `.mjs` suites that spawn Bash/jq or script stubs are not implicitly portable. A wrong expected-host argument must fail, so a Windows label cannot certify a POSIX execution.
+
+For artifact/config/state compatibility, run `bash tests/harness/migration-contract-check.sh`. It uses temporary plugin copies and a fake ledger boundary to exercise reentry, rollback and retained legacy data; it does not load the released legacy runtime. Target-owned followup work is ordered in [sap-harness migration](sap-harness-migration.md); measurements remain in skills#267.
+
 Same four columns as the shipped table in [guardrails.md](../plugins/harness/docs/guardrails.md) section 3. These never ship: each one hits plugin code with a fixture, so the verdict can only change before a release.
 
 | Check | Sees | Wired where | Run condition |

@@ -1,0 +1,50 @@
+// Explicit live probe. Generated production reviewer body is used without a canary override.
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
+import {registerRoles, roleCall, roleResult} from '../../plugins/harness/lib/roles.mjs';
+
+const [action, directory] = process.argv.slice(2);
+const base = path.resolve(directory);
+const json = (file, value) => fs.writeFileSync(path.join(base, file), JSON.stringify(value, null, 2));
+const read = file => JSON.parse(fs.readFileSync(path.join(base, file), 'utf8'));
+if (action === 'prepare') {
+  fs.mkdirSync(base, {mode: 0o700});
+  const home = path.join(base, 'home'); fs.mkdirSync(home);
+  const repo = path.join(base, 'repo'); fs.mkdirSync(repo);
+  const git = (...args) => execFileSync('git', ['-C', repo, ...args], {encoding: 'utf8'}).trim();
+  git('init', '-q'); git('config', 'user.name', 'Fixture'); git('config', 'user.email', 'fixture@example.invalid');
+  fs.writeFileSync(path.join(repo, '.harness.json'), JSON.stringify({ledger: {backend: 'github', repo: 'fixture/fixture'}, check: 'node --check value.mjs'}));
+  fs.writeFileSync(path.join(repo, 'CLAUDE.md'), 'JavaScript modules use semicolons. Review only the requested commit.\n');
+  fs.writeFileSync(path.join(repo, 'value.mjs'), 'export const value = 1;\n');
+  git('add', '.'); git('commit', '-qm', 'fixture base');
+  const workspace = path.join(repo, '.claude', 'worktrees', 'fixture-review');
+  git('worktree', 'add', '-qb', 'fixture-review', workspace);
+  fs.writeFileSync(path.join(workspace, 'value.mjs'), 'export const value = 2;\n');
+  execFileSync('git', ['-C', workspace, 'commit', '-qam', 'fixture value update']);
+  const commit = execFileSync('git', ['-C', workspace, 'rev-parse', 'HEAD'], {encoding: 'utf8'}).trim();
+  const registration = registerRoles('codex', path.join(home, 'agents'));
+  json('registration.json', registration);
+  const recorder = path.join(base, 'record.mjs');
+  fs.writeFileSync(recorder, `import fs from 'node:fs'; const event=JSON.parse(fs.readFileSync(0,'utf8'));fs.appendFileSync(${JSON.stringify(path.join(base, 'events.jsonl'))},JSON.stringify(event)+'\\n');\n`);
+  const hooks = {hooks: Object.fromEntries(['SessionStart', 'PreToolUse', 'SubagentStart', 'SubagentStop'].map(name => [name, [{hooks: [{type: 'command', command: `node '${recorder}'`, timeout: 10}]}]]))};
+  json('home/hooks.json', hooks);
+  fs.writeFileSync(path.join(home, 'config.toml'), `model = "gpt-5.6-terra"\n[projects.${JSON.stringify(base)}]\ntrust_level = "trusted"\n`);
+  const message = `HARNESS_ROOT=${repo}; worktree=${workspace}; commits=${commit}; task=fixture#1. Story branch fixture-review. HEAD ${commit}, working tree clean. Review this commit against CLAUDE.md. Gate node --check value.mjs rc0 is supplied as a fixture fact; verify the changed code yourself. No ledger read is needed for this quality review. Return your role's first-line SIGNAL.`;
+  json('request.json', {role: 'reviewer', task: 'fixture#1', message, parentAgentId: 'pending', sessionId: 'pending', implementerIds: ['fixture-author'], previousAgentIds: []});
+  fs.writeFileSync(path.join(base, 'prompt.txt'), `Delegate this review to the native custom agent harness-reviewer. Use its registered role without replacing its instructions. Wait for completion. Delegate exactly this message: ${message}\nOnly read fixture files and the source plugin files needed by the role; no ledger, remote or credential access. Return the agent result.`);
+  console.log(JSON.stringify({base, workspace, source: fileURLToPath(new URL('../../plugins/harness/agents/reviewer.md', import.meta.url))}));
+} else if (action === 'collect') {
+  const events = fs.readFileSync(path.join(base, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  const start = events.find(e => e.hook_event_name === 'SubagentStart' && e.agent_type === 'harness-reviewer');
+  const registration = read('registration.json');
+  const call = roleCall(registration, {...read('request.json'), sessionId: start?.session_id ?? 'missing', parentAgentId: start?.session_id ?? 'missing'});
+  const output = fs.readFileSync(path.join(base, 'output.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  const outcome = {state: output.some(e => e.type === 'turn.completed') ? 'completed' : 'interrupted', agentId: start?.agent_id, events};
+  json('call.json', call); json('outcome.json', outcome);
+  const result = roleResult(registration, call, outcome);
+  json('evidence.json', {origin: 'live', version: '0.153.4', registration, call, outcome, result});
+  console.log(JSON.stringify(result));
+  process.exitCode = result.status === 'REACHED' ? 0 : 1;
+} else throw new Error('prepare|collect <new directory>');

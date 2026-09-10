@@ -5,6 +5,8 @@ description: Story → milestone → task breakdown and acceptance writing. Use 
 
 # Story breakdown
 
+Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` and resolve the plugin and harness roots.
+
 ## 1. Define the story
 
 - Write **the problem the story solves in one sentence** first. Until that sentence exists it is not yet a story.
@@ -19,10 +21,10 @@ description: Story → milestone → task breakdown and acceptance writing. Use 
   | **Out of Scope** | The dropped item + why it was dropped (convention below) | An implementation widens quietly and nothing supports calling it excess |
 
   - **"Open" is the list the owner takes to the user.** When the owner picks the story up and runs this procedure again, they close those questions first and then break it down — leaving a question open costs less than the planner filling it with a guess.
-  - **The body goes into the ledger** (`ledger.sh create --body-file`). The reason it stays out of the shell command string, and the form it takes, are held by `harness:develop` "원장에 본문을 넘기는 형태".
-- Fix the repos involved and name them with `repo:<name>` labels (more than one allowed). Every one of them is a repo the harness has a clone of. **The `create` call itself carries exactly one `repo:` label — the repo the issue is to live in** (that label is what routes the issue, so zero or two of them is an error). A multi-repo story gets its remaining `repo:` labels right after creation with `ledger.sh label add <story ID> repo:<name>`.
+  - **The body goes into the ledger** (`ledger create --body-file`). The reason it stays out of the shell command string, and the form it takes, are held by `harness:develop` "원장에 본문을 넘기는 형태".
+- Fix the repos involved and name them with `repo:<name>` labels (more than one allowed). Every one of them is a repo the harness has a clone of. **The `create` call itself carries exactly one `repo:` label — the repo the issue is to live in** (that label is what routes the issue, so zero or two of them is an error). A multi-repo story gets its remaining `repo:` labels right after creation with `ledger label add <story ID> repo:<name>`.
 - **Read each of those repos' own conventions before breaking the story down.** Nothing in a target repo loads on its own — the session stands at the harness root — so a milestone or an acceptance written without them nails the harness's taste into the task tree instead of that repo's. **The places to read are owned by `harness:develop` "대상 레포의 관례".** What they yield goes into the story body's **Current state**, and where it constrains a task, into that task's acceptance.
-- **Give the story an English slug as a `slug:<rail ID>-<name>` label** for its documentation directory name (lowercase, digits, hyphens; a short summary of the story). **Prefix it with the rail ID** — the format and the reason are owned by the "스토리" row of the mapping table in the session context block. board.sh refuses to render a story without a slug.
+- **Give the story an English slug as a `slug:<rail ID>-<name>` label** for its documentation directory name (lowercase, digits, hyphens; a short summary of the story). **Prefix it with the rail ID** — the format and the reason are owned by the "스토리" row of the mapping table in the session context block. board refuses to render a story without a slug.
 - When the original lives outside (a GitHub issue, say), link it with `--external-ref` and carry a summary over, so the task body alone is enough to work from.
 - **Write what the story will not do (Out of Scope) into its body.** An inclusion list alone does not fix scope — with nothing written about what was dropped, "surely that was included" arrives later, and an implementation that widens quietly has nothing to be called excess against.
   - The form is one line each: **the dropped item + why it was dropped.** "Out of scope for now" without a reason sends the next person through the same discussion from the start.
@@ -65,14 +67,14 @@ Build epic (story) → feature (milestone) → task per the session context bloc
 
 **Task size rule: one task = one acceptance = one or more commits.** When an acceptance is one passage in one file, merge the task into its neighbor.
 
-**What a child inherits, on every backend.** `ledger.sh create --parent <parent>` copies the parent's `sprint:`, `rail:` and `repo:` labels onto the new issue — the adapter does it, so the rule is the same whichever backend the ledger runs on. Two consequences to plan around:
+**What a child inherits, on every backend.** `ledger create --parent <parent>` copies the parent's `sprint:`, `rail:` and `repo:` labels onto the new issue — the adapter does it, so the rule is the same whichever backend the ledger runs on. Two consequences to plan around:
 
 - **`slug:` does not descend.** It belongs to the story alone, because it is the story's documentation directory name — handed down, milestones and tasks would claim the same path. A child needs no `slug:` label and must not be given one.
 - **A label given with `-l` wins over the inherited one, by prefix.** Naming any `repo:` label at creation drops every inherited `repo:`; the prefixes not named still come down.
 
 **In a multi-repo story, narrow every task to a single repo — at creation.** The parent hands a task all of the story's `repo:` labels, and left that way develop cannot judge which worktree to delegate to and refuses to start. Name the one repo the task actually touches in the `create` call: `-l repo:<name>`. Do not plan on trimming afterwards — on `github` a `create` carrying two `repo:` labels fails outright (that label is what routes the issue to a repo), so the narrowing has to happen in the same call. A task that genuinely has to change two repos is two tasks — split it on the repo boundary and join with `blocks`.
 
-**A story epic created with a `rail:` label gets that rail's assignee.** The adapter reads the owner from `ledger.sh rails` and fills it in, so no separate `update --assignee` follows. The first epic of a brand-new rail has no owner to read yet: it is created without an assignee and says so on stderr — give it one before `board-check` runs.
+**A story epic created with a `rail:` label gets that rail's assignee.** The adapter reads the owner from `ledger rails` and fills it in, so no separate `update --assignee` follows. The first epic of a brand-new rail has no owner to read yet: it is created without an assignee and says so on stderr — give it one before `board-check` runs.
 
 **Registering several at once means the ids stay unpredicted.** The procedure is held by "여러 개를 한 번에 등재할 때" below.
 
@@ -102,19 +104,19 @@ Counts quoted in a plan or a body are **counted before they are written**. Carry
 
 ## 6. Ready-to-start verification
 
-Check the finished tree with `ledger.sh children <story ID>`: 0 tasks without acceptance, no dependency cycles, **0 tasks with 2 or more `repo:` labels** (the narrowing from section 2 was skipped). Passing all three means the tree can go to the develop procedure.
+Check the finished tree with `ledger children <story ID>`: 0 tasks without acceptance, no dependency cycles, **0 tasks with 2 or more `repo:` labels** (the narrowing from section 2 was skipped). Passing all three means the tree can go to the develop procedure.
 
 ## 7. Document rendering
 
-Redraw the local projection with `scripts/board.sh all`. **A backlog breakdown gets redrawn too** — the `sprint:` label splits the output path (`docs/backlog/<slug>/`) and nothing else. The projection sits outside git, and on a backend with its own UI the command draws nothing at all (rc 0 with one line saying so) — either way there is nothing to edit or commit.
+Redraw the local projection with `board all`. **A backlog breakdown gets redrawn too** — the `sprint:` label splits the output path (`docs/backlog/<slug>/`) and nothing else. The projection sits outside git, and on a backend with its own UI the command draws nothing at all (rc 0 with one line saying so) — either way there is nothing to edit or commit.
 
-**This procedure has no commit** — the whole breakdown lives in the ledger. What is left is the ledger's own remote reflection: `beads` alone has one (`ledger.sh sync-check --push`, waiting for an explicit instruction from the user); on `github`·`notion` the ledger is already remote and there is nothing to reflect.
+**This procedure has no commit** — the whole breakdown lives in the ledger. What is left is the ledger's own remote reflection: `beads` alone has one (`ledger sync-check --push`, waiting for an explicit instruction from the user); on `github`·`notion` the ledger is already remote and there is nothing to reflect.
 
 ## 여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다
 
-- **Derive no id from creation order.** There is no way to confirm whether the rule is `max+1` or `count+1`, and one failure that shifts the numbering makes a dependency edge **join the wrong pair with no error**. Take the **actual id** from `ledger.sh create --silent` output and use that.
-- **Hang the dependencies in one shot with `ledger.sh dep add --file -`** — it takes `{"from":…,"to":…}` JSONL on stdin and runs one whole-graph cycle check before committing. `from` is the dependent side, `to` the prerequisite.
+- **Derive no id from creation order.** There is no way to confirm whether the rule is `max+1` or `count+1`, and one failure that shifts the numbering makes a dependency edge **join the wrong pair with no error**. Take the **actual id** from `ledger create --silent` output and use that.
+- **Hang the dependencies in one shot with `ledger dep add --file -`** — it takes `{"from":…,"to":…}` JSONL on stdin and runs one whole-graph cycle check before committing. `from` is the dependent side, `to` the prerequisite.
 - **Assert positively at the end** — child count · that every acceptance is filled · one `repo:` label · dependency edge count. Leave out negative forms like "0 empty ones": one wrong field name (`acceptance` for `acceptance_criteria`, say) yields 0 and reads as a pass.
-- **A failure leaves a partial registration — scripts like this are not idempotent.** Rerunning as-is piles up duplicates, and the child-count assertion fails **only after the cleanup target has grown**. Print the actual id to stdout at every creation, and make the failure path emit its own recovery instructions (`HARNESS_ROOT=<harness root> ledger.sh delete <id> … --force` — `delete` is `beads`-only; on `github`·`notion` close the partial issues with `ledger.sh close <id> --reason` instead).
+- **A failure leaves a partial registration — scripts like this are not idempotent.** Rerunning as-is piles up duplicates, and the child-count assertion fails **only after the cleanup target has grown**. Print the actual id to stdout at every creation, and make the failure path emit its own recovery instructions (`ledger delete <id> … --force` — `delete` is `beads`-only; on `github`·`notion` close the partial issues with `ledger close <id> --reason` instead).
 
-> Evidence: `harness-dg0.6.1`. `ledger.sh create --graph` went unused because its help does not state the format — that trades an unverified id prediction for an unverified format guess, which is the same class of failure.
+> Evidence: `harness-dg0.6.1`. `ledger create --graph` went unused because its help does not state the format — that trades an unverified id prediction for an unverified format guess, which is the same class of failure.

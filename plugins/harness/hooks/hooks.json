@@ -1,12 +1,18 @@
 {
-  "description": "SessionStart: inject the always-on harness block (session-context.md) as additionalContext. PreToolUse (every tool): guard.sh keeps the four anchor-free invariants (rc=2 blocks). PostToolUse (EnterWorktree): enter-worktree.sh wires the harness ledger into the new story worktree (.beads/redirect + clone exclude) and runs the target repo's own .harness.json bootstrap fallback once when the target repo has no EnterWorktree hook of its own. Stop: stop-resume.sh (stop guard — pushes back while the ledger has in_progress work claimed by this session); it keeps its state under ${HARNESS_DATA_DIR:-~/.claude/plugins/data/harness}.",
+  "description": "Generated Claude exec transport from lib/hook-definitions.json; shared Node handlers.",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-context.sh\"",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "context",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 10
           }
         ]
@@ -17,7 +23,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh\"",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "guard",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 10
           }
         ]
@@ -29,7 +41,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/enter-worktree.sh\"",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "workspace",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 600
           }
         ]
@@ -40,8 +58,48 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.sh\"",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "stop",
+              "--runtime",
+              "claude"
+            ],
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "role-start",
+              "--runtime",
+              "claude"
+            ],
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "${CLAUDE_PLUGIN_ROOT}/scripts/hook.mjs",
+              "role-stop",
+              "--runtime",
+              "claude"
+            ],
+            "timeout": 10
           }
         ]
       }

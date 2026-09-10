@@ -1,0 +1,68 @@
+name: Harness native core contracts
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  group: harness-native-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [24]
+        host:
+          - {runner: macos-latest, platform: darwin}
+          - {runner: ubuntu-latest, platform: linux}
+          - {runner: windows-latest, platform: win32}
+    runs-on: ${{ matrix.host.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node }}
+          package-manager-cache: false
+      # pwsh is the native Windows runner shell; the test spawns no shell.
+      - name: Run identical Node/Git core suite (not full product certification)
+        run: node tests/harness/platform-contract-check.mjs ${{ matrix.host.platform }} platform-contract.json
+      - name: Run native process and configured preparation contracts
+        if: ${{ !cancelled() }}
+        run: node tests/harness/native-preparation-contract-check.mjs ${{ matrix.host.platform }}
+      - name: Check canonical plugin bytes with Windows checkout settings
+        if: ${{ !cancelled() }}
+        run: node tests/harness/native-checkout-contract-check.mjs
+      - name: Run identical native ledger contracts with offline transports
+        if: ${{ !cancelled() }}
+        run: node tests/harness/native-ledger-contract-check.mjs ${{ matrix.host.platform }}
+      - name: Run native board and operational consumer contracts
+        if: ${{ !cancelled() }}
+        run: node tests/harness/native-consumers-contract-check.mjs ${{ matrix.host.platform }}
+      - name: Run native hook policy contracts
+        if: ${{ !cancelled() }}
+        run: node tests/harness/native-hook-contract-check.mjs ${{ matrix.host.platform }}
+      - name: Run runtime hook transport contracts
+        if: ${{ !cancelled() }}
+        run: node tests/harness/native-hook-transport-check.mjs ${{ matrix.host.platform }}
+      - name: Check native guardrail wiring and negative controls
+        if: ${{ !cancelled() }}
+        run: node plugins/harness/checks/guardrail-check.mjs
+      - name: Diagnose Windows PowerShell native launch channels
+        if: always() && runner.os == 'Windows'
+        continue-on-error: true
+        run: node tests/harness/windows-launch-canary.mjs windows-launch-canary.json
+      - name: Preserve reached scope even when a contract fails
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: platform-${{ matrix.host.platform }}-node-${{ matrix.node }}
+          path: |
+            platform-contract.json
+            windows-launch-canary.json
+          if-no-files-found: error
+          retention-days: 14
