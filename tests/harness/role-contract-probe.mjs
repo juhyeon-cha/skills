@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
-import {registerRoles, roleCall, roleResult} from '../../plugins/harness/lib/roles.mjs';
+import {registerRoles, roleCall, roleResult} from '../../plugins/harness/lib/runtime/roles.mjs';
 
 const [action, directory] = process.argv.slice(2);
 const base = path.resolve(directory);

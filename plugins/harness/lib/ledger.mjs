@@ -1,13 +1,23 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {loadConfig} from './config.mjs';
-import {runCommand} from './process.mjs';
-import {commands, beadsCommands, csv, parse, writeValues, writeFlags, fail, json, fileArguments} from './ledger/common.mjs';
-import {githubLedger} from './ledger/github.mjs';
-import {notionLedger} from './ledger/notion.mjs';
-import {beadsLedger} from './ledger/beads.mjs';
+import { loadConfig } from './config.mjs';
+import { runCommand } from './process.mjs';
+import {
+  commands,
+  beadsCommands,
+  csv,
+  parse,
+  writeValues,
+  writeFlags,
+  fail,
+  json,
+  fileArguments,
+} from './ledger/common.mjs';
+import { githubLedger } from './ledger/github.mjs';
+import { notionLedger } from './ledger/notion.mjs';
+import { beadsLedger } from './ledger/beads.mjs';
 
-export {commands, beadsCommands};
+export { commands, beadsCommands };
 export const help = `사용: ledger.mjs [--root <절대 경로>] <하위 명령> [인자…] (bd 호환; legacy ledger.sh 동일)
 모든 백엔드 (beads · github · notion):
   init [--title <제목>] [--parent-page <id>] [--prefix <p>]
@@ -38,98 +48,202 @@ epic assignee는 rails의 owner다. --assignee와 --claim은 다른 경로다(�
 없는 설정·지원하지 않는 backend는 rc≠0이며 폴백이 없다. --root → HARNESS_ROOT → cwd 상위 .harness.json 순서다.
 `;
 export async function ledgerRoot(cwd, explicit) {
-  if (explicit) { if (!path.isAbsolute(explicit)) fail('ledger root: 절대 경로가 필요하다'); return fs.realpath(explicit); }
+  if (explicit) {
+    if (!path.isAbsolute(explicit)) fail('ledger root: 절대 경로가 필요하다');
+    return fs.realpath(explicit);
+  }
   let current = await fs.realpath(cwd);
   for (;;) {
-    if (await fs.stat(path.join(current, '.harness.json')).then(s => s.isFile(), e => { if (e.code === 'ENOENT') return false; throw e; })) return current;
-    const parent = path.dirname(current); if (parent === current) fail('ledger: .harness.json 을 찾지 못했다'); current = parent;
+    if (
+      await fs.stat(path.join(current, '.harness.json')).then(
+        (s) => s.isFile(),
+        (e) => {
+          if (e.code === 'ENOENT') return false;
+          throw e;
+        },
+      )
+    )
+      return current;
+    const parent = path.dirname(current);
+    if (parent === current) fail('ledger: .harness.json 을 찾지 못했다');
+    current = parent;
   }
 }
 
 // Process/HTTPS transport injection is a library dependency boundary. The CLI
 // has no environment-driven replacement executable, API host or policy module.
 export async function executeLedger(argv, options = {}) {
-  const env = options.env ?? process.env, cwd = options.cwd ?? process.cwd();
-  const args = [...argv]; let root = options.root;
-  if (args[0] === '--root') { args.shift(); root = args.shift(); if (!root) return {code:1, stdout:'', stderr:'ledger: --root 값이 필요하다\n'}; }
-  if (['help','--help','-h'].includes(args[0])) return {code:0, stdout:help, stderr:''};
-  if (args[0] === '--commands') return {code:0, stdout:json([...commands,...beadsCommands]), stderr:''};
-  if (!args.length) return {code:1, stdout:'', stderr:help};
-  let stdout = '', stderr = '';
-  const ctx = {env, cwd, input: options.input ?? Buffer.alloc(0), inheritStdin:options.inheritStdin, out: value => { stdout += value; }, err: value => { stderr += value; }};
+  const env = options.env ?? process.env,
+    cwd = options.cwd ?? process.cwd();
+  const args = [...argv];
+  let root = options.root;
+  if (args[0] === '--root') {
+    args.shift();
+    root = args.shift();
+    if (!root) return { code: 1, stdout: '', stderr: 'ledger: --root 값이 필요하다\n' };
+  }
+  if (['help', '--help', '-h'].includes(args[0])) return { code: 0, stdout: help, stderr: '' };
+  if (args[0] === '--commands')
+    return { code: 0, stdout: json([...commands, ...beadsCommands]), stderr: '' };
+  if (!args.length) return { code: 1, stdout: '', stderr: help };
+  let stdout = '',
+    stderr = '';
+  const ctx = {
+    env,
+    cwd,
+    input: options.input ?? Buffer.alloc(0),
+    inheritStdin: options.inheritStdin,
+    out: (value) => {
+      stdout += value;
+    },
+    err: (value) => {
+      stderr += value;
+    },
+  };
   try {
     ctx.root = await ledgerRoot(cwd, root ?? env.HARNESS_ROOT);
-    const loaded = await loadConfig(ctx.root); ctx.config = loaded.config; ctx.file = loaded.file;
+    const loaded = await loadConfig(ctx.root);
+    ctx.config = loaded.config;
+    ctx.file = loaded.file;
     ctx.backend = ctx.config.ledger.backend;
-    args.splice(0, args.length, ...await fileArguments(args, ctx));
+    args.splice(0, args.length, ...(await fileArguments(args, ctx)));
     ctx.command = async (executable, commandArgs, extra = {}) => {
-      const result = await (options.process ?? runCommand)({argv:[executable,...commandArgs]}, {cwd:extra.cwd ?? ctx.cwd, env, input:extra.input, inheritStdin:options.inheritStdin, ...extra});
-      if (!extra.allowFailure && (result.status !== 'exited' || result.code !== 0)) fail(`${executable} 실패: ${result.stderr?.toString() || result.error?.message || result.signal || result.code}`);
+      const result = await (options.process ?? runCommand)(
+        { argv: [executable, ...commandArgs] },
+        {
+          cwd: extra.cwd ?? ctx.cwd,
+          env,
+          input: extra.input,
+          inheritStdin: options.inheritStdin,
+          ...extra,
+        },
+      );
+      if (!extra.allowFailure && (result.status !== 'exited' || result.code !== 0))
+        fail(
+          `${executable} 실패: ${result.stderr?.toString() || result.error?.message || result.signal || result.code}`,
+        );
       return result;
     };
-    ctx.request = options.request ?? (async (method, endpoint, body) => {
-      const response = await fetch('https://api.notion.com/v1/' + endpoint, {method, headers:{Authorization:`Bearer ${env.NOTION_TOKEN}`, 'Notion-Version':'2022-06-28', 'Content-Type':'application/json'}, ...(body === undefined ? {} : {body:JSON.stringify(body)})});
-      const payload = await response.json();
-      if (!response.ok) fail(`HTTP ${response.status} ${payload.code ?? '?'} — ${method} /v1/${endpoint}: ${(payload.message ?? '').slice(0,200)}`);
-      return payload;
-    });
-    const backend = {github:githubLedger, notion:notionLedger, beads:beadsLedger}[ctx.backend];
-    const invoke = async callArgs => {
+    ctx.request =
+      options.request ??
+      (async (method, endpoint, body) => {
+        const response = await fetch('https://api.notion.com/v1/' + endpoint, {
+          method,
+          headers: {
+            Authorization: `Bearer ${env.NOTION_TOKEN}`,
+            'Notion-Version': '2022-06-28',
+            'Content-Type': 'application/json',
+          },
+          ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+        });
+        const payload = await response.json();
+        if (!response.ok)
+          fail(
+            `HTTP ${response.status} ${payload.code ?? '?'} — ${method} /v1/${endpoint}: ${(payload.message ?? '').slice(0, 200)}`,
+          );
+        return payload;
+      });
+    const backend = { github: githubLedger, notion: notionLedger, beads: beadsLedger }[ctx.backend];
+    const invoke = async (callArgs) => {
       let captured = '';
-      const result = await backend(callArgs, {...ctx, out:value => { captured += value; }});
+      const result = await backend(callArgs, {
+        ...ctx,
+        out: (value) => {
+          captured += value;
+        },
+      });
       if (result?.code) fail(`ledger-${ctx.backend}: ${result.stderr || 'backend failed'}`);
-      if(result?.stderr)ctx.err(result.stderr);
+      if (result?.stderr) ctx.err(result.stderr);
       return captured + (result?.stdout ?? '');
     };
     if (args[0] === 'create') {
       // Keep backend-specific argv intact; only shared label flags are replaced.
-      const parsed = parse(args.slice(1), writeValues, writeFlags, true), labels = csv(parsed.labels);
+      const parsed = parse(args.slice(1), writeValues, writeFlags, true),
+        labels = csv(parsed.labels);
       if (parsed.parent) {
-        let parent; try { parent = JSON.parse(await invoke(['show', parsed.parent, '--json']))[0]; } catch (error) { fail(`create: 부모 '${parsed.parent}' 를 읽지 못했다 — ${error.message}`); }
+        let parent;
+        try {
+          parent = JSON.parse(await invoke(['show', parsed.parent, '--json']))[0];
+        } catch (error) {
+          fail(`create: 부모 '${parsed.parent}' 를 읽지 못했다 — ${error.message}`);
+        }
         if (ctx.backend === 'beads' && parent?.id && parent.labels == null) parent.labels = [];
-        if (!Array.isArray(parent?.labels)) fail(`create: 부모 '${parsed.parent}' 의 labels 를 읽지 못했다`);
-        const explicit = new Set(labels.map(label => label.split(':')[0]));
-        for (const label of parent.labels) if (/^(sprint|rail|repo):/.test(label) && !explicit.has(label.split(':')[0]) && !labels.includes(label)) labels.push(label);
+        if (!Array.isArray(parent?.labels))
+          fail(`create: 부모 '${parsed.parent}' 의 labels 를 읽지 못했다`);
+        const explicit = new Set(labels.map((label) => label.split(':')[0]));
+        for (const label of parent.labels)
+          if (
+            /^(sprint|rail|repo):/.test(label) &&
+            !explicit.has(label.split(':')[0]) &&
+            !labels.includes(label)
+          )
+            labels.push(label);
       }
       const final = ['create'];
-      for (let i=1;i<args.length;i++) {
+      for (let i = 1; i < args.length; i++) {
         const arg = args[i];
-        if (['-l','--label','--labels'].includes(arg)) i++;
-        else { final.push(arg); if (Object.hasOwn(writeValues, arg)) final.push(args[++i]); }
+        if (['-l', '--label', '--labels'].includes(arg)) i++;
+        else {
+          final.push(arg);
+          if (Object.hasOwn(writeValues, arg)) final.push(args[++i]);
+        }
       }
       if (labels.length) final.push('-l', labels.join(','));
       let owner;
-      if (parsed.type === 'epic' && labels.some(label => label.startsWith('rail:'))) {
-        const rail = labels.find(label => label.startsWith('rail:')).slice(5);
-        try { owner = JSON.parse(await invoke(['rails','--json'])).find(row => row.id === rail)?.owner; }
-        catch (error) { ctx.err(`ledger: create: 레일 등록부를 읽지 못했다 — ${error.message}\n`); }
-        if (!owner) ctx.err(`ledger: create: 레일 '${rail}' 의 owner 를 찾지 못했다 — 첫 epic 이면 정상이다. assignee 없이 만든다\n`);
+      if (parsed.type === 'epic' && labels.some((label) => label.startsWith('rail:'))) {
+        const rail = labels.find((label) => label.startsWith('rail:')).slice(5);
+        try {
+          owner = JSON.parse(await invoke(['rails', '--json'])).find(
+            (row) => row.id === rail,
+          )?.owner;
+        } catch (error) {
+          ctx.err(`ledger: create: 레일 등록부를 읽지 못했다 — ${error.message}\n`);
+        }
+        if (!owner)
+          ctx.err(
+            `ledger: create: 레일 '${rail}' 의 owner 를 찾지 못했다 — 첫 epic 이면 정상이다. assignee 없이 만든다\n`,
+          );
       }
       const strip = ctx.backend === 'beads' && parsed.parent;
       if (owner || strip) {
         if (!parsed.silent) final.push('--silent');
-        const id = (await invoke(final)).trim(); if (!id) fail('create: 백엔드가 새 id 를 내지 않았다');
+        const id = (await invoke(final)).trim();
+        if (!id) fail('create: 백엔드가 새 id 를 내지 않았다');
         try {
-          if (owner) await invoke(['update',id,'--assignee',owner]);
+          if (owner) await invoke(['update', id, '--assignee', owner]);
           if (strip) {
-            const created = JSON.parse(await invoke(['show',id,'--json']))[0];
+            const created = JSON.parse(await invoke(['show', id, '--json']))[0];
             if (created?.id && created.labels == null) created.labels = [];
             if (!Array.isArray(created?.labels)) fail('실제 labels 를 읽지 못했다');
-            for (const label of created.labels) if (!labels.includes(label)) await invoke(['label','remove',id,label]);
+            for (const label of created.labels)
+              if (!labels.includes(label)) await invoke(['label', 'remove', id, label]);
           }
-        } catch (error) { fail(`create: ${id} 는 만들었지만 후속 계약을 적용하지 못했다 — ${error.message}`); }
-        ctx.out(parsed.silent ? id+'\n' : `✓ Created issue: ${id} — ${parsed.positional[0] ?? ''}\n`);
+        } catch (error) {
+          fail(`create: ${id} 는 만들었지만 후속 계약을 적용하지 못했다 — ${error.message}`);
+        }
+        ctx.out(
+          parsed.silent ? id + '\n' : `✓ Created issue: ${id} — ${parsed.positional[0] ?? ''}\n`,
+        );
       } else ctx.out(await invoke(final));
     } else {
       if (args[0] === 'sprint-add') {
-        if (args.length !== 2 || !/^\d{4}-S\d{2}$/.test(args[1])) fail('sprint-add: 스프린트 ID 형식은 YYYY-SNN 이다');
-        const rows = JSON.parse(await invoke(['sprints','--json']));
+        if (args.length !== 2 || !/^\d{4}-S\d{2}$/.test(args[1]))
+          fail('sprint-add: 스프린트 ID 형식은 YYYY-SNN 이다');
+        const rows = JSON.parse(await invoke(['sprints', '--json']));
         if (!Array.isArray(rows)) fail('sprint-add: 지금 등재를 읽지 못했다');
-        if (rows.some(row => row.id === args[1])) fail(`sprint-add: '${args[1]}' 는 이미 등재돼 있다 — 덮어쓰지 않는다`);
+        if (rows.some((row) => row.id === args[1]))
+          fail(`sprint-add: '${args[1]}' 는 이미 등재돼 있다 — 덮어쓰지 않는다`);
       }
       const result = await backend(args, ctx);
-      if (result) return {...result, stdout:stdout + (result.stdout ?? ''), stderr:stderr + (result.stderr ?? '')};
+      if (result)
+        return {
+          ...result,
+          stdout: stdout + (result.stdout ?? ''),
+          stderr: stderr + (result.stderr ?? ''),
+        };
     }
-    return {code:0, stdout, stderr};
-  } catch (error) { return {code:1, stdout, stderr:stderr + `ledger: ${error.message}\n`}; }
+    return { code: 0, stdout, stderr };
+  } catch (error) {
+    return { code: 1, stdout, stderr: stderr + `ledger: ${error.message}\n` };
+  }
 }

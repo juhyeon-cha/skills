@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {inspectRuntimeContract, roleSignals} from '../../plugins/harness/lib/runtime-contract.mjs';
+import {inspectRuntimeContract, roleSignals} from '../../plugins/harness/lib/runtime/role-contract.mjs';
 
 if (process.argv[2]) {
   try {

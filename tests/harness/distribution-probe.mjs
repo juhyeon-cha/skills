@@ -3,8 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {pluginRoot, readJson} from '../../plugins/harness/lib/distribution.mjs';
-import {registerRoles} from '../../plugins/harness/lib/roles.mjs';
-import {createChallenge, diagnose} from '../../plugins/harness/lib/doctor.mjs';
+import {registerRoles} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {createChallenge, diagnose} from '../../plugins/harness/lib/runtime/doctor.mjs';
 
 const [action, directory, installed] = process.argv.slice(2);
 const base = fs.realpathSync(directory);

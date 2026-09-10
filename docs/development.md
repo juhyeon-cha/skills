@@ -19,6 +19,23 @@ Two judgement calls that look like exceptions and are not:
 - **A check that judges the shipped artifact's authoring is a build-time check.** The installed tree is immutable, so a verdict on it can only change before release. `tests/harness/doc-rules-check.sh` is the whole of that set — including `R-BEAD`, which reads the injection block (a tree) and judges it against **the author's** ledger: shipped, it would read every other harness's ledger as a wall of dead references.
 - **A document that shipped code points at, ships.** `guardrail-verification.md` is cited by section number from `hooks/guard.sh` · `hooks/stop-resume.sh` · `scripts/guard-log.sh` · `checks/guardrail-check.sh` for the ceilings those files state. Moving it would leave the ceiling unreadable exactly where someone debugging a hook needs it.
 
+## Finding an implementation
+
+The executable entrypoints stay in `plugins/harness/scripts/`, `checks/`, and
+`hooks/`. Follow their imports into these internal groups:
+
+| Directory under `plugins/harness/lib/` | Responsibility |
+|---|---|
+| `guard/` | Tool-event normalization, shell/path interpretation, guard policy, and guard-log reading |
+| `workspace/` | Git workspace identity, command parsing, preparation, names, and Windows process ownership helpers |
+| `runtime/` | Role contracts and registration, state, workflow evidence, session context, Stop, and runtime diagnosis |
+| `ledger/` and `transcripts/` | Backend-specific ledger representations and runtime-specific transcript decoding |
+
+`runtime/role-contract.mjs` holds pure identity and evidence inspection helpers.
+Consumers that need those helpers can use them without importing registration or
+state I/O. Shared configuration, process execution, distribution, and ledger or
+transcript facades remain directly under `lib/`.
+
 ## Verdicts and gates
 
 - **The commit gate is the target repo's own** — the `check` field of the skills repo's `.harness.json` (`bash scripts/check.sh`: `claude plugin validate --strict` per plugin · `shellcheck` over every `*.sh` under `plugins/` and `tests/` · the agent-doc-audit regression over both plugins' documents · the three-way description match).

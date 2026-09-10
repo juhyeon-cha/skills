@@ -27,7 +27,7 @@ and `lib/ledger.mjs`, with backend representation in `lib/ledger/*.mjs`.
 | Harness plugin | `harness@skills`, source `plugins/harness/` | Shared skills, roles, policies, native modules and documentation; generated runtime manifests and hook transport reference that artifact. Runtime caches are installation details, not source owners |
 | Always-on rules | plugin `hooks/session-context.md`, injected at SessionStart as `additionalContext` | "절대 금지" · ledger location · skill/role list · hierarchy↔ledger mapping · the table of where every other rule is owned |
 | Harness root discovery | `ledgerRoot` in `lib/ledger.mjs`; legacy `lib/harness-root.sh` entry | Native commands prefer explicit `--root`, then `HARNESS_ROOT`, then the first `.harness.json` above cwd. The committed file identifies the repository; backend validation remains the ledger boundary. No implicit cwd fallback on failure |
-| Worktree name derivation | plugin `lib/worktree-name.mjs`; legacy wrapper `lib/worktree-name.sh` | **The single place a story ID becomes a worktree name.** `EnterWorktree`'s `name` accepts only letters, digits, dots, underscores and dashes, so a `github` ID (`<repo>#<number>`) is refused as it stands: every character outside that set becomes `-` (`skills#105` → `skills-105`, branch `worktree-skills-105`). A `beads` ID passes through unchanged, which is why nothing here showed on that backend. Anything deriving a path or a branch from an ID calls this script |
+| Worktree name derivation | plugin `lib/workspace/worktree-name.mjs`; legacy wrapper `lib/worktree-name.sh` | **The single place a story ID becomes a worktree name.** `EnterWorktree`'s `name` accepts only letters, digits, dots, underscores and dashes, so a `github` ID (`<repo>#<number>`) is refused as it stands: every character outside that set becomes `-` (`skills#105` → `skills-105`, branch `worktree-skills-105`). A `beads` ID passes through unchanged, which is why nothing here showed on that backend. Anything deriving a path or a branch from an ID calls this script |
 | Story worktree | common `scripts/workspace.mjs` or native Claude EnterWorktree transport | Git registration, common-dir and branch establish identity, including external linked paths. Default layout stays `.claude/worktrees/<name>`. See [workspace.md](workspace.md) for create/inspect/enter/prepare/ready and preparation ownership |
 | Worktree cleanup | common `workspace.mjs cleanup`; compatible `workspace-cleanup.sh <story> [--force]` | Current cwd, dirty state, identity mismatch and fetch failure refuse removal. Unpushed commits refuse unless explicitly forced; only the matching registration and branch are removed. Partial progress is reported |
 | Projection renderer | plugin `scripts/board.sh all` → `<repo>/docs/sprints/<ID>/` · `docs/backlog/` · `docs/adr/` | the ledger, read through `ledger.sh`, → a document tree people read. **It draws nothing on a backend that has its own UI** — `board.sh` asks the adapter's `has-ui` and, given a name, exits 0 having created and deleted nothing. The renderer exists for a backend with no screen of its own (`beads`, a local Dolt DB); on `github`·`notion` the ledger's own UI is the thing people read and a second copy would only diverge. Output is **outside git**. Input is every epic; the `sprint:` label only picks the output path (backlog is narrowed to `status != closed`). Descendants are gathered by the parent chain, not by label. Story directory = the `slug:` label, prefixed with the rail ID. Output is deterministic |
@@ -41,14 +41,14 @@ direct argv execution. Native source ownership is:
 
 | Responsibility | Single source and runtime projection |
 |---|---|
-| Policy and context | `hooks/session-context.md`; native `lib/session-context.mjs` emits it |
-| Role bodies and identity | `agents/*.md`; `lib/roles.mjs` generates Codex registrations and verifies receipts; Claude reads the same bodies |
+| Policy and context | `hooks/session-context.md`; native `lib/runtime/session-context.mjs` emits it |
+| Role bodies and identity | `agents/*.md`; `lib/runtime/roles.mjs` generates Codex registrations and verifies receipts; Claude reads the same bodies |
 | Skill bodies | `skills/*/SKILL.md`; both manifests reference this directory, with duplicate names rejected |
 | Hook registry and transport | `lib/hook-definitions.json` generates `hooks/hooks.json` and `hooks/codex.json`; `scripts/hook.mjs` dispatches native handlers |
-| Guard, Stop and logs | `lib/guard.mjs`, `lib/stop.mjs`, `lib/guard-log.mjs`; legacy entrypoints delegate |
-| Workspace and preparation | `lib/workspace.mjs`, `lib/preparation.mjs`; Git metadata establishes identity and `.harness.json` owns preparation |
+| Guard, Stop and logs | `lib/guard/guard.mjs`, `lib/runtime/stop.mjs`, `lib/guard/guard-log.mjs`; legacy entrypoints delegate |
+| Workspace and preparation | `lib/workspace/workspace.mjs`, `lib/workspace/preparation.mjs`; Git metadata establishes identity and `.harness.json` owns preparation |
 | Ledger and operational checks | `lib/ledger.mjs`, `lib/ledger/*.mjs`, `lib/ledger-view.mjs`; native consumers share that boundary |
-| Installation and live evidence | `lib/distribution.mjs`, `lib/doctor.mjs`; generated drift and loaded-session evidence are separate judgments |
+| Installation and live evidence | `lib/distribution.mjs`, `lib/runtime/doctor.mjs`; generated drift and loaded-session evidence are separate judgments |
 
 See [installation.md](installation.md) for actual load checks and
 [platforms.md](platforms.md) for native versus transitional host evidence.

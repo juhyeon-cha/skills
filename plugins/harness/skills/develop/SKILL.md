@@ -24,7 +24,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 ## 2. Create the workspace
 
-Read `${CLAUDE_PLUGIN_ROOT}/docs/workspace.md` when creating, resuming or cleaning a workspace. Both runtimes use `workspace create <repo> <story>` for creation and `workspace enter <workspace>` for ledger wiring and verified preparation. The command preserves the default `.claude/worktrees/<name>` layout and `worktree-<name>` branch; `lib/worktree-name.mjs` owns story-to-name conversion. Resume an existing workspace through `inspect` then `enter`, using the Git registration's path even when it is outside the clone.
+Read `${CLAUDE_PLUGIN_ROOT}/docs/workspace.md` when creating, resuming or cleaning a workspace. Both runtimes use `workspace create <repo> <story>` for creation and `workspace enter <workspace>` for ledger wiring and verified preparation. The command preserves the default `.claude/worktrees/<name>` layout and `worktree-<name>` branch; `lib/workspace/worktree-name.mjs` owns story-to-name conversion. Resume an existing workspace through `inspect` then `enter`, using the Git registration's path even when it is outside the clone.
 
 Claude's native `EnterWorktree` remains a supported creation/entry transport: its PostToolUse wrapper calls the same common entry command. Do not also create the same workspace through the CLI. Codex uses the CLI and sets subsequent command cwd to the returned `top`; a subprocess cannot change the parent session's cwd.
 
@@ -149,7 +149,7 @@ This skill owns the sections below; the other skills, the role definitions, and 
 |---|---|---|
 | Gate passed | the rc of a partial run (a single test · some modules) | the rc of running that whole scope |
 | Documents current | `board`'s rc | the paths on stdout exist and the status symbol in their `index.md` equals the status of `ledger show` |
-| Worktree created | workspace command or native EnterWorktree result | common `inspect` confirms Git registration, canonical `top` and linked identity; `branch` matches the story's name from `lib/worktree-name.mjs`, and the delegation retains the original harness root |
+| Worktree created | workspace command or native EnterWorktree result | common `inspect` confirms Git registration, canonical `top` and linked identity; `branch` matches the story's name from `lib/workspace/worktree-name.mjs`, and the delegation retains the original harness root |
 | Pushed | the push command's rc | the tip of `git ls-remote` is my commit SHA |
 | Merged | the PR state being `MERGED` · the remote tip compared at push time (a squash merge makes **a new commit object**, so both can diverge from the original commit) | the merge commit's `--stat` equals that of the whole branch diff (`git diff --stat <default branch>...<branch>`). For a commit with deletions or renames, confirm the path's absence in the remote tree with `git ls-tree --name-only origin/<default branch> <path>` |
 | Task closed | having called `ledger close` | the status·close_reason of `ledger show` |

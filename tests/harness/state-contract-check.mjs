@@ -4,10 +4,10 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {resolveState, runtimeIdentity, appendState, withStateLock, tsv, readActors, bindActor, cancelSession, isCancelled, storeWorkflow, readWorkflow, recordStateEvent} from '../../plugins/harness/lib/state.mjs';
+import {resolveState, runtimeIdentity, appendState, withStateLock, tsv, readActors, bindActor, cancelSession, isCancelled, storeWorkflow, readWorkflow, recordStateEvent} from '../../plugins/harness/lib/runtime/state.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness/', import.meta.url));
-const modulePath = path.join(root, 'lib/state.mjs');
+const modulePath = path.join(root, 'lib/runtime/state.mjs');
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'state-contract-'));
 const env = {...process.env, HOME: temp, HARNESS_DATA_DIR: path.join(temp, 'data'), GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_NOSYSTEM: '1'};
 for (const key of ['HARNESS_RUNTIME', 'CLAUDE_PLUGIN_DATA', 'PLUGIN_ROOT', 'PLUGIN_DATA', 'CLAUDE_PLUGIN_ROOT', 'HARNESS_ROOT', 'HARNESS_GUARD_LOG', 'HARNESS_SESSION_ACTOR_LOG', 'HARNESS_DOCTOR_DIR']) delete env[key];

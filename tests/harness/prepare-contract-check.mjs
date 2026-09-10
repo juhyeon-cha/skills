@@ -5,8 +5,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {inspectWorkspace} from '../../plugins/harness/lib/workspace.mjs';
-import {preparationPaths, runPreparation} from '../../plugins/harness/lib/preparation.mjs';
+import {inspectWorkspace} from '../../plugins/harness/lib/workspace/workspace.mjs';
+import {preparationPaths, runPreparation} from '../../plugins/harness/lib/workspace/preparation.mjs';
 import {validateConfig} from '../../plugins/harness/lib/config.mjs';
 
 assert.notEqual(process.platform, 'win32', 'UNREACHED: this suite proves POSIX groups only');

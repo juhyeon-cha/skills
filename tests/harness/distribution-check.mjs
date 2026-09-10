@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {pluginRoot, inspectDistribution, generateDistribution, readJson, hookWiring} from '../../plugins/harness/lib/distribution.mjs';
-import {registerRoles, verifyRegistration} from '../../plugins/harness/lib/roles.mjs';
+import {registerRoles, verifyRegistration} from '../../plugins/harness/lib/runtime/roles.mjs';
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'distribution-check-'));
 let count = 0;

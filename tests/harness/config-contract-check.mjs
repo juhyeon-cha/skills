@@ -118,7 +118,7 @@ try {
     }
     const target = path.join(copy, 'plugins/harness/lib/config.mjs');
     const before = fs.readFileSync(target, 'utf8');
-    const after = before.split('\n').filter(line => !line.includes("if ('schema_version' in config")).join('\n');
+    const after = before.replace(/  if \('schema_version' in config && config\.schema_version !== 1\)\s*invalid\('unsupported schema_version \(supported: 1\)'\);\n/, '');
     check(after !== before, 'negative source mutation actually changed version validation'); fs.writeFileSync(target, after);
     const negative = spawnSync(process.execPath, [path.join(copy, 'tests/harness/config-contract-check.mjs'), '--mutation-child'], {env, encoding: 'utf8'});
     check(negative.status === 1 && negative.stderr.includes('unsupported versions never fall back'), 'mutated validation suite fails at intended assertion');

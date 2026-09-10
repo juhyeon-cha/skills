@@ -20,7 +20,7 @@
   | `This command requires approval` / `Claude requested permissions to read from <path>, but you haven't granted it yet.` | matched no rule and fell to an approval prompt, auto-refused because non-interactive — **not a block** | one approval button passes it |
 
   In the default permission mode `python3 -c` shows the third line, and the same command passes under `bypassPermissions` and spits the canary. To be sure, run a `--permission-mode bypassPermissions` control — `deny` holds even there, so a pass there is a real pass [measured `harness-uhy.2.1`, reproduced both ways].
-- **Assert registry integrity from the source and behavior.** `lib/guard.mjs` owns exported `r_` functions and ordered `RULES.push` registrations. The dispatcher validates callable entries before matcher comparison. `tests/harness/guard-source-fixture.mjs` derives definitions and registrations in both directions, checks ordering/prefix/duplicates/nonempty populations, and mutates source copies. The complete legacy `guard-check.sh` corpus now executes that Node policy. Historical Bash measurement `harness-uhy.3.5` established why a missing registration needs its own negative control; its old `RULES+=` syntax is not current production policy.
+- **Assert registry integrity from the source and behavior.** `lib/guard/guard.mjs` owns exported `r_` functions and ordered `RULES.push` registrations. The dispatcher validates callable entries before matcher comparison. `tests/harness/guard-source-fixture.mjs` derives definitions and registrations in both directions, checks ordering/prefix/duplicates/nonempty populations, and mutates source copies. The complete legacy `guard-check.sh` corpus now executes that Node policy. Historical Bash measurement `harness-uhy.3.5` established why a missing registration needs its own negative control; its old `RULES+=` syntax is not current production policy.
 - **Environmental unavailability is not a pass.** Native handlers need Node, not jq/Bash/Python. Node-only PATH fixtures prove allowed reads and denied writes still work; missing Node, invalid JSON, unknown role and broken source have independent failure controls. The native guardrail check has no jq skip. Claude exec launch failure is kept distinct from a completed hook with rc 2.
 - **Compare every firing condition and transport field.** S2 compares the common registry with generated Claude and Codex metadata, including event, matcher, command, Claude args and Codex commandWindows. Missing/duplicate entries and drift fail. A separate transport fixture actually launches generated commands (Codex Windows uses the CLI's cmd.exe outer quoting); neither test establishes trust, runtime loading or real hook firing. The historical matcher-only miss is the reason S2 compares the full contract.
 - **What it cannot catch**: a surface erased **on both sides at once** (a rule function and its test; `hooks.json` and the hook file) looks like an agreed change, not drift. That requires editing the check file itself, which is visible in review.
@@ -53,7 +53,7 @@ These two documents are the full list, so they carry numbers. **The only ones th
 
 **There is no exempt tree.** The harness's own core lives in the `skills` repo, which is a target repo like any other and gets the same treatment — the checks fire because a step runs them, nowhere because a hook does.
 
-## 8. The stop guard — `lib/stop.mjs` (Stop; legacy `hooks/stop-resume.sh` wrapper)
+## 8. The stop guard — `lib/runtime/stop.mjs` (Stop; legacy `hooks/stop-resume.sh` wrapper)
 
 When confirmed session work remains `in_progress`, the Stop guard may push back. Its paths are `BLOCK`, `IDLE`, `RECURSE`, `GAVE_UP`, `ORACLE_FAIL`, `CANCEL`, `VERIFY_PENDING` and `SCOPE_FAIL`. SCOPE_FAIL continues to a judgment path and writes two records; unavailable state produces an explicit UNREACHED diagnostic instead.
 
@@ -125,7 +125,7 @@ Use `node <plugin>/scripts/guard-log.mjs --runtime <runtime> --data <absolute da
 
 ### Conditions — only when all three hold
 
-1. **The loaded `lib/guard.mjs` has the logging call.** Source changes do not establish execution in an already-open installed session. Doctor distinguishes expected source from observed artifact; legacy TSV counts have unverified scope.
+1. **The loaded `lib/guard/guard.mjs` has the logging call.** Source changes do not establish execution in an already-open installed session. Doctor distinguishes expected source from observed artifact; legacy TSV counts have unverified scope.
 2. **The counting command reads the log the hook writes.** Both use the Node state resolver. Supply the active runtime and actual plugin data directory to ordinary CLI calls, or explicitly select a legacy TSV. A home-path guess is not evidence that this is the current hook log.
 3. **The round column has not collapsed.** A payload without `session_id` folds rounds into `-` (⑯ (e) pins that value).
 
@@ -136,8 +136,8 @@ Use `node <plugin>/scripts/guard-log.mjs --runtime <runtime> --data <absolute da
 | State | rc | Usable as evidence? |
 |---|---|---|
 | rows or counts come out | 0 | **yes.** Round × rule counts, and the per-row axes, are machine values |
-| no log, and **the inspected `lib/guard.mjs` has the logging call** | 1 | Observation UNREACHED: check hook execution, selected path and logging failure; absence alone does not prove the hook never ran |
-| no log, and **the inspected `lib/guard.mjs` has no logging call** | 3 | **not "0 firings".** The inspected artifact cannot emit guard observations |
+| no log, and **the inspected `lib/guard/guard.mjs` has the logging call** | 1 | Observation UNREACHED: check hook execution, selected path and logging failure; absence alone does not prove the hook never ran |
+| no log, and **the inspected `lib/guard/guard.mjs` has no logging call** | 3 | **not "0 firings".** The inspected artifact cannot emit guard observations |
 | log present, **0 blocked rows in range** (`rows`) | 4 | **yes** — blocking really was 0. The one rc that licenses "no false positives in this range" |
 | the **given round** has no row at all (`rows <round>`) | 5 | **not "0 blocked".** Rotation dropped it, or the round name is wrong |
 | blocked rows exist but **all are unclassifiable** (`rows`) | 6 | **no.** Not "0 false positives" — **could not be counted.** Read it as an unmeasured round, never as a clean one |

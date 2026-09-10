@@ -7,7 +7,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
-import {inspectRuntimeContract, roleSignals} from '../../plugins/harness/lib/runtime-contract.mjs';
+import {inspectRuntimeContract, roleSignals} from '../../plugins/harness/lib/runtime/role-contract.mjs';
 
 const source = fileURLToPath(new URL('../../plugins/harness/agents/reviewer.md', import.meta.url));
 const digest = file => ({path: file, sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex')});

@@ -7,9 +7,9 @@ import {fileURLToPath} from 'node:url';
 import {decodeClaude} from '../../plugins/harness/lib/transcripts/claude.mjs';
 import {decodeCodex, codexOutcome} from '../../plugins/harness/lib/transcripts/codex.mjs';
 import {summarize, auditClaude} from '../../plugins/harness/lib/transcript.mjs';
-import {registerRoles, loadRole} from '../../plugins/harness/lib/roles.mjs';
-import {recordStateEvent} from '../../plugins/harness/lib/state.mjs';
-import {workflowScope, beginWorkflow, completeWorkflow, auditWorkflow} from '../../plugins/harness/lib/workflow.mjs';
+import {registerRoles, loadRole} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {recordStateEvent} from '../../plugins/harness/lib/runtime/state.mjs';
+import {workflowScope, beginWorkflow, completeWorkflow, auditWorkflow} from '../../plugins/harness/lib/runtime/workflow.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness', import.meta.url));
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'transcript-contract-'));

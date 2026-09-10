@@ -37,7 +37,7 @@ The three observations are mutually exclusive and cover every case.
 
 ## 1. A — New harness
 
-**The procedure cannot be delegated wholesale to an implementer subagent.** Ledger initialization (1.3), and the checks after it that require a ledger, are blocked with rc=2 by `lib/guard.mjs`'s `r_impl_bd`. That rule's own block message says "원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다" — **that is the guardrail working as intended, and a human or an orchestrator session carries out this procedure.**
+**The procedure cannot be delegated wholesale to an implementer subagent.** Ledger initialization (1.3), and the checks after it that require a ledger, are blocked with rc=2 by `lib/guard/guard.mjs`'s `r_impl_bd`. That rule's own block message says "원장 구조(계층·의존성·상태·라벨)의 변경은 오케스트레이터의 몫이다" — **that is the guardrail working as intended, and a human or an orchestrator session carries out this procedure.**
 
 ### 1.1 Install the plugin
 
