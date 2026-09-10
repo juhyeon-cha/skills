@@ -1,5 +1,39 @@
 # Changelog
 
+## 2.3.0 — 2026-09-11
+
+**폭 판단 — MINOR (사용자 지시).** 명시적 generic delegation 하위 명령과 진단 계약이
+추가됐고 설치본이 손으로 바꿀 파일·설정은 없다. `claude plugin update`가 전부다.
+
+### 일반 자식 실행을 역할 판정에 연결한다
+
+- `scripts/delegation.mjs`와 공통 runtime 모듈이 parent가 실제로 관측한 자식 생성·완료를
+  역할 원문 hash, task, 고정 commit 범위, 독립 child identity에 결속한다. 호출은 session별
+  인벤토리에 남고 중단·동일 child 재사용·잘못된 SIGNAL·범위 불일치는 거절한다.
+- generic 경로는 Codex collaboration의 `permission: prompt-only`를 명시적으로 선택한 때만
+  `OBSERVED`를 반환한다. 권한 강제와 native 역할 증거는 unavailable이며, enforced 요청이나
+  native 실패의 자동 fallback은 허용하지 않는다.
+- doctor와 develop·verify-code·verify-implement 절차가 같은 capability 판단을 사용한다.
+  구현자·reviewer·evaluator 독립성과 기존 SIGNAL·재시도·사람 대기 규율은 그대로 유지된다.
+
+### 공통 코어의 내부 경계를 정리한다
+
+- guard·workspace·runtime 구현을 책임별 디렉터리로 묶고 공통 입력과 결과를 읽을 수 있게
+  풀어 썼다. 기존 CLI·legacy wrapper·backend·effect 순서와 배포되는 역할 원문은 유지한다.
+- source hash, import, fixture와 활성 문서 포인터를 새 내부 위치에 맞췄다. 설치본이 별도
+  migration을 수행하거나 저장소 설정을 바꿀 필요는 없다.
+
+### 플랫폼 fixture와 검증 범위
+
+- delegation 검사는 임시 빈 regular gitconfig로 사용자 전역 설정을 격리하고, Windows의
+  short/long 임시 경로를 native realpath로 통일한다. 전이 실행되는 역할 fixture도 같은 좌표와
+  기존 36개 권한 기대값을 유지하며 실패 진단을 보존한다.
+- 최종 Node 24 CI에서 Windows·macOS·Linux의 동일 core suite가 통과했다. 역할 188개,
+  delegation 계약 290개, 통합 90개 검사를 포함하며 장치 경로·좌표·권한 음성 대조도 유지한다.
+- `OBSERVED`는 parent 제공 도구 반환의 결속이지 native 역할 로딩·권한 강제·도구/토큰 측정이나
+  동일 OS 사용자의 위조 방지 증거가 아니다. 별도 literal `~` POSIX 경로 권한 결함과
+  `HARNESS_ROOT` 미설정 dead-path 판정은 이번 릴리스 범위 밖이다.
+
 ## 2.2.0 — 2026-09-10
 
 **폭 판단 — MINOR (사용자 지시).** 공통 실행 명령과 Codex·Windows 네이티브 연결을 추가한다.
