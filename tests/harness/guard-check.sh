@@ -646,6 +646,7 @@ declare -a MC_SH_READ_PASS=(
   "sed 's/a/b/' $MCROOT/repo/f"                      # 경로 없는 스크립트 + 인용 밖 피연산자
   "awk -F: '{print}' $MCROOT/repo/f"                  # 대문자 -F 는 -f 판정에 걸리지 않는다
   "grep -f /tmp/pat $MCROOT/repo/f"                   # -f 판정은 sed·awk 에만 걸린다
+  "P=$MCROOT/repo/a.mjs; F=\"\${P%.mjs}.sh\"; cat \$F"  # 파라미터 확장이 든 **대입** — 확장 안의 변수명이 실행 낱말로 읽혀 rc=2 였다
 )
 for c in "${MC_SH_READ_PASS[@]}"; do
   runm "$(j_bash "$c")"

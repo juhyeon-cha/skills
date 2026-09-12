@@ -40,7 +40,9 @@ export const LEDGER_READ_EXEMPT = 'rails sprints';
 const member = (list, item) => Boolean(item) && list.split(' ').includes(item);
 const basename = (value) => value.split(/[\\/]/).at(-1);
 const stripQuotes = (text) => text.replace(/\\[nrt]/g, ' ').replace(/[\\"']/g, '');
-const tokens = (text) => text.split(/[^A-Za-z0-9_.:/=\[\-]+/).filter(Boolean);
+// `${}%#` are token characters, not separators: splitting on them turns a parameter
+// expansion (`x="${m%.mjs}.sh"`) into a bare `m`, which execWord then reads as a command.
+const tokens = (text) => text.split(/[^A-Za-z0-9_.:/=\[\-${}%#]+/).filter(Boolean);
 const segments = (text) => text.split(/\|\||&&|[;|(]|\$\(|\n/);
 const valueOptions = (tool) => (tool === 'bd' ? BD_VALUE_OPTS : '--root');
 const isLedgerRead = (sub) => member(BD_READ_EXEMPT + ' ' + LEDGER_READ_EXEMPT, sub);
