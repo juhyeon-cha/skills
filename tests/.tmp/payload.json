@@ -1,1 +1,0 @@
-{"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_input": {"command": "S=/tmp/x\ncat > \"$S/run.sh\" <<'EOF'\n#!/usr/bin/env bash\nHERE=$(cd \"$(dirname \"$0\")\" && pwd)\nexec bash tests/harness/x.sh\nEOF\nchmod +x \"$S/run.sh\"; echo ok"}, "cwd": "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-guard-rrem"}
