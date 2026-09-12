@@ -430,6 +430,16 @@ step "A/B 사본이 원본과 다르다"          bash -c '[ -s "$1" ] && ! cmp 
 runh "$UB_AB" "$(j_bash 'echo ok')"
 step "A/B: trap 없으면 rc=2 가 아니다 (귀속)" [ "$GUARD_RC" -ne 2 ]
 
+# ── 정상 입력은 UNREACHED 로 떨어지지 않는다 — 위 절의 반대 방향. 낱말 경계를 공백·탭으로만
+#    보면 여러 줄 명령에서 HARNESS_ROOT= 대입이 **다음 줄까지** 한 낱말로 이어지고, 개행이 든
+#    값이 normalizePath 를 깨뜨려 판정 전체가 UNREACHED 였다. 셸에서 줄바꿈은 낱말 경계다.
+#    [실측: 고치기 전 rc=2(UNREACHED), 뒤 rc=0]
+ML_ASSIGN=$(printf 'export HARNESS_ROOT="$HERE/x"\necho one\necho two')
+run "$(j_bash "$ML_ASSIGN")"
+echo "  rc=$GUARD_RC"
+step "여러 줄 루트 대입 → 판정에 도달한다"   [ "$GUARD_RC" -eq 0 ]
+step "여러 줄 루트 대입 → UNREACHED 아님"   lacks_text '판정에 도달하지 못했다' "$GUARD_OUT"
+
 echo "── ⑧-값옵션 하위 명령 추출의 값-받는 전역 옵션 목록이 낡지 않았다 ──"
 # subcmds_after 는 값-받는 전역 옵션의 **값도 함께** 건너뛴다. 목록에서 빠진 옵션이
 # 있으면 그 값이 하위 명령으로 읽혀 진짜 하위 명령이 가려진다 — 미탐이다

@@ -285,7 +285,10 @@ function pathCandidates(ctx) {
   let command = ctx.command;
   command = command.replaceAll('${HOME}', ctx.env.HOME || os.homedir()); // EXPAND_HOME
   command = command.replaceAll('$HOME', ctx.env.HOME || os.homedir()); // EXPAND_HOME
-  for (const word of command.split(/[ \t]/)) {
+  // Shell words end at any whitespace, newlines included. Splitting on blanks alone let a
+  // multi-line command fold every later line into one assignment value, and a value carrying
+  // a newline throws out of normalizePath -- the whole judgement became UNREACHED.
+  for (const word of command.split(/\s/)) {
     if (!word.startsWith('HARNESS_ROOT=')) continue;
     const root = word.slice(13);
     if (isHarnessRoot(ctx, root)) command = command.replaceAll('HARNESS_ROOT=' + root + ' ', ''); // ROOT_ASSIGNMENT
@@ -318,7 +321,7 @@ function pathCandidates(ctx) {
     // CANDIDATE_BACKTICKS
     const executable = execWord(segment);
     let previous = '';
-    for (const word of segment.split(/[ \t]/).filter(Boolean)) {
+    for (const word of segment.split(/\s/).filter(Boolean)) {
       const coordinate =
         (executable === 'bd' && ['-C', '--directory', '--db'].includes(previous)) ||
         (['ledger.sh', 'ledger.mjs'].includes(executable) && previous === '--root');
