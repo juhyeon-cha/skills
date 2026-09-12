@@ -57,6 +57,14 @@ The detailed table retains historical measurements and identifiers from the lega
 
 Read-only search classification permits unquoted output discard to exactly `/dev/null`, including `2>/dev/null`. File output, append, command substitution and executable search options remain outside that exemption.
 
+Generic children can read files, run recognized read-only searches and Git inspection,
+and report through internal collaboration tools without a role inventory or metadata
+lookup. Git inspection excludes output-file and external diff/textconv options.
+Other commands and writes require the existing role mapping. Read permission does
+not establish independent review, role identity or completion evidence.
+Configured Git helpers remain governed by Git and the runtime sandbox; lexical
+classification does not inspect Git configuration or certify helper effects.
+
 **The body of a ledger write has no gate.** The rule still stands — the body goes to the ledger through a file option, never inside the command string, because backticks and `$VAR` inside a double-quoted body are expanded by the shell before the ledger tool sees them and it exits 0 anyway — but it is persuasion only. The form is `harness:develop` "원장에 본문을 넘기는 형태".
 
 ### 1-1. Three limits on slash commands [measured — `harness-dg0.3.1` note 7.1]

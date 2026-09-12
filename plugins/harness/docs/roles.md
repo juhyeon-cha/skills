@@ -29,7 +29,10 @@ authorization to override a user's native requirement. This diagnoses availabili
 not execution, hook activation or role loading.
 Doctor's native `check` retains its separate static/loaded/live judgments.
 
-For hook execution, use the active SessionStart `data` and `sessionId` in the
+Ordinary file reads, recognized read-only shell commands and internal collaboration
+reporting do not require role registration, a delegation inventory or metadata
+lookup. A passing read is permission to inspect, not role or completion evidence.
+For writes and commands outside that read subset, use the active SessionStart `data` and `sessionId` in the
 call, and the assigned canonical worktree as `repository`. Codex can deliver a
 thread UUID as `agent_id` and the built-in `default` profile as `agent_type`.
 For that shape, the guard uses the local CLI's App Server `initialize` →
@@ -44,12 +47,12 @@ The guard resolves the pending dispatch in that session's inventory, checks
 source/commit scope and any binding, and applies its assigned role's policy
 without filling in native identity. Persisted dispatch permits the
 first tool before bind returns; bind is still mandatory for result consumption.
-Unknown, mismatched, corrupt or terminal records deny execution. Hook cwd may be
+Unknown, mismatched, corrupt or terminal records deny role-dependent execution. Hook cwd may be
 the main checkout or a linked tree of the same Git repository. Missing hook
 identity or different state coordinates remain UNREACHED; do not search other
 sessions or copy inventories to make them match.
 
-An outcome written by complete ends this permission window, including REJECTED.
+An outcome written by complete ends the role-dependent permission window, including REJECTED.
 The parent must complete interrupted calls as rejected and must not reuse a child.
 The guard cannot observe provider termination before the parent records it.
 These local checks do not establish provider permission enforcement: the same OS

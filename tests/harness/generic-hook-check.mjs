@@ -34,7 +34,9 @@ try {
   assert.equal(pending.status, 'PENDING');
   const child = `/root/${pending.dispatch.task_name}`;
   // Hook cwd is the parent session checkout; the call is bound to its linked tree.
-  const event = { tool_name: 'Read', cwd: repo, session_id: call.sessionId, agent_id: child, tool_input: { file_path: path.join(worktree, '.harness.json') } };
+  // A command outside the read exemption exercises the role-dependent path.
+  // Ordinary reads are covered by child-read-check and need no inventory.
+  const event = { tool_name: 'Bash', cwd: repo, session_id: call.sessionId, agent_id: child, tool_input: { command: 'node --version' } };
   const guard = (changes = {}) => evaluateGuard({ ...event, ...changes }, { pluginRoot: plugin, env });
   const beforeBind = await guard();
   const bound = await bindDelegation({ call, observation: { source: 'parent-tool-return', tool: 'collaboration.spawn_agent', value: { task_name: child } } }, { root: plugin, env });
@@ -46,7 +48,7 @@ try {
       assert.match(result.stderr, /child role is unidentified/);
     }
     assert.equal((await guard({ agent_type: 'harness-reviewer' })).code, 0);
-    console.log('PASS baseline: begin/bind PENDING; actual guard rejects generic Read before and after bind; native Read allowed');
+    console.log('PASS baseline: begin/bind PENDING; generic command rejected before and after bind; native command allowed');
   } else {
     assert.equal(pending.dispatch.model, 'gpt-5.6-sol');
     assert.equal(pending.dispatch.reasoning_effort, 'high');
@@ -93,6 +95,8 @@ try {
       try {
         fs.writeFileSync(target, edit(JSON.parse(original)));
         assert.equal((await guard()).code, 2, `${suffix} corruption must fail closed`);
+        assert.equal((await guard({tool_name: 'Read', tool_input: {file_path: path.join(worktree, '.harness.json')}})).code, 0,
+          'corrupt role evidence must not block inspection');
       } finally { fs.writeFileSync(target, original); }
       assert.equal((await guard()).code, 0, 'restored record must allow read');
     };
@@ -120,6 +124,8 @@ try {
     const outcome = await completeDelegation({ call, head, observation: { source: 'parent-tool-return', tool: 'collaboration.list_agents', value: { agents: [{ agent_name: child, agent_status: { completed: 'SIGNAL: UNREACHED' } }] } } }, { root: plugin, env });
     assert.equal(outcome.status, 'REJECTED');
     assert.equal((await guard()).code, 2);
+    assert.equal((await guard({tool_name: 'Read', tool_input: {file_path: path.join(worktree, '.harness.json')}})).code, 0,
+      'terminal result ends role permission, not inspection');
     assert.equal((await nativeGuard()).code, 2, 'UUID cannot revive a terminal call');
     const successfulCall = { ...call, callId: 'successful-review' };
     const successful = await beginDelegation(successfulCall, { root: plugin, env });
@@ -136,7 +142,7 @@ try {
     fs.writeFileSync(path.join(worktree, 'dirty.txt'), 'implementation in progress');
     assert.equal((await guard(write)).code, 0, 'implementation dirty tree remains executable');
     assert.equal((await guard({ agent_id: implChild, tool_name: 'Bash', tool_input: { command: 'git push origin HEAD' } })).code, 2);
-    console.log('PASS generic hook: dispatch/binding reads, invalid identity and grader writes denied, UNREACHED rejected, terminal child denied');
+    console.log('PASS generic hook: role-dependent commands checked, reads independent of corrupt/terminal evidence, UNREACHED rejected');
   }
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });

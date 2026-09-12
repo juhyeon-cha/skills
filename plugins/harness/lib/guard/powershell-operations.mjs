@@ -1,4 +1,4 @@
-import { normalizePath } from './operations.mjs';
+import { normalizePath, gitReadonly } from './operations.mjs';
 
 // A bounded lexer, not an interpreter. Literal quotes/backslashes are retained
 // as data; expansion, script blocks and dynamic calls never receive read status.
@@ -6,6 +6,7 @@ export const PS_READ_COMMANDS =
   'get-content gc cat type get-childitem gci ls dir get-item gi get-itemproperty get-location gl pwd test-path resolve-path select-string sls write-output echo write-host out-host measure-object compare-object select-object format-list format-table';
 export function powershellReadonly([name, ...args]) {
   name = name.toLowerCase();
+  if (name === 'git' || name === 'git.exe') return gitReadonly(args);
   if (PS_READ_COMMANDS.split(' ').includes(name)) return true;
   if (['rg', 'rg.exe', 'grep', 'head', 'tail', 'wc'].includes(name))
     return !args.some((arg) =>

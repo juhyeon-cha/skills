@@ -55,6 +55,22 @@ export function quotedPathCandidates(command, cwd) {
     .map((value) => ({ kind: 'update', path: normalizePath(value, cwd) }));
 }
 
+export function gitReadonly(input) {
+  const args = [...input];
+  while (args[0] === '-C' || args[0] === '--no-pager') {
+    if (args.shift() === '-C' && !args.shift()) return false;
+  }
+  if (!['diff', 'show', 'log', 'status', 'ls-files', 'rev-parse'].includes(args.shift()))
+    return false;
+  // Git accepts abbreviated long options. Output files and external
+  // diff/textconv commands are effects, even on a read subcommand.
+  return !args.some((arg) => {
+    const option = arg.split('=')[0];
+    return option.startsWith('--') && option.length > 2 &&
+      ['--output', '--ext-diff', '--textconv'].some((effect) => effect.startsWith(option));
+  });
+}
+
 // A deliberately narrow POSIX read-only subset, not a shell interpreter.
 // Dynamic expansion, redirects and execution-capable options stay conservative.
 export function isReadonlySearch(command) {
@@ -90,7 +106,7 @@ export function isReadonlySearch(command) {
     }
     // Unquoted brace, pathname and tilde expansions can manufacture options.
     // Quoted literals have already been consumed above and remain read-only.
-    if ('{}*?[]~'.includes(c)) return false;
+    if ('{}*?[]'.includes(c) || (c === '~' && !active)) return false;
     if (c === '>') {
       const discard = /^>\s*\/dev\/null(?=[\s;|]|$)/.exec(command.slice(i));
       if (!discard) return false;
@@ -119,6 +135,7 @@ export function isReadonlySearch(command) {
   finish();
   if (!segments.at(-1).length) return false;
   return segments.every(([name, ...args]) => {
+    if (name === 'git') return gitReadonly(args);
     if (!['rg', 'grep', 'cat', 'head', 'tail', 'wc', 'pwd'].includes(name)) return false;
     if (
       name === 'rg' &&
