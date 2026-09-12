@@ -76,6 +76,38 @@ try {
     assert.equal(guardCode(envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')}, {conversationId: 'child'})), 2);
     assert.equal(guardCode(envelope('run_command', {CommandLine: 'echo fixture', Cwd: main})), 2);
   });
+  await check('registration requires wrapper-observed current source and exact worktree', async () => {
+    const state = await scopeFor('antigravity', 'provenance');
+    const actual = hook('context', {...invocation, conversationId: 'provenance', source: {root: 'forged', hash: 'forged'}});
+    assert.equal(actual.status, 0, actual.stderr);
+    const original = fs.readFileSync(state.events, 'utf8');
+    const row = JSON.parse(original.trim());
+    assert.deepEqual(row.observation.source, {root: inspectDistribution(root).root, hash: inspectDistribution(root).hash});
+    for (const mutate of [r => delete r.observation, r => r.observation.source.hash = 'old-artifact',
+      r => r.observation.source.root = main, r => r.observation.workspace = main,
+      r => r.observation.kind = 'operator-attested']) {
+      const changed = JSON.parse(original); mutate(changed);
+      fs.writeFileSync(state.events, JSON.stringify(changed) + '\n');
+      await assert.rejects(registerAntigravityParent(state, inspectDistribution(root).hash, root), /context not observed/);
+    }
+    fs.writeFileSync(state.events, '');
+    await recordStateEvent({...antigravityEvent('context', {...invocation, conversationId: 'provenance'}),
+      source: row.observation.source, observation: row.observation}, 0, agEnv);
+    await assert.rejects(registerAntigravityParent(state, inspectDistribution(root).hash, root), /context not observed/);
+    fs.writeFileSync(state.events, original);
+    await registerAntigravityParent(state, inspectDistribution(root).hash, root);
+    const other = await scopeFor('antigravity', 'other-workspace');
+    assert.equal(hook('context', {...invocation, conversationId: 'other-workspace', workspacePaths: [main]}).status, 0);
+    await assert.rejects(registerAntigravityParent(other, inspectDistribution(root).hash, root), /context not observed/);
+    const copy = path.join(temp, 'artifact-copy'); fs.cpSync(root, copy, {recursive: true});
+    const copiedState = await scopeFor('antigravity', 'copied-source');
+    const copied = run(process.execPath, [path.join(copy, 'scripts/hook.mjs'), 'context', '--runtime', 'antigravity'], {
+      input: JSON.stringify({...invocation, conversationId: 'copied-source'}), env: agEnv, cwd: work});
+    assert.equal(copied.status, 0, copied.stderr);
+    await assert.rejects(registerAntigravityParent(copiedState, inspectDistribution(root).hash, root), /context not observed/);
+    fs.appendFileSync(path.join(copy, 'hooks/session-context.md'), '\nChanged fixture source.\n');
+    await assert.rejects(registerAntigravityParent(copiedState, inspectDistribution(copy).hash, copy), /context not observed/);
+  });
   await check('malformed/ambiguous/unsupported provider envelopes fail closed with native deny', () => {
     for (const input of [null, {}, envelope('unknown', {}), envelope('run_command', {CommandLine: 'pwd'}),
       envelope('write_to_file', {TargetFile: 'relative'}), envelope('view_file', {AbsolutePath: main}, {workspacePaths: [work, main]}),
@@ -94,6 +126,29 @@ try {
       tool_input: kind === 'shell' ? {command: target} : {file_path: target}};
   };
   const judge = (runtime, event) => evaluateGuard(event, {env: envFor(runtime), pluginRoot: root, resolveAntigravityIdentity: childResolver});
+  await check('canonical state aliases deny direct writes and preserve common state commands', async () => {
+    fs.mkdirSync(base.HARNESS_DATA_DIR, {recursive: true});
+    const alias = path.join(temp, 'data-alias'); fs.symlinkSync(base.HARNESS_DATA_DIR, alias);
+    const aliases = [alias, base.HARNESS_DATA_DIR];
+    if (process.platform === 'darwin' && temp.startsWith('/private/tmp/')) aliases.push(base.HARNESS_DATA_DIR.replace('/private/tmp/', '/tmp/'));
+    for (const data of aliases) {
+      const env = {...envFor('claude'), HARNESS_DATA_DIR: data};
+      const evaluate = event => evaluateGuard(event, {env, pluginRoot: root});
+      for (const target of [path.join(data, 'actors.json'), path.join(base.HARNESS_DATA_DIR, 'actors.json')])
+        assert.equal((await evaluate(eventFor('claude', 'file', target))).code, 2);
+      for (const action of [`cancel claude ${work} parent`, `bind claude ${work} parent ${main} fixture-task fixture-actor`, `paths claude ${work} parent`, `actors claude ${work} parent`, `cancelled claude ${work} parent`]) {
+        const result = await evaluate(eventFor('claude', 'shell', `node ${path.join(root, 'scripts/state.mjs')} --data ${data} ${action}`));
+        assert.equal(result.code, 0, result.stderr);
+      }
+    }
+    const invalid = await evaluateGuard(eventFor('claude', 'file', path.join(work, 'a')), {
+      env: {...envFor('claude'), HARNESS_DATA_DIR: 'relative-state'}, pluginRoot: root});
+    assert.equal(invalid.code, 2);
+    const missing = path.join(temp, 'not-created', 'state');
+    const missingResult = await evaluateGuard(eventFor('claude', 'file', path.join(missing, 'actors.json')), {
+      env: {...envFor('claude'), HARNESS_DATA_DIR: missing}, pluginRoot: root});
+    assert.equal(missingResult.code, 2, 'new state roots remain protected before creation');
+  });
   await check('shared verified-role seam allows worktree writes and denies main/protected/remote canaries', async () => {
     fs.symlinkSync(main, path.join(work, 'main-alias'));
     for (const runtime of ['claude', 'codex', 'antigravity']) {

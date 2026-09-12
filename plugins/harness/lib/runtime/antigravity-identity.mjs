@@ -10,7 +10,9 @@ export async function registerAntigravityParent(scope, sourceHash, root) {
   if (sourceHash !== source.hash) throw new Error('parent source hash differs from loaded artifact');
   const observed = fs.readFileSync(scope.events, 'utf8').trim().split('\n').map(line => JSON.parse(line));
   if (!observed.some(row => row.runtime === scope.runtime && row.repoKey === scope.repoKey &&
-      row.code === 0 && row.event?.session_id === scope.sessionId && row.event?.harness_native_event === 'PreInvocation'))
+      row.code === 0 && row.event?.session_id === scope.sessionId && row.event?.harness_native_event === 'PreInvocation' &&
+      row.observation?.kind === 'executing-wrapper' && row.observation.workspace === scope.top &&
+      row.observation.source?.root === source.root && row.observation.source?.hash === source.hash))
     throw new Error('parent context not observed in this scope');
   const record = {version: 1, kind: 'parent', evidence: 'operator-attested', runtime: scope.runtime,
     repoKey: scope.repoKey, sessionId: scope.sessionId, workspace: scope.top,

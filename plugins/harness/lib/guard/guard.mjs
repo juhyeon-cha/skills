@@ -420,9 +420,12 @@ function protectedTarget(ctx, value) {
     const first = path.relative(found.root, target).split(path.sep)[0];
     if (['.git', '.harness.json', '.agents', '.claude', '.codex'].includes(first)) return true;
   }
-  const data = ctx.stateData || ctx.env.HARNESS_DATA_DIR;
+  const rawData = ctx.stateData || ctx.env.HARNESS_DATA_DIR;
+  if (rawData && (typeof rawData !== 'string' || !path.isAbsolute(rawData) || /[\0\r\n]/.test(rawData)))
+    throw new Error('state path missing/invalid');
+  const data = rawData && norm(ctx, rawData);
   if (data && (target === data || target.startsWith(data + path.sep)))
-    return !(ctx.common?.effect === 'state' && ctx.common.writes.includes(target));
+    return !(ctx.common?.effect === 'state' && ctx.common.writes.some(value => norm(ctx, value) === target));
   return false;
 }
 

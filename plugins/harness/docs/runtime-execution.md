@@ -34,7 +34,11 @@ node "<loaded-plugin>/scripts/state.mjs" --data "<observed-data>" parent-registe
 from `node "<loaded-plugin>/scripts/distribution.mjs" check "<loaded-plugin>"`.
 Registration requires a
 successful PreInvocation observation, exact session/workspace and current
-source hash. A changed source or conflicting record fails; do not overwrite a
+source hash. The executable wrapper records its own artifact root/hash and
+workspace with that observation; provider payload source fields are ignored.
+Operator attestation establishes the parent claim, not executable provenance.
+Observations from another artifact, an earlier source or another worktree do
+not qualify. A changed source or conflicting record fails; do not overwrite a
 conflict to make diagnosis pass. A fresh, verified session can be registered
 after an update. This external step prevents a circular requirement that the
 unidentified agent authorize itself. The parent can then use normal worktree

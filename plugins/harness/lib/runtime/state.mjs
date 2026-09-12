@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
 import { runCommand } from '../process.mjs';
 import { fileURLToPath } from 'node:url';
+import {inspectDistribution} from '../distribution.mjs';
 
 const plugin = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -378,7 +379,7 @@ export function readWorkflow(scope, kind, id) {
     throw new Error('workflow scope mismatch');
   return record.value;
 }
-export async function recordStateEvent(event, code, env = process.env) {
+export async function recordStateEvent(event, code, env = process.env, executingRoot) {
   const scope = await resolveState({ cwd: event.cwd, sessionId: event.session_id }, env);
   if (!scope.events) throw new Error('event session missing');
   const kept = {};
@@ -409,6 +410,12 @@ export async function recordStateEvent(event, code, env = process.env) {
       code,
       observedAt: new Date().toISOString(),
       event: kept,
+      // Only the executable wrapper supplies this argument. Payload fields are
+      // never provenance, even when named source or observation.
+      ...(executingRoot && code === 0 && event.hook_event_name === 'SessionStart' ? {
+        observation: {kind: 'executing-wrapper', workspace: scope.top,
+          source: (({root, hash}) => ({root, hash}))(inspectDistribution(executingRoot))},
+      } : {}),
     }),
     { maxLines: 0 },
   );
