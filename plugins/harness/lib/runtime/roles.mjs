@@ -13,27 +13,80 @@ const required = (value, label) => {
   return value;
 };
 
-// Deliberately restricted TOML: flat string assignments, quoted/bare keys,
-// single-line basic/literal strings and comments. Unknown syntax fails closed.
-// Parse every line so tables or multiline text cannot hide a second name.
+// Read top-level statements without treating names inside strings or containers
+// as assignments. The runtime validates unrelated TOML values and tables.
+function nativeStatements(text) {
+  const statements = [];
+  const containers = [];
+  let statement = '';
+  let quote = '';
+  let multiline = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quote) {
+      statement += c;
+      if (quote === '"' && c === '\\') {
+        if (++i >= text.length) throw new Error('unfinished native TOML escape');
+        statement += text[i];
+        continue;
+      }
+      if (!multiline && /[\r\n]/.test(c)) throw new Error('unfinished native TOML string');
+      if (c !== quote) continue;
+      if (!multiline) { quote = ''; continue; }
+      let n = 1;
+      while (text[i + n] === quote) n++;
+      if (n < 3) continue;
+      if (n > 5) throw new Error('ambiguous native TOML string delimiter');
+      statement += quote.repeat(n - 1);
+      i += n - 1;
+      quote = '';
+      multiline = false;
+      continue;
+    }
+    if (c === '#') {
+      while (i + 1 < text.length && text[i + 1] !== '\n') i++;
+      continue;
+    }
+    if (c === '"' || c === "'") {
+      quote = c;
+      multiline = text.slice(i, i + 3) === c.repeat(3);
+      statement += multiline ? c.repeat(3) : c;
+      if (multiline) i += 2;
+      continue;
+    }
+    if (c === '[' || c === '{') containers.push(c === '[' ? ']' : '}');
+    if ((c === ']' || c === '}') && containers.pop() !== c)
+      throw new Error('unbalanced native TOML container');
+    if (c === '\n' && !containers.length) {
+      if (statement.trim()) statements.push(statement.trim());
+      statement = '';
+    } else statement += c;
+  }
+  if (quote || containers.length) throw new Error('unfinished native TOML value');
+  if (statement.trim()) statements.push(statement.trim());
+  return statements;
+}
+
 function nativeAgentName(text) {
   const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}))*"';
   const literal = "'[^'\\x00-\\x1f]*'";
   const string = `(?:${basic}|${literal})`;
-  const assignment = new RegExp(`^([A-Za-z0-9_-]+|${string})\\s*=\\s*(${string})\\s*(?:#.*)?$`);
+  const assignment = new RegExp(`^([A-Za-z0-9_-]+|${string})\\s*=\\s*([\\s\\S]*)$`);
+  const nameValue = new RegExp(`^${string}$`);
   const decode = (value) =>
     value.startsWith('"') ? JSON.parse(value) : value.startsWith("'") ? value.slice(1, -1) : value;
-  const values = new Map();
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (!line || line.startsWith('#')) continue;
+  let name;
+  for (const line of nativeStatements(text)) {
+    if (line.startsWith('[')) break;
     const match = assignment.exec(line);
-    if (!match) throw new Error('unsupported native agent TOML; require flat single-line strings');
+    if (!match) throw new Error('unreadable top-level native TOML key');
     const key = decode(match[1]);
-    if (values.has(key)) throw new Error('duplicate native agent key');
-    values.set(key, decode(match[2]));
+    if (key !== 'name') continue;
+    if (name !== undefined) throw new Error('duplicate native agent name');
+    if (!nameValue.test(match[2])) throw new Error('native agent name requires a single-line string');
+    name = decode(match[2]);
   }
-  return required(values.get('name'), 'native agent name');
+  return required(name, 'native agent name');
 }
 
 /**

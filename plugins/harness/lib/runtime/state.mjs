@@ -91,6 +91,7 @@ export async function resolveState({ runtime, cwd, sessionId } = {}, env = proce
       : path.join(repo, 'guard.tsv'),
     stopLog: session && path.join(session, 'stop.tsv'),
     actors: session && path.join(session, 'actors.json'),
+    actorRecovery: session && path.join(session, 'actors-recovery.json'),
     cancel: session && path.join(session, 'cancel.json'),
     events: session && path.join(session, 'events.jsonl'),
     legacy: {
@@ -204,13 +205,16 @@ export function readActors(scope) {
   if (!fs.existsSync(scope.actors))
     return { status: 'UNREACHED', actors: [], legacy: scope.legacy };
   const record = JSON.parse(fs.readFileSync(scope.actors, 'utf8'));
+  return validateActors(scope, record);
+}
+function validateActors(scope, record) {
   if (
-    record.repoKey !== scope.repoKey ||
+    !record || record.repoKey !== scope.repoKey ||
     record.runtime !== scope.runtime ||
     record.sessionId !== scope.sessionId ||
     !Array.isArray(record.claims) ||
     record.claims.some(
-      (c) => c.evidence !== 'ledger-show' || typeof c.actor !== 'string' || !c.actor,
+      (c) => !c || c.evidence !== 'ledger-show' || typeof c.actor !== 'string' || !c.actor,
     )
   )
     throw new Error('actor scope/evidence invalid');
@@ -274,14 +278,39 @@ export async function bindActor(scope, { ledgerRoot, task, actor }, env = proces
       evidence: 'ledger-show',
       observedAt: new Date().toISOString(),
     });
-    atomicJson(scope.actors, {
+    const record = {
       runtime: scope.runtime,
       repoKey: scope.repoKey,
       sessionId: scope.sessionId,
       claims,
-    });
+    };
+    // A failed refresh must not leave an older, incomplete recovery inventory.
+    fs.rmSync(scope.actorRecovery, { force: true });
+    atomicJson(scope.actors, record);
+    atomicJson(scope.actorRecovery, record);
   });
   return readActors(scope);
+}
+// Only prior verified bindings in this exact scope are recovery candidates.
+export function recoverActors(scope, rows) {
+  return withStateLock(scope.actors, () => {
+    try {
+      const current = readActors(scope);
+      if (current.status === 'VERIFIED') return current;
+    } catch { /* Recheck the recovery copy below. */ }
+    const record = JSON.parse(fs.readFileSync(scope.actorRecovery, 'utf8'));
+    validateActors(scope, record);
+    const claims = record.claims.filter((claim) => typeof claim.task === 'string' && claim.task && rows.some((row) =>
+      row.id === claim.task && row.status === 'in_progress' &&
+      (row.actor ?? row.assignee) === claim.actor));
+    if (!claims.length) throw new Error('no prior binding matches current ledger ownership');
+    // Partial restoration must not hide a different previously owned actor.
+    if (record.claims.some((claim) => !claims.some((c) => c.actor === claim.actor)))
+      throw new Error('incomplete actor recovery');
+    const restored = { ...record, claims };
+    atomicJson(scope.actors, restored);
+    return validateActors(scope, restored);
+  });
 }
 export function cancelSession(scope) {
   if (!scope.cancel) throw new Error('session id required');

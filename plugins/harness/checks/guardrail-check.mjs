@@ -352,7 +352,7 @@ export async function checkGuardrails({
         oracle,
         rootFinder,
         implementation = stop.evaluateStop,
-        lines = binding || active || expected === 'ORACLE_FAIL' ? 1 : 2,
+        lines = 1,
       } = {},
     ) => {
       if (binding) await bindFixture(sessionId);
@@ -440,10 +440,19 @@ export async function checkGuardrails({
     await check('S7 actor/assignee and missing mappings preserve six scope controls', async () => {
       await stopCase('other-actor', [{ assignee: 'other' }], 'IDLE');
       await stopCase('mine-actor', [{ assignee: 'mine' }], 'BLOCK');
-      await stopCase('missing-session', [{ assignee: 'mine' }], 'BLOCK', { binding: false });
-      await stopCase('missing-map', [{ assignee: 'other' }], 'BLOCK', { binding: false });
+      await stopCase('missing-session', [{ assignee: 'mine' }], 'SCOPE_FAIL', { binding: false });
+      await stopCase('missing-map', [{ assignee: 'other' }], 'SCOPE_FAIL', { binding: false });
       await stopCase('github', [{ actor: 'mine', assignee: 'login' }], 'BLOCK');
       await stopCase('github-null', [{ actor: null, assignee: 'login' }], 'IDLE');
+    });
+    await check('S7 prior scoped binding is recovered only with current ledger ownership', async () => {
+      const scope = await scopeFor('recovery');
+      fs.mkdirSync(scope.session, { recursive: true });
+      fs.writeFileSync(scope.actorRecovery, JSON.stringify({
+        runtime: scope.runtime, repoKey: scope.repoKey, sessionId: scope.sessionId,
+        claims: [{ task: 't', actor: 'mine', evidence: 'ledger-show' }],
+      }));
+      await stopCase('recovery', [{ id: 't', status: 'in_progress', actor: 'mine' }], 'BLOCK', { binding: false, lines: 2 });
     });
     await check('S7 markers and scope narrowing have independent mutation controls', async () => {
       for (const [marker, replacement, rows] of [

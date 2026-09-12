@@ -65,6 +65,7 @@ esac
   check(!fs.existsSync(claude.actors), 'failed claim produces no mapping');
   check(claim({}).status === 0, 'actual adapter successful claim');
   await bindActor(claude, {ledgerRoot: first, task: 'fixture', actor: 'sess-resume'}, ledgerEnv);
+  check(fs.readFileSync(claude.actorRecovery, 'utf8') === fs.readFileSync(claude.actors, 'utf8'), 'successful verified bind stores an identical scoped recovery copy');
   check(readActors(await scoped('claude')).actors[0] === 'sess-resume', 'same resumed session retains actor');
   const resumed = await scoped('claude', first, 'resumed-session');
   await bindActor(resumed, {ledgerRoot: first, task: 'fixture', actor: 'sess-resume'}, ledgerEnv);
@@ -132,6 +133,10 @@ esac
   const quotedSession = `cancel '인용' "session"`;
   const cancelEnv = {...ledgerEnv, HARNESS_RUNTIME: 'claude', HARNESS_ROOT: quotedRepo, HARNESS_DATA_DIR: quotedData};
   const stopFor = session_id => run('bash', [path.join(root, 'hooks/stop-resume.sh')], {env: cancelEnv, input: JSON.stringify({cwd: quotedRepo, session_id})});
+  for (const sessionId of [quotedSession, 'other-session']) {
+    const scope = await resolveState({runtime: 'claude', cwd: quotedRepo, sessionId}, cancelEnv);
+    await bindActor(scope, {ledgerRoot: quotedRepo, task: 'fixture', actor: 'sess-resume'}, cancelEnv);
+  }
   const blocked = stopFor(quotedSession);
   check(blocked.status === 0 && JSON.parse(blocked.stdout).decision === 'block', 'quoted-path session reaches actual Stop block');
   const printedCommand = JSON.parse(blocked.stdout).reason.match(/`([^`]*node [^`]* cancel [^`]*)`/)?.[1];

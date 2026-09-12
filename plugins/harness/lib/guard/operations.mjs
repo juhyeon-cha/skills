@@ -91,7 +91,17 @@ export function isReadonlySearch(command) {
     // Unquoted brace, pathname and tilde expansions can manufacture options.
     // Quoted literals have already been consumed above and remain read-only.
     if ('{}*?[]~'.includes(c)) return false;
-    if (c === '>' || c === '<' || c === '(' || c === ')' || c === '&') return false;
+    if (c === '>') {
+      const discard = /^>\s*\/dev\/null(?=[\s;|]|$)/.exec(command.slice(i));
+      if (!discard) return false;
+      if (active && /^[12]$/.test(word)) {
+        word = '';
+        active = false;
+      } else finish();
+      i += discard[0].length - 1;
+      continue;
+    }
+    if (c === '<' || c === '(' || c === ')' || c === '&') return false;
     if (c === ';' || c === '|' || c === '\n') {
       finish();
       if (!segments.at(-1).length) return false;

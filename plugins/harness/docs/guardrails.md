@@ -55,6 +55,8 @@ The detailed table retains historical measurements and identifiers from the lega
 
 **Read exemptions are limited to recognized command forms.** Literal searches and supported read commands can pass; unrecognized composition can still produce false positives. Refer to the per-rule limits rather than assuming every evidence-gathering command is accepted.
 
+Read-only search classification permits unquoted output discard to exactly `/dev/null`, including `2>/dev/null`. File output, append, command substitution and executable search options remain outside that exemption.
+
 **The body of a ledger write has no gate.** The rule still stands — the body goes to the ledger through a file option, never inside the command string, because backticks and `$VAR` inside a double-quoted body are expanded by the shell before the ledger tool sees them and it exits 0 anyway — but it is persuasion only. The form is `harness:develop` "원장에 본문을 넘기는 형태".
 
 ### 1-1. Three limits on slash commands [measured — `harness-dg0.3.1` note 7.1]
