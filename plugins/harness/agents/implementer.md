@@ -47,7 +47,7 @@ When a task gets stuck or needs a decision, **stop there** and signal. An `IMPLE
 - `git push` · PR creation · GitHub issue changes · `ledger close` (all the orchestrator's or a human's)
 - **A ledger call without the delegated `--root`.** Without that argument, root discovery walks up from wherever the cwd happens to be, which on a machine carrying more than one harness can be a **different** ledger — there `note` dies loudly on an id mismatch, but `create` succeeds silently.
 - **Ledger writes other than `ledger state`, `ledger summary` and `ledger note`** (`create`·`update`·`label`·`remember` and the like — changing the ledger's structure is the orchestrator's)
-- Touching another task's scope (including the output of an already closed task)
+- Adding independently useful behavior outside the requested outcome, or entering explicit Out of Scope or deferred work. Necessary supporting edits to earlier or sibling task outputs are allowed under step 6; explain their causal connection to the current acceptance.
 - Cutting gate output and judging from the cut
 
 ## RESPONSE FORMAT (HARD CONSTRAINT)

@@ -1,6 +1,6 @@
 # Runtime role contract
 
-Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `agents/*.md`; the skill still owns result handling and RETRY limits.
+Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `agents/*.md`; the skill still owns result handling and RETRY checkpoints and explicit user budgets.
 
 ## Select the execution contract
 
@@ -64,7 +64,7 @@ remain role discipline, but their prohibitions have no verified enforcement here
 An OBSERVED evaluator MATCH can ground close in this generic path.
 It is not native REACHED, registered-role evidence or proof of semantic acceptance.
 
-Both paths preserve the calling skill's SIGNAL handling and persisted RETRY limits.
+Both paths preserve the calling skill's SIGNAL handling and persisted RETRY checkpoints and explicit user budgets.
 Each grader is independent of the parent and all implementation authors. When
 separate reviewer and evaluator calls are required, their children are distinct.
 Combined verification uses one evaluator as defined by `verify-code` "Verification path". On a retry use a fresh child and include
