@@ -430,6 +430,16 @@ step "A/B 사본이 원본과 다르다"          bash -c '[ -s "$1" ] && ! cmp 
 runh "$UB_AB" "$(j_bash 'echo ok')"
 step "A/B: trap 없으면 rc=2 가 아니다 (귀속)" [ "$GUARD_RC" -ne 2 ]
 
+# ── 정상 입력은 UNREACHED 로 떨어지지 않는다 — 위 절의 반대 방향. 낱말 경계를 공백·탭으로만
+#    보면 여러 줄 명령에서 HARNESS_ROOT= 대입이 **다음 줄까지** 한 낱말로 이어지고, 개행이 든
+#    값이 normalizePath 를 깨뜨려 판정 전체가 UNREACHED 였다. 셸에서 줄바꿈은 낱말 경계다.
+#    [실측: 고치기 전 rc=2(UNREACHED), 뒤 rc=0]
+ML_ASSIGN=$(printf 'export HARNESS_ROOT="$HERE/x"\necho one\necho two')
+run "$(j_bash "$ML_ASSIGN")"
+echo "  rc=$GUARD_RC"
+step "여러 줄 루트 대입 → 판정에 도달한다"   [ "$GUARD_RC" -eq 0 ]
+step "여러 줄 루트 대입 → UNREACHED 아님"   lacks_text '판정에 도달하지 못했다' "$GUARD_OUT"
+
 echo "── ⑧-값옵션 하위 명령 추출의 값-받는 전역 옵션 목록이 낡지 않았다 ──"
 # subcmds_after 는 값-받는 전역 옵션의 **값도 함께** 건너뛴다. 목록에서 빠진 옵션이
 # 있으면 그 값이 하위 명령으로 읽혀 진짜 하위 명령이 가려진다 — 미탐이다
@@ -646,6 +656,7 @@ declare -a MC_SH_READ_PASS=(
   "sed 's/a/b/' $MCROOT/repo/f"                      # 경로 없는 스크립트 + 인용 밖 피연산자
   "awk -F: '{print}' $MCROOT/repo/f"                  # 대문자 -F 는 -f 판정에 걸리지 않는다
   "grep -f /tmp/pat $MCROOT/repo/f"                   # -f 판정은 sed·awk 에만 걸린다
+  "P=$MCROOT/repo/a.mjs; F=\"\${P%.mjs}.sh\"; cat \$F"  # 파라미터 확장이 든 **대입** — 확장 안의 변수명이 실행 낱말로 읽혀 rc=2 였다
 )
 for c in "${MC_SH_READ_PASS[@]}"; do
   runm "$(j_bash "$c")"
@@ -2032,6 +2043,14 @@ declare -a GR_DENY=(
   'B=bd; $B note x'                            # 치환이라 하위 명령을 못 읽는다 → 차단
   "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh — 원장을 지정해도 채점자의 쓰기는 금지
   'L="$CLAUDE_PLUGIN_ROOT"/scripts/ledger.sh; HARNESS_ROOT=/h bash "$L" note x hi'   # 경로 접두 별칭 (MUST FIX 1)
+  # 확장이 **명령 낱말에 붙은** 형태. 낱말을 확장 자리에서 자르지 않으면 'git${IFS}commit' 이 한 낱말로
+  # 남아 어느 도구와도 안 맞고, 이 층은 도구를 알아볼 때만 발화하므로 규칙이 통째로 안 돌아 통과한다.
+  # 셸에서는 실제로 실행되는 문자열이다 (bash -c 'git${IFS}--version' 이 버전을 낸다).
+  'git${IFS}commit -am x'
+  'git${IFS}revert HEAD'
+  'gh${IFS}issue edit 3'
+  'gh${IFS}api -X POST /repos'
+  'bd${IFS}close 1'
 )
 for role in $GR_R $GR_E; do
   for c in "${GR_DENY[@]}"; do

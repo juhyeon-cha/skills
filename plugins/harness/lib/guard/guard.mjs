@@ -40,7 +40,17 @@ export const LEDGER_READ_EXEMPT = 'rails sprints';
 const member = (list, item) => Boolean(item) && list.split(' ').includes(item);
 const basename = (value) => value.split(/[\\/]/).at(-1);
 const stripQuotes = (text) => text.replace(/\\[nrt]/g, ' ').replace(/[\\"']/g, '');
-const tokens = (text) => text.split(/[^A-Za-z0-9_.:/=\[\-]+/).filter(Boolean);
+// A word is cut at its first parameter expansion. Splitting through one turned
+// `x="${m%.mjs}.sh"` into a bare `m` that execWord read as a command, while making its
+// punctuation into word characters instead let `git${IFS}commit` survive as one token that
+// matches no tool, so no rule for git, gh or the ledger fired at all -- a fail-open.
+// Cutting keeps `x=` an assignment (skipped, as intended) and keeps `git` the command word
+// (its rule still fires). What the expansion would have expanded to is never guessed.
+const tokens = (text) =>
+  text
+    .replace(/\$\{[^}]*}\S*/g, '')
+    .split(/[^A-Za-z0-9_.:/=\[\-]+/)
+    .filter(Boolean);
 const segments = (text) => text.split(/\|\||&&|[;|(]|\$\(|\n/);
 const valueOptions = (tool) => (tool === 'bd' ? BD_VALUE_OPTS : '--root');
 const isLedgerRead = (sub) => member(BD_READ_EXEMPT + ' ' + LEDGER_READ_EXEMPT, sub);
@@ -283,7 +293,10 @@ function pathCandidates(ctx) {
   let command = ctx.command;
   command = command.replaceAll('${HOME}', ctx.env.HOME || os.homedir()); // EXPAND_HOME
   command = command.replaceAll('$HOME', ctx.env.HOME || os.homedir()); // EXPAND_HOME
-  for (const word of command.split(/[ \t]/)) {
+  // Shell words end at any whitespace, newlines included. Splitting on blanks alone let a
+  // multi-line command fold every later line into one assignment value, and a value carrying
+  // a newline throws out of normalizePath -- the whole judgement became UNREACHED.
+  for (const word of command.split(/\s/)) {
     if (!word.startsWith('HARNESS_ROOT=')) continue;
     const root = word.slice(13);
     if (isHarnessRoot(ctx, root)) command = command.replaceAll('HARNESS_ROOT=' + root + ' ', ''); // ROOT_ASSIGNMENT
@@ -316,7 +329,7 @@ function pathCandidates(ctx) {
     // CANDIDATE_BACKTICKS
     const executable = execWord(segment);
     let previous = '';
-    for (const word of segment.split(/[ \t]/).filter(Boolean)) {
+    for (const word of segment.split(/\s/).filter(Boolean)) {
       const coordinate =
         (executable === 'bd' && ['-C', '--directory', '--db'].includes(previous)) ||
         (['ledger.sh', 'ledger.mjs'].includes(executable) && previous === '--root');

@@ -182,13 +182,13 @@ function flush() { if (ln>0) printf "%s:%d:%s\n", fn, ln, buf; buf=""; ln=0; fn=
 # 영어 문서(스킬·역할 정의·주입 블록 전부)는 s1·s2 가 한국어 낱말만 들어 후보에 오르지 않는다 — 그 파일에
 # 낡은 영어 문장이 새로 들어와도 R-REM 은 잡지 못한다(백로그 harness-53ro).
 RREM_KEEPF=(
-  "hooks/guard.sh"                         # r_remote 의 deny 메시지. 판정 로직도 문면도 안 바뀐다 (ADR D5)
+  "lib/guard/guard.mjs"                    # r_remote 의 deny 메시지. 판정 로직도 문면도 안 바뀐다 (ADR D5).
+                                           # #269 이전의 자리는 hooks/guard.sh 였다 — 그 파일은 지금 transport 6줄이다
 )
 # 면제 — 앵커 문자열. 남는 줄과 고칠 줄을 함께 가진 파일에 쓴다(줄번호는 편집에 흔들린다).
 RREM_KEEPL=(
   "two exceptions"              # 예외 둘을 같은 줄에서 드는 문장은 낡지 않았다 — 세션 블록의 규칙 제목과 setup 이 지시하는 그 사본
   "PR to that repo"             # skills:retrospective — 대상은 **플러그인 코어**의 PR 이고, 그것은 예외 둘이 아니라 세션 블록의 별개 항목(코어 개선 금지)이 덮는다
-  "PR to the skills repo"       # skills:setup — 위와 같은 대상, 같은 사유
 )
 
 # 면제표를 히트 목록에서 걷어낸다. 경로 키는 경로 필드에, 앵커 키는 줄 전체에 건다.
@@ -212,13 +212,15 @@ check_rrem() {
   # 스캔 대상은 **두 자리**에서 파생한다. git 으로 파생하지 않는다: 설치 캐시
   # (~/.claude/plugins/cache/…)는 git 트리가 아니라 ls-files 가 0건을 내고, 그러면 아래 대상
   # 단언이 실패한다(harness-m8gg.8.1). 플러그인 루트에서 부르므로 경로는 플러그인 상대다.
-  #   ① 플러그인 트리 — 아래 .md·.sh 전부
+  #   ① 플러그인 트리 — 아래 .md·.sh·.mjs 전부. **.mjs 를 뺄 수 없다**: 가드 정책이 셸에서
+  #      Node 로 옮겨가(#269) deny 메시지의 자리가 hooks/guard.sh 에서 lib/guard/guard.mjs 로
+  #      바뀌었다. 확장자를 .md·.sh 로 고정하면 낡은 문장이 다시 들어올 수 있는 실물 자리를 안 본다.
   #   ② 레포의 에이전트가 읽는 문서 — docs/ · CLAUDE.md · README.md · 레포 루트 스킬.
   #      배포되지 않는다고 낡은 문장이 허용되는 것이 아니고, 실제로 이 검사의 기준값이 든 파일
   #      (docs/usecases.md · docs/development.md)이 바로 여기로 나갔다. ①만 보면 그 파일들에
   #      같은 주장이 다시 들어와도 "잔존 0" 이 된다.
   #   tests/ 는 넣지 않는다 — 이 검사 자신이 낡은 문장을 인용해 서술하므로 자기 인용이 후보가 된다.
-  files=$(find . -type f \( -name '*.md' -o -name '*.sh' \) 2>/dev/null | sed 's|^\./||' | sort)
+  files=$(find . -type f \( -name '*.md' -o -name '*.sh' -o -name '*.mjs' \) 2>/dev/null | sed 's|^\./||' | sort)
   while IFS= read -r p; do [[ -n "$p" ]] && flist+=("$p"); done <<< "$files"
   repo_files=$(find ../../docs ../../.claude/skills -type f -name '*.md' 2>/dev/null | sort)
   while IFS= read -r p; do [[ -n "$p" ]] && flist+=("$p"); done <<< "$repo_files"

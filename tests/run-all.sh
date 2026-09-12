@@ -38,7 +38,7 @@ PLUGIN_ROOT="$REPO_ROOT/plugins/harness"
 # 형식: "<레포 상대 경로>|<사유>". **사유 없는 면제는 등재로 치지 않는다.**
 # 면제한 검사는 사라지지 않는다 — 부르는 자리가 여기가 아닐 뿐이고, 그 자리를 사유에 적는다.
 SKIP="
-tests/harness/guard-check.sh|전수 자리라 여기 통째로 넣으면 이 게이트가 두 배가 된다 — 실측(skills#223, 깨끗한 직렬 1회) 이 검사 159.5초 대 여기서 도는 나머지 합계 163.3초. 느려서가 아니다: 76.6초짜리 검사가 면제 없이 여기서 돈다. 임계 아래 절은 tests/harness/guard-fast-check.sh 가 여기서 돌리므로 그 절들은 매 커밋 보인다. 전수는 plugins/harness/hooks/guard.sh 를 고치는 커밋에서 손으로 돌린다 (bash tests/harness/guard-check.sh). 임계와 절 배정은 tests/harness/guard-check.sh 의 「절 범위」 주석이 단일 소유한다.
+tests/harness/guard-check.sh|전수 자리라 여기 통째로 넣으면 이 게이트가 두 배가 된다 — 실측(skills#223, 깨끗한 직렬 1회) 이 검사 159.5초 대 여기서 도는 나머지 합계 163.3초. 느려서가 아니다: 76.6초짜리 검사가 면제 없이 여기서 돈다. 임계 아래 절은 tests/harness/guard-fast-check.sh 가 여기서 돌리므로 그 절들은 매 커밋 보인다. 전수는 plugins/harness/lib/guard/ 아래 판정을 고치는 커밋에서 손으로 돌린다 (hooks/guard.sh 는 transport 6줄이다) (bash tests/harness/guard-check.sh). 임계와 절 배정은 tests/harness/guard-check.sh 의 「절 범위」 주석이 단일 소유한다.
 tests/toolkit/api-spec-viewer-check.sh|네트워크로 샘플 레포 둘을 고정 커밋에서 받는다. 오프라인에서 거짓 실패하므로 게이트에 넣으면 게이트가 거짓말을 한다. 두 추출기나 render.py 를 고치는 커밋에서 손으로 돌린다.
 plugins/harness/checks/transcript-check.sh|판정 대상이 트리 밖(~/.claude/projects 의 전사)이라 이 커밋과 무관하게 rc 가 흔들린다. 다른 세션이 남긴 위반으로 이 트리의 게이트가 깨지면 게이트가 거짓말을 한다. 부르는 자리는 harness:retrospective 1-2 다.
 plugins/harness/checks/ledger-check.sh|원격·원장 상태에 의존한다. 부르는 자리는 사이클 종결 단계(harness:develop 사이클 종결)다 — 여기서 부르면 네트워크 실패를 커밋 게이트의 실패로 만든다.
