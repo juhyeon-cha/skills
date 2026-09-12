@@ -17,6 +17,24 @@ contains `runtime`, `provider`, and `permission`; require exit 0 and AVAILABLE.
 This diagnoses contract availability, not execution, hook activation or role loading.
 Doctor's native `check` retains its separate static/loaded/live judgments.
 
+For hook execution, use the active SessionStart `data` and `sessionId` in the
+call, and the assigned canonical worktree as `repository`. The hook must deliver
+that session ID and the canonical collaboration child path as `agent_id` with no
+native `agent_type`. The guard resolves the pending dispatch in that session's
+inventory, checks source/commit scope and any binding, and applies its assigned
+role's policy without filling in native identity. Persisted dispatch permits the
+first tool before bind returns; bind is still mandatory for result consumption.
+Unknown, mismatched, corrupt or terminal records deny execution. Hook cwd may be
+the main checkout or a linked tree of the same Git repository. Missing hook
+identity or different state coordinates remain UNREACHED; do not search other
+sessions or copy inventories to make them match.
+
+An outcome written by complete ends this permission window, including REJECTED.
+The parent must complete interrupted calls as rejected and must not reuse a child.
+The guard cannot observe provider termination before the parent records it.
+These local checks do not establish provider permission enforcement: the same OS
+user can alter local records, and unobserved tools are outside the guard's reach.
+
 For the selected generic path, require exit 0 and `status: OBSERVED` from complete
 before handling the canonical role's SIGNAL. It attests parent-observed child
 identity and completion with `permission: prompt-only`, `enforcement: unavailable`

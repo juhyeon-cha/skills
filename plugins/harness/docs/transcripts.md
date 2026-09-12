@@ -36,7 +36,9 @@ the original tool returns locally so a grader can compare their provenance.
    `callId`, `role`, `task`, `sourceHash`, `commitScope`, `implementerIds`,
    `previousAgentIds`, and explicit `permission: "prompt-only"`. Obtain sourceHash
    from `loadRole(role, pluginRoot).sha256` in `lib/runtime/roles.mjs`. Use the actual
-   parent session identity; this data directory is not an observed hook directory.
+   parent session identity. For guarded execution, take `data` and `sessionId`
+   from the active SessionStart context as [roles.md](roles.md) requires; an
+   arbitrary inventory directory cannot be discovered by the hook.
    Implementation scope is `{mode: "implementation", base, branch}` with the clean
    starting HEAD. Grader scope is `{mode: "fixed", base, head, branch}` pinned before
    dispatch. Use full commit SHAs. Populate author and earlier child IDs from records.

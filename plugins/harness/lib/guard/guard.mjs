@@ -345,7 +345,8 @@ const filePath = (ctx) =>
   member('Read NotebookRead Glob Grep', ctx.event.tool_name)
     ? ''
     : ctx.event.tool_input.file_path || ctx.event.tool_input.notebook_path || '';
-const grader = (ctx) => member(GR_ROLES, ctx.event.agent_type);
+const policyRole = (ctx) => ctx.event.harness_policy_role || ctx.event.agent_type;
+const grader = (ctx) => member(GR_ROLES, policyRole(ctx));
 const child = (ctx) => Boolean(ctx.event.agent_id || ctx.event.agent_type);
 const rootForm = (tool) =>
   tool === 'bd'
@@ -354,7 +355,7 @@ const rootForm = (tool) =>
       ? 'node ledger.mjs --root <하네스루트>'
       : 'HARNESS_ROOT=<하네스루트> ledger.sh';
 const graderCan = (ctx) =>
-  `${ctx.event.agent_type.split(':').at(-1)} 가 할 수 있는 것: 검증용 명령 실행은 허용된다 — 게이트·테스트 재실행, git status·git diff·git show, ledger.mjs show·list. 지적·판정은 파일이 아니라 응답에 쓴다. ${ctx.event.agent_type === 'harness:reviewer' ? 'SIGNAL: CHANGES_REQUESTED(또는 LGTM) 뒤에 MUST FIX·NIT 를 파일:라인과 함께 적어라.' : 'SIGNAL: MATCH·VIOLATION·DEVIATION 뒤에 acceptance 항목별 인용→근거→MET/NOT_MET 을 적어라.'} 기록은 오케스트레이터가 남긴다 (agents/${ctx.event.agent_type.split(':').at(-1)}.md).`;
+  `${policyRole(ctx).split(':').at(-1)} 가 할 수 있는 것: 검증용 명령 실행은 허용된다 — 게이트·테스트 재실행, git status·git diff·git show, ledger.mjs show·list. 지적·판정은 파일이 아니라 응답에 쓴다. ${policyRole(ctx) === 'harness:reviewer' ? 'SIGNAL: CHANGES_REQUESTED(또는 LGTM) 뒤에 MUST FIX·NIT 를 파일:라인과 함께 적어라.' : 'SIGNAL: MATCH·VIOLATION·DEVIATION 뒤에 acceptance 항목별 인용→근거→MET/NOT_MET 을 적어라.'} 기록은 오케스트레이터가 남긴다 (agents/${policyRole(ctx).split(':').at(-1)}.md).`;
 const remoteReason =
   "원격 반영 금지 — 원격 반영은 오케스트레이터·사람의 몫이다. 예외 둘도 오케스트레이터의 것이다. 액터가 다르기 때문에 사용자 지시 전언으로 풀리지 않는다. 세션 블록 'Remote reflection only on explicit user instruction', harness:develop '사이클 종결': Subagents are out of scope — up to the local commit. SIGNAL: IMPLEMENTATION_COMPLETE 를 내고 커밋 해시를 보고하라 (agents/implementer.md). 원격 반영이 아닌데 막혔으면 오탐이니 사람에게 확인받아라. 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 원격 반영이다; git subtree split 으로 로컬까지만 한다.";
 function rejectAlias(ctx, tool) {
@@ -508,7 +509,7 @@ export function r_grader_shell(ctx) {
 RULES.push({matcher: 'Bash', run: r_grader_shell});
 
 export function r_impl_bd(ctx) {
-  if (!member(IMPL_ROLES, ctx.event.agent_type)) return;
+  if (!member(IMPL_ROLES, policyRole(ctx))) return;
   for (const tool of LEDGER_TOOLS.split(' ')) rejectAlias(ctx, tool);
   for (const { tool, sub } of ledgerCalls(ctx)) {
     if (!sub) continue; // IMPL_OPTIONS_ONLY
@@ -563,7 +564,12 @@ export async function evaluateGuard(
     rule = 'UNREACHED-input',
     result;
   try {
-    event = normalizeHookEvent(raw, { env });
+    let delegatedRole;
+    if (raw?.agent_id && !raw.agent_type) {
+      const { delegationHookRole } = await import('../runtime/delegation.mjs');
+      delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env });
+    }
+    event = normalizeHookEvent(raw, { env, delegatedRole });
     const rawCommand = event.tool_input.command ?? '';
     const windowsOperands =
       event.tool_name === 'Bash'

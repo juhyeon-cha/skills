@@ -8,7 +8,10 @@ import {
 import { canonicalRole } from '../runtime/role-contract.mjs';
 import { powershellOperations } from './powershell-operations.mjs';
 
-export function normalizeHookEvent(raw, { env = process.env, platform = process.platform } = {}) {
+export function normalizeHookEvent(
+  raw,
+  { env = process.env, platform = process.platform, delegatedRole } = {},
+) {
   if (!raw || Array.isArray(raw) || typeof raw !== 'object')
     throw new Error('hook input must be an object');
   if (
@@ -25,11 +28,15 @@ export function normalizeHookEvent(raw, { env = process.env, platform = process.
     throw new Error('absolute cwd required');
   for (const key of ['agent_id', 'agent_type'])
     if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
-  if (raw.agent_id && !canonicalRole(raw.agent_type)) throw new Error('child role is unidentified');
+  if (delegatedRole && (!raw.agent_id || raw.agent_type || !canonicalRole(delegatedRole)))
+    throw new Error('invalid delegated policy role');
+  if (raw.agent_id && !canonicalRole(raw.agent_type) && !delegatedRole)
+    throw new Error('child role is unidentified');
   if (raw.agent_type && !canonicalRole(raw.agent_type)) throw new Error('unknown role');
   const event = {
     ...raw,
     agent_type: canonicalRole(raw.agent_type) ?? '',
+    harness_policy_role: delegatedRole || canonicalRole(raw.agent_type) || '',
     harness_operations: [],
     harness_shell_readonly: false,
   };

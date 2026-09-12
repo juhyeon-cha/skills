@@ -23,7 +23,7 @@ if (action === 'registry') {
   else if (action === 'no-registry') removeLines('RULES.push(');
   else if (action === 'before-anchor') { removeLines('run: r_remote}'); replace('export const RULES = [];', "RULES.push({matcher: 'Bash', run: r_remote});\nexport const RULES = [];"); }
   else if (action === 'no-prefix') text = text.replaceAll('r_remote', 'no_remote');
-  else if (action === 'internal-error') replace('event = normalizeHookEvent(raw, { env });', 'event = normalizeHookEvent(raw, { env });\n    throw new Error("internal-error-fixture");');
+  else if (action === 'internal-error') replace('event = normalizeHookEvent(raw, { env, delegatedRole });', 'event = normalizeHookEvent(raw, { env, delegatedRole });\n    throw new Error("internal-error-fixture");');
   else if (action === 'no-error-conversion') replace('code: 2,\n      stdout:', 'code: 1,\n      stdout:');
   else if (action === 'no-cwd') replace('const target = norm(ctx, value);', "if (!path.isAbsolute(value)) return null;\n  const target = norm(ctx, value);");
   else if (action === 'no-holder') replace('const holder = holdsTrees(ctx, candidate);', 'continue; const holder = holdsTrees(ctx, candidate);');

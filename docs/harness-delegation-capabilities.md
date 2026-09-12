@@ -1,5 +1,14 @@
 # 일반 자식 실행 관측과 어댑터 설계 근거
 
+훅 연결을 변경할 때는 `tests/harness/generic-hook-check.mjs`를 실행한다.
+이 검사는 실제 guard와 임시 Git 저장소의 begin/bind/complete를 연결하며,
+부모 checkout과 linked worktree의 공통 저장소 식별, bind 이전 dispatch,
+다른 세션·손상 기록·종료 기록의 거부를 다룬다. `--baseline`은 수정 전 소스에서
+첫 읽기의 code 2를 확인하는 재현 모드다. 정상 모드는 읽기 code 0을 요구한다.
+세션 ID와 data는 훅이 받은 좌표이고 call.repository는 배정 worktree다.
+fixture가 합성한 이벤트는 설치본의 실제 자식 실행이나 native 역할 증거가 아니다.
+실측 결과와 복구 실행 예외는 [skills#288](https://github.com/juhyeon-cha/skills/issues/288)에 둔다.
+
 이 문서는 하네스 개발자가 일반 자식 실행 어댑터를 설계할 때 쓰는 자료다.
 실측 근거와 사용자 결정의 원장은 [skills#275](https://github.com/juhyeon-cha/skills/issues/275)이며,
 [관측 fixture](../tests/harness/fixtures/collaboration-observations.json)는 그 notes와
