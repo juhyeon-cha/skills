@@ -88,6 +88,16 @@ try {
   check(run(drift.repo, 'git', ['rev-parse', 'HEAD']) === drift.initial, 'drift preflight makes no commit');
   const branch = fixture('wrong-branch');
   run(branch.repo, 'git', ['switch', '-qc', 'feature']); branch.unchanged(branch.release());
+  const linked = fixture('linked-release');
+  const worktree = path.join(path.dirname(linked.repo), 'worktree');
+  run(linked.repo, 'git', ['worktree', 'add', '-qb', 'codex/release', worktree]);
+  const linkedResult = spawnSync('/bin/bash', ['scripts/release.sh', 'harness', 'minor'], {
+    cwd: worktree, env: {...env, PATH: `${linked.bin}${path.delimiter}${env.PATH}`}, encoding: 'utf8',
+  });
+  check(linkedResult.status === 0, `linked release succeeds: ${linkedResult.stderr}`);
+  check(run(linked.repo, 'git', ['rev-parse', 'HEAD']) === linked.initial, 'main checkout HEAD unchanged');
+  check(JSON.parse(fs.readFileSync(path.join(linked.root, '.claude-plugin/plugin.json'))).version === '2.1.3', 'main checkout files unchanged');
+  check(run(linked.repo, 'git', ['--git-dir', linked.remote, 'rev-parse', 'main']) === run(worktree, 'git', ['rev-parse', 'HEAD']), 'linked release pushes HEAD to default branch');
   const noNode = fixture('missing-node');
   for (const command of ['dirname', 'git', 'sed', 'jq']) {
     const executable = run(source, '/bin/bash', ['-c', 'command -v "$1"', '--', command]);
