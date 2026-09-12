@@ -59,6 +59,6 @@ procedures use the Node entrypoints above. Read [platforms.md](platforms.md) for
 host and backend requirements and [installation.md](installation.md) before
 claiming that an installed artifact or its hooks and roles are actually loaded.
 
-For explicitly selected generic delegation, read [roles.md](roles.md) before using
+For generic delegation, read [roles.md](roles.md) before using
 `delegation`; its begin/bind/complete/audit operations are parent-owned evidence
 writes. Capability diagnostics do not spawn a child or establish native loading.

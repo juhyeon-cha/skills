@@ -56,13 +56,13 @@ const callKeys = [
   'permission',
 ];
 
-/** Availability of this explicit provider contract; no native fallback or execution probe. */
-export function delegationCapability({ runtime, provider, permission } = {}) {
+/** Execution-policy eligibility; this does not spawn or certify a child. */
+export function delegationCapability({ runtime, provider, permission = 'prompt-only' } = {}) {
   const reason =
     runtime !== 'codex' || provider !== 'collaboration'
       ? 'unsupported delegation runtime/provider'
       : permission !== 'prompt-only'
-        ? 'explicit prompt-only required; enforced permissions unavailable'
+        ? 'unsupported permission policy; enforced permissions unavailable'
         : null;
   return {
     format: 'harness-delegation-capability-v1',
@@ -72,7 +72,7 @@ export function delegationCapability({ runtime, provider, permission } = {}) {
     permission: permission ?? 'unspecified',
     enforcement: 'unavailable',
     nativeRoleEvidence: 'unavailable',
-    automaticNativeFallback: false,
+    automaticNativeFallback: !reason,
     reason,
   };
 }
@@ -270,6 +270,9 @@ const result = (call, status, extra = {}) => ({
 /** The caller attests that observations came from its provider tool calls.
  * Local records prevent accidental drift/reuse, not forgery by the same OS user. */
 export async function beginDelegation(call, { root, env = process.env } = {}) {
+  // Persist the default so binding and completion consume the selected contract.
+  if (call && typeof call === 'object' && !Array.isArray(call) && !Object.hasOwn(call, 'permission'))
+    call = { ...call, permission: 'prompt-only' };
   validateCall(call, root);
   const scope = await storage(call, env);
   return withStateLock(path.join(scope.directory, 'inventory'), () => {

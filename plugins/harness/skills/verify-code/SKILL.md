@@ -9,7 +9,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 The reviewer role definition (`${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`) holds the review discipline. This procedure holds delegation and signal handling only.
 
-Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED, or OBSERVED only for explicitly selected generic prompt-only execution, before the branches below apply. That contract owns unavailable-enforcement rejection and the prohibition on automatic native fallback; the SIGNAL and retry rules below hold in both paths.
+Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED or generic OBSERVED under that contract before the branches below apply. That contract owns execution-path selection and explicit enforcement requirements; the SIGNAL and retry rules below hold in both paths.
 
 ## 1. Delegate
 

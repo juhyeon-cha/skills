@@ -142,13 +142,12 @@ try {
   );
   for (const request of [
     {},
-    { runtime: 'codex', provider: 'collaboration' },
     { runtime: 'codex', provider: 'collaboration', permission: 'enforced' },
     { runtime: 'codex', provider: 'unknown', permission: 'prompt-only' },
   ])
     check(
       delegationCapability(request).status === 'UNAVAILABLE',
-      'shared capability rejects unsupported or implicit policy',
+      'shared capability rejects unsupported policy',
     );
   fs.mkdirSync(repo);
   git('init', '-qb', 'fixture');
@@ -201,6 +200,14 @@ try {
     `empty is not success: ${JSON.stringify(emptyAudit)}`,
   );
   const good = make();
+  const defaultPolicy = make();
+  delete defaultPolicy.permission;
+  const selected = run('begin', defaultPolicy);
+  check(selected.call.permission === 'prompt-only', 'begin persists the default policy');
+  check(!Object.hasOwn(defaultPolicy, 'permission'), 'begin leaves the request unchanged');
+  run('bind', binding(selected.call));
+  check(run('complete', completion(selected.call, base)).status === 'OBSERVED',
+    'ordinary child completes without an explicit permission selection');
   check(run('begin', good).status === 'PENDING', 'begin inventory pending');
   check(run('audit', context(good), 1).calls[0].status === 'PENDING', 'unbound call retained');
   run('bind', binding(good));
@@ -235,6 +242,7 @@ try {
   }
 
   for (const key of Object.keys(good)) {
+    if (key === 'permission') continue;
     const bad = make();
     delete bad[key];
     run('begin', bad, 1);
@@ -244,6 +252,7 @@ try {
     { runtime: 'claude' },
     { provider: 'unknown' },
     { permission: 'enforced' },
+    { permission: null },
     { permission: 'unavailable' },
     { permission: '' },
     { parentAgentId: 'root' },
