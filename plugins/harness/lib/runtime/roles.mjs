@@ -68,14 +68,24 @@ function nativeStatements(text) {
 }
 
 function nativeAgentName(text) {
-  const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}))*"';
+  const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}))*"';
   const literal = "'[^'\\x00-\\x1f]*'";
   const string = `(?:${basic}|${literal})`;
   const keyPart = `(?:[A-Za-z0-9_-]+|${string})`;
   const assignment = new RegExp(`^(${keyPart})((?:\\s*\\.\\s*${keyPart})*)\\s*=\\s*([\\s\\S]*)$`);
   const nameValue = new RegExp(`^${string}$`);
-  const decode = (value) =>
-    value.startsWith('"') ? JSON.parse(value) : value.startsWith("'") ? value.slice(1, -1) : value;
+  const decode = (value) => {
+    if (!value.startsWith('"')) return value.startsWith("'") ? value.slice(1, -1) : value;
+    // Consume each escape atomically so a literal backslash followed by U is
+    // not confused with a TOML Unicode escape. JSON handles the shared escapes.
+    const json = value.replace(/\\(?:["\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})/g, (escape) => {
+      if (!escape.startsWith('\\U')) return escape;
+      const code = Number.parseInt(escape.slice(2), 16);
+      if (code >= 0xd800 && code <= 0xdfff) throw new Error('invalid TOML Unicode scalar');
+      return JSON.stringify(String.fromCodePoint(code)).slice(1, -1);
+    });
+    return JSON.parse(json);
+  };
   let name;
   for (const line of nativeStatements(text)) {
     if (line.startsWith('[')) break;

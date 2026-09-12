@@ -31,6 +31,9 @@ try {
     'values = [\'name = "fake"\', "#", {name = "nested"}]\nname = "foreign"\n',
     'name = "foreign"\nfoo.bar = 1\n"other" . \'name\' = "harness-reviewer"\n',
     '"foo.bar" = true\nname = "foreign"\n',
+    'name = "foreign"\nfoo."bar\\U0001F600" = 1\n',
+    '"foo\\U0001F600" = 1\nname = "foreign"\n',
+    'name = "literal\\\\U0001F600"\n',
   ];
   for (const text of accepted) {
     fs.writeFileSync(foreign, text);
@@ -42,6 +45,10 @@ try {
     `"na\\u006de" = "${collision}"\n`,
     `values = [1,\n 2]\nname = "${collision}"\n`,
     `foo.name = "foreign"\n"name" = "${collision}"\n`,
+    `"na\\U0000006de" = "${collision}"\n`,
+    `name = "\\U00000068${collision.slice(1)}"\n`,
+    'name = "\\U00110000"\n',
+    'name = "\\U0000D800"\n',
     'name = "foreign"\nname = "second"\n',
     'name = "foreign"\nvalue = """unfinished\n',
     'name = "foreign"\nvalue = [1, 2\n',
