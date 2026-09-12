@@ -280,6 +280,56 @@ export async function beginDelegation(call, { root, env = process.env } = {}) {
     return result(call, 'PENDING', { call, dispatch });
   });
 }
+
+/** Resolve a generic hook child against the parent's session inventory.
+ * Dispatch is persisted before spawn, so a first tool need not race binding.
+ * This selects guard policy only; it is never native role/lifecycle evidence. */
+export async function delegationHookRole(raw, { root, env = process.env } = {}) {
+  agent(raw.agent_id);
+  text(raw.session_id, 'hook session');
+  const scope = await resolveState({ cwd: raw.cwd, sessionId: raw.session_id }, env);
+  if (scope.runtime !== 'codex' || scope.dataSource === 'fallback-unverified')
+    throw new Error('generic hook requires explicit Codex state coordinates');
+  scope.directory = path.join(scope.session, 'delegation');
+  if (!fs.existsSync(scope.directory)) throw new Error('child role is unidentified');
+  return withStateLock(path.join(scope.directory, 'inventory'), () => {
+    const matches = [];
+    for (const name of fs
+      .readdirSync(scope.directory)
+      .filter((name) => name.endsWith('.call.json'))) {
+      const envelope = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
+      const call = envelope.value;
+      const own = { ...scope, top: call?.repository };
+      read(own, call, 'call');
+      if (name !== path.basename(file(own, call.callId, 'call')))
+        throw new Error('inventory filename mismatch');
+      if (expectedChild(own, call) !== raw.agent_id) continue;
+      validateCall(call, root);
+      independent(call, raw.agent_id);
+      terminal(own, call);
+      if (
+        git(call, 'rev-parse', '--show-toplevel') !== call.repository ||
+        fs.realpathSync(git(call, 'rev-parse', '--path-format=absolute', '--git-common-dir')) !==
+          fs.realpathSync(scope.common)
+      )
+        throw new Error('hook repository mismatch');
+      if (fs.existsSync(file(own, call.callId, 'binding'))) {
+        const binding = read(own, call, 'binding');
+        object(binding, ['child', 'source', 'tool'], 'binding');
+        if (
+          binding.child !== raw.agent_id ||
+          binding.source !== 'parent-tool-return' ||
+          binding.tool !== 'collaboration.spawn_agent'
+        )
+          throw new Error('binding identity/provenance mismatch');
+      }
+      verifyCommits(call, 'bind');
+      matches.push(call.role);
+    }
+    if (matches.length !== 1) throw new Error('child role is unidentified or ambiguous');
+    return `harness:${matches[0]}`;
+  });
+}
 export async function bindDelegation(input, { root, env = process.env } = {}) {
   object(input, ['call', 'observation'], 'bind');
   const { call } = input;
