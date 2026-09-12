@@ -145,6 +145,7 @@ try {
   for (const name of ['develop', 'verify-code', 'verify-implement']) {
     const body = fs.readFileSync(path.join(plugin, 'skills', name, 'SKILL.md'), 'utf8');
     check(body.includes('docs/roles.md') && body.includes('OBSERVED') && body.includes('REACHED'), `${name} reaches the selected contract`);
+    check(!/never fall back automatically|prohibition on automatic native fallback/i.test(body), `${name} does not override execution-path selection`);
   }
   const copy = path.join(temp, 'plugin'); fs.cpSync(plugin, copy, { recursive: true });
   const before = inspectDistribution(plugin);
