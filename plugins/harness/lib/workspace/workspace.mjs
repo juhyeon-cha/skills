@@ -44,6 +44,20 @@ async function git(cwd, args, env = process.env) {
     );
   return result.stdout.toString();
 }
+// A squash merge shares no commit with the branch it came from, so the unpushed probe above
+// reports a fully merged branch as unpushed. Ask the forge whether a merged PR already carries
+// it. Any failure -- gh absent, another forge, offline, no GitHub remote -- returns null and
+// leaves the strict answer standing; this only ever widens what cleanup accepts, never narrows.
+async function mergedPullRequest(cwd, branch, env = process.env) {
+  const argv = ['gh', 'pr', 'list', '--head', branch, '--state', 'merged', '--json', 'number'];
+  const result = await runCommand({ argv: [...argv, '--jq', '.[0].number'] }, {
+    cwd,
+    env: gitEnvironment(env),
+  }).catch(() => null);
+  if (!result || result.status !== 'exited' || result.code !== 0) return null;
+  const number = result.stdout.toString().trim();
+  return /^[0-9]+$/.test(number) ? 'PR #' + number : null;
+}
 export function parseWorktrees(text) {
   return text
     .split('\0\0')
@@ -247,8 +261,11 @@ export async function cleanupWorkspace(
       ['log', '--oneline', context.expectedBranch, '--not', '--remotes=origin'],
       env,
     );
-    if (unpushed && !force) throw new Error(`미푸시 커밋이 있다\n${unpushed}`);
-    if (unpushed) say(`--force: 미푸시 커밋\n${unpushed}`);
+    const merged = unpushed && !force ? await mergedPullRequest(context.main, context.expectedBranch, env) : null;
+    if (unpushed && !force && !merged) throw new Error(`미푸시 커밋이 있다\n${unpushed}`);
+    if (unpushed && merged)
+      say(`머지된 ${merged} 가 이 브랜치를 head 로 가진다 — 미푸시 판정을 넘긴다\n${unpushed}`);
+    if (unpushed && force) say(`--force: 미푸시 커밋\n${unpushed}`);
   }
   const result = { main: context.main, target, removed: [], branch: context.expectedBranch };
   if (present || record) {

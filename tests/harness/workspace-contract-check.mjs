@@ -52,6 +52,9 @@ try {
   env.HARNESS_SESSION_ACTOR_LOG = path.join(temp, 'actors.tsv');
   for (const command of ['gh', 'bd', 'curl', 'wget', 'ssh']) {
     fs.writeFileSync(path.join(bin, command), '#!/bin/sh\nprintf "remote command\\n" >> "$FIXTURE_SENTINEL"\nexit 97\n', {mode: 0o755});
+  // cleanup asks the forge whether a merged PR carries the branch. That read is not a remote
+  // write, so it must not trip the sentinel; every other gh call still does.
+  fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\ncase "$1 $2" in "pr list") exit 0 ;; esac\nprintf "remote command\\n" >> "$FIXTURE_SENTINEL"\nexit 97\n', {mode: 0o755});
   }
   fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nfor arg do\n  case "$arg" in push|send-pack) printf "git remote write\\n" >> "$FIXTURE_SENTINEL"; exit 97 ;; esac\n  if [ "${FIXTURE_NO_REMOVE:-0}" = 1 ] && [ "$arg" = remove ]; then printf "remove reached\\n" >> "$FIXTURE_REMOVE_CANARY"; exit 25; fi\n  if [ "${FIXTURE_FAIL_BRANCH:-0}" = 1 ] && [ "$arg" = -D ]; then exit 24; fi\ndone\nexec "$FIXTURE_REAL_GIT" "$@"\n', {mode: 0o755});
   check(run('gh', ['api'], temp, env).status === 97, 'remote sentinel reached');
@@ -148,6 +151,18 @@ process.exitCode=child.status??98;
     ok(git(wt, 'add', 'dirty.txt')); ok(git(wt, 'commit', '-qm', 'unpushed fixture'));
     result = cleanup();
     check(result.status === 1 && result.stderr.includes('미푸시 커밋이 있다') && fs.existsSync(wt), 'unpushed cleanup rejected');
+    // A squash merge shares no commit with its branch, so the hash-based unpushed probe always
+    // reports one. A merged PR naming this branch has to lift it; removal is held back so the
+    // fixture keeps the workspace for the control that follows.
+    const strictGh = fs.readFileSync(path.join(bin, 'gh'));
+    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\necho 4242\n', {mode: 0o755});
+    const squashCanary = path.join(temp, 'squash-remove');
+    result = run('bash', [path.join(plugin, targets[1]), 'story-1'], repo, {...fixtureEnv, FIXTURE_NO_REMOVE: '1', FIXTURE_REMOVE_CANARY: squashCanary});
+    check(!result.stderr.includes('미푸시 커밋이 있다') && fs.existsSync(squashCanary), 'merged pull request lifts the hash-based unpushed rejection');
+    check(result.stderr.includes('PR #4242'), 'the merged pull request is named as the reason');
+    fs.writeFileSync(path.join(bin, 'gh'), strictGh, {mode: 0o755});
+    result = cleanup();
+    check(result.status === 1 && result.stderr.includes('미푸시 커밋이 있다') && fs.existsSync(wt), 'unpushed rejection returns when no merged pull request answers');
     // Direct-input policy regressions, not native hook-firing evidence.
     const guard = (tool_name, tool_input) => run('bash', [path.join(plugin, targets[2])], repo, fixtureEnv, JSON.stringify({session_id: 'fixture', cwd: wt, tool_name, tool_input}));
     result = guard('Bash', {command: `grep needle '${repo}/README.md'`});
