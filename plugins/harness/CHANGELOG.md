@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.3.3 — 2026-09-12
+
+**폭 판단 — PATCH (사용자 지시).** Codex generic 자식의 실제 훅 식별을 수정하고
+역할별 모델 기본값을 적용한다. generic 경로는 플러그인 업데이트로 적용된다.
+기존 native 역할 파일을 생성해 쓰는 설치는 새 모델 정책을 받으려면 해당 파일과
+등록 영수증을 재생성해야 한다. 이 수동 갱신 경계를 포함해 요청한 PATCH로 발행한다.
+
+### 실제 Codex 자식 식별과 역할별 모델
+
+- UUID/default 훅을 App Server의 metadata-only thread/read로 조회하고 부모 세션과
+  자식 경로를 대조해 기존 delegation 기록에 연결한다. 메타데이터 누락·불일치·조회
+  실패는 거부하며 native 역할 식별을 꾸며내지 않는다.
+- Codex reviewer는 Sol/high, evaluator는 Terra/medium을 기본으로 사용하고
+  implementer는 부모 모델을 상속한다. Claude evaluator의 Sonnet은 유지한다.
+  native 역할 생성과 generic dispatch가 같은 모델 정책을 사용한다.
+- 실제 자식 메타데이터와 명시적 Terra/medium 설정을 확인했다. 회귀 검사는
+  UUID/default 연결, 거부 경로, 프로토콜과 모델 생성을 다룬다. 업데이트된 훅에서
+  실제 첫 도구 실행과 독립 reviewer/evaluator 판정은 별도 검증이 필요하다.
+
 ## 2.3.2 — 2026-09-12
 
 **폭 판단 — PATCH.** 기존 generic delegation 계약의 훅 연결 결함을 고친다.
