@@ -2043,6 +2043,14 @@ declare -a GR_DENY=(
   'B=bd; $B note x'                            # 치환이라 하위 명령을 못 읽는다 → 차단
   "HARNESS_ROOT=$FX_ROOT $FX_LS note $FX_TASK \"메모\""   # ledger.sh — 원장을 지정해도 채점자의 쓰기는 금지
   'L="$CLAUDE_PLUGIN_ROOT"/scripts/ledger.sh; HARNESS_ROOT=/h bash "$L" note x hi'   # 경로 접두 별칭 (MUST FIX 1)
+  # 확장이 **명령 낱말에 붙은** 형태. 낱말을 확장 자리에서 자르지 않으면 'git${IFS}commit' 이 한 낱말로
+  # 남아 어느 도구와도 안 맞고, 이 층은 도구를 알아볼 때만 발화하므로 규칙이 통째로 안 돌아 통과한다.
+  # 셸에서는 실제로 실행되는 문자열이다 (bash -c 'git${IFS}--version' 이 버전을 낸다).
+  'git${IFS}commit -am x'
+  'git${IFS}revert HEAD'
+  'gh${IFS}issue edit 3'
+  'gh${IFS}api -X POST /repos'
+  'bd${IFS}close 1'
 )
 for role in $GR_R $GR_E; do
   for c in "${GR_DENY[@]}"; do
