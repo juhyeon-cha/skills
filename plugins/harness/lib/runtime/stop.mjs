@@ -2,7 +2,7 @@ import { lastExecutionMarker } from '../ledger/record.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveState, readActors, isCancelled, appendState, tsv } from './state.mjs';
+import { resolveState, readActors, recoverActors, isCancelled, appendState, tsv } from './state.mjs';
 import { executeLedger, ledgerRoot } from '../ledger.mjs';
 
 export const STOP_OUTCOMES = [
@@ -10,6 +10,7 @@ export const STOP_OUTCOMES = [
   'CANCEL',
   'ORACLE_FAIL',
   'SCOPE_FAIL',
+  'SCOPE_RECOVERED',
   'IDLE',
   'VERIFY_PENDING',
   'GAVE_UP',
@@ -87,17 +88,22 @@ export async function evaluateStop(
     log('ORACLE_FAIL', `${error.message} — 0 으로 폴백하지 않고 통과한다`);
     return result;
   }
-  let range = '원장 전체(검증된 매핑 없음)';
+  let actors;
   try {
-    const actors = readActors(scope);
+    actors = readActors(scope);
     if (actors.status !== 'VERIFIED') throw new Error('검증된 actor 매핑 없음');
-    rows = rows.filter((row) => actors.actors.includes(row.actor ?? row.assignee ?? '')); // SCOPE_NARROW
-    range = `이 세션의 actor ${actors.actors.join(' ')}`;
   } catch {
-    log('SCOPE_FAIL',
-      '검증된 actor 매핑을 읽지 못했다 — legacy 상태는 미검증이고 사거리를 좁히지 않는다',
-    );
+    try {
+      actors = recoverActors(scope, rows);
+      log('SCOPE_RECOVERED', '이 세션의 바인딩을 현재 원장 소유권과 대조하여 복구했다');
+    } catch (error) {
+      log('SCOPE_FAIL', `소유권 복구 실패: ${error.message} — 미확인 작업으로 종료를 막지 않는다`);
+      result.stderr += 'SCOPE UNVERIFIED: actor mapping could not be recovered; stop allowed, completion not established. Rebind this session with state.mjs bind after verifying the claimed task.\n';
+      return result;
+    }
   }
+  rows = rows.filter((row) => actors.actors.includes(row.actor ?? row.assignee ?? '')); // SCOPE_NARROW
+  const range = `이 세션의 actor ${actors.actors.join(' ')}`;
   const n = rows.length;
   if (n === 0) {
     log('IDLE', `in_progress 0건(범위: ${range}) — 막을 이유가 없다`);

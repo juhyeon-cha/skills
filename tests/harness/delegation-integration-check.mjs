@@ -80,15 +80,19 @@ try {
     { runtime: 'codex', provider: 'collaboration', permission: 'prompt-only' },
     { runtime: 'codex', provider: 'collaboration', permission: 'enforced' },
     { runtime: 'codex', provider: 'collaboration' },
+    { runtime: 'codex', provider: 'collaboration', permission: null },
+    { runtime: 'codex', provider: 'collaboration', permission: '' },
     { runtime: 'claude', provider: 'collaboration', permission: 'prompt-only' },
     { runtime: 'codex', provider: 'native', permission: 'prompt-only' },
   ]) {
-    const expected = request.runtime === 'codex' && request.provider === 'collaboration' && request.permission === 'prompt-only' ? 0 : 1;
+    const expected = request.runtime === 'codex' && request.provider === 'collaboration' &&
+      (!Object.hasOwn(request, 'permission') || request.permission === 'prompt-only') ? 0 : 1;
     const capability = delegation('capability', request, expected);
     assert.deepEqual(capability, run('doctor.mjs', ['delegation', file(request)], expected)); count++;
     assert.deepEqual(capability, delegationCapability(request)); count++;
-    check(capability.automaticNativeFallback === false && capability.enforcement === 'unavailable', 'availability is explicit and does not imply enforcement');
-    const call = make('implementer', { ...request, permission: request.permission ?? 'unspecified' });
+    check(capability.automaticNativeFallback === (expected === 0) && capability.enforcement === 'unavailable', 'automatic selection eligibility does not imply enforcement');
+    const call = make('implementer', request);
+    if (!Object.hasOwn(request, 'permission')) delete call.permission;
     const begin = delegation('begin', call, expected);
     check(begin.status === (expected ? 'REJECTED' : 'PENDING'), 'execution and diagnostics agree');
     if (expected) check(begin.reason === capability.reason, 'execution rejection uses the shared reason');
@@ -140,7 +144,8 @@ try {
 
   for (const name of ['develop', 'verify-code', 'verify-implement']) {
     const body = fs.readFileSync(path.join(plugin, 'skills', name, 'SKILL.md'), 'utf8');
-    check(body.includes('docs/roles.md') && body.includes('OBSERVED') && body.includes('prompt-only') && body.includes('REACHED'), `${name} reaches the selected contract`);
+    check(body.includes('docs/roles.md') && body.includes('OBSERVED') && body.includes('REACHED'), `${name} reaches the selected contract`);
+    check(!/never fall back automatically|prohibition on automatic native fallback/i.test(body), `${name} does not override execution-path selection`);
   }
   const copy = path.join(temp, 'plugin'); fs.cpSync(plugin, copy, { recursive: true });
   const before = inspectDistribution(plugin);

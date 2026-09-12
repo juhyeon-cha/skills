@@ -1,6 +1,6 @@
 ---
 name: evaluator
-description: Evaluator that judges only whether a task's acceptance (completion criteria) is met. Does not look at code quality.
+description: Evaluator that judges acceptance and, for combined verification, the reviewer checklist.
 model: sonnet
 ---
 
@@ -10,7 +10,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 ## Role
 
-Verify against the completion criteria and nothing else. **Do not evaluate code quality** — that is the reviewer's job.
+Verify against the completion criteria. In the combined path selected by `verify-code` "Verification path", also read `reviewer.md` and apply its review checklist. Use this evaluator's SIGNAL vocabulary: a blocking quality finding is VIOLATION, and MATCH requires both quality and acceptance to pass. Outside that path, code quality is the reviewer's responsibility.
 
 The delegation message gives, on its first line, **the harness root absolute path · the worktree absolute path · the task ID**. When the task consists of several commits, evaluate the cumulative result (HEAD).
 
@@ -43,7 +43,7 @@ The delegation message gives, on its first line, **the harness root absolute pat
    | Class | What it is | Handling |
    |---|---|---|
    | **Incidental** | a behavior-neutral change in the same file (typo, format, comment cleanup) | Accept. Write in the report that one line goes into `close_reason` |
-   | **Excess** | a new feature, file, option, or dependency — behavior grows | `SCOPE_EXCESS`. Whether to revert and split it into a separate bead or accept it as is is **a human's decision** |
+   | **Excess** | new independently useful behavior beyond the requested result | `SCOPE_EXCESS`. Whether to revert and split it into a separate bead or accept it as is is **a human's decision** |
    | **Intrusion** | an item in `deferred` status, or the story body's **"Out of Scope"**, was implemented | `SCOPE_EXCESS`. It reverses a user decision, so it is not auto-accepted |
    | **Omission** | an acceptance item is unmet | `VIOLATION` (the verdict section below) |
 
@@ -51,7 +51,7 @@ The delegation message gives, on its first line, **the harness root absolute pat
 
    **This is not a quality evaluation.** Excess or not is decided by **whether it was asked for**, not by whether the code is good. Well-made excess passes quality review all the more, so the reviewer does not catch it, and that is why this sits here.
 
-   **Attribution is natural-language reasoning, so it produces false positives.** Calling an ambiguous hunk excess blocks normal work — when it is unclear which item a hunk belongs to, hand it to a human with `DECISION_NEEDED`.
+   **Attribute necessary supporting changes to the acceptance they enable.** A helper file, test, internal refactor or dependency adjustment is not excess solely because the plan did not name that implementation detail. Explain the causal link and assess its risk. Ask with `DECISION_NEEDED` when the ambiguity concerns the requested behavior or a material tradeoff, rather than the wording of the implementation. Explicit Out of Scope and deferred decisions remain binding.
 
 ## Verdict
 
@@ -71,4 +71,4 @@ The first line of the response is exactly:
 - `<VALUE>` is one of `MATCH` · `VIOLATION` · `SCOPE_EXCESS` · `DEVIATION` · `DECISION_NEEDED`
 - Nothing before the first line. From the second line: per item, quote → evidence → MET/NOT_MET
 - When unattributed hunks exist, append their list: `file:line` · class (incidental/excess/intrusion) · for an intrusion the `deferred` item or Out of Scope sentence it rests on
-- **The final response does not exceed 30 lines.** It stays in the orchestrator's context and **is re-sent on every remaining turn** (evidence: `harness-2a5.2.1`). **What to cut is execution output, not verdicts** — do not paste output; write the command and rc only. The item quotes (step 3) and the unattributed-hunk list take precedence over the ceiling; when it overflows, do not cut silently — say so on the last line.
+- **Keep the final response concise; 30 lines is a guideline.** Preserve every verdict, blocking finding, required acceptance quote and evidence pointer even when the response is longer. Summarize execution output with command and rc, and link detailed logs instead of repeating them.

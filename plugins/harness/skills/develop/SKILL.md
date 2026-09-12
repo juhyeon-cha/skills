@@ -38,8 +38,8 @@ Before delegation, require a successful entry, `linked: true`, the expected bran
 
 Start from the first task whose dependencies are clear and go **milestone by milestone**. The batch condition fixes the unit of verification:
 
-- **Batch mode is the default flow.** The condition is that **the milestone is single-repo** (every child task carries the same `repo:` label) and that **the task count is around 4**. Delegate every task of the milestone **to one implementer as a list**, implemented in dependency order (the implementer commits and leaves a `VERIFY_PENDING` note per task, then moves to the next — the discipline is `${CLAUDE_PLUGIN_ROOT}/agents/implementer.md` "When the task ID is a list"), and at the end of the milestone run **verify-code once → verify-implement once → close the tasks together**. A task that is implemented but not yet closed stays `in_progress`, marked with a `VERIFY_PENDING` note.
-- **Outside the condition the per-task flow holds** — when the milestone crosses repos or the task count exceeds that width, delegate implementation → verify-code → verify-implement → close **per task**.
+- **Batch mode is the default flow.** The condition is that **the milestone is single-repo** (every child task carries the same `repo:` label) and that **the changes form one coherent review scope** (shared acceptance context, clear dependency order, and a diff an independent grader can assess together). Delegate every task of the milestone **to one implementer as a list**, implemented in dependency order (the implementer commits and leaves a `VERIFY_PENDING` note per task, then moves to the next — the discipline is `${CLAUDE_PLUGIN_ROOT}/agents/implementer.md` "When the task ID is a list"), and at the end of the milestone run **verify-code once → verify-implement once → close the tasks together**. A task that is implemented but not yet closed stays `in_progress`, marked with a `VERIFY_PENDING` note.
+- **Outside the condition the per-task flow holds** — when the milestone crosses repos or its changes need independent review contexts, delegate implementation → verify-code → verify-implement → close **per task**.
 - **This condition is written here.** Other documents (`verify-code`·`verify-implement`·`plan-story`·`implementer`·`${CLAUDE_PLUGIN_ROOT}/docs/operations.md`) point at this section and do not restate the condition.
 
 The steps below apply, **in batch mode, 0 once to the whole list and 1 once to the milestone**, with 2~5 applied whenever a signal arrives. Outside the condition, run 0~5 per task.
@@ -62,12 +62,12 @@ The steps below apply, **in batch mode, 0 once to the whole list and 1 once to t
 2. `IMPLEMENTATION_COMPLETE` → secure the `VERIFY_PENDING` mark first. The mark is `ledger state <task ID> "VERIFY_PENDING: <커밋 해시>"`, and the stop guard (`${CLAUDE_PLUGIN_ROOT}/hooks/stop-resume.sh`) and `rules-check` S22 use it to separate "finished, awaiting verification" from "left half-done" (the execution phase is authoritative; for existing issues without execution state, the last legacy marker is read. Summary updates leave the phase standing, and re-delegation replaces it). It is a one-line fixed string with no backtick and no `$`, so it falls under the inline allowance of "원장에 본문을 넘기는 형태" (this skill). What follows splits by the unit of verification:
    - **Batch mode**: the implementer should have left the mark per task — check the execution phase of every task in the list with `ledger show`, and fill a missing one in from the commit hash in the report. Once every task of the milestone is one of `VERIFY_PENDING`·`blocked`·`deferred`, run **the verify-code procedure** once over every task awaiting verification as a single list.
    - **Outside the condition**: the orchestrator leaves the mark and goes to **the verify-code procedure** for that one task.
-3. `LGTM` → judge acceptance with **the verify-implement procedure** and close the tasks — in batch mode carry the same list and close the tasks that came back `MATCH` together.
+3. Verification results: combined verification handles evaluator `MATCH` and closing inside verify-implement; continue to step 5 without delegating again. In the separate path, `LGTM` → judge acceptance with **the verify-implement procedure** and close the tasks — in batch mode carry the same list and close the tasks that came back `MATCH` together.
 4. **Handling of the remaining defined signals** — every signal needs an action, or each session improvises its own:
    - `IMPLEMENTATION_BLOCKED` → leave the reported root cause and attempt history as a `ledger note`, then `ledger update <task ID> --status blocked`. Move on to the next ready task (this does not stop the whole story). **`blocked` is not a human wait** — it is a state you walk past, not one you stop and wait in. **In batch mode**, only the report's "the stuck task's ID" goes `blocked`, "the list of tasks completed (committed) so far" gets its `VERIFY_PENDING` checked per step 2, and the remaining tasks (minus those depending on the blocked one) go through step 1 again as a new list.
    - `DECISION_NEEDED` (from any role) → leave the question as a `ledger note` and go to **human wait** — when a loop is running, break it per the discipline of the long-running section.
    - A value not in the list → safe exit: record the situation and report to the human.
-5. The orchestrator upserts each role's core result with `ledger summary <unit ID> <section> --file <file>` (`implementation`, `review`, `acceptance`). In batch mode use the milestone and identify the tasks in the summary; outside it use the task. A summary does not change execution state.
+5. The orchestrator reuses the implementation result already saved by the worker and upserts only missing or changed results. It records review and acceptance results with `ledger summary <unit ID> <section> --file <file>` (`implementation`, `review`, `acceptance`). In batch mode use the milestone and identify the tasks in the summary; outside it use the task. A summary does not change execution state.
 
 ## 4. 스토리 마무리
 
@@ -121,12 +121,12 @@ This skill owns the sections below; the other skills, the role definitions, and 
 
 - **Acceptance must be machine-judgeable.** ① what exists ② what output follows what input ③ which test passes — one of the three forms. "Works well" is forbidden.
 - A task without acceptance is not started even when it shows in `ledger ready`. Fill the acceptance first.
-- Completion flow: implementer (implementation) → reviewer (quality) → evaluator (acceptance comparison) → `ledger close`. **The unit of verify is the milestone by default** — when the batch condition holds, implement every task of the milestone, then run reviewer and evaluator once each and close together. The condition, and what happens outside it (per-task verify), is section 3 of this skill (`harness-2a5.4`). Whoever built it does not grade it.
+- Completion flow: implementer → the verification path selected by `verify-code` → evaluator MATCH → `ledger close`. Separate verification uses a reviewer before the evaluator; combined verification uses one independent evaluator for both grounds. **The unit of verify is the milestone by default** — when the batch condition holds, implement every task of the milestone, then run the selected verification path once over that batch and close the MATCH tasks together. The condition, and what happens outside it (per-task verify), is section 3 of this skill (`harness-2a5.4`). Whoever built it does not grade it.
 - **No task is closed without the evaluator's MATCH record.** Leave the grounds (commit, gate exit code) in `ledger close --reason`.
-- **Apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` before every delegation and result judgment.** It owns explicit execution-contract selection, identity and result validation, including prompt-only generic execution and rejection of unavailable enforcement. Never fall back automatically from native execution. Record a missing capability and enter human wait with the task open.
+- **Apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` before every delegation and result judgment.** It owns execution-path selection, identity and result validation, including prompt-only generic execution and explicit enforcement requirements. Record unavailable capabilities and follow that contract's selection or human-wait branch with the task open.
 - **There are three projection trees and all three are outside git.** An epic goes to `docs/sprints/<ID>/` when it has a `sprint:` label, and to `docs/backlog/<slug>/` when it has none and is not `closed` — the label splits the output path only, never whether it is rendered. `decision` beads go **in full** to `docs/adr/<slug>.md` (no narrowing by status — a superseded decision stays, with its lineage). The one thing that redraws them is `board all`, and **no git hook calls it** — this step or a person does. **On a backend with its own UI it draws nothing at all** (rc 0 and one line saying so), because the ledger's own screen is already what people read. When a backlog story closes, its directory disappearing is the correct result.
 - **`docs/sprints/`·`docs/backlog/`·`docs/adr/` are never edited by hand.** The next render overwrites them — what gets fixed is the ledger.
-- **A gate's verdict is its exit code.** A role verdict requires native REACHED, or OBSERVED only for explicitly selected generic prompt-only execution, before its first-line SIGNAL is handled. Keep the validated response bound to its call and child instance; a follow-up or earlier attempt cannot supply a missing result.
+- **A gate's verdict is its exit code.** A role verdict requires native REACHED or generic OBSERVED under the execution-path selection in `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`, before its first-line SIGNAL is handled. Keep the validated response bound to its call and child instance; a follow-up or earlier attempt cannot supply a missing result.
 - **A count in a commit message or a code comment is measured when it is written, not carried over.** The discipline is single-owned by `harness:plan-story` section 5; this line only binds it to the commit path, which never loads that skill. Two shapes recur — a number measured before the change and quoted after it, and a total standing beside sub-counts that do not sum to it. **Add the sub-counts up before committing**: a line whose own arithmetic fails is a defect every reader sees and no gate does.
 - **Correction preservation**: when reversing a judgment in the ledger, do not delete the earlier decision. Quote the original with `ledger note <id>` and leave what was wrong and why.
 - When a story is stuck, record the story alone and move on to the next. Do not halt the whole sprint.
@@ -200,7 +200,7 @@ Applies when diagnosing a cause and proposing an action. Not to plain observatio
 
 - **Before verification, write "hypothesis".** Not "the cause is X" but "hypothesis: X — verifiable by <this>".
 - **Confirm equivalence before using a control.** Confirm that the conditions (settings · cache · path · version) are the same, or state that they were not confirmed.
-- **Two diagnostic attempts at most.** Beyond that, summarize the confirmed facts and the remaining uncertainty and hand them to a human. Counted separately from the retry counter (the rework ceiling).
+- **Continue diagnosis while each attempt produces new evidence or eliminates a distinct cause.** Record the hypothesis and result. Stop when the same failure repeats without new evidence, the next step needs a user decision, or an explicit user budget is reached. Repeating the same command is not a new diagnostic attempt.
 
 ## 사람 대기 — 어떤 신호가 사람에게 가는가
 
@@ -211,9 +211,9 @@ Applies when diagnosing a cause and proposing an action. Not to plain observatio
 | `DECISION_NEEDED` | any role | the answer to the question asked |
 | `DEVIATION` | evaluator | what to fix when the plan diverges from reality |
 | `SCOPE_EXCESS` | evaluator | whether to split the excess off or accept it |
-| retry counter **limit exceeded** | verify-code · verify-implement | whether to keep going on the same finding |
+| retry progress exhausted or explicit user budget reached | verify-code · verify-implement | the unresolved decision or whether to extend the user budget |
 | a SIGNAL value **not in the list** | any role | disposition after the safe exit |
-| **UNREACHED** (native), **REJECTED** or **UNAVAILABLE** (generic), including missing SIGNAL, identity or interrupted delegation | role contract | how to restore the selected execution contract before retrying; keep pending calls open |
+| **UNREACHED** (native), **REJECTED** or **UNAVAILABLE** (generic), including missing SIGNAL, identity or interrupted delegation | role contract | how to restore an unavailable required contract; native unavailability first follows execution-path selection in `docs/roles.md` |
 | every ready task under another **actor claim** | develop pickup | whether to reclaim the orphan claims |
 | **cycle close incomplete** | the failure table of "사이클 종결" | whether to retry or finish by hand |
 
@@ -234,13 +234,13 @@ These entrypoints are relative to that repo's worktree:
 | root `CLAUDE.md` | rules that apply to the whole repo |
 | `CLAUDE.md` inside the `.claude` directory | the same — which of the two a repo uses varies |
 | **every** `.md` under the `.claude/rules` directory (recursively, subdirectories included) | rules by topic — code style · PR procedure · domain conventions |
-| **every** `SKILL.md` under the `.claude/skills` directory | that repo's procedures. A convention that applies to design or implementation may be written here rather than in a rule |
-| **every** `SKILL.md` under the `.agents/skills` directory | repository procedures discovered through Codex; read a shared canonical source only once |
+| applicable `SKILL.md` under `.claude/skills` | use the skill catalog or frontmatter to select procedures matching this task or an explicit instruction; read those bodies |
+| applicable `SKILL.md` under `.agents/skills` | select by task or explicit instruction; read a shared canonical body once |
 
 - **Do not name file names** — they differ per repo. Fix the places only; learn the names by reading.
 - **Follow explicit policy references from these entrypoints**, preserving their scope; stop cycles by canonical path. A directory named `.agents` or a `skills.json` file by itself is not proof that either runtime loaded its contents.
 - **Keep shared bodies in their repository-owned location.** References may reach the same policy or skill from both runtimes; inspect the canonical source once and do not register it twice. A missing entrypoint is reported, not repaired by silently copying policy.
-- **Do not substitute recall.** Even when the same repo was read in an earlier session, read it again.
+- **Use current rules.** Reuse a source already read in this session while it is unchanged; read it again after a relevant edit or when resuming without its contents.
 - **When none of the places exists, there is no convention.** Silence is not a prohibition.
 - **Read per repo.** When a story involves several repos, each one.
 - **No gate — persuasion only.** Neither whether it was read nor whether it was followed can be seen by a machine.
@@ -249,7 +249,7 @@ These entrypoints are relative to that repo's worktree:
 
 ## 사이클 종결 — PR 이 종점이다
 
-**The end point of a cycle is PR creation.** Up to there, proceed on your own **when no decision is left unresolved in that cycle** — when one is, and there is no user instruction or approval, do stage 1 only and stop (exception two of the session context block "절대 금지"). The list of irreversible things is **single-owned by the first item of the session context block "절대 금지"** — all of it is subject to explicit instruction. Evidence: `harness-dmy`.
+**The end point of a development cycle that changes repository files is PR creation.** A standalone investigation, review or report ends at its requested artifact or findings; it does not create a development cycle solely to satisfy this section. Up to there, proceed on your own **when no decision is left unresolved in that cycle** — when one is, and there is no user instruction or approval, do stage 1 only and stop (exception two of the session context block "절대 금지"). The list of irreversible things is **single-owned by the first item of the session context block "절대 금지"** — all of it is subject to explicit instruction. Evidence: `harness-dmy`.
 
 **Three stages, and the order is the discipline.** No harness git hook is planted anywhere (story `harness-lzs3` decision; the harness root is not a git repo either), so neither commit nor push runs the ledger checks for you — **the orchestrator runs the ledger check and the ledger reflection as explicit stages.**
 

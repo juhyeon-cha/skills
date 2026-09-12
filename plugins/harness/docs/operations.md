@@ -6,12 +6,13 @@
 
 ```
 plan-sprint ─→ plan-story ─→ develop ─┬→ verify-code ─→ verify-implement ─→ ledger close
- (compose·label) (decompose·acceptance) │   (reviewer)      (evaluator·close)
+ (compose·label) (decompose·acceptance) │   (select path)   (evaluator·close)
                                       └── repeat per milestone (batch condition: develop section 3) ──┘
                                                    ↓ story complete
                                              retrospective
 ```
 
+- verify-code selects separate review (reviewer then evaluator) or eligible combined verification (one independent evaluator checks quality and acceptance), under its Verification path rules.
 - Each step's procedure is the skill of the same name in the `harness@skills` plugin (`harness:<name>`). Skills carry delegation and signal handling; role discipline is carried by the plugin's `agents/` definitions — a delegation message carries only "paths + IDs + task-specific context".
 - The completion-flow rules (whoever built it does not grade it, no close without MATCH, …) are owned by `harness:develop` "운영 규율"; the always-on subset is the plugin's session block.
 

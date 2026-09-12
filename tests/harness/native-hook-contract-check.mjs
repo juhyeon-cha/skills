@@ -31,6 +31,11 @@ const posix = value => value.replaceAll('\\', '/');
 const shellPath = value => `'${posix(value).replaceAll("'", "'\\''")}'`;
 const scoped = session => resolveState({runtime: 'claude', cwd: main, sessionId: session}, env);
 const stop = (session, rows, extra = {}, options = {}) => evaluateStop({cwd: main, session_id: session, ...extra}, {env, ledger: async () => ({code: 0, stdout: JSON.stringify(rows), stderr: ''}), ...options});
+const bindStopFixture = async (session, actor = '') => {
+  const scope = await scoped(session);
+  fs.mkdirSync(path.dirname(scope.actors), {recursive: true});
+  fs.writeFileSync(scope.actors, JSON.stringify({runtime: scope.runtime, repoKey: scope.repoKey, sessionId: session, claims: [{actor: actor || 'mine', evidence: 'ledger-show'}]}));
+};
 
 try {
   if (process.argv[2]) assert.equal(process.platform, process.argv[2], 'actual host must match requested host');
@@ -76,6 +81,10 @@ try {
       assert.equal((await judge(event(`node /plugin/ledger.mjs --root /fixture ${command}`, 'harness:implementer'))).code, 2, command);
   });
   await check('read-only searches keep protected paths and policy words as data', async () => {
+    const discard = `rg --files -g AGENTS.md -g CLAUDE.md ${shellPath(path.dirname(main))} 2>/dev/null | head -40; cat ${shellPath(path.join(main, 'CLAUDE.md'))}`;
+    assert.equal((await judge(event(discard))).code, 0, discard);
+    for (const suffix of [' >/dev/null-other', ' >>/dev/null', ` >${shellPath(path.join(main, 'output'))}`, ` >/dev/null; rm -rf ${shellPath(main)}`])
+      assert.equal((await judge(event(`rg x ${shellPath(main)}${suffix}`))).code, 2, suffix);
     for (const command of [`rg -n 'ledger.sh close' ${shellPath(main)}`, `grep -n 'git push' ${shellPath(main)}`, `cat ${shellPath(path.join(main, '한글 공백.txt'))}`]) assert.equal((await judge(event(command, 'harness:reviewer'))).code, 0, command);
     assert.equal((await judge(event(`rg --pre sh ${shellPath(main)}`))).code, 2);
     assert.equal((await judge(event(`cat ${shellPath(main)}; rm -rf ${shellPath(main)}`))).code, 2);
@@ -272,12 +281,14 @@ try {
     const scope = await scoped('cancelled'); cancelSession(scope);
     assert.equal(capture(await stop('cancelled', [{id: 't'}])).stdout, '');
     fs.writeFileSync(path.join(env.HARNESS_DATA_DIR, 'stop-resume-cancel'), 'legacy');
-    assert.equal(JSON.parse(capture(await stop('other', [{id: 't'}])).stdout).decision, 'block');
+    const unknown = capture(await stop('other', [{id: 't'}]));
+    assert.equal(unknown.stdout, ''); assert.deepEqual(unknown.outcomes, ['SCOPE_FAIL']); assert.match(unknown.stderr, /completion not established/);
     assert.equal(fs.readFileSync(path.join(env.HARNESS_DATA_DIR, 'stop-resume-cancel'), 'utf8'), 'legacy');
   });
   await check('Stop oracle failure never becomes idle and zero work is explicit', async () => {
     const failed = capture(await stop('oracle', [], {}, {ledger: async () => ({code: 1, stdout: ''})})); assert.deepEqual(failed.outcomes, ['ORACLE_FAIL']);
     const malformed = capture(await stop('malformed', [], {}, {ledger: async () => ({code: 0, stdout: '{}'})})); assert.deepEqual(malformed.outcomes, ['ORACLE_FAIL']);
+    await bindStopFixture('idle');
     const idle = capture(await stop('idle', [])); assert.ok(idle.outcomes.includes('IDLE')); assert.equal(idle.stdout, '');
   });
   await check('Stop verified actor narrows only matching runtime/repository/session', async () => {
@@ -285,12 +296,16 @@ try {
     fs.writeFileSync(scope.actors, JSON.stringify({runtime: scope.runtime, repoKey: scope.repoKey, sessionId: scope.sessionId, claims: [{actor: 'mine', evidence: 'ledger-show'}]}));
     const result = capture(await stop('actor', [{actor: 'other', notes: ''}])); assert.deepEqual(result.outcomes, ['IDLE']);
     fs.writeFileSync(scope.actors, JSON.stringify({runtime: 'codex', repoKey: scope.repoKey, sessionId: scope.sessionId, claims: [{actor: 'mine', evidence: 'ledger-show'}]}));
-    const foreign = capture(await stop('actor', [{actor: 'other', notes: ''}])); assert.ok(foreign.outcomes.includes('SCOPE_FAIL')); assert.equal(JSON.parse(foreign.stdout).decision, 'block');
+    const foreign = capture(await stop('actor', [{actor: 'other', notes: ''}])); assert.deepEqual(foreign.outcomes, ['SCOPE_FAIL']); assert.equal(foreign.stdout, '');
+    fs.writeFileSync(scope.actorRecovery, JSON.stringify({runtime: scope.runtime, repoKey: scope.repoKey, sessionId: scope.sessionId, claims: [{task: 't', actor: 'mine', evidence: 'ledger-show'}]}));
+    const recovered = capture(await stop('actor', [{id: 't', status: 'in_progress', actor: 'mine', notes: ''}]));
+    assert.deepEqual(recovered.outcomes, ['SCOPE_RECOVERED', 'BLOCK']);
   });
   await check('Stop last marker survives prose, mixed marks pass, unmarked work blocks and cap terminates', async () => {
-    const pending = capture(await stop('pending', [{notes: 'DELEGATED: m\nVERIFY_PENDING: abc\nreview evidence'}, {notes: 'VERIFY_PENDING: old\nDELEGATED: m\nprose'}])); assert.ok(pending.outcomes.includes('VERIFY_PENDING')); assert.equal(pending.stdout, '');
-    for (let i = 0; i < MAX_BLOCKS; i++) assert.equal(JSON.parse(capture(await stop('bounded', [{notes: ''}, {notes: 'VERIFY_PENDING: a'}])).stdout).decision, 'block');
-    const done = capture(await stop('bounded', [{notes: ''}])); assert.ok(done.outcomes.includes('GAVE_UP')); assert.equal(done.stdout, '');
+    for (const session of ['pending', 'bounded']) await bindStopFixture(session, 'mine');
+    const pending = capture(await stop('pending', [{actor: 'mine', notes: 'DELEGATED: m\nVERIFY_PENDING: abc\nreview evidence'}, {actor: 'mine', notes: 'VERIFY_PENDING: old\nDELEGATED: m\nprose'}])); assert.ok(pending.outcomes.includes('VERIFY_PENDING')); assert.equal(pending.stdout, '');
+    for (let i = 0; i < MAX_BLOCKS; i++) assert.equal(JSON.parse(capture(await stop('bounded', [{actor: 'mine', notes: ''}, {actor: 'mine', notes: 'VERIFY_PENDING: a'}])).stdout).decision, 'block');
+    const done = capture(await stop('bounded', [{actor: 'mine', notes: ''}])); assert.ok(done.outcomes.includes('GAVE_UP')); assert.equal(done.stdout, '');
     assert.deepEqual([...outcomes].sort(), [...STOP_OUTCOMES].sort());
   });
   await check('Stop both marker checks have live independent negative controls', async () => {
@@ -298,8 +313,9 @@ try {
       const copy = path.join(temp, marker); fs.cpSync(root, copy, {recursive: true}); const file = path.join(copy, 'lib/runtime/stop.mjs');
       const before = fs.readFileSync(file, 'utf8'); const after = before.split('\n').map(value => value.includes('// ' + marker) ? '  ' + line : value).join('\n'); assert.notEqual(after, before); fs.writeFileSync(file, after);
       const mutant = await import(pathToFileURL(file).href);
-      const result = await mutant.evaluateStop({cwd: main, session_id: marker}, {env, ledger: async () => ({code: 0, stdout: JSON.stringify([{notes}])})}); assert.equal(JSON.parse(result.stdout).decision, 'block');
-      assert.equal((await stop(marker + '-control', [{notes}])).stdout, '');
+      await bindStopFixture(marker); await bindStopFixture(marker + '-control');
+      const result = await mutant.evaluateStop({cwd: main, session_id: marker}, {env, ledger: async () => ({code: 0, stdout: JSON.stringify([{actor: 'mine', notes}])})}); assert.equal(JSON.parse(result.stdout).decision, 'block');
+      assert.equal((await stop(marker + '-control', [{actor: 'mine', notes}])).stdout, '');
     }
   });
   await check('guard log preserves count and Unicode legacy row outcomes', async () => {

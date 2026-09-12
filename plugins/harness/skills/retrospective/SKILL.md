@@ -60,7 +60,7 @@ Do not hide that split, and do not report a rate as if the whole of it were mach
 
 Over threshold, stand up **a proposal to narrow that rule** — not a note about it. The proposal goes out on the section 5 path (a per-file diff, applied after human approval), and it carries: the rule name · the rate with **its denominator and the round** · the `ok` rows read as false positives, quoted · what narrowing them costs on the other side (which true blocks the narrowing would also drop). A narrowing with no answer to that last one is not ready.
 
-The section 3 promotion bar still applies: one round's rate is one observation. Register it as a `-l harness` bead with the numbers in the body, and promote on the second.
+A reproducible false positive can be proposed for correction immediately; the sample floor governs rate claims, not whether a demonstrated defect may be fixed. Record recovery time, required human interventions and potential harm where observed. Keep unmeasured cost unknown. Section 3 separates defect correction from trend-based policy changes.
 
 ## 2. Three-way sort
 
@@ -79,22 +79,27 @@ Skipping the sort promotes personal taste into a rule and turns the harness into
 
 **Almost nothing is outside the plugin any more** — the rail and sprint registries are the adapter's answers, and each target repo's gate command and ledger coordinates are its own `.harness.json`. Neither is a place to land a rule, so the table above covers every proposal this procedure can make.
 
-## 3. Promotion bar — 2 observations
+## 3. Evidence for a proposed change
 
-Propose a change to a rule, a role definition, or a skill only once the same finding has been **observed twice or more**.
+A reproducible defect or a contradiction between current instructions is enough
+for a correction proposal. Include the triggering input, expected behavior,
+observed result, and a passing protection case when changing a guard.
 
-**A one-off gets registered as a harness backlog bead** — create one story with `-t epic -l harness` and no sprint assignment and write into the body the verbatim observation, the reproduction conditions, and **that it is waiting for a second observation**. **A note alone loses it**: section 1-1 reads the notes of the target story only, `ledger search` cannot search notes (title · ID, plus description via `--desc-contains`), and a closed story drops out of the default query — three layers deep, so **the next retrospective never finds the first observation.** Then the same finding gets judged "one observation" however often it appears, and promotion never arrives — or the count gets filled from outside the round (another session). That has happened (the account is in `harness-r4zw`).
+For a broader policy change inferred from operational trends, use repeated
+observations with their scope, denominator and uncertainty. An isolated anecdote
+is a hypothesis, not a measured rate. A user-requested policy change may proceed
+within the approved scope without waiting for another occurrence.
 
-Once registered, the `ledger list -l harness` in 1-1 picks it up at the next retrospective. On the second observation, promote on the strength of that bead, and upsert "반영됨 → <커밋>" in its `retrospective` summary afterwards.
-
-**The observation count covers this round alone.** The `--session` in 1-2 cuts the population down to this round, which makes hand-matching **the fallback** — reach for it only when the session UUID was unknown and the run used `--since` alone, then screen attribution by matching each violation's `agent_id` against what this round actually delegated, and read the unattributed ones **as a trend, outside the count.**
+Preserve the evidence in the original record and link the applying commit.
+Do not automatically create a separate epic solely to wait for a second sample.
+Remote ledger changes still follow the session's authorization rules.
 
 ## 4. Locating the miss — when a fix landed and the violation repeated
 
 | Symptom | Diagnosis | Action |
 |---|---|---|
 | Fixed, and the same violation repeats | It was written into a file that work never loads | Move the load location (rule ↔ skill ↔ role definition) |
-| Loaded, and it still repeats | This kind resists persuasion | Move it out of the rules and into a **gate or hook** |
+| Loaded, and it still repeats | Check whether the instruction is ambiguous, costly or contradicted | Simplify the workflow first; add enforcement only when its expected benefit exceeds false-positive and maintenance costs |
 
 ## 5. Proposal and application
 

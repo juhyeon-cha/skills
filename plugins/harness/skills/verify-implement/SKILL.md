@@ -7,9 +7,9 @@ description: Acceptance judgment and closing procedure for a task — evaluator 
 
 Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` and resolve the plugin and harness roots.
 
-The evaluator role definition (`${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`) holds the judgment discipline. This procedure holds delegation, signal handling, and closing only.
+The evaluator role definition (`${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`) holds the judgment discipline. `verify-code` "Verification path" owns combined-path eligibility; carry that selection into delegation. This procedure holds delegation, signal handling, and closing only.
 
-Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED, or OBSERVED only for explicitly selected generic prompt-only execution, before the branches below apply. That contract owns unavailable-enforcement rejection and the prohibition on automatic native fallback; the SIGNAL and retry rules below hold in both paths.
+Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED or generic OBSERVED under that contract before the branches below apply. That contract owns execution-path selection and explicit enforcement requirements; the SIGNAL and retry rules below hold in both paths.
 
 ## 1. Delegate
 
@@ -18,17 +18,18 @@ Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/do
 - **Except when that command and its rc are already in the target commit message** (`implementer.md` 7 leaves them). Acceptance items often match the repo gate command — running it again here makes it implementer 1× plus here 1×, restoring the double execution that `evaluator.md` 4 removed.
   - **Which gates that skip covers is decided by the two-class table in `harness:develop` "상태 주장의 근거"** — it stays unrestated here. The ones compared against the world outside the tree (`board-check`) **run at this spot, immediately before delegating.**
 
-Then delegate to evaluator. The message carries ① first line: harness root absolute path + worktree absolute path + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every verify-code-passed task awaiting judgment, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ **the items already judged by command and their exit codes** (per task) ④ the items with no command — these are what evaluator judges ⑤ claims from the previous stage's report that evaluator must re-verify. The discipline for receiving a list (one SIGNAL · evaluator writes MATCH/unmet per task in the body) is held by `${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`, so leave it out of the delegation message.
+Then delegate to evaluator. The message carries ① first line: harness root absolute path + worktree absolute path + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every task awaiting judgment after separate review or selected for combined verification, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ **the items already judged by command and their exit codes** (per task) ④ the items with no command — these are what evaluator judges ⑤ claims from the previous stage's report that evaluator must re-verify. The discipline for receiving a list (one SIGNAL · evaluator writes MATCH/unmet per task in the body) is held by `${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`, so leave it out of the delegation message.
 
+- For combined verification, explicitly carry `combined verification`, the reviewer checklist, and the fixed base and head commit hashes defining this task or batch diff. Preserve that base on corrective iterations and refresh the head to the corrected commit; do not include earlier milestone changes outside the selected scope.
 - **Always delegate to an independent evaluator.** That holds even when commands cover every item — hunk attribution and stale acceptance wording remain outside those commands. An unavailable selected execution contract follows `harness:develop` human wait and keeps the task open.
 - A non-zero command judgment is unmet on its own. Handle it as `VIOLATION` without delegating — evaluator would return the same answer.
 
 ## 2. Signal handling
 
 - `MATCH` → go to 3 below. **When the acceptance wording has gone stale, judge by its intent and leave that substitution in `close_reason`.** A sibling task closing first can change the premise, at which point holding to the wording means writing a false sentence. Recording what you judged against in place of the wording is what keeps "why did this close when what it asked for is missing" from recurring.
-- `VIOLATION` → **read and raise the counter before re-delegating** → delegate the fix to implementer → re-enter verify-code. Given a list, close the `MATCH` tasks through 3 below as the per-task judgments in the body say, and send only the unmet tasks back for a fix. When the implementer signal returned from the fix delegation is something other than `IMPLEMENTATION_COMPLETE` (`IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED` · outside the list), handle it through the branches in `develop` 3-4 instead of re-entering.
+- `VIOLATION` → **read and raise the counter before re-delegating** → delegate the fix to implementer → repeat the selected verification path (combined: this procedure; separate: verify-code). Given a list, close the `MATCH` tasks through 3 below as the per-task judgments in the body say, and send only the unmet tasks back for a fix. When the implementer signal returned from the fix delegation is something other than `IMPLEMENTATION_COMPLETE` (`IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED` · outside the list), handle it through the branches in `develop` 3-4 instead of re-entering.
   - Read the number on the last `RETRY: verify-implement` line from the notes of `ledger show <task ID>` (0 when absent).
-  - Once `n+1` puts the counter at **limit exceeded** (single-owned by the "재시도 카운터" section of the `verify-code` skill), switch to human wait in place of re-delegating.
+  - At the recorded checkpoint, apply the progress review and explicit-budget rule in `verify-code` "재시도 카운터" before extending or switching to human wait.
   - On re-delegation leave `ledger state <task ID> "RETRY: verify-implement <n+1>/<상한>"`.
   - **In batch mode put the milestone ID in the `<task ID>` slot of the two lines above** — re-judgment happens once per batch, so the counter is one per batch too. The unit is defined in the "재시도 카운터" section of the `verify-code` skill.
 - `SCOPE_EXCESS` → report to the user and wait. **It spends no re-judgment count** — the "재시도 카운터" section of the `verify-code` skill holds the reason.
@@ -41,6 +42,6 @@ Then delegate to evaluator. The message carries ① first line: harness root abs
 
 **`ledger close` runs on evaluator's MATCH record alone.** Given a list, do 1–2 per MATCH task and 3 once.
 
-1. Upsert the MATCH grounds with `ledger summary <task ID> acceptance --file <file>`. Prepare a completion file with the result, implementation/review/acceptance evidence, commit hash, gate exit code and limitations.
+1. For combined verification, also upsert the evaluator's quality grounds with `ledger summary <task ID> review --file <file>`, identifying the validated combined MATCH rather than a separate LGTM. Upsert the MATCH grounds with `ledger summary <task ID> acceptance --file <file>`. Prepare a completion file with the result, implementation/review/acceptance evidence, commit hash, gate exit code and limitations.
 2. `ledger close <task ID> --reason-file <completion file>` leaves the sole completion comment. Keep the grounds in the body and completion reason; no separate completion note.
 3. Redraw the local projection with `board all` — **after** `ledger close`. The projection lives outside git, so it stays out of the commit.

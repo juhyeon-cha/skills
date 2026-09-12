@@ -1,20 +1,32 @@
 # Runtime role contract
 
-Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `agents/*.md`; the skill still owns result handling and RETRY limits.
+Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `agents/*.md`; the skill still owns result handling and RETRY checkpoints and explicit user budgets.
 
 ## Select the execution contract
 
-The default is the native path below. An explicitly selected `codex` / `collaboration`
-cycle may use `permission: prompt-only` through the generic protocol in
-[Runtime observations](transcripts.md#generic-parent-observations). Record that
-selection in the task execution-<role> summary before delegation. Native failure never selects this
-path automatically. A request requiring enforced role permissions is unavailable
-on this provider: reject it before spawning a child and follow develop's human wait.
+Roles define responsibilities and permission boundaries; native role registration
+is an optional execution mechanism. On `codex` / `collaboration`, use ordinary
+children with canonical role instructions through the generic protocol in
+[Runtime observations](transcripts.md#generic-parent-observations). The orchestrator
+selects this path without a separate user decision; its default policy is
+`permission: prompt-only`. Use native roles when available and useful, or when
+the user explicitly requires native execution. Record the selected path in the
+task execution-<role> summary before delegation.
+
+When native execution is unavailable, the orchestrator may select the generic
+path automatically unless the user requires native execution or enforced role
+permissions. Preserve a failed native attempt as failed; finish or interrupt its
+child before starting a fresh generic call. Never relabel a failed native result
+as OBSERVED. An explicit enforcement requirement remains unavailable on this
+provider and follows develop's human wait.
 
 `delegation.mjs capability <capability.json>` and `doctor.mjs delegation
 <capability.json>` consume the same capability function as generic begin. The JSON
 contains `runtime`, `provider`, and `permission`; require exit 0 and AVAILABLE.
-This diagnoses contract availability, not execution, hook activation or role loading.
+Omitting permission selects prompt-only; explicit unsupported values are rejected.
+`automaticNativeFallback` reports policy eligibility, not an executed fallback or
+authorization to override a user's native requirement. This diagnoses availability,
+not execution, hook activation or role loading.
 Doctor's native `check` retains its separate static/loaded/live judgments.
 
 For hook execution, use the active SessionStart `data` and `sessionId` in the
@@ -49,17 +61,19 @@ identity and completion with `permission: prompt-only`, `enforcement: unavailabl
 and `nativeRoleEvidence: unavailable`; tool and token measurements are unknown.
 Supply the canonical role file by path as the child's instructions. Those prompts
 remain role discipline, but their prohibitions have no verified enforcement here.
-An OBSERVED evaluator MATCH can ground close only in this explicitly selected path.
+An OBSERVED evaluator MATCH can ground close in this generic path.
 It is not native REACHED, registered-role evidence or proof of semantic acceptance.
 
-Both paths preserve the calling skill's SIGNAL handling and persisted RETRY limits.
-Use independent reviewer and evaluator children, distinct from each other, the
-parent and all implementation authors. On a retry use a fresh child and include
+Both paths preserve the calling skill's SIGNAL handling and persisted RETRY checkpoints and explicit user budgets.
+Each grader is independent of the parent and all implementation authors. When
+separate reviewer and evaluator calls are required, their children are distinct.
+Combined verification uses one evaluator as defined by `verify-code` "Verification path". On a retry use a fresh child and include
 all earlier attempts in `previousAgentIds`; a follow-up cannot stand in for it.
 Upsert the call and validated outcome with `ledger summary <task ID> execution-<role> --file <file>`, keeping private runtime
 identities and response evidence in the parent-owned local inventory when needed.
 PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handling
-or close: preserve the task and use develop's human-wait procedure.
+or close. Preserve the task and failed evidence. For native unavailability, apply
+the execution-path selection above; otherwise use develop's human-wait procedure.
 
 ## Register (native)
 
@@ -67,9 +81,9 @@ Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe t
 
 Run `verify <registration.json>` before use. Missing files, changed sources, altered generated files and duplicate native names in that directory fail. Also check the runtime's discovered roles for duplicate identifiers from other scopes; the directory check cannot enumerate a runtime's effective configuration. Generated files are projections: after an update, review and remove the old generated files, then regenerate from the new install and replace the receipt. Keep the old install and receipt together for rollback. Never maintain generated role prose by hand.
 
-The directory verifier accepts a restricted TOML subset: flat string assignments, bare or quoted keys, single-line basic strings with JSON-compatible TOML escapes (including `\uXXXX`), single-line literal strings, blank lines and comments. Quoted or escaped `name` keys are decoded before duplicate detection. Every `.toml` file in that directory must be interpretable; tables, arrays, multiline strings, non-string values and other unsupported syntax produce UNREACHED. Use a compatible discovery directory or extend the parser with tests before sharing it with agents that need wider TOML syntax. Unsupported files are never skipped.
+Owned projections still require exact bytes and source hashes. For other TOML files, the directory verifier reads the top-level name for collisions; the runtime validates unrelated fields. It distinguishes comments, quoted and multiline strings, arrays and inline tables so their contents cannot supply a false name. Dotted paths and fields after the first table header are not top-level scalar names. Names use single-line basic/literal strings, with bare or quoted keys and TOML escapes including `\uXXXX` and `\UXXXXXXXX`. Duplicate names, unreadable name values and unfinished strings or containers produce UNREACHED. Unrelated numeric, boolean, array, multiline instruction and table values do not prevent registration.
 
-Registration proves files, not runtime loading or hook activation. Start a new runtime session after registration. Its native delegation capability must expose the requested identifier and deliver role identity in hooks. If it cannot, record UNREACHED and follow develop's human-wait procedure. Claude live verification is tracked separately in skills#268; a fixture is not a live claim.
+Registration proves files, not runtime loading or hook activation. Start a new runtime session after registration. Its native delegation capability must expose the requested identifier and deliver role identity in hooks. If it cannot, record UNREACHED and apply execution-path selection above. Claude live verification is tracked separately in skills#268; a fixture is not a live claim.
 
 ## Model selection
 
@@ -119,7 +133,7 @@ Use `workflow.mjs complete-native` with the actual native return recorded by the
 
 Supply one invocation per child instance: exactly one Start and one Stop, with all tool starts between them. Repeated Start/Stop or tool starts after Stop make the result UNREACHED, including an unfinished follow-up after an earlier successful verdict. Use a fresh child and call for another judgment instead of combining responses from a reused instance.
 
-Missing identity, missing/unregistered SIGNAL, interrupted execution, stale registration and self-judgment produce `UNREACHED`: the standalone `roles.mjs` inspector returns rc 1; the ordinary `workflow.mjs` consumer returns rc 2. Preserve the task and wait for a human under develop's procedure. Only an independently reached evaluator MATCH can ground ordinary close; the explicit human scope-excess decision in verify-implement remains its own branch. A passing test or parent-written SIGNAL cannot replace delegated judgment.
+Missing identity, missing/unregistered SIGNAL, interrupted execution, stale registration and self-judgment produce `UNREACHED`: the standalone `roles.mjs` inspector returns rc 1; the ordinary `workflow.mjs` consumer returns rc 2. Preserve the task and failed evidence; native unavailability follows execution-path selection above, while identity or result-integrity failures follow develop's human-wait procedure. Only an independently reached evaluator MATCH can ground ordinary close; the explicit human scope-excess decision in verify-implement remains its own branch. A passing test or parent-written SIGNAL cannot replace delegated judgment.
 
 The existing guard owns file/Git/ledger permissions through the common identity mapping. Role prompts and generated registration alone are not enforcement: disabled or unidentified hooks invalidate the runtime capability prerequisite. Transcript layouts are not used by this contract.
 

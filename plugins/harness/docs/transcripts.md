@@ -24,7 +24,7 @@ This is local evidence handling, not authentication of native tool returns. The 
 
 ## Generic parent observations
 
-For the explicitly selected prompt-only path in [roles.md](roles.md), use
+For the generic prompt-only path selected under [roles.md](roles.md), use
 `scripts/delegation.mjs`. It shares the capability decision with doctor; it does not
 call the model tool. Parent-supplied observations are a trust boundary, not an
 authenticated provider capture or protection against same-user file edits. Keep
@@ -34,7 +34,7 @@ the original tool returns locally so a grader can compare their provenance.
    `provider: "collaboration"`, canonical absolute worktree `repository`, normalized
    absolute parent-owned `data`, actual `sessionId` and `parentAgentId`, a new local
    `callId`, `role`, `task`, `sourceHash`, `commitScope`, `implementerIds`,
-   `previousAgentIds`, and explicit `permission: "prompt-only"`. Obtain sourceHash
+   `previousAgentIds`, and optional `permission: "prompt-only"` (the default). Obtain sourceHash
    from `loadRole(role, pluginRoot).sha256` in `lib/runtime/roles.mjs`. Use the actual
    parent session identity. For guarded execution, take `data` and `sessionId`
    from the active SessionStart context as [roles.md](roles.md) requires; an
