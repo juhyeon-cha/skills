@@ -44,8 +44,9 @@ the original tool returns locally so a grader can compare their provenance.
    dispatch. Use full commit SHAs. Populate author and earlier child IDs from records.
 2. Run `node <plugin>/scripts/delegation.mjs begin <begin.json>`; require rc 0 and
    PENDING. Pass the returned `dispatch.task_name` unchanged to the actual
-   `collaboration.spawn_agent` tool, with the role instructions and skill delegation
-   message. This generated name correlates the request; it is not a native invocation
+   `collaboration.spawn_agent` tool, together with the returned model/effort/fork
+   options, role instructions and skill delegation message. Model selection is
+   owned by [roles.md](roles.md#model-selection). This generated name correlates the request; it is not a native invocation
    ID. Save the actual tool return before waiting.
 3. Run `bind <bind.json>` with `{call, observation}`: `call` is begin's exact returned
    call and observation is `{source: "parent-tool-return", tool:

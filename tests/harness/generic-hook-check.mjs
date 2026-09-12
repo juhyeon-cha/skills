@@ -48,8 +48,37 @@ try {
     assert.equal((await guard({ agent_type: 'harness-reviewer' })).code, 0);
     console.log('PASS baseline: begin/bind PENDING; actual guard rejects generic Read before and after bind; native Read allowed');
   } else {
+    assert.equal(pending.dispatch.model, 'gpt-5.6-sol');
+    assert.equal(pending.dispatch.reasoning_effort, 'high');
+    assert.equal(pending.dispatch.fork_turns, 'none');
     assert.equal(beforeBind.code, 0, beforeBind.stderr);
     assert.equal(afterBind.code, 0, afterBind.stderr);
+    // Codex 0.154.0 actual hook shape: UUID + default profile. The tool path
+    // comes from App Server metadata, not from time ordering or child prose.
+    const nativeEvent = { ...event, agent_id: '01a093ff-1e5b-7302-9ed5-8ba5379852bb', agent_type: 'default' };
+    const metadata = { thread: { id: nativeEvent.agent_id, source: { subAgent: { thread_spawn: {
+      parent_thread_id: call.sessionId, depth: 1, agent_path: child, agent_role: null,
+    } } } } };
+    const nativeGuard = (changes = {}, reply = metadata) => evaluateGuard({ ...nativeEvent, ...changes }, {
+      pluginRoot: plugin, env, readThread: async () => reply,
+    });
+    assert.equal((await nativeGuard()).code, 0, 'UUID/default resolves via authoritative path');
+    for (const edit of [
+      r => { r.thread.id = 'different'; },
+      r => { r.thread.source.subAgent.thread_spawn.parent_thread_id = 'foreign'; },
+      r => { r.thread.source.subAgent.thread_spawn.agent_path = '/root/unregistered'; },
+      r => { delete r.thread.source.subAgent.thread_spawn.agent_path; },
+      r => { r.thread.source.subAgent.thread_spawn.agent_role = 'worker'; },
+      r => { r.thread.agentRole = 'harness-reviewer'; },
+      r => { r.thread.source = 'cli'; },
+    ]) {
+      const reply = structuredClone(metadata); edit(reply);
+      assert.equal((await nativeGuard({}, reply)).code, 2);
+    }
+    assert.equal((await nativeGuard({ agent_id: child })).code, 2, 'default requires runtime UUID');
+    assert.equal((await evaluateGuard(nativeEvent, { pluginRoot: plugin, env, readThread: async () => { throw Error('offline'); } })).code, 2);
+    assert.equal((await nativeGuard({ tool_name: 'Write', tool_input: { file_path: path.join(worktree, 'blocked.txt') } })).code, 2);
+    assert.equal((await nativeGuard({ tool_name: 'Bash', tool_input: { command: 'git commit -m blocked' } })).code, 2);
     const hook = spawnSync(process.execPath, [path.join(plugin, 'hooks/guard.mjs')], { env: { ...env, CLAUDE_PLUGIN_ROOT: plugin }, input: JSON.stringify(event), encoding: 'utf8' });
     assert.equal(hook.status, 0, hook.stderr);
     assert.equal((await guard({ cwd: worktree })).code, 0);
@@ -91,6 +120,7 @@ try {
     const outcome = await completeDelegation({ call, head, observation: { source: 'parent-tool-return', tool: 'collaboration.list_agents', value: { agents: [{ agent_name: child, agent_status: { completed: 'SIGNAL: UNREACHED' } }] } } }, { root: plugin, env });
     assert.equal(outcome.status, 'REJECTED');
     assert.equal((await guard()).code, 2);
+    assert.equal((await nativeGuard()).code, 2, 'UUID cannot revive a terminal call');
     const successfulCall = { ...call, callId: 'successful-review' };
     const successful = await beginDelegation(successfulCall, { root: plugin, env });
     const successfulChild = `/root/${successful.dispatch.task_name}`;

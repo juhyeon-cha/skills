@@ -18,11 +18,19 @@ This diagnoses contract availability, not execution, hook activation or role loa
 Doctor's native `check` retains its separate static/loaded/live judgments.
 
 For hook execution, use the active SessionStart `data` and `sessionId` in the
-call, and the assigned canonical worktree as `repository`. The hook must deliver
-that session ID and the canonical collaboration child path as `agent_id` with no
-native `agent_type`. The guard resolves the pending dispatch in that session's
-inventory, checks source/commit scope and any binding, and applies its assigned
-role's policy without filling in native identity. Persisted dispatch permits the
+call, and the assigned canonical worktree as `repository`. Codex can deliver a
+thread UUID as `agent_id` and the built-in `default` profile as `agent_type`.
+For that shape, the guard uses the local CLI's App Server `initialize` →
+`initialized` → metadata-only `thread/read` protocol. It requires the exact UUID,
+matching `source.subAgent.thread_spawn.parent_thread_id` and canonical
+`agent_path`, and no custom role claim. It does not parse rollout files, resume a
+thread, request a model turn, or correlate children by timing. Missing metadata,
+an unavailable CLI, timeout or schema mismatch denies the tool. The CLI must read
+the same local Codex state as the active session; remote-only state is unavailable.
+The legacy canonical-path hook shape without `agent_type` remains supported.
+The guard resolves the pending dispatch in that session's inventory, checks
+source/commit scope and any binding, and applies its assigned role's policy
+without filling in native identity. Persisted dispatch permits the
 first tool before bind returns; bind is still mandatory for result consumption.
 Unknown, mismatched, corrupt or terminal records deny execution. Hook cwd may be
 the main checkout or a linked tree of the same Git repository. Missing hook
@@ -55,13 +63,47 @@ or close: preserve the task and use develop's human-wait procedure.
 
 ## Register (native)
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It references their original files; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator inserts the role body and resolves its plugin-root pointers. Codex inherits its parent's model; Claude-only frontmatter is not passed as Codex configuration.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It references their original files; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator inserts the role body, resolves its plugin-root pointers and applies Model selection below. Claude-only frontmatter is not passed as Codex configuration.
 
 Run `verify <registration.json>` before use. Missing files, changed sources, altered generated files and duplicate native names in that directory fail. Also check the runtime's discovered roles for duplicate identifiers from other scopes; the directory check cannot enumerate a runtime's effective configuration. Generated files are projections: after an update, review and remove the old generated files, then regenerate from the new install and replace the receipt. Keep the old install and receipt together for rollback. Never maintain generated role prose by hand.
 
 The directory verifier accepts a restricted TOML subset: flat string assignments, bare or quoted keys, single-line basic strings with JSON-compatible TOML escapes (including `\uXXXX`), single-line literal strings, blank lines and comments. Quoted or escaped `name` keys are decoded before duplicate detection. Every `.toml` file in that directory must be interpretable; tables, arrays, multiline strings, non-string values and other unsupported syntax produce UNREACHED. Use a compatible discovery directory or extend the parser with tests before sharing it with agents that need wider TOML syntax. Unsupported files are never skipped.
 
 Registration proves files, not runtime loading or hook activation. Start a new runtime session after registration. Its native delegation capability must expose the requested identifier and deliver role identity in hooks. If it cannot, record UNREACHED and follow develop's human-wait procedure. Claude live verification is tracked separately in skills#268; a fixture is not a live claim.
+
+## Model selection
+
+`lib/runtime/role-models.mjs` owns Codex defaults: reviewer uses `gpt-5.6-sol`
+with `high`, evaluator uses `gpt-5.6-terra` with `medium`, and implementer inherits
+the parent's model and effort. Review traces complex logic; evaluation compares
+bounded acceptance and evidence. Terra balances that judgment with lower cost.
+This is a workload choice, not a measured token-saving ratio or a Sonnet equivalence.
+Claude keeps its own role frontmatter, including evaluator's `model: sonnet`.
+
+Native registration writes both `model` and `model_reasoning_effort` into the
+generated role TOML. Regenerate owned projections and their receipt on update.
+Generic `begin` returns the corresponding `model`, `reasoning_effort` and
+`fork_turns` in `dispatch`; pass these options unchanged to `spawn_agent`.
+Grader forks use `none` because full-history forks do not accept model overrides
+on this collaboration provider. Supply the role path and required snapshot in
+the message. Do not silently replace an unavailable model or erase a requested
+effort; report UNAVAILABLE. Explicit user model choices take precedence over
+these defaults; record the selected model/effort in the execution summary.
+
+Codex custom-agent files take precedence over spawn options, followed by explicit
+spawn values, `[agents]` defaults, then parent inheritance. Pair model and effort
+to avoid inheriting an unsupported effort. This Harness does not rewrite global
+`config.toml` defaults or copy Anthropic model names into Codex. A requested model
+is not observed model evidence: check App Server thread metadata or the hook's
+`model` field before claiming the actual choice. Missing usage remains unknown.
+
+Sources: [OpenAI subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
+[models](https://learn.chatgpt.com/docs/models),
+[hooks](https://learn.chatgpt.com/docs/hooks), and
+[App Server](https://learn.chatgpt.com/docs/app-server).
+Generate the protocol schema with the installed CLI as the App Server guide
+describes; optional `agent_path` may be absent in another client version, which
+leaves generic hook identity UNREACHED.
 
 ## Call (native)
 

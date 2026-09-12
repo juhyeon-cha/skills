@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { roleNames, roleIdentifier } from './role-contract.mjs';
 import { roleSignals, roleChain } from './role-contract.mjs';
+import { roleModel } from './role-models.mjs';
 
 const plugin = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -70,9 +71,13 @@ function projection(runtime, role, root) {
   // Codex custom-agent TOML has no plugin variable substitution contract.
   // Resolve only the install-root pointer; all policy text comes from the source.
   const instructions = definition.body.replaceAll('${CLAUDE_PLUGIN_ROOT}', root);
+  const model = roleModel(role);
+  const modelConfig = model.model
+    ? `model = ${JSON.stringify(model.model)}\nmodel_reasoning_effort = ${JSON.stringify(model.reasoning_effort)}\n`
+    : '';
   const text =
     runtime === 'codex'
-      ? `name = ${JSON.stringify(identifier)}\ndescription = ${JSON.stringify(definition.description)}\ndeveloper_instructions = ${JSON.stringify(instructions)}\n`
+      ? `name = ${JSON.stringify(identifier)}\ndescription = ${JSON.stringify(definition.description)}\n${modelConfig}developer_instructions = ${JSON.stringify(instructions)}\n`
       : fs.readFileSync(definition.source, 'utf8');
   return { ...definition, identifier, text };
 }

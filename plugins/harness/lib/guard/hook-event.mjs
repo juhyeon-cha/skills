@@ -28,11 +28,11 @@ export function normalizeHookEvent(
     throw new Error('absolute cwd required');
   for (const key of ['agent_id', 'agent_type'])
     if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
-  if (delegatedRole && (!raw.agent_id || raw.agent_type || !canonicalRole(delegatedRole)))
+  if (delegatedRole && (!raw.agent_id || (raw.agent_type && raw.agent_type !== 'default') || !canonicalRole(delegatedRole)))
     throw new Error('invalid delegated policy role');
   if (raw.agent_id && !canonicalRole(raw.agent_type) && !delegatedRole)
     throw new Error('child role is unidentified');
-  if (raw.agent_type && !canonicalRole(raw.agent_type)) throw new Error('unknown role');
+  if (raw.agent_type && !canonicalRole(raw.agent_type) && !delegatedRole) throw new Error('unknown role');
   const event = {
     ...raw,
     agent_type: canonicalRole(raw.agent_type) ?? '',
