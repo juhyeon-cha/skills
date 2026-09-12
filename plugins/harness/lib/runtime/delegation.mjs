@@ -308,7 +308,8 @@ export async function delegationHookRole(raw, { root, env = process.env } = {}) 
       independent(call, raw.agent_id);
       terminal(own, call);
       if (
-        git(call, 'rev-parse', '--show-toplevel') !== call.repository ||
+        fs.realpathSync(git(call, 'rev-parse', '--show-toplevel')) !==
+          fs.realpathSync(call.repository) ||
         fs.realpathSync(git(call, 'rev-parse', '--path-format=absolute', '--git-common-dir')) !==
           fs.realpathSync(scope.common)
       )
