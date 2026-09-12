@@ -67,7 +67,7 @@ function nativeStatements(text) {
   return statements;
 }
 
-function nativeAgentName(text) {
+export function nativeAgentName(text) {
   const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}))*"';
   const literal = "'[^'\\x00-\\x1f]*'";
   const string = `(?:${basic}|${literal})`;
@@ -130,12 +130,12 @@ export function loadRole(role, root = plugin) {
   };
 }
 
-function projection(runtime, role, root) {
+export function projectRole(runtime, role, root, installedRoot = root) {
   const definition = loadRole(role, root);
   const identifier = roleIdentifier(runtime, role);
   // Codex custom-agent TOML has no plugin variable substitution contract.
   // Resolve only the install-root pointer; all policy text comes from the source.
-  const instructions = definition.body.replaceAll('${CLAUDE_PLUGIN_ROOT}', root);
+  const instructions = definition.body.replaceAll('${CLAUDE_PLUGIN_ROOT}', installedRoot);
   const model = roleSpawnOptions(role);
   const modelConfig = model.model
     ? `model = ${JSON.stringify(model.model)}\nmodel_reasoning_effort = ${JSON.stringify(model.reasoning_effort)}\n`
@@ -157,7 +157,7 @@ export function registerRoles(runtime, destination, root = plugin) {
       throw new Error('absolute agents destination required');
     fs.mkdirSync(destination, { recursive: true });
     for (const role of roleNames) {
-      const entry = projection(runtime, role, root);
+      const entry = projectRole(runtime, role, root);
       const file = path.join(destination, `${entry.identifier}.toml`);
       // Installation updates must be deliberate: never overwrite foreign/drifted files.
       if (fs.existsSync(file) && fs.readFileSync(file, 'utf8') !== entry.text)
@@ -165,7 +165,7 @@ export function registerRoles(runtime, destination, root = plugin) {
     }
   }
   const roles = roleNames.map((role) => {
-    const entry = projection(runtime, role, root);
+    const entry = projectRole(runtime, role, root);
     const file =
       runtime === 'claude' ? entry.source : path.join(destination, `${entry.identifier}.toml`);
     if (runtime === 'codex' && !fs.existsSync(file))
@@ -192,7 +192,7 @@ export function verifyRegistration(registration) {
     throw new Error('registration missing');
   const seen = new Set();
   for (const entry of registration.roles) {
-    const expected = projection(registration.runtime, entry.role, registration.root);
+    const expected = projectRole(registration.runtime, entry.role, registration.root);
     if (seen.has(entry.role)) throw new Error('duplicate role registration');
     seen.add(entry.role);
     if (

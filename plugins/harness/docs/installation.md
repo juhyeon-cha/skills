@@ -34,6 +34,50 @@ Review the plugin's exact hook definitions in Codex `/hooks` and trust them befo
 
 ## Doctor: static, loaded and live
 
+### Owned staging and parity projections
+
+For an explicit local bundle destination, `scripts/parity-install.mjs stage
+<options.json>` generates and reconciles provider files from the same inspected
+source. Options are `source`, `destination`, and `surface` (`claude-cli`,
+`codex-cli`, `codex-desktop`, `antigravity-cli`); Codex also requires an explicit,
+disjoint `agentsDestination` for its native agent directory. Use physical absolute
+paths, not symlink aliases. The source and destinations must not overlap. Run this
+from an immutable candidate artifact; it does not edit the loaded plugin cache.
+
+The sibling `.harness-receipt.json` records owned paths and content hashes.
+Existing unowned collisions and changed or missing owned files abort before any
+update. Unrelated files, runtime settings and managed policies are preserved.
+The same operation against the earlier source performs rollback, including
+matching native Codex roles. A cooperating-writer lock prevents simultaneous
+staging; an in-process write failure restores prior bytes. Process interruption
+is not a crash-atomic multi-directory transaction: a later run detects partial
+state as drift and requires reconciliation rather than overwriting it.
+
+STAGED establishes filesystem preparation only. Import the explicit bundle using
+the provider's documented local-plugin workflow; this command does not edit its
+registry, enable a plugin or approve hooks. `parity-install.mjs diagnose
+<options.json>` checks ownership, current source and discoverable duplicates. For
+Claude/Codex, optional `doctorDirectory` and `sessionId` connect to the existing
+nonce-bound doctor below. Missing or untrusted hook execution remains UNREACHED
+and diagnosis exits nonzero. Other discovery scopes and effective managed
+configuration still require the runtime inventory and live checks.
+
+Antigravity's [CLI plugin contract](https://antigravity.google/docs/cli/plugins)
+uses root `plugin.json`, `hooks.json`, and flat Markdown skills. Its projection
+keeps canonical runtime files under `.harness`, resolving role/skill root pointers
+and hook commands to that tree. The local CLI validator has processed nine
+skills, three agents and one hook group; that is format evidence, not loading.
+The [hook contract](https://antigravity.google/docs/hooks) maps context to
+PreInvocation, guard to PreToolUse and continuation to Stop. No native subagent
+events are invented. The Antigravity execution adapter is pending; the current
+handler rejects its runtime argument, and diagnosis never marks it loaded.
+
+For Codex, [plugin development](https://developers.openai.com/plugins/build/plugins)
+requires restarting the desktop and testing a new chat after local updates.
+Project enablement also requires project trust. Preparing new bytes cannot
+certify the currently open desktop or substitute CLI observations for desktop
+evidence.
+
 Run the doctor from the **expected source artifact**, passing the installed root: `node <expected source>/scripts/doctor.mjs check <installed root>`. Static PASS requires matching full content hashes and generated metadata, not equal version strings. Without current-session evidence, loaded/live are UNREACHED and the command exits nonzero. An open session using an earlier install remains unverified even when its version number equals the source version.
 
 For an explicit diagnostic session, create a new private directory with `doctor.mjs challenge <new absolute state directory> <claude|codex> <installed root> <role registration.json>`. Launch the runtime with `HARNESS_DOCTOR_DIR` pointing there. The actual shipped wrapper runs each original hook and signs a nonce-bound receipt containing its result, executing root/version/content hash, session and role identity. SessionStart records the hash of the actual emitted context. After the diagnostic session completes, use `doctor.mjs check <installed root> <state directory> <actual session ID>` from the expected source artifact.

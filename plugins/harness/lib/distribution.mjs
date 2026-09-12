@@ -33,7 +33,7 @@ export function hookTransport(id, runtime) {
 
 // Deliberately limited YAML: flat mappings and a single scalar skill name.
 // Reject unsupported structure instead of guessing a registration identity.
-function skillName(body) {
+export function skillName(body) {
   const frontmatter = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(body)?.[1];
   if (frontmatter === undefined) throw new Error('skill frontmatter missing');
   const fields = new Map();
