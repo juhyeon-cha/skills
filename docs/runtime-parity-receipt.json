@@ -1,0 +1,106 @@
+{
+  "verification": {
+    "officialDocsCheckedAtKst": "2026-09-13",
+    "probesRunAtKst": "2026-09-13",
+    "probesRunAtUtc": "2026-09-12",
+    "sourceBaseline": "c78a38b52a022bd98f07be7455dd32db424de340",
+    "localBundleName": "harness-runtime-parity-m0-skills300",
+    "scope": "M0 prerequisite observations; not final C1-C10 certification"
+  },
+  "claude-auth": {
+    "exit": {
+      "code": 0,
+      "signal": null,
+      "finishedAt": "2026-09-12T16:18:34.334Z"
+    },
+    "files": {
+      "invocation.json": "c158b847688d89f4d2531aa7fc24f258f76f2d2e40524c9dd08f7a4e49ed8099",
+      "stdout.log": "be14fd1c08f98c2adeca50959c18e72ff21c911023c4bb8e082d970f1e20b3e0",
+      "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "claude-fixture": {
+    "exit": {
+      "code": 0,
+      "signal": null,
+      "finishedAt": "2026-09-12T16:21:20.462Z"
+    },
+    "files": {
+      "invocation.json": "5c0eed00b1c6d6c18f3958a1641e79d9204a3b16d8257c9774997cbe76478b58",
+      "stdout.log": "df150e17c9b1cae819266c42b75e1ca2e5cb2059064102363bca8c044be48d0b",
+      "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "agy-fixture": {
+    "exit": {
+      "code": 0,
+      "signal": null,
+      "finishedAt": "2026-09-12T16:21:18.230Z"
+    },
+    "files": {
+      "invocation.json": "28d7032f075ba1d011e1a24c8026d568aa0e82ef629c8624fed1e50f484ebec5",
+      "stdout.log": "82a8bf6c17fff8406f84ad89f96c9adaff19fb3a945393cbd7fdc123bba557f9",
+      "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "agy-role": {
+    "exit": {
+      "code": 0,
+      "signal": null,
+      "finishedAt": "2026-09-12T16:23:09.974Z"
+    },
+    "files": {
+      "invocation.json": "4287344478fb1008070411944792733b04e981f694776b470711550702c0bc3d",
+      "stdout.log": "d4d6110efd13db2075fd9e056e7d3c908bf02ccdf9c26228fd5e57cabaae8f53",
+      "stderr.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "codex-fixture": {
+    "exit": {
+      "code": 0,
+      "signal": null,
+      "finishedAt": "2026-09-12T16:24:11.351Z"
+    },
+    "files": {
+      "invocation.json": "c7469d9c469bff7b89e246b2c9a5f192872c3863694bbe870362eafb0b0119f2",
+      "stdout.log": "e527b969c21b267a9e18448e8a0da801ac23d5713cbcc87ea9584a81dbca1d62",
+      "stderr.log": "dae7552b552c5017abeac5e69f752d5654a359dfc5337ad62ae60f6078199388"
+    }
+  },
+  "codex-persistent": {
+    "exit": {
+      "code": 0,
+      "signal": null,
+      "finishedAt": "2026-09-12T16:26:28.926Z"
+    },
+    "files": {
+      "invocation.json": "cad22417c4addb0ca96b225857b8758f2c3961182c8ce217719229ef2eb8a0df",
+      "stdout.log": "bf8176522107e5a9423e8abcf92a17c04103fafb5e82f6c7ef233740faa2ef0a",
+      "stderr.log": "30606a50bdc50f642664c7217ce72aed3c9e7c15773ddae8478058c6fc47ab7d"
+    }
+  },
+  "codex-trusted": {
+    "exit": {
+      "code": 0,
+      "signal": null,
+      "finishedAt": "2026-09-12T16:28:43.325Z"
+    },
+    "files": {
+      "invocation.json": "29f592770047ebdf09c71653eae03fb74f60c548c97fe73f5f13b8fa9f398c84",
+      "stdout.log": "e22550b887a827e313535ed174ae2512b7a7a4c6ee73282fac1f5ec06cf37b70",
+      "stderr.log": "e7746e76f0e185b428c85d6295060e887a614cc04c205bd9ff9db7dd1fd998cf"
+    }
+  },
+  "claude-events": {
+    "sha256": "032e3f0cae11873c35e68533a77159432ed6bc1741022aa0c4ce6fb52ddfb50c",
+    "count": 10
+  },
+  "agy-events": {
+    "sha256": "6d5ead52738813cded2897efbc57cea905982e5cac1bb55ea5f6ae46789a2315",
+    "count": 28
+  },
+  "codex-events": {
+    "sha256": "c1c9c9a09629955f0c388017c7145a7a201202d5fd5729b6131983df5a523af1",
+    "count": 13
+  }
+}
