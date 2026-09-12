@@ -50,9 +50,9 @@ try {
     assert.equal((await guard({ agent_type: 'harness-reviewer' })).code, 0);
     console.log('PASS baseline: begin/bind PENDING; generic command rejected before and after bind; native command allowed');
   } else {
-    assert.equal(pending.dispatch.model, 'gpt-5.6-sol');
-    assert.equal(pending.dispatch.reasoning_effort, 'high');
-    assert.equal(pending.dispatch.fork_turns, 'none');
+    assert.equal(pending.dispatch.model, undefined);
+    assert.equal(pending.dispatch.reasoning_effort, undefined);
+    assert.equal(pending.dispatch.fork_turns, undefined);
     assert.equal(beforeBind.code, 0, beforeBind.stderr);
     assert.equal(afterBind.code, 0, afterBind.stderr);
     // Codex 0.154.0 actual hook shape: UUID + default profile. The tool path
@@ -102,7 +102,7 @@ try {
     };
     await mutate('.call.json', record => { record.value.sourceHash = '0'.repeat(64); return JSON.stringify(record); });
     await mutate('.call.json', record => { record.value.sessionId = 'foreign'; return JSON.stringify(record); });
-    await mutate('.call.json', record => { record.value.commitScope.branch = 'wrong-branch'; return JSON.stringify(record); });
+    await mutate('.call.json', record => { record.value.role = 'implementer'; return JSON.stringify(record); });
     await mutate('.call.json', () => '{broken');
     await mutate('.binding.json', record => { record.value.child = '/root/foreign'; return JSON.stringify(record); });
     await mutate('.dispatch.json', record => { record.value.task_name = 'harness_' + '0'.repeat(32); return JSON.stringify(record); });

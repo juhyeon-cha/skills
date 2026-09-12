@@ -25,11 +25,8 @@ try {
       check(entry.source === loadRole(role).source, 'source target pinned');
       if (runtime === 'codex') {
         const text = fs.readFileSync(entry.file, 'utf8');
-        if (role === 'implementer') check(!/^model\s*=/m.test(text), 'implementer inherits model');
-        else {
-          check(text.includes(`model = "${role === 'reviewer' ? 'gpt-5.6-sol' : 'gpt-5.6-terra'}"`), 'role-specific Codex model');
-          check(text.includes(`model_reasoning_effort = "${role === 'reviewer' ? 'high' : 'medium'}"`), 'model and effort paired');
-        }
+        check(!/^model\s*=/m.test(text), 'native role inherits configured model');
+        check(!/^model_reasoning_effort\s*=/m.test(text), 'native role inherits configured effort');
         check(JSON.parse(/^developer_instructions = (.+)$/m.exec(text)[1]) === loadRole(role).body.replaceAll('${CLAUDE_PLUGIN_ROOT}', fs.realpathSync(root)), 'generated body single source');
       } else check(entry.file === entry.source, 'Claude source reference');
       const request = {role, task: 'fixture#1', sessionId: 'session', parentAgentId: 'parent', implementerIds: ['author'], previousAgentIds: [], message: 'fixture delegation'};

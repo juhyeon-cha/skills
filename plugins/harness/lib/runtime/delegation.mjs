@@ -55,6 +55,9 @@ const callKeys = [
   'previousAgentIds',
   'permission',
 ];
+function callShape(call) {
+  object(call, [...callKeys, ...['retryOf', 'reuseChild', 'modelOptions'].filter(key => Object.hasOwn(call ?? {}, key))], 'call');
+}
 
 /** Execution-policy eligibility; this does not spawn or certify a child. */
 export function delegationCapability({ runtime, provider, permission = 'prompt-only' } = {}) {
@@ -78,7 +81,15 @@ export function delegationCapability({ runtime, provider, permission = 'prompt-o
 }
 
 function validateCall(call, root) {
-  object(call, callKeys, 'call');
+  callShape(call);
+  if (call.retryOf !== undefined) {
+    text(call.retryOf, 'retryOf');
+    if (call.retryOf === call.callId) throw new Error('retry cannot reference itself');
+  }
+  if (call.reuseChild !== undefined && (typeof call.reuseChild !== 'boolean' || !call.retryOf || call.role !== 'reviewer'))
+    throw new Error('child reuse requires a reviewer retry');
+  if (call.reuseChild && call.modelOptions?.model) throw new Error('requested model change requires a fresh child');
+  roleSpawnOptions(call.role, call.modelOptions);
   if (call.version !== 1) throw new Error('unsupported delegation version');
   const capability = delegationCapability(call);
   if (capability.status !== 'AVAILABLE') throw new Error(capability.reason);
@@ -136,15 +147,9 @@ function verifyCommits(call, phase, completedHead) {
       throw new Error('commit identity invalid');
   };
   check(scope.base);
-  const inProgress = phase === 'bind' && scope.mode === 'implementation';
-  const head =
-    phase === 'complete' || phase === 'audit'
-      ? completedHead
-      : inProgress
-        ? git(call, 'rev-parse', 'HEAD')
-        : scope.mode === 'fixed'
-          ? scope.head
-          : scope.base;
+  const head = phase === 'begin'
+    ? scope.mode === 'fixed' ? scope.head : scope.base
+    : completedHead;
   check(head);
   if (scope.mode === 'fixed' && head !== scope.head) throw new Error('fixed head drift');
   git(call, 'merge-base', '--is-ancestor', scope.base, head);
@@ -152,7 +157,7 @@ function verifyCommits(call, phase, completedHead) {
     if (
       git(call, 'symbolic-ref', '--short', 'HEAD') !== scope.branch ||
       git(call, 'rev-parse', 'HEAD') !== head ||
-      (!inProgress && git(call, 'status', '--porcelain'))
+      git(call, 'status', '--porcelain')
     )
       throw new Error('repository branch/head/cleanliness drift');
   }
@@ -242,7 +247,7 @@ function independent(call, child) {
   agent(child);
   if (
     path.posix.dirname(child) !== call.parentAgentId ||
-    call.previousAgentIds.includes(child) ||
+    (call.previousAgentIds.includes(child) && !call.reuseChild) ||
     (call.role !== 'implementer' && call.implementerIds.includes(child))
   )
     throw new Error('foreign child, self judgment, or reused child');
@@ -267,6 +272,56 @@ const result = (call, status, extra = {}) => ({
   ...extra,
 });
 
+function outcomeIdentity(call, outcome) {
+  object(outcome, [...Object.keys(assurances), 'status', 'callId', 'sessionId', 'task', 'role',
+    ...(outcome?.status === 'REJECTED' ? ['reason'] : ['child', 'head', 'signal', 'result', 'bodyHash'])], 'outcome');
+  if (!outcome || outcome.callId !== call.callId || outcome.sessionId !== call.sessionId ||
+      outcome.task !== call.task || outcome.role !== call.role ||
+      Object.entries(assurances).some(([key, value]) => outcome[key] !== value) ||
+      !['OBSERVED', 'REJECTED'].includes(outcome.status)) throw new Error('outcome association invalid');
+  if (outcome.status === 'REJECTED') text(outcome.reason, 'rejection reason');
+}
+function previousCall(scope, call) {
+  return read(scope, {...call, callId: call.retryOf}, 'call');
+}
+function retryIds(scope, call) {
+  const ids = new Set([call.callId]);
+  while (call.retryOf) {
+    if (ids.has(call.retryOf)) throw new Error('retry cycle');
+    ids.add(call.retryOf);
+    call = previousCall(scope, call);
+  }
+  return ids;
+}
+function validateRetry(scope, call, root) {
+  if (!call.retryOf) return null;
+  const prior = previousCall(scope, call);
+  validateCall(prior, root);
+  if (prior.task !== call.task || prior.role !== call.role || prior.repository !== call.repository ||
+      prior.commitScope.base !== call.commitScope.base || prior.commitScope.mode !== call.commitScope.mode)
+    throw new Error('retry scope mismatch');
+  const outcome = read(scope, prior, 'outcome');
+  outcomeIdentity(prior, outcome);
+  if (call.commitScope.mode === 'fixed')
+    git(call, 'merge-base', '--is-ancestor', prior.commitScope.head, call.commitScope.head);
+  retryIds(scope, call);
+  if (call.reuseChild && (outcome.status !== 'OBSERVED' || !['CHANGES_REQUESTED', 'LGTM'].includes(outcome.signal)))
+    throw new Error('reuse requires a completed reviewer result');
+  return prior;
+}
+function availableChild(scope, call, child) {
+  const ancestors = call.reuseChild ? retryIds(scope, call) : new Set();
+  for (const name of fs.readdirSync(scope.directory).filter(name => name.endsWith('.binding.json'))) {
+    const record = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
+    const owner = read(scope, { ...call, callId: record.id, parentAgentId: record.parentAgentId }, 'call');
+    const binding = read(scope, owner, 'binding');
+    if (binding.child === child && !(ancestors.has(owner.callId) &&
+        fs.existsSync(file(scope, owner.callId, 'outcome'))))
+      throw new Error('child already reserved by an inventory call');
+  }
+}
+const bindingTool = call => call.reuseChild ? 'collaboration.followup_task' : 'collaboration.spawn_agent';
+
 /** The caller attests that observations came from its provider tool calls.
  * Local records prevent accidental drift/reuse, not forgery by the same OS user. */
 export async function beginDelegation(call, { root, env = process.env } = {}) {
@@ -277,12 +332,27 @@ export async function beginDelegation(call, { root, env = process.env } = {}) {
   const scope = await storage(call, env);
   return withStateLock(path.join(scope.directory, 'inventory'), () => {
     verifyCommits(call, 'begin');
-    write(scope, call, 'call', call);
+    const prior = validateRetry(scope, call, root);
     // This nonce correlates the requested task name with the observed spawn return.
     // It is not a provider-issued invocation ID or proof of role enforcement.
     const dispatch = { task_name: 'harness_' + randomUUID().replaceAll('-', '') };
+    if (call.reuseChild) {
+      const binding = read(scope, prior, 'binding');
+      independent(call, binding.child);
+      if (binding.child !== expectedChild(scope, prior)) throw new Error('retry binding mismatch');
+      availableChild(scope, call, binding.child);
+      dispatch.task_name = path.posix.basename(binding.child);
+      for (const name of fs.readdirSync(scope.directory).filter(name => name.endsWith('.call.json'))) {
+        const record = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
+        const owner = read(scope, {...call, callId: record.id, parentAgentId: record.parentAgentId}, 'call');
+        if (!fs.existsSync(file(scope, owner.callId, 'outcome')) && expectedChild(scope, owner) === binding.child)
+          throw new Error('reviewer already has an active invocation');
+      }
+    }
+    write(scope, call, 'call', call);
     write(scope, call, 'dispatch', dispatch);
-    return result(call, 'PENDING', { call, dispatch: { ...dispatch, ...roleSpawnOptions(call.role) } });
+    return result(call, 'PENDING', { call, dispatch: { ...dispatch,
+      ...(call.reuseChild ? {tool: 'collaboration.followup_task'} : roleSpawnOptions(call.role, call.modelOptions)) } });
   });
 }
 
@@ -313,6 +383,7 @@ export async function delegationHookRole(raw, { root, env = process.env, readThr
       if (name !== path.basename(file(own, call.callId, 'call')))
         throw new Error('inventory filename mismatch');
       if (expectedChild(own, call) !== child) continue;
+      if (fs.existsSync(file(own, call.callId, 'outcome'))) continue;
       validateCall(call, root);
       independent(call, child);
       terminal(own, call);
@@ -329,11 +400,10 @@ export async function delegationHookRole(raw, { root, env = process.env, readThr
         if (
           binding.child !== child ||
           binding.source !== 'parent-tool-return' ||
-          binding.tool !== 'collaboration.spawn_agent'
+          binding.tool !== bindingTool(call)
         )
           throw new Error('binding identity/provenance mismatch');
       }
-      verifyCommits(call, 'bind');
       matches.push(call.role);
     }
     if (matches.length !== 1) throw new Error('child role is unidentified or ambiguous');
@@ -350,31 +420,20 @@ export async function bindDelegation(input, { root, env = process.env } = {}) {
     terminal(scope, call);
     if (fs.existsSync(file(scope, call.callId, 'binding'))) throw new Error('duplicate binding');
     try {
-      const raw = observation(input.observation, 'collaboration.spawn_agent');
-      object(raw, ['task_name'], 'spawn return');
-      const child = raw.task_name;
+      validateRetry(scope, call, root);
+      const raw = observation(input.observation, bindingTool(call));
+      if (!call.reuseChild) object(raw, ['task_name'], 'spawn return');
+      const child = call.reuseChild ? expectedChild(scope, call) : raw.task_name;
       independent(call, child);
       if (child !== expectedChild(scope, call))
         throw new Error('spawn return does not match requested task name');
-      for (const name of fs
-        .readdirSync(scope.directory)
-        .filter((name) => name.endsWith('.binding.json'))) {
-        const record = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
-        const owner = read(
-          scope,
-          { ...call, callId: record.id, parentAgentId: record.parentAgentId },
-          'call',
-        );
-        const binding = read(scope, owner, 'binding');
-        if (binding.child === child) throw new Error('child already reserved by an inventory call');
-      }
-      // Reserve the actual child immediately, including when subsequent commit validation fails.
+      availableChild(scope, call, child);
+      // Reserve the observed child for this invocation.
       write(scope, call, 'binding', {
         child,
         source: 'parent-tool-return',
-        tool: 'collaboration.spawn_agent',
+        tool: bindingTool(call),
       });
-      verifyCommits(call, 'bind');
       return result(call, 'PENDING', { child });
     } catch (error) {
       const failure = result(call, 'REJECTED', { reason: error.message });
@@ -387,7 +446,7 @@ export async function completeDelegation(input, { root, env = process.env } = {}
   object(input, ['call', 'observation', 'head'], 'complete');
   const { call } = input;
   // Validate source inside the terminal section so drift leaves a failed inventory.
-  object(call, callKeys, 'call');
+  callShape(call);
   const scope = await storage(call, env);
   return withStateLock(path.join(scope.directory, 'inventory'), () => {
     savedCall(scope, call);
@@ -395,9 +454,10 @@ export async function completeDelegation(input, { root, env = process.env } = {}
     let outcome;
     try {
       const definition = validateCall(call, root);
+      validateRetry(scope, call, root);
       const binding = read(scope, call, 'binding');
       object(binding, ['child', 'source', 'tool'], 'binding');
-      if (binding.source !== 'parent-tool-return' || binding.tool !== 'collaboration.spawn_agent')
+      if (binding.source !== 'parent-tool-return' || binding.tool !== bindingTool(call))
         throw new Error('binding provenance invalid');
       independent(call, binding.child);
       if (binding.child !== expectedChild(scope, call))
@@ -450,7 +510,8 @@ export async function auditDelegation(context, { root, env = process.env } = {})
   return withStateLock(path.join(scope.directory, 'inventory'), () => {
     const calls = [],
       errors = [],
-      children = new Set();
+      children = new Map(),
+      validCalls = new Map();
     const files = fs.readdirSync(scope.directory).filter((name) => name !== 'inventory.lock');
     const names = files.filter((name) => name.endsWith('.call.json'));
     for (const name of files) {
@@ -468,22 +529,32 @@ export async function auditDelegation(context, { root, env = process.env } = {})
         calls.push(item);
         try {
           validateCall(call, root);
-          const binding = read(scope, call, 'binding');
-          object(binding, ['child', 'source', 'tool'], 'binding');
-          if (
-            binding.source !== 'parent-tool-return' ||
-            binding.tool !== 'collaboration.spawn_agent'
-          )
-            throw new Error('binding provenance invalid');
-          independent(call, binding.child);
-          if (binding.child !== expectedChild(scope, call))
-            throw new Error('binding dispatch mismatch');
-          if (children.has(binding.child)) throw new Error('duplicate inventory child');
-          children.add(binding.child);
+          validateRetry(scope, call, root);
+          expectedChild(scope, call);
           const outcome = read(scope, call, 'outcome');
-          if (outcome.status !== 'OBSERVED')
-            throw new Error(outcome.reason ?? 'non-observed outcome');
+          outcomeIdentity(call, outcome);
+          const binding = fs.existsSync(file(scope, call.callId, 'binding')) ? read(scope, call, 'binding') : null;
+          if (binding) {
+            object(binding, ['child', 'source', 'tool'], 'binding');
+            if (binding.source !== 'parent-tool-return' || binding.tool !== bindingTool(call))
+              throw new Error('binding provenance invalid');
+            independent(call, binding.child);
+            if (binding.child !== expectedChild(scope, call)) throw new Error('binding dispatch mismatch');
+            if (children.has(binding.child)) {
+              const owner = read(scope, {...call, callId: children.get(binding.child)}, 'call');
+              if (!(call.reuseChild && retryIds(scope, call).has(owner.callId)) &&
+                  !(owner.reuseChild && retryIds(scope, owner).has(call.callId)))
+                throw new Error('duplicate inventory child');
+            }
+            children.set(binding.child, call.callId);
+          }
+          if (outcome.status === 'REJECTED') {
+            Object.assign(item, outcome);
+            validCalls.set(call.callId, call);
+            continue;
+          }
           if (
+            !binding ||
             outcome.child !== binding.child ||
             outcome.callId !== call.callId ||
             outcome.sessionId !== call.sessionId ||
@@ -497,6 +568,7 @@ export async function auditDelegation(context, { root, env = process.env } = {})
             throw new Error('outcome association invalid');
           verifyCommits(call, 'audit', outcome.head);
           Object.assign(item, outcome);
+          validCalls.set(call.callId, call);
         } catch (error) {
           item.status = fs.existsSync(file(scope, call.callId, 'outcome')) ? 'REJECTED' : 'PENDING';
           item.reason = error.message;
@@ -506,10 +578,21 @@ export async function auditDelegation(context, { root, env = process.env } = {})
       }
     }
     if (!names.length) errors.push('empty invocation inventory');
+    // Resolve execution failures only through explicit, validated retry links.
+    // The original rows retain their status and reason; pending/corrupt calls
+    // never disappear behind a later success.
+    for (const item of calls.filter(item => item.status === 'OBSERVED')) {
+      let call = validCalls.get(item.callId);
+      while (call?.retryOf && validCalls.has(call.retryOf)) {
+        const prior = calls.find(row => row.callId === call.retryOf);
+        if (prior.status === 'REJECTED') prior.resolvedBy = item.callId;
+        call = validCalls.get(call.retryOf);
+      }
+    }
     return {
       ...assurances,
       status:
-        !errors.length && calls.length && calls.every((call) => call.status === 'OBSERVED')
+        !errors.length && calls.length && calls.every((call) => call.status === 'OBSERVED' || call.resolvedBy)
           ? 'OBSERVED'
           : 'REJECTED',
       sessionId: context.sessionId,

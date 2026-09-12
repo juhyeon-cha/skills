@@ -43,8 +43,8 @@ readline.createInterface({input:process.stdin}).on('line',line=>{
   for (const mode of ['error', 'malformed', 'exit']) await assert.rejects(read(mode));
   assert.throws(() => readCodexThread('/root/child'), /thread ID invalid/);
   assert.throws(() => codexChildPath({ ...raw, session_id: 'foreign' }, metadata));
-  assert.deepEqual(roleSpawnOptions('evaluator'), { model: 'gpt-5.6-terra', reasoning_effort: 'medium', fork_turns: 'none' });
-  assert.deepEqual(roleSpawnOptions('reviewer'), { model: 'gpt-5.6-sol', reasoning_effort: 'high', fork_turns: 'none' });
+  assert.deepEqual(roleSpawnOptions('evaluator'), {});
+  assert.deepEqual(roleSpawnOptions('reviewer'), {});
   assert.deepEqual(roleSpawnOptions('implementer'), {});
   assert.throws(() => roleSpawnOptions('unknown'));
   console.log('PASS Codex identity: metadata-only handshake, protocol failure denial, session mapping and role model options');
