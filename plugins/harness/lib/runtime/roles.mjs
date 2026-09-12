@@ -71,7 +71,8 @@ function nativeAgentName(text) {
   const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}))*"';
   const literal = "'[^'\\x00-\\x1f]*'";
   const string = `(?:${basic}|${literal})`;
-  const assignment = new RegExp(`^([A-Za-z0-9_-]+|${string})\\s*=\\s*([\\s\\S]*)$`);
+  const keyPart = `(?:[A-Za-z0-9_-]+|${string})`;
+  const assignment = new RegExp(`^(${keyPart})((?:\\s*\\.\\s*${keyPart})*)\\s*=\\s*([\\s\\S]*)$`);
   const nameValue = new RegExp(`^${string}$`);
   const decode = (value) =>
     value.startsWith('"') ? JSON.parse(value) : value.startsWith("'") ? value.slice(1, -1) : value;
@@ -80,11 +81,12 @@ function nativeAgentName(text) {
     if (line.startsWith('[')) break;
     const match = assignment.exec(line);
     if (!match) throw new Error('unreadable top-level native TOML key');
+    if (match[2]) continue; // Dotted paths are nested fields, not the scalar name.
     const key = decode(match[1]);
     if (key !== 'name') continue;
     if (name !== undefined) throw new Error('duplicate native agent name');
-    if (!nameValue.test(match[2])) throw new Error('native agent name requires a single-line string');
-    name = decode(match[2]);
+    if (!nameValue.test(match[3])) throw new Error('native agent name requires a single-line string');
+    name = decode(match[3]);
   }
   return required(name, 'native agent name');
 }

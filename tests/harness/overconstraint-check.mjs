@@ -29,6 +29,8 @@ try {
     'name = "foreign"\ndeveloper_instructions = """\nname = "harness-reviewer"\n[table]\n"""\n',
     "developer_instructions = '''\nname = 'harness-reviewer'\n'''\nname = 'foreign'\n",
     'values = [\'name = "fake"\', "#", {name = "nested"}]\nname = "foreign"\n',
+    'name = "foreign"\nfoo.bar = 1\n"other" . \'name\' = "harness-reviewer"\n',
+    '"foo.bar" = true\nname = "foreign"\n',
   ];
   for (const text of accepted) {
     fs.writeFileSync(foreign, text);
@@ -39,6 +41,7 @@ try {
     `"name" = "${collision}"\n`,
     `"na\\u006de" = "${collision}"\n`,
     `values = [1,\n 2]\nname = "${collision}"\n`,
+    `foo.name = "foreign"\n"name" = "${collision}"\n`,
     'name = "foreign"\nname = "second"\n',
     'name = "foreign"\nvalue = """unfinished\n',
     'name = "foreign"\nvalue = [1, 2\n',
