@@ -63,8 +63,7 @@ Rules kept out of the always-on block. Each is needed only while running its pro
 
 | Rule | Owner |
 |---|---|
-| "운영 규율" · "원장에 본문을 넘기는 형태" · "상태 주장의 근거" · "결정 상태" · "진단 가설 규율" · "사람 대기" · "대상 레포의 관례" · "사이클 종결" · "멀티 레포" | `harness:develop` (sections of the same titles) |
-| "위임 메시지의 환경 스냅샷" · "장기 실행" | `harness:develop` |
+| "운영 규율" · "원장에 본문을 넘기는 형태" · "상태 주장의 근거" · "결정 상태" · "진단 가설 규율" · "사람 대기" · "대상 레포의 관례" · "사이클 종결" · "멀티 레포" · "위임 메시지의 환경 스냅샷" · "장기 실행" | `harness:develop` (sections of the same titles) |
 | "여러 개를 한 번에 등재할 때 — id 를 예측하지 않는다" | `harness:plan-story` |
 | "재시도 카운터" | `harness:verify-code` |
 | "Checking that a check is alive" | `${CLAUDE_PLUGIN_ROOT}/docs/engineering.md` |

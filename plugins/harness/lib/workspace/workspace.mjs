@@ -44,6 +44,29 @@ async function git(cwd, args, env = process.env) {
     );
   return result.stdout.toString();
 }
+// A squash merge shares no commit with the branch it came from, so the unpushed probe above
+// reports a fully merged branch as unpushed. Ask the forge whether a merged PR already carries
+// it. The branch name alone is not enough: worktree branch names are deterministic, so reopening
+// the same story reuses the name, and an old merged PR would then excuse commits it never saw --
+// cleanup deletes the branch, so that is data loss. Require the PR head to be this exact tip.
+// Any failure -- gh absent, another forge, offline, no GitHub remote -- returns null and leaves
+// the strict answer standing. A hung call is not covered: this waits as long as the fetch above
+// does, because runCommand has no timeout.
+async function mergedPullRequest(cwd, branch, env = process.env) {
+  const tip = await git(cwd, ['rev-parse', branch], env).catch(() => '');
+  if (!tip.trim()) return null;
+  const argv = ['gh', 'pr', 'list', '--head', branch, '--state', 'merged'];
+  const result = await runCommand(
+    { argv: [...argv, '--json', 'number,headRefOid', '--jq', '.[] | [.number, .headRefOid] | @tsv'] },
+    { cwd, env: gitEnvironment(env) },
+  ).catch(() => null);
+  if (!result || result.status !== 'exited' || result.code !== 0) return null;
+  for (const line of result.stdout.toString().split('\n')) {
+    const [number, oid] = line.trim().split(/\s+/);
+    if (oid && oid === tip.trim() && /^[0-9]+$/.test(number)) return 'PR #' + number;
+  }
+  return null;
+}
 export function parseWorktrees(text) {
   return text
     .split('\0\0')
@@ -247,8 +270,11 @@ export async function cleanupWorkspace(
       ['log', '--oneline', context.expectedBranch, '--not', '--remotes=origin'],
       env,
     );
-    if (unpushed && !force) throw new Error(`미푸시 커밋이 있다\n${unpushed}`);
-    if (unpushed) say(`--force: 미푸시 커밋\n${unpushed}`);
+    const merged = unpushed && !force ? await mergedPullRequest(context.main, context.expectedBranch, env) : null;
+    if (unpushed && !force && !merged) throw new Error(`미푸시 커밋이 있다\n${unpushed}`);
+    if (unpushed && merged)
+      say(`머지된 ${merged} 가 이 브랜치를 head 로 가진다 — 미푸시 판정을 넘긴다\n${unpushed}`);
+    if (unpushed && force) say(`--force: 미푸시 커밋\n${unpushed}`);
   }
   const result = { main: context.main, target, removed: [], branch: context.expectedBranch };
   if (present || record) {
