@@ -7,6 +7,25 @@
     "localBundleName": "harness-runtime-parity-m0-skills300",
     "scope": "M0 prerequisite observations; not final C1-C10 certification"
   },
+  "desktop-followup": {
+    "officialDocsCheckedAtKst": "2026-09-13",
+    "sourceBaseline": "02c286af588e7fb7b2e85123aad40cc47f05d462",
+    "surface": "Current Codex desktop conversation and collaboration provider",
+    "nativeRoleEvidence": "UNREACHED",
+    "genericCompletion": { "code": 0, "status": "OBSERVED", "permission": "prompt-only", "providerEnforcement": "unavailable" },
+    "readExitCode": 0,
+    "writeObservation": "One apply_patch canary rejected by reviewer-specific harness policy",
+    "childAndParentFileExistenceExitCode": 1,
+    "guardRule": "r_grader_write",
+    "guardNativeRoleColumn": "-",
+    "credentialScan": { "code": 0, "status": "NO_KNOWN_PATTERN_MATCH", "positiveControl": true, "inspectedFiles": 51, "matchingFiles": [], "scope": "Local fixture/model/hook evidence; known credential formats only" },
+    "scope": "One observed policy path; not native role, OS sandbox, code review or final parity certification",
+    "files": {
+      "desktop-parent-observations.json": "1f8044366e698758246eec7242206a95a5c62f4bcb0e0b50f1ee574f4bab7019",
+      "desktop-probe-complete.json": "5979084b95e486832236574bc57027dec5de3274bd1b45e1f6a378d4ae37f140",
+      "desktop-guard-observation.json": "72cf1da2a165826446471d619f0188d22959236be31365031935b60b7e6ef5cf"
+    }
+  },
   "claude-auth": {
     "exit": {
       "code": 0,
