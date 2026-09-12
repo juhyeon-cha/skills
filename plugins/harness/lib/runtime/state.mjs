@@ -356,6 +356,7 @@ export async function recordStateEvent(event, code, env = process.env) {
     'session_id',
     'agent_id',
     'agent_type',
+    'model',
     'tool_name',
     'turn_id',
     'tool_use_id',

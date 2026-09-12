@@ -61,6 +61,9 @@ jobs:
       - name: Run registered generic child hook contracts
         if: ${{ !cancelled() }}
         run: node tests/harness/generic-hook-check.mjs
+      - name: Run Codex identity transport and model contracts
+        if: ${{ !cancelled() }}
+        run: node tests/harness/codex-identity-check.mjs
       - name: Diagnose Windows PowerShell native launch channels
         if: always() && runner.os == 'Windows'
         continue-on-error: true

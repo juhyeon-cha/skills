@@ -556,6 +556,7 @@ export async function evaluateGuard(
   raw,
   {
     env = process.env,
+    readThread,
     pluginRoot = env.CLAUDE_PLUGIN_ROOT ||
       path.resolve(fileURLToPath(new URL('../../', import.meta.url))),
   } = {},
@@ -565,9 +566,9 @@ export async function evaluateGuard(
     result;
   try {
     let delegatedRole;
-    if (raw?.agent_id && !raw.agent_type) {
+    if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default')) {
       const { delegationHookRole } = await import('../runtime/delegation.mjs');
-      delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env });
+      delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env, readThread });
     }
     event = normalizeHookEvent(raw, { env, delegatedRole });
     const rawCommand = event.tool_input.command ?? '';

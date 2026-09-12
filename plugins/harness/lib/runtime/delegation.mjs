@@ -5,6 +5,8 @@ import { spawnSync } from 'node:child_process';
 import { isDeepStrictEqual } from 'node:util';
 import { resolveState, withStateLock } from './state.mjs';
 import { loadRole } from './roles.mjs';
+import { roleSpawnOptions } from './role-models.mjs';
+import { codexThreadId, readCodexThread, codexChildPath } from './codex-identity.mjs';
 
 const hash = (value) => createHash('sha256').update(value).digest('hex');
 const assurances = {
@@ -277,21 +279,25 @@ export async function beginDelegation(call, { root, env = process.env } = {}) {
     // It is not a provider-issued invocation ID or proof of role enforcement.
     const dispatch = { task_name: 'harness_' + randomUUID().replaceAll('-', '') };
     write(scope, call, 'dispatch', dispatch);
-    return result(call, 'PENDING', { call, dispatch });
+    return result(call, 'PENDING', { call, dispatch: { ...dispatch, ...roleSpawnOptions(call.role) } });
   });
 }
 
 /** Resolve a generic hook child against the parent's session inventory.
  * Dispatch is persisted before spawn, so a first tool need not race binding.
  * This selects guard policy only; it is never native role/lifecycle evidence. */
-export async function delegationHookRole(raw, { root, env = process.env } = {}) {
-  agent(raw.agent_id);
+export async function delegationHookRole(raw, { root, env = process.env, readThread = readCodexThread } = {}) {
   text(raw.session_id, 'hook session');
   const scope = await resolveState({ cwd: raw.cwd, sessionId: raw.session_id }, env);
   if (scope.runtime !== 'codex' || scope.dataSource === 'fallback-unverified')
     throw new Error('generic hook requires explicit Codex state coordinates');
   scope.directory = path.join(scope.session, 'delegation');
   if (!fs.existsSync(scope.directory)) throw new Error('child role is unidentified');
+  if (raw.agent_type === 'default' && !codexThreadId(raw.agent_id))
+    throw new Error('Codex generic hook requires a thread UUID');
+  const child = raw.agent_type === 'default'
+    ? codexChildPath(raw, await readThread(raw.agent_id, { env }))
+    : agent(raw.agent_id);
   return withStateLock(path.join(scope.directory, 'inventory'), () => {
     const matches = [];
     for (const name of fs
@@ -303,9 +309,9 @@ export async function delegationHookRole(raw, { root, env = process.env } = {}) 
       read(own, call, 'call');
       if (name !== path.basename(file(own, call.callId, 'call')))
         throw new Error('inventory filename mismatch');
-      if (expectedChild(own, call) !== raw.agent_id) continue;
+      if (expectedChild(own, call) !== child) continue;
       validateCall(call, root);
-      independent(call, raw.agent_id);
+      independent(call, child);
       terminal(own, call);
       if (
         fs.realpathSync(git(call, 'rev-parse', '--show-toplevel')) !==
@@ -318,7 +324,7 @@ export async function delegationHookRole(raw, { root, env = process.env } = {}) 
         const binding = read(own, call, 'binding');
         object(binding, ['child', 'source', 'tool'], 'binding');
         if (
-          binding.child !== raw.agent_id ||
+          binding.child !== child ||
           binding.source !== 'parent-tool-return' ||
           binding.tool !== 'collaboration.spawn_agent'
         )
