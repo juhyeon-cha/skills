@@ -6,9 +6,11 @@ import { normalizeHookEvent } from './hook-event.mjs';
 import { normalizePath } from './operations.mjs';
 import { workspaceShellCommand } from '../workspace/workspace-command.mjs';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
-import { guardLog } from '../runtime/state.mjs';
+import { guardLog, resolveState } from '../runtime/state.mjs';
 import { powershellTargets, powershellReadonly } from './powershell-operations.mjs';
 import { commonCommand, windowsCommandOperands } from './common-command.mjs';
+import { antigravityIdentity } from '../runtime/antigravity-identity.mjs';
+import { canonicalRole } from '../runtime/role-contract.mjs';
 
 // Policy inventories have one owner. Developer tests derive their populations
 // from these exports and mutate copies, never an environment injection point.
@@ -238,7 +240,19 @@ const deny = (ctx, message) => {
 function norm(ctx, value) {
   if (value.startsWith('~/'))
     value = (ctx.env.HOME || ctx.env.USERPROFILE || os.homedir()) + value.slice(1);
-  return normalizePath(value, ctx.event.cwd);
+  const target = normalizePath(value, ctx.event.cwd);
+  if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]|^\\\\/.test(target)) return target;
+  let existing = target;
+  const missing = [];
+  for (;;) {
+    try { return path.join(fs.realpathSync(existing), ...missing); }
+    catch (error) {
+      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
+      const parent = path.dirname(existing);
+      if (parent === existing) return target;
+      missing.unshift(path.basename(existing)); existing = parent;
+    }
+  }
 }
 function rootOf(ctx, value) {
   const target = norm(ctx, value);
@@ -399,9 +413,23 @@ function ledgerCalls(ctx) {
 
 export const RULES = [];
 
+function protectedTarget(ctx, value) {
+  const target = norm(ctx, value);
+  const found = rootOf(ctx, target);
+  if (found) {
+    const first = path.relative(found.root, target).split(path.sep)[0];
+    if (['.git', '.harness.json', '.agents', '.claude', '.codex'].includes(first)) return true;
+  }
+  const data = ctx.stateData || ctx.env.HARNESS_DATA_DIR;
+  if (data && (target === data || target.startsWith(data + path.sep)))
+    return !(ctx.common?.effect === 'state' && ctx.common.writes.includes(target));
+  return false;
+}
+
 export async function r_main_write(ctx) {
   const value = filePath(ctx);
   if (!value) return;
+  if (protectedTarget(ctx, value)) deny(ctx, '보호 설정/상태 파일 직접 쓰기 금지 — 승인된 공통 명령을 사용한다');
   const found = await locate(ctx, value);
   if (!found) return;
   deny(
@@ -422,6 +450,8 @@ export async function r_main_shell(ctx) {
     return; // The exact loaded renderer confines publication to its docs projection.
   }
   for (const candidate of pathCandidates(ctx)) {
+    if (protectedTarget(ctx, candidate) && !allReadonly(ctx.raw))
+      deny(ctx, '보호 설정/상태 경로 쓰기 금지 — 승인된 공통 명령을 사용한다');
     if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]|^\\\\/.test(candidate)) {
       if (allReadonly(ctx.raw)) return;
       throw new Error('Windows filesystem policy is unavailable on this host');
@@ -570,6 +600,7 @@ export async function evaluateGuard(
   {
     env = process.env,
     readThread,
+    resolveAntigravityIdentity = antigravityIdentity,
     pluginRoot = env.CLAUDE_PLUGIN_ROOT ||
       path.resolve(fileURLToPath(new URL('../../', import.meta.url))),
   } = {},
@@ -582,6 +613,16 @@ export async function evaluateGuard(
     const roleIndependent = event.harness_shell_readonly ||
       ['Read', 'NotebookRead', 'Glob', 'Grep'].includes(event.tool_name) ||
       /^collaboration\.?(?:send_message|list_agents|wait_agent)$/.test(event.tool_name);
+    if (raw?.harness_runtime === 'antigravity' && !roleIndependent) {
+      const identity = await resolveAntigravityIdentity(raw, {env, pluginRoot});
+      if (identity?.kind === 'parent') raw = {...raw, agent_id: '', agent_type: ''};
+      else if (identity?.kind === 'child' && canonicalRole(identity.role))
+        raw = {...raw, agent_type: canonicalRole(identity.role)};
+      else throw new Error('Antigravity role identity UNREACHED');
+      event = normalizeHookEvent(raw, {env});
+      if (event.tool_name === 'Bash' && hasToken(event.tool_input.command, 'parent-register'))
+        throw new Error('parent registration is operator-only; agent tool enrollment forbidden');
+    }
     if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default') && !roleIndependent) {
       const { delegationHookRole } = await import('../runtime/delegation.mjs');
       const delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env, readThread });
@@ -696,6 +737,8 @@ export async function evaluateGuard(
       workspaces: new Map(),
       rule,
     };
+    try { ctx.stateData = (await resolveState({cwd: event.cwd, sessionId: event.session_id}, env)).data; }
+    catch { /* An unscoped call receives no state-write exception. */ }
     await dispatch(ctx);
     for (const target of operations) {
       ctx.event = { ...event, tool_name: 'Write', tool_input: { file_path: target } };

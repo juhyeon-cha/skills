@@ -138,7 +138,7 @@ export async function commonCommand(command, { pluginRoot, cwd, dialect, env }) 
     const reading = ['paths', 'actors', 'cancelled'].includes(action),
       writing = ['bind', 'cancel'].includes(action);
     if (!reading && !writing) return null;
-    if (!['claude', 'codex'].includes(runtime) || !absolute(repository) || !session) return null;
+    if (!['claude', 'codex', 'antigravity'].includes(runtime) || !absolute(repository) || !session) return null;
     if (
       action === 'bind'
         ? args.length !== 7 || !absolute(ledgerRoot) || !task || !actor

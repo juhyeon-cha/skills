@@ -302,6 +302,8 @@ try {
     assert.deepEqual(recovered.outcomes, ['SCOPE_RECOVERED', 'BLOCK']);
   });
   await check('Stop last marker survives prose, mixed marks pass, unmarked work blocks and cap terminates', async () => {
+    assert.deepEqual(capture(await stop('busy', [], {harness_runtime: 'antigravity', fully_idle: false})).outcomes, ['RUNTIME_BUSY']);
+    assert.deepEqual(capture(await stop('error', [], {harness_runtime: 'antigravity', runtime_error: 'fixture error'})).outcomes, ['RUNTIME_ERROR']);
     for (const session of ['pending', 'bounded']) await bindStopFixture(session, 'mine');
     const pending = capture(await stop('pending', [{actor: 'mine', notes: 'DELEGATED: m\nVERIFY_PENDING: abc\nreview evidence'}, {actor: 'mine', notes: 'VERIFY_PENDING: old\nDELEGATED: m\nprose'}])); assert.ok(pending.outcomes.includes('VERIFY_PENDING')); assert.equal(pending.stdout, '');
     for (let i = 0; i < MAX_BLOCKS; i++) assert.equal(JSON.parse(capture(await stop('bounded', [{actor: 'mine', notes: ''}, {actor: 'mine', notes: 'VERIFY_PENDING: a'}])).stdout).decision, 'block');

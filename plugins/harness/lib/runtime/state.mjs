@@ -21,7 +21,7 @@ const absolute = (value) => {
 export function runtimeIdentity(explicit, env = process.env) {
   const selected = explicit || env.HARNESS_RUNTIME;
   const codex = Boolean(env.PLUGIN_ROOT || env.PLUGIN_DATA);
-  if (selected && !['claude', 'codex'].includes(selected)) throw new Error('unknown runtime');
+  if (selected && !['claude', 'codex', 'antigravity'].includes(selected)) throw new Error('unknown runtime');
   if (selected === 'claude' && codex)
     throw new Error('runtime contradicts Codex plugin environment');
   if (explicit && env.HARNESS_RUNTIME && explicit !== env.HARNESS_RUNTIME)
@@ -35,7 +35,7 @@ export function runtimeIdentity(explicit, env = process.env) {
   throw new Error('runtime unidentified: pass HARNESS_RUNTIME or an explicit runtime');
 }
 export function formatStateContext(metadata) {
-  if (!['claude', 'codex'].includes(metadata.runtime))
+  if (!['claude', 'codex', 'antigravity'].includes(metadata.runtime))
     throw new Error('state context runtime invalid');
   absolute(metadata.repository);
   absolute(metadata.data);
@@ -55,19 +55,21 @@ export async function resolveState({ runtime, cwd, sessionId } = {}, env = proce
   runtime = runtimeIdentity(runtime, env);
   const identity = await inspectWorkspace(nonempty(cwd, 'repository cwd'), { exact: false, env });
   const home = env.HOME || env.USERPROFILE || os.homedir();
+  const pluginData = runtime === 'antigravity' ? undefined :
+    runtime === 'codex' ? env.PLUGIN_DATA || env.CLAUDE_PLUGIN_DATA : env.CLAUDE_PLUGIN_DATA;
   const data = absolute(
     env.HARNESS_DATA_DIR ||
-      (runtime === 'codex' ? env.PLUGIN_DATA || env.CLAUDE_PLUGIN_DATA : env.CLAUDE_PLUGIN_DATA) ||
+      pluginData ||
       path.join(
         runtime === 'codex'
           ? env.CODEX_HOME || path.join(home, '.codex')
-          : path.join(home, '.claude'),
+          : runtime === 'antigravity' ? path.join(home, '.gemini', 'antigravity-cli') : path.join(home, '.claude'),
         'plugins/data/harness',
       ),
   );
   const dataSource = env.HARNESS_DATA_DIR
     ? 'explicit'
-    : (runtime === 'codex' ? env.PLUGIN_DATA || env.CLAUDE_PLUGIN_DATA : env.CLAUDE_PLUGIN_DATA)
+    : pluginData
       ? 'plugin-environment'
       : 'fallback-unverified';
   const repoKey = hash(identity.common);
@@ -389,6 +391,7 @@ export async function recordStateEvent(event, code, env = process.env) {
     'tool_name',
     'turn_id',
     'tool_use_id',
+    'harness_native_event',
   ])
     if (typeof event[key] === 'string') kept[key] = event[key];
   if (event.hook_event_name === 'SubagentStop')

@@ -55,8 +55,8 @@ try {
       const hook = JSON.parse(read(path.join(destination,'hooks.json'))).harness.PreInvocation[0];
       assert(hook.command.includes(path.join(installedRoot,'scripts/hook.mjs')));
       const run = spawnSync('node', [path.join(installedRoot,'scripts/hook.mjs'),'context','--runtime','antigravity'], {input:'{}',encoding:'utf8',env:{...process.env,HARNESS_RUNTIME:''}});
-      // Adapter is M3, so transport currently must not manufacture success.
-      assert.equal(run.status, 2); assert.match(run.stderr, /invalid hook runtime argument/);
+      // A staged adapter must reject malformed context; staged bytes are not loading evidence.
+      assert.equal(run.status, 2); assert.match(run.stderr, /absolute workspace and conversationId/);
     }
     installDistribution(options); // idempotent owned install
     const managed = result.receipt.components.skills[0];

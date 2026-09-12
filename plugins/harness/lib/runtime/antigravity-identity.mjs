@@ -1,0 +1,41 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {inspectDistribution} from '../distribution.mjs';
+import {resolveState, withStateLock} from './state.mjs';
+
+export async function registerAntigravityParent(scope, sourceHash, root) {
+  if (scope.runtime !== 'antigravity' || !scope.session || scope.dataSource !== 'explicit')
+    throw new Error('parent registration requires explicit Antigravity session/data');
+  const source = inspectDistribution(root);
+  if (sourceHash !== source.hash) throw new Error('parent source hash differs from loaded artifact');
+  const observed = fs.readFileSync(scope.events, 'utf8').trim().split('\n').map(line => JSON.parse(line));
+  if (!observed.some(row => row.runtime === scope.runtime && row.repoKey === scope.repoKey &&
+      row.code === 0 && row.event?.session_id === scope.sessionId && row.event?.harness_native_event === 'PreInvocation'))
+    throw new Error('parent context not observed in this scope');
+  const record = {version: 1, kind: 'parent', evidence: 'operator-attested', runtime: scope.runtime,
+    repoKey: scope.repoKey, sessionId: scope.sessionId, workspace: scope.top,
+    source: {root: source.root, hash: source.hash}};
+  const file = path.join(scope.session, 'antigravity-parent.json');
+  withStateLock(file, () => {
+    if (fs.existsSync(file)) {
+      if (fs.readFileSync(file, 'utf8') !== JSON.stringify(record)) throw new Error('parent registration conflict');
+    } else fs.writeFileSync(file, JSON.stringify(record), {flag: 'wx', mode: 0o600});
+  });
+  return record;
+}
+
+// Operator attestation is a workflow trust boundary, not an OS authentication
+// service. M4 can resolve provider-returned child correlations at this seam.
+export async function antigravityIdentity(event, {env, pluginRoot}) {
+  const workspace = event.harness_workspace || event.cwd;
+  const scope = await resolveState({runtime: 'antigravity', cwd: workspace, sessionId: event.session_id}, env);
+  const record = JSON.parse(fs.readFileSync(path.join(scope.session, 'antigravity-parent.json'), 'utf8'));
+  const source = inspectDistribution(pluginRoot);
+  if (record.version !== 1 || record.kind !== 'parent' || record.evidence !== 'operator-attested' ||
+      record.runtime !== scope.runtime || record.repoKey !== scope.repoKey || record.sessionId !== scope.sessionId ||
+      record.workspace !== scope.top || path.resolve(workspace) !== scope.top ||
+      !(event.cwd === scope.top || event.cwd.startsWith(scope.top + path.sep)) ||
+      record.source?.root !== source.root || record.source?.hash !== source.hash)
+    throw new Error('Antigravity parent scope/source mismatch');
+  return {kind: 'parent'};
+}

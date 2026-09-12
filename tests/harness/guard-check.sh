@@ -1903,7 +1903,12 @@ RM_LIMIT_JSON+=("$(j_sub 'git remote set-url origin git@github.com:o/other.git' 
 for i in "${!RM_LIMIT_CMD[@]}"; do
   run "${RM_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${RM_LIMIT_N[$i]}" "${RM_LIMIT_CMD[$i]}"
-  step "한계(못 막음, rc=0 고정) ${RM_LIMIT_N[$i]}: ${RM_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  if [[ "${RM_LIMIT_CMD[$i]}" = *'가상 GitHub MCP'* ]]; then
+    step "미등록 도구는 원격 정책 전 정규화에서 거부된다" [ "$GUARD_RC" -eq 2 ]
+    step "미등록 도구 판정 근거를 밝힌다" has_text 'unknown tool contract' "$GUARD_OUT"
+  else
+    step "한계(못 막음, rc=0 고정) ${RM_LIMIT_N[$i]}: ${RM_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
+  fi
 done
 
 # ── A/B 귀속. 위 rc=2 들이 **r_remote 등재 때문**임을, 등재만 뺀 사본으로 못박는다.
@@ -2865,7 +2870,10 @@ IMPL_LIMIT_JSON+=("$(j_agentfields "bd -C $IMPL_H create x" 'aa306a4edf39e7dfe' 
 for i in "${!IMPL_LIMIT_CMD[@]}"; do
   run "${IMPL_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${IMPL_LIMIT_N[$i]}" "${IMPL_LIMIT_CMD[$i]}"
-  if [[ "${IMPL_LIMIT_CMD[$i]}" = '[agent_type 없는 위임]'* ]]; then
+  if [[ "${IMPL_LIMIT_CMD[$i]}" = *'mcp__bd__create'* ]]; then
+    step "미등록 원장 도구는 정규화에서 거부된다" [ "$GUARD_RC" -eq 2 ]
+    step "미등록 도구 판정 근거를 밝힌다" has_text 'unknown tool contract' "$GUARD_OUT"
+  elif [[ "${IMPL_LIMIT_CMD[$i]}" = '[agent_type 없는 위임]'* ]]; then
     step "미식별 역할 차단: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
   else
     step "한계(못 막음, rc=0 고정) ${IMPL_LIMIT_N[$i]}: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]

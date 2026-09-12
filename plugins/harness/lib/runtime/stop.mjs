@@ -15,6 +15,8 @@ export const STOP_OUTCOMES = [
   'VERIFY_PENDING',
   'GAVE_UP',
   'BLOCK',
+  'RUNTIME_BUSY',
+  'RUNTIME_ERROR',
 ];
 export const MAX_BLOCKS = 3;
 const quote = (value) =>
@@ -67,6 +69,16 @@ export async function evaluateStop(
     }
   } catch (error) {
     result.stderr += `STATE UNREACHED: cancellation could not be evaluated: ${error.message}; stop allowed\n`;
+    return result;
+  }
+  if (event.harness_runtime === 'antigravity' && (event.runtime_error || /error/i.test(event.termination_reason))) {
+    log('RUNTIME_ERROR', 'provider execution error; completion not established');
+    result.stderr = 'RUNTIME UNREACHED: provider execution failed; completion not established\n';
+    return result;
+  }
+  if (event.harness_runtime === 'antigravity' && event.fully_idle !== true) {
+    log('RUNTIME_BUSY', 'provider still has background work; completion not established');
+    result.stderr = 'RUNTIME BUSY: background work remains; completion not established\n';
     return result;
   }
   let rows;

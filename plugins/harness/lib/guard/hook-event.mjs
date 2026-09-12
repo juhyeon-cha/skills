@@ -26,6 +26,11 @@ export function normalizeHookEvent(
     throw new Error('required hook input missing');
   if (!/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(raw.cwd) || /[\0\r\n]/.test(raw.cwd))
     throw new Error('absolute cwd required');
+  if (!['Bash', 'PowerShell', 'exec_command', 'apply_patch', 'Write', 'Edit', 'NotebookEdit',
+    'Read', 'NotebookRead', 'Glob', 'Grep', 'Agent', 'Task', 'SendMessage', 'EnterWorktree', 'ExitWorktree',
+    'WebSearch', 'WebFetch', 'AskUserQuestion', 'TodoWrite'].includes(raw.tool_name) &&
+    !/^collaboration\.?(?:spawn_agent|send_message|list_agents|wait_agent|followup_task|interrupt_agent)$/.test(raw.tool_name))
+    throw new Error('unknown tool contract');
   for (const key of ['agent_id', 'agent_type'])
     if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
   if (delegatedRole && (!raw.agent_id || (raw.agent_type && raw.agent_type !== 'default') || !canonicalRole(delegatedRole)))
