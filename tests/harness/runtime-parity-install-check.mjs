@@ -6,8 +6,9 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {installDistribution, diagnoseInstallation, installationPlan} from '../../plugins/harness/lib/runtime/parity-install.mjs';
 import {inspectDistribution, generateDistribution, digest} from '../../plugins/harness/lib/distribution.mjs';
-import {verifyRegistration, registerRoles} from '../../plugins/harness/lib/runtime/roles.mjs';
-import {createChallenge} from '../../plugins/harness/lib/runtime/doctor.mjs';
+import {verifyRegistration, registerRoles, loadRole} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {createChallenge, recordHook, diagnose} from '../../plugins/harness/lib/runtime/doctor.mjs';
+import {formatStateContext} from '../../plugins/harness/lib/runtime/state.mjs';
 
 const source = fileURLToPath(new URL('../../plugins/harness', import.meta.url));
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'parity-install-')));
@@ -88,6 +89,30 @@ try {
     assert(injected);
     assert.equal(read(managed), original);
     assert.equal(diagnoseInstallation(options).static, 'PASS');
+    // Persistent failure at the same file must not prevent restoration of an
+    // earlier updated manifest. Report both the operation and recovery errors.
+    for (const partial of [false, true]) {
+      fs.writeFileSync = function(file, ...args) {
+        if (file === managed) {
+          if (partial) originalWrite(file, 'persistent partial write');
+          throw new Error('persistent target write failure');
+        }
+        return originalWrite(file, ...args);
+      };
+      try {
+        assert.throws(() => installDistribution({...options,source:newer}), error => {
+          assert(error instanceof AggregateError);
+          assert.equal(error.cause.message, 'persistent target write failure');
+          assert.equal(error.errors.length, 2);
+          assert.match(error.message, /installation failed: persistent target write failure; restore failed:/);
+          return true;
+        });
+      } finally { fs.writeFileSync = originalWrite; }
+      assert.equal(JSON.parse(read(path.join(installedRoot,'.claude-plugin/plugin.json'))).version, baseline.version);
+      assert.equal(read(managed), partial ? 'persistent partial write' : original);
+      assert.equal(diagnoseInstallation(options).static, partial ? 'UNREACHED' : 'PASS');
+      put(managed, original);
+    }
     installDistribution({...options,source:newer});
     assert.equal(diagnoseInstallation({...options,source:newer}).static,'PASS');
     assert.equal(diagnoseInstallation(options).static,'UNREACHED');
@@ -125,5 +150,37 @@ try {
   const duplicateHooks = diagnoseInstallation(observation);
   assert.equal(duplicateHooks.loaded,'UNREACHED');
   assert.match(duplicateHooks.reasons.join(' '),/context hook not observed exactly once/);
+  // Synthetic signed hook observations exercise the diagnostic boundary only.
+  // They are not claims that a provider actually launched these roles.
+  for (const surface of ['claude-cli', 'codex-cli', 'codex-desktop']) {
+    const target = {source, destination:path.join(scratch,`scope-${surface}`), surface,
+      ...(surface.startsWith('codex') ? {agentsDestination:path.join(scratch,`scope-agents-${surface}`)} : {})};
+    installDistribution(target);
+    for (const runtime of ['claude', 'codex']) {
+      for (const withContext of [false, true]) {
+        const registration = registerRoles(runtime, runtime === 'codex' ? path.join(scratch,`roles-${surface}-${withContext}`) : undefined,target.destination);
+        const directory = path.join(scratch,`scope-${surface}-${runtime}-${withContext}`);
+        createChallenge(directory,runtime,target.destination,registration,source);
+        const stateContext = withContext ? {runtime,repository:scratch,sessionId:'scope-session',data:path.join(scratch,'data')} : undefined;
+        const record = (hook,event,stdout='') => recordHook(directory,target.destination,
+          {session_id:'scope-session',...event},hook,{code:0,stdout,...(hook === 'context' ? {stateContext} : {})});
+        record('context',{hook_event_name:'SessionStart'},JSON.stringify({hookSpecificOutput:{additionalContext:
+          read(path.join(source,'hooks/session-context.md')) + (stateContext ? formatStateContext(stateContext) : '')}}));
+        for (const entry of registration.roles) {
+          const who = {agent_id:`child-${entry.role}`,agent_type:entry.identifier};
+          record('role-start',{hook_event_name:'SubagentStart',...who});
+          record('guard',{hook_event_name:'PreToolUse',tool_name:'Bash',...who});
+          record('role-stop',{hook_event_name:'SubagentStop',last_assistant_message:`SIGNAL: ${loadRole(entry.role).signals[0]}`,...who});
+        }
+        record('stop',{hook_event_name:'Stop'});
+        assert.equal(diagnose(target.destination,directory,'scope-session',source).live,'PASS');
+        const result = diagnoseInstallation({...target,doctorDirectory:directory,sessionId:'scope-session',observedSurface:surface});
+        const valid = surface === 'claude-cli' && runtime === 'claude' && withContext;
+        assert.equal(result.loaded,valid ? 'PASS' : 'UNREACHED');
+        assert.equal(result.live,valid ? 'PASS' : 'UNREACHED');
+        if (!valid) assert.match(result.reasons.join(' '), /observed runtime missing or differs|surface identity unobserved/);
+      }
+    }
+  }
   console.log('PASS lifecycle boundary negatives; no provider profile or trust settings changed');
 } finally { fs.rmSync(scratch,{recursive:true,force:true}); }

@@ -154,6 +154,10 @@ export function diagnose(root, directory, sessionId, expectedRoot = pluginRoot) 
       (observedContext.stateContext ? formatStateContext(observedContext.stateContext) : '');
     if (observedContext.emittedContextHash !== digest(expectedContext))
       throw new Error('full emitted context mismatch');
+    // Bound to verified session receipts, not a requested installation surface.
+    // Old/minimal receipts carry only the challenge's requested runtime.
+    // Only the wrapper's emitted state context supplies runtime observation.
+    if (observedContext.stateContext) report.runtime = observedContext.stateContext.runtime;
     const events = receipts.filter((r) => r.code === 0).map((r) => r.event);
     const starts = events.filter((e) => e.hook_event_name === 'SubagentStart');
     const identities = new Map();

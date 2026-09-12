@@ -49,7 +49,10 @@ Existing unowned collisions and changed or missing owned files abort before any
 update. Unrelated files, runtime settings and managed policies are preserved.
 The same operation against the earlier source performs rollback, including
 matching native Codex roles. A cooperating-writer lock prevents simultaneous
-staging; an in-process write failure restores prior bytes. Process interruption
+staging; an in-process write failure attempts restoration of every touched file.
+A failed restoration does not stop the remaining attempts; the error reports
+both the original failure and each recovery failure. Persistent I/O errors may
+leave drift, so an error is never a successful rollback claim. Process interruption
 is not a crash-atomic multi-directory transaction: a later run detects partial
 state as drift and requires reconciliation rather than overwriting it.
 
@@ -58,7 +61,14 @@ the provider's documented local-plugin workflow; this command does not edit its
 registry, enable a plugin or approve hooks. `parity-install.mjs diagnose
 <options.json>` checks ownership, current source and discoverable duplicates. For
 Claude/Codex, optional `doctorDirectory` and `sessionId` connect to the existing
-nonce-bound doctor below. Missing or untrusted hook execution remains UNREACHED
+nonce-bound doctor below. Installation diagnosis also requires runtime identity
+from the verified emitted state context; the challenge's requested runtime alone
+is insufficient. The current doctor does not observe the Codex CLI/desktop
+distinction, so both Codex surfaces remain UNREACHED at this boundary even when
+the runtime-level doctor passes. A supplied surface label cannot resolve this;
+the later execution and live-validation stages must supply actual surface evidence.
+This is missing verification, not a claim that either surface is unsupported.
+Missing or untrusted hook execution remains UNREACHED
 and diagnosis exits nonzero. Other discovery scopes and effective managed
 configuration still require the runtime inventory and live checks.
 

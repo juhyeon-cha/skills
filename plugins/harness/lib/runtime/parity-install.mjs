@@ -166,13 +166,21 @@ export function installDistribution(options) {
     } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
     return {status: 'STAGED', static: 'PASS', loaded: 'UNREACHED', live: 'UNREACHED', receipt: wanted};
   } catch (error) {
-    // In-process I/O failure restores bytes; interruption leaves drift which the
-    // next invocation rejects. No claim of crash-atomic multi-directory updates.
+    // Try all recoverable files; persistent I/O errors or interruption can leave
+    // drift which the next invocation rejects. No crash-atomic update claim.
+    const recoveryErrors = [];
     for (const file of written.reverse()) {
-      const before = originals.get(file);
-      if (before === null) { if (fs.existsSync(file)) fs.unlinkSync(file); }
-      else { fs.writeFileSync(file, before.bytes); fs.chmodSync(file, before.mode); }
+      try {
+        const before = originals.get(file);
+        if (before === null) { if (fs.existsSync(file)) fs.unlinkSync(file); }
+        else { fs.writeFileSync(file, before.bytes); fs.chmodSync(file, before.mode); }
+      } catch (recoveryError) {
+        recoveryErrors.push(new Error(`restore failed: ${file}: ${recoveryError.message}`, {cause: recoveryError}));
+      }
     }
+    if (recoveryErrors.length)
+      throw new AggregateError([error, ...recoveryErrors],
+        `installation failed: ${error.message}; ${recoveryErrors.map(item => item.message).join('; ')}`, {cause: error});
     throw error;
   } finally { fs.closeSync(lockFd); fs.unlinkSync(lock); }
 }
@@ -208,9 +216,18 @@ export function diagnoseInstallation(options) {
     report.artifact = {hash: plan.sourceHash, version: plan.version, root: plan.installedRoot};
     if (plan.runtime !== 'antigravity') {
       const observed = diagnose(plan.installedRoot, options.doctorDirectory, options.sessionId, options.source);
-      report.loaded = observed.loaded;
-      report.live = observed.live;
       report.reasons.push(...observed.reasons);
+      if (observed.runtime !== plan.runtime) {
+        report.reasons.push('observed runtime missing or differs from installation runtime');
+      } else if (parityContract.surfaces.filter(surface => surface.startsWith(plan.runtime + '-')).length !== 1) {
+        // The current doctor binds runtime, source and session but has no
+        // independently observed CLI/desktop identity. A caller/challenge label
+        // cannot supply it. Later execution adapters must provide that evidence.
+        report.reasons.push('surface identity unobserved; runtime receipt does not distinguish CLI from desktop');
+      } else {
+        report.loaded = observed.loaded;
+        report.live = observed.live;
+      }
     } else report.reasons.push('Antigravity execution/observation adapter pending; static projection is not loaded evidence');
   } catch (error) { report.reasons.push(error.message); }
   return report;
