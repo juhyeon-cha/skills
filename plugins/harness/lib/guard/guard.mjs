@@ -578,12 +578,15 @@ export async function evaluateGuard(
     rule = 'UNREACHED-input',
     result;
   try {
-    let delegatedRole;
-    if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default')) {
+    event = normalizeHookEvent(raw, { env, deferDelegatedRole: true });
+    const roleIndependent = event.harness_shell_readonly ||
+      ['Read', 'NotebookRead', 'Glob', 'Grep'].includes(event.tool_name) ||
+      /^collaboration\.?(?:send_message|list_agents|wait_agent)$/.test(event.tool_name);
+    if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default') && !roleIndependent) {
       const { delegationHookRole } = await import('../runtime/delegation.mjs');
-      delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env, readThread });
+      const delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env, readThread });
+      event = normalizeHookEvent(raw, { env, delegatedRole });
     }
-    event = normalizeHookEvent(raw, { env, delegatedRole });
     const rawCommand = event.tool_input.command ?? '';
     const windowsOperands =
       event.tool_name === 'Bash'

@@ -2,6 +2,19 @@
 
 Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `agents/*.md`; the skill still owns result handling and RETRY checkpoints and explicit user budgets.
 
+## Standalone investigation and review
+
+Use ordinary delegation for a user-requested investigation or review that does
+not close ledger tasks. Supply the repository, fixed commit range (or identified
+working diff), responsibilities and relevant rules. Keep the provider-returned
+child identity, response and inspected scope with the findings. No story, native
+registration, begin/bind/complete inventory or whole-session audit is required.
+The same independent reviewer can follow up on its findings. The parent can run
+tests that need permissions unavailable to the reviewing child and supply their
+actual results. A standalone report does not authorize ledger close.
+
+The remaining sections govern managed role execution and task completion.
+
 ## Select the execution contract
 
 Roles define responsibilities and permission boundaries; native role registration
@@ -29,7 +42,10 @@ authorization to override a user's native requirement. This diagnoses availabili
 not execution, hook activation or role loading.
 Doctor's native `check` retains its separate static/loaded/live judgments.
 
-For hook execution, use the active SessionStart `data` and `sessionId` in the
+Ordinary file reads, recognized read-only shell commands and internal collaboration
+reporting do not require role registration, a delegation inventory or metadata
+lookup. A passing read is permission to inspect, not role or completion evidence.
+For writes and commands outside that read subset, use the active SessionStart `data` and `sessionId` in the
 call, and the assigned canonical worktree as `repository`. Codex can deliver a
 thread UUID as `agent_id` and the built-in `default` profile as `agent_type`.
 For that shape, the guard uses the local CLI's App Server `initialize` →
@@ -40,17 +56,18 @@ thread, request a model turn, or correlate children by timing. Missing metadata,
 an unavailable CLI, timeout or schema mismatch denies the tool. The CLI must read
 the same local Codex state as the active session; remote-only state is unavailable.
 The legacy canonical-path hook shape without `agent_type` remains supported.
-The guard resolves the pending dispatch in that session's inventory, checks
-source/commit scope and any binding, and applies its assigned role's policy
+The guard resolves the active dispatch in that session's inventory, checks
+role source, repository identity and any binding, and applies its assigned policy
 without filling in native identity. Persisted dispatch permits the
 first tool before bind returns; bind is still mandatory for result consumption.
-Unknown, mismatched, corrupt or terminal records deny execution. Hook cwd may be
+Unknown, mismatched, corrupt or terminal records deny role-dependent execution. Hook cwd may be
 the main checkout or a linked tree of the same Git repository. Missing hook
 identity or different state coordinates remain UNREACHED; do not search other
 sessions or copy inventories to make them match.
 
-An outcome written by complete ends this permission window, including REJECTED.
-The parent must complete interrupted calls as rejected and must not reuse a child.
+An outcome written by complete ends the role-dependent permission window, including REJECTED.
+The parent must complete interrupted calls as rejected. A completed reviewer can
+be reused through a linked retry below; an interrupted child uses a fresh call and child.
 The guard cannot observe provider termination before the parent records it.
 These local checks do not establish provider permission enforcement: the same OS
 user can alter local records, and unobserved tools are outside the guard's reach.
@@ -67,8 +84,14 @@ It is not native REACHED, registered-role evidence or proof of semantic acceptan
 Both paths preserve the calling skill's SIGNAL handling and persisted RETRY checkpoints and explicit user budgets.
 Each grader is independent of the parent and all implementation authors. When
 separate reviewer and evaluator calls are required, their children are distinct.
-Combined verification uses one evaluator as defined by `verify-code` "Verification path". On a retry use a fresh child and include
-all earlier attempts in `previousAgentIds`; a follow-up cannot stand in for it.
+Combined verification uses one evaluator as defined by `verify-code` "Verification path".
+For a fix review, reuse the independent reviewer when its earlier invocation
+completed and its context remains useful. Preserve the original review scope,
+earlier findings and a new result for the corrected head. Generic managed calls
+use `retryOf` and `reuseChild: true` as `transcripts.md` describes; a fresh child
+remains available. Keep earlier IDs as history, not a blanket ban on reuse.
+Native protocols that cannot isolate a new invocation use a fresh child or the
+generic path unless the user explicitly requires native execution.
 Upsert the call and validated outcome with `ledger summary <task ID> execution-<role> --file <file>`, keeping private runtime
 identities and response evidence in the parent-owned local inventory when needed.
 PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handling
@@ -87,29 +110,20 @@ Registration proves files, not runtime loading or hook activation. Start a new r
 
 ## Model selection
 
-`lib/runtime/role-models.mjs` owns Codex defaults: reviewer uses `gpt-5.6-sol`
-with `high`, evaluator uses `gpt-5.6-terra` with `medium`, and implementer inherits
-the parent's model and effort. Review traces complex logic; evaluation compares
-bounded acceptance and evidence. Terra balances that judgment with lower cost.
-This is a workload choice, not a measured token-saving ratio or a Sonnet equivalence.
-Claude keeps its own role frontmatter, including evaluator's `model: sonnet`.
+`lib/runtime/role-models.mjs` holds preferences, not runtime requirements.
+Codex roles inherit the runtime's model and effort when availability is unknown
+or the preferred model is unavailable. Native projections omit fixed defaults.
+For generic begin, optional `modelOptions.availableModels` supplies a current
+provider-supported list; a listed preference can be selected. If that default
+fails at dispatch, retry with inherited settings and record the actual choice.
+Do not add a model-discovery gate just to use a preference.
 
-Native registration writes both `model` and `model_reasoning_effort` into the
-generated role TOML. Regenerate owned projections and their receipt on update.
-Generic `begin` returns the corresponding `model`, `reasoning_effort` and
-`fork_turns` in `dispatch`; pass these options unchanged to `spawn_agent`.
-Grader forks use `none` because full-history forks do not accept model overrides
-on this collaboration provider. Supply the role path and required snapshot in
-the message. Do not silently replace an unavailable model or erase a requested
-effort; report UNAVAILABLE. Explicit user model choices take precedence over
-these defaults; record the selected model/effort in the execution summary.
-
-Codex custom-agent files take precedence over spawn options, followed by explicit
-spawn values, `[agents]` defaults, then parent inheritance. Pair model and effort
-to avoid inheriting an unsupported effort. This Harness does not rewrite global
-`config.toml` defaults or copy Anthropic model names into Codex. A requested model
-is not observed model evidence: check App Server thread metadata or the hook's
-`model` field before claiming the actual choice. Missing usage remains unknown.
+An explicit user selection travels as `modelOptions.model` and optional
+`reasoning_effort`. Keep it unchanged; known unavailability is an error, and a
+provider rejection follows human wait. A model change needs a fresh child;
+reviewer follow-ups retain their existing runtime settings. Requested options
+are not observed model evidence. Record an observed choice when available and
+leave missing usage unknown. Claude retains its runtime-owned model settings.
 
 Sources: [OpenAI subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
 [models](https://learn.chatgpt.com/docs/models),
@@ -125,7 +139,7 @@ Save a request JSON containing `role`, `task` (the task or batch unit), `message
 
 Before native invocation, persist the required call with `workflow.mjs begin` as [Runtime observations](transcripts.md) specifies. It uses `roleCall` and records the observation boundary; standalone `roles.mjs call` validates a request but does not persist that inventory. Invoke the runtime's native delegate tool with the returned call's `identifier` and `message`: Claude uses `harness:<role>`, Codex uses `harness-<role>`. Record the returned child and invocation IDs before waiting. The CLI does not spawn a model or prove runtime loading. A generic child instructed to read a role file is not evidence of custom-role registration.
 
-For a retry, follow verify-code's persisted RETRY procedure before creating a new call. Include every earlier attempt's ID in `previousAgentIds` and use a fresh native child. Evaluator/reviewer IDs must differ from the parent and every implementation author. Same-role follow-ups do not become fresh reviews.
+For a retry, follow verify-code's persisted RETRY procedure before creating a new call. Native evidence requires a fresh child when the provider cannot isolate a new invocation. Use the generic linked-retry path to reuse a reviewer. Evaluator/reviewer IDs must differ from the parent and every implementation author.
 
 ## Result (native)
 

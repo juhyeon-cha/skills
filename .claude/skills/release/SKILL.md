@@ -1,6 +1,6 @@
 ---
 name: release
-description: Release one plugin of the skills marketplace — sweep the changes since its previous tag, settle the bump width, write the CHANGELOG entry, raise the version in plugin.json, validate, commit, tag, and push both to the default branch. Use on a "릴리스해줘" or "<plugin> 버전 올려줘" request. Publishing a GitHub release stays out of it unless the user says so explicitly.
+description: Release a skills marketplace plugin through versioning, validation, commit, tag, push and a published GitHub Release with automatically generated notes. Use on a "릴리스해줘" or "<plugin> 버전 올려줘" request; an explicit release approval covers push and publication for that release.
 ---
 
 # Releasing a plugin
@@ -9,6 +9,15 @@ Input: the plugin name — `plugins/<name>/` in the skills repo. The version has
 `plugins/<name>/.claude-plugin/plugin.json`, and the marketplace reads it from there; the
 CHANGELOG is `plugins/<name>/CHANGELOG.md`; the tag is `<name>-v<version>`. Nothing else holds the
 number independently. Generated runtime manifests derive it from that source; never bump them by hand.
+
+An explicit user request or approval to release covers the release commit and tag push to
+`origin`'s default branch and GitHub Release publication for that release. Proceed without
+asking again. A preparation-only request ends before push. Editing this skill is not itself
+an instruction to publish a release.
+
+Work in the assigned linked worktree. Before writing the entry, fetch the default branch
+and inspect the commits that would be pushed; the approved release scope must cover them.
+Check GitHub CLI authentication and resolve `origin` to its GitHub repository for `--repo`.
 
 ## 1. Sweep the changes since the previous tag
 
@@ -71,33 +80,33 @@ distribution module, runs `claude plugin validate --strict` on both the marketpl
 and the repository gate, commits, tags `<name>-v<version>`, and pushes both. **Everything that
 changes state comes after the preconditions**, so a refusal at that stage leaves nothing behind, and
 a generation, validation or gate failure restores the original manifest and generated metadata.
-Harness releases require Node and a consistent source artifact before the bump. Two preconditions exist for the push: it
-refuses outside the default branch, and it refuses when the remote is ahead. The first is checked
-before anything else, so standing in the wrong place costs one command rather than a written
-CHANGELOG entry.
+Harness releases require Node and a consistent source artifact before the bump. The script
+accepts the default branch or a linked worktree branch and requires `origin`'s default
+branch to be an ancestor of HEAD. It pushes HEAD directly to that default branch.
 
 **rc≠0: read what it printed and fix that.** Do not do the steps by hand instead — the script is
 where the version, the CHANGELOG heading, and the tag name are held to one number.
 
-**Run this in the main checkout, on the default branch — not in a worktree.** A worktree cannot
-check out the branch the main checkout holds, so the script refuses there and says where to go.
-**A person runs it, not the harness**: the harness may not touch a target repo's main checkout, so
-releasing is one of the few procedures it hands back.
-
-**The script pushes the commit and the tag straight to the default branch — no PR.** Running it is
-the instruction to do that, so nothing further is asked. It prints every commit that will travel
-with the release commit, so read that list before it goes. A branch would go through a
-squash merge, and a squash merge throws away the commit the tag sits on: the tag then names a commit
-on no branch, and the next release's sweep in step 1 starts from a range that does not exist. Two
-tags are already in that state.
+The harness runs the script in the assigned linked worktree under the release approval.
+The main checkout remains untouched. Read the printed outgoing commit list; the push carries
+those commits and the release commit without a squash merge, keeping the tag reachable.
 
 The push is atomic — the commit and the tag land together or neither does. **A tag alone on the
 remote is the orphan this avoids**, so do not push one by hand after a partial failure; the script
 prints what to rerun and what to undo.
 
-**Publishing a GitHub release (`gh release create`) still happens only on explicit instruction**, and
-an instruction covers one release. The marketplace carries the edition as soon as the commit lands;
-installs pick it up with `claude plugin marketplace update skills` + `claude plugin update <name>@skills`.
+## 5. Publish the GitHub Release
+
+After the atomic push succeeds, publish the pushed tag in the repository resolved from `origin`:
+
+```bash
+gh release create <name>-v<version> --repo <origin-owner/repo> --verify-tag --generate-notes
+```
+
+Use GitHub's generated notes as-is; the repository CHANGELOG remains the versioned install
+history from step 3. Release approval includes this step. If publication fails after push,
+keep the pushed commit and tag and retry publication only. On an uncertain response, first
+check `gh release view` for that tag to avoid creating a duplicate.
 
 ## Completion criterion
 
@@ -108,3 +117,7 @@ read back in this session.
 **One more, because the push is what the release is for**: `git merge-base --is-ancestor <name>-v<version> origin/<default branch>`
 returns 0. It is the assertion the orphan defect would fail, and it reads the remote rather than the
 local tag.
+
+Read `gh release view <name>-v<version> --repo <origin-owner/repo> --json tagName,isDraft,url`.
+The tag must match and `isDraft` must be false. Report the published URL; a successful push
+without a published GitHub Release is incomplete.

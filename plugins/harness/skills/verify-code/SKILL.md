@@ -9,15 +9,21 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 The reviewer role definition (`${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`) holds the review discipline. This procedure holds delegation and signal handling only.
 
+Standalone user-requested reviews use `docs/roles.md` "Standalone investigation
+and review" and end with findings. The managed task procedure below is for
+reviews whose result feeds task completion.
+
 Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED or generic OBSERVED under that contract before the branches below apply. That contract owns execution-path selection and explicit enforcement requirements; the SIGNAL and retry rules below hold in both paths.
 
 ## Verification path
 
-Use combined verification for changes limited to behavior-neutral spelling,
-formatting, comments or user-facing documentation, when the repository does not
-require separate reviews. Changes to executable instructions, gates, permissions,
-public contracts, dependencies, persistence or runtime behavior use separate
-reviewer and evaluator calls. Uncertain risk uses the separate path.
+Use combined verification for behavior-neutral edits and small, localized bug
+fixes with a clear regression test and a reviewable diff, when the repository
+does not require separate reviews. Use separate reviewer and evaluator calls for
+permission or enforcement changes, data-loss or migration risks, incompatible
+public contracts, broad dependency/runtime changes, and uncertain impact.
+Record the risk grounds for the selected path; changing runtime behavior alone
+does not require two graders.
 
 For the combined path, call `verify-implement` with `combined verification` in the
 delegation context instead of spawning a reviewer. The independent evaluator
@@ -35,8 +41,8 @@ Delegate to reviewer. The message carries ① first line: harness root absolute 
 
 - `LGTM` → upsert the receipt and NIT list with `ledger summary <unit ID> review --file <file>` and move on to verify-implement. In batch mode use the milestone and identify the tasks; outside batch mode use the task. The summary leaves `VERIFY_PENDING` standing. Promoting a NIT into a task goes through the convention gate in `plan-story` section 4.
 - `CHANGES_REQUESTED` → upsert the findings with `ledger summary <unit ID> review --file <file>` → **read and raise the counter before re-delegating** → delegate the fix to implementer → reviewer re-reviews (**whether the earlier findings are resolved, and nothing else**). When the implementer signal returned from the fix delegation is something other than `IMPLEMENTATION_COMPLETE` (`IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED` · outside the list), handle it through the branches in `develop` 3-4 instead of re-review.
-  - **Re-review runs on a fresh reviewer instance.** The instance that raised the findings is done.
-  - **In exchange the re-review delegation message is written thick — this is the explicit exception to the thin-delegation discipline (`develop` section 3).** A fresh instance regathers its context, and the delegation message pays that rediscovery cost in its place. Carry three things:
+  - **Reuse the independent reviewer for a bounded fix review**, following `docs/roles.md` for a new invocation and result. Use a fresh reviewer when the previous context is unavailable, the scope materially changes, or the reviewer contributed implementation changes.
+  - Carry the corrected head and earlier finding references on a follow-up. A fresh reviewer needs the full context below:
     1. **The earlier findings verbatim** — leave them unsummarised. What was asked for is the control the re-review compares against
     2. **The commit range** — where the fix starts and where it ends
     3. **The implementer's resolution claims** — which finding they say they resolved and how. Those claims are what the re-review checks

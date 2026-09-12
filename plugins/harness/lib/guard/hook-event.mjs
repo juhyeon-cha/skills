@@ -10,7 +10,7 @@ import { powershellOperations } from './powershell-operations.mjs';
 
 export function normalizeHookEvent(
   raw,
-  { env = process.env, platform = process.platform, delegatedRole } = {},
+  { env = process.env, platform = process.platform, delegatedRole, deferDelegatedRole = false } = {},
 ) {
   if (!raw || Array.isArray(raw) || typeof raw !== 'object')
     throw new Error('hook input must be an object');
@@ -30,9 +30,10 @@ export function normalizeHookEvent(
     if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
   if (delegatedRole && (!raw.agent_id || (raw.agent_type && raw.agent_type !== 'default') || !canonicalRole(delegatedRole)))
     throw new Error('invalid delegated policy role');
-  if (raw.agent_id && !canonicalRole(raw.agent_type) && !delegatedRole)
+  const pendingRole = deferDelegatedRole && raw.agent_id && (!raw.agent_type || raw.agent_type === 'default');
+  if (raw.agent_id && !canonicalRole(raw.agent_type) && !delegatedRole && !pendingRole)
     throw new Error('child role is unidentified');
-  if (raw.agent_type && !canonicalRole(raw.agent_type) && !delegatedRole) throw new Error('unknown role');
+  if (raw.agent_type && !canonicalRole(raw.agent_type) && !delegatedRole && !pendingRole) throw new Error('unknown role');
   const event = {
     ...raw,
     agent_type: canonicalRole(raw.agent_type) ?? '',

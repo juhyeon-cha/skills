@@ -18,7 +18,7 @@
 # **기본 브랜치에 직접 push 한다. 브랜치도 PR 도 거치지 않는다**(사용자 결정 2026-09-08). PR 을
 # 거치면 스쿼시 머지가 태그를 붙인 커밋을 버려, 태그가 어느 브랜치에도 없는 커밋을 가리킨다.
 # 그 결함이 skills#45 이고 `harness-v1.0.0`·`toolkit-v2.0.0` 이 이미 그 상태다.
-# GitHub 릴리스 발행(`gh release create`)은 여전히 하지 않는다 — 명시 지시가 있을 때 손으로 한다.
+# GitHub Release 발행은 push 성공 후 /release 스킬이 --generate-notes 로 수행한다.
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "✗ 레포 루트로 이동하지 못했다" >&2; exit 1; }
@@ -35,23 +35,13 @@ case "$BUMP" in
   *) echo "✗ 폭은 patch·minor·major 중 하나다 — 받은 값: $BUMP" >&2; usage; exit 1 ;;
 esac
 
-# **릴리스는 본 체크아웃의 기본 브랜치에서만 한다**(사용자 결정 2026-09-09). 워크트리는 본
-# 체크아웃이 든 기본 브랜치를 꺼낼 수 없으므로(git 이 막는다) 이 전제가 곧 "본 체크아웃에서
-# 하라" 는 뜻이다. 값이 하나 있다 — **하네스는 릴리스를 대신 돌릴 수 없다.** 대상 레포의 본
-# 체크아웃을 직접 건드리는 것이 절대 금지라, 사람이 손으로 하는 절차가 된다.
+# 승인된 릴리스는 기본 브랜치 또는 할당된 linked worktree에서 실행한다.
 DEFAULT=$(git symbolic-ref -q --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')
 [ -n "$DEFAULT" ] || DEFAULT=main
 
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ "$BRANCH" != "$DEFAULT" ]; then
-  echo "✗ 릴리스는 기본 브랜치($DEFAULT)에서 한다 — 지금은 '$BRANCH' 다" >&2
-  # 링크된 워크트리는 두 값이 갈린다. 갈리면 브랜치를 바꾸라는 안내가 무용하므로 자리를 짚어 준다.
-  if [ "$(git rev-parse --git-dir)" != "$(git rev-parse --git-common-dir)" ]; then
-    echo "  여기는 워크트리다. 워크트리는 본 체크아웃이 든 '$DEFAULT' 를 꺼낼 수 없다 —" >&2
-    echo "  본 체크아웃으로 가서 돌려라(하네스는 그 자리를 건드리지 않으므로 사람이 한다)." >&2
-  else
-    echo "  'git switch $DEFAULT' 뒤 다시 돌려라" >&2
-  fi
+if [ "$BRANCH" != "$DEFAULT" ] && [ "$(git rev-parse --git-dir)" = "$(git rev-parse --git-common-dir)" ]; then
+  echo "✗ 릴리스는 기본 브랜치 또는 할당된 linked worktree에서 한다 — 지금은 '$BRANCH' 다" >&2
   exit 1
 fi
 
@@ -217,4 +207,4 @@ if ! git push --atomic origin "HEAD:refs/heads/$DEFAULT" "$TAG"; then
 fi
 
 echo "✓ $NAME $NEXT — 커밋 $COMMIT · 태그 $TAG · origin/$DEFAULT 에 push 했다"
-echo "  GitHub 릴리스 발행은 하지 않았다. 명시 지시가 있을 때 손으로 한다."
+echo "  다음 단계: gh release create $TAG --verify-tag --generate-notes (origin 저장소를 --repo 로 지정)"

@@ -80,7 +80,7 @@ try {
   }
   check(normalizeHookEvent(event('exec_command', {cmd: 'pwd'})).tool_name === 'Bash', 'exec_command maps to Bash');
   for (const extra of [{agent_type: false}, {agent_id: 0}, {cwd: '.'}]) check(guard(event('Bash', {command: 'pwd'}, extra)).status === 2, 'malformed identity/cwd fails closed');
-  for (const e of [event('apply_patch', {command: 'unknown'}), event('apply_patch', {command: patch('')}), event('apply_patch', {command: patch('*** Unknown File: x')}), event('Write', {}), event('Bash', {}), event('Bash', {command: 'pwd'}, {agent_id: 'child'}), event('Bash', {command: 'pwd'}, {agent_type: 'unknown'}), {...event('Bash', {command: 'pwd'}), cwd: ''}]) check(guard(e).status === 2, 'unknown/missing input fails closed');
+  for (const e of [event('apply_patch', {command: 'unknown'}), event('apply_patch', {command: patch('')}), event('apply_patch', {command: patch('*** Unknown File: x')}), event('Write', {}), event('Bash', {}), event('Bash', {command: 'git commit -m unknown'}, {agent_id: 'child'}), event('Bash', {command: 'pwd'}, {agent_type: 'unknown'}), {...event('Bash', {command: 'pwd'}), cwd: ''}]) check(guard(e).status === 2, 'unknown/missing input fails closed');
   check(normalizePath('..\\한글 file', 'C:\\work\\story') === 'C:\\work\\한글 file', 'drive lexical path');
   check(normalizePath('..\\한글 file', '\\\\server\\share\\story') === '\\\\server\\share\\한글 file', 'UNC lexical path');
   check(patchOperations(patch('*** Add File: C:\\work\\한글 file\n+x'), 'C:\\work')[0].path === 'C:\\work\\한글 file', 'Windows patch path');

@@ -24,7 +24,7 @@ This is local evidence handling, not authentication of native tool returns. The 
 
 ## Generic parent observations
 
-For the generic prompt-only path selected under [roles.md](roles.md), use
+For managed generic prompt-only execution selected under [roles.md](roles.md), use
 `scripts/delegation.mjs`. It shares the capability decision with doctor; it does not
 call the model tool. Parent-supplied observations are a trust boundary, not an
 authenticated provider capture or protection against same-user file edits. Keep
@@ -34,7 +34,7 @@ the original tool returns locally so a grader can compare their provenance.
    `provider: "collaboration"`, canonical absolute worktree `repository`, normalized
    absolute parent-owned `data`, actual `sessionId` and `parentAgentId`, a new local
    `callId`, `role`, `task`, `sourceHash`, `commitScope`, `implementerIds`,
-   `previousAgentIds`, and optional `permission: "prompt-only"` (the default). Obtain sourceHash
+   `previousAgentIds`, and optional `permission: "prompt-only"` (the default). Optional `modelOptions` follows roles.md. Obtain sourceHash
    from `loadRole(role, pluginRoot).sha256` in `lib/runtime/roles.mjs`. Use the actual
    parent session identity. For guarded execution, take `data` and `sessionId`
    from the active SessionStart context as [roles.md](roles.md) requires; an
@@ -52,25 +52,43 @@ the original tool returns locally so a grader can compare their provenance.
    call and observation is `{source: "parent-tool-return", tool:
    "collaboration.spawn_agent", value: <actual tool return>}`. Require rc 0 and
    PENDING. The return shape is `{task_name: "/root/<actual child>"}`. Binding reserves
-   that fresh child once in the session. A repeated or mismatched child is rejected.
+   the child for this invocation. Unlinked reuse or a mismatched child is rejected.
 4. After the actual child finishes, run `complete <complete.json>` with `{call, head,
    observation}`. `head` is the actual clean final HEAD; implementation may advance
    to a descendant of base on the same branch, while grader HEAD is fixed. Observation
    is `{source: "parent-tool-return", tool: "collaboration.list_agents", value:
    <actual tool return>}`. The supported return contains `agents` rows with
    `agent_name` and `agent_status`; a completed status is `{completed: <full response>}`.
-   Use the real returned body, not the child's account of a tool result. Require rc 0
+   Obtain a new completion snapshot after this invocation finishes; never reuse the
+   previous turn's completed snapshot. Use the real returned body, not the child's account of a tool result. Require rc 0
    and OBSERVED before handling its signal. Running/interrupted status, missing body,
    wrong SIGNAL, identity/source/commit mismatch and duplicate completion reject.
 5. Run `audit <context.json>` with only version, runtime, provider, repository, data,
    sessionId and parentAgentId from the call. It reads every call in this inventory;
    missing, pending and failed attempts remain visible. An empty inventory cannot
-   succeed. Audit success requires every call OBSERVED; a known negative probe remains
-   a rejected row and cannot be removed to claim whole-inventory success.
+   succeed. Audit succeeds when each call is OBSERVED or a valid rejected call has
+   an OBSERVED successor through explicit `retryOf` links. Resolved rows retain
+   REJECTED and their reason, with `resolvedBy` pointing to the recovery. Pending,
+   corrupt, unrelated and unresolved failed calls still fail audit. Audit is an
+   execution-history check, not acceptance; an OBSERVED CHANGES_REQUESTED is not LGTM.
 
 All commands take exactly an action and one JSON file. Failed validation returns
-nonzero; PENDING is not completion. A terminal failure needs a fresh call and child
-under the existing RETRY/human-wait procedure, never a reused follow-up. Keep all
+nonzero; PENDING is not completion. A retry needs a new call linked with `retryOf: <prior callId>` under the
+existing progress/budget rule. The prior call must be terminal, with the same
+task, role, repository and base; a fixed head may advance to a descendant.
+Unlinked calls cannot resolve a failure. Failed or interrupted execution uses
+a fresh child. A completed reviewer can use `reuseChild: true`: begin returns
+`dispatch.tool: "collaboration.followup_task"` and the existing task name. Send
+the corrected head and earlier findings to that child, then bind with
+`observation.tool: "collaboration.followup_task"` and its actual return value
+(which may be null). Only one invocation may own that reviewer at a time.
+Complete consumes a new response through the same list_agents observation;
+old results are never renamed or overwritten. A native-only requirement keeps
+its native observation boundary.
+
+Branch, HEAD and cleanliness are checked at begin and complete. Binding and
+tool permission checks retain identity and repository checks without repeating
+those mutable-tree checks. A result for the wrong or dirty final tree is rejected. Keep all
 request/outcome files and the actual observation source for re-entry and grading.
 The immutable outcomes store signal and response hash rather than the full body.
 

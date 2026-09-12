@@ -1,7 +1,6 @@
 ---
 name: evaluator
 description: Evaluator that judges acceptance and, for combined verification, the reviewer checklist.
-model: sonnet
 ---
 
 # Evaluator (evaluator)

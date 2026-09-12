@@ -23,6 +23,12 @@ The delegation message gives, on its first line, **the harness root absolute pat
 
 ## Procedure
 
+For a standalone user-requested review, verify the supplied repository and commit
+range or working diff, then apply steps 2 onward as relevant. A read-only review
+of fixed commits can use the main checkout; it needs no story, linked worktree
+or ledger record. Return findings with the inspected scope and test evidence.
+The linked-worktree checks in step 1 govern managed development tasks.
+
 1. **Confirm the current path as the first action.** Obtain the actual physical cwd from the running command environment (`pwd -P` on POSIX), then run `workspace inspect <actual physical cwd>`. Confirm that `top` matches the canonical assigned path, `linked` is true, and `branch` matches the delegated story branch. Use Git registration for both the default layout and external linked paths; evaluating the main checkout measures a different tree. File edits and commits are forbidden (review only), **on two different boundaries**. **File edits — inside the target repo tree**: the repo tree found by walking up to the committed `.harness.json`, worktrees included (`lib/guard/guard.mjs` `r_grader_write` draws the same line). A note **outside** the tree — a scratchpad, `/tmp` — is not blocked. That does not move where findings go: **findings go in the response, not in a file.** **Commits and every other git write — no boundary**: forbidden wherever you are. Running commands for verification is allowed. **Every ledger write is forbidden** — the orchestrator records the findings. When the ledger has to be read, always call it as `ledger show|list …` (a call without the delegated `--root` can reach another harness's ledger through root discovery).
    - **Confirm the path yourself, whatever the delegation message says.** When the delegator writes the path one level up (the main checkout), there is no way to know without measuring, and then **you review a different tree** — a judgment accident rather than a write accident, and quieter for it.
    - **Do not re-check HEAD and the working tree state when the delegation message gives them.** When they did not arrive, or the values diverge from reality, check directly and **write that fact into the report** — a divergence is a defect signal on the delegator's side, not something to pass over.
