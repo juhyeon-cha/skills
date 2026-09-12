@@ -1,3 +1,4 @@
+import { normalizeRecord, preserveRecord, recordBody, rowRecord } from './record.mjs';
 import { loadConfig } from '../config.mjs';
 import {
   parse,
@@ -79,10 +80,17 @@ export async function notionLedger(argv, ctx) {
       children: [{ object: 'block', type: 'paragraph', paragraph: { rich_text: richText(text) } }],
     });
   const notes = async (id) => {
-    const result = await request('GET', `blocks/${id}/children?page_size=100`);
-    const paragraphs = result.results
-      .filter((row) => row.type === 'paragraph')
-      .map((row) => txt(row.paragraph.rich_text));
+    let cursor;
+    const paragraphs = [], seen = new Set();
+    do {
+      const result = await request('GET', `blocks/${id}/children?page_size=100${cursor ? '&start_cursor=' + encodeURIComponent(cursor) : ''}`);
+      if (!Array.isArray(result.results)) fail('notes: block response is missing');
+      paragraphs.push(...result.results.filter(row => row.type === 'paragraph').map(row => txt(row.paragraph.rich_text)));
+      if (!result.has_more) break;
+      cursor = result.next_cursor;
+      if (!cursor || seen.has(cursor)) fail('notes pagination: missing/repeated next_cursor');
+      seen.add(cursor);
+    } while (cursor);
     return paragraphs.length ? paragraphs.join('\n') : null;
   };
   const query = async (filter) => {
@@ -125,7 +133,7 @@ export async function notionLedger(argv, ctx) {
       filters.push({ property: 'Status', select: { does_not_equal: 'closed' } });
     const rows = filterRows(await query(filters.length ? { and: filters } : null), options);
     for (const row of rows) row.notes = await notes(row.id);
-    return rows;
+    return rows.map(normalizeRecord);
   };
   switch (cmd) {
     case 'init': {
@@ -212,7 +220,7 @@ export async function notionLedger(argv, ctx) {
           dependency_type: 'blocks',
         });
       }
-      ctx.out(args.includes('--json') ? json([row]) : showText(row));
+      ctx.out(args.includes('--json') ? json([normalizeRecord(row)]) : showText(normalizeRecord(row)));
       break;
     }
     case 'list':
@@ -282,10 +290,21 @@ export async function notionLedger(argv, ctx) {
       if (options.type) properties.Type = { select: { name: options.type } };
       if (options.acceptance !== undefined)
         properties.Acceptance = { rich_text: richText(options.acceptance) };
-      if (options.bodyFile !== undefined || options.description !== undefined)
-        properties.Description = { rich_text: richText(await description(options, ctx)) };
+      if (options.bodyFile !== undefined || options.description !== undefined || (options.claim && options.actor)) {
+        const raw = normalizeNotion(await page(id));
+        let body = raw.description;
+        if (options.bodyFile !== undefined || options.description !== undefined)
+          body = preserveRecord(body, await description(options, ctx));
+        if (options.claim && options.actor) {
+          raw.notes = await notes(id);
+          const record = rowRecord(normalizeRecord(raw));
+          record.execution.actor = options.actor;
+          body = recordBody(body, record);
+        }
+        properties.Description = { rich_text: richText(body) };
+      }
       if (Object.keys(properties).length) await props(id, properties);
-      if (options.claim && options.actor) await append(id, `ACTOR: ${options.actor}`);
+
       ctx.out(`✓ Updated issue: ${id}\n`);
       break;
     }

@@ -1,3 +1,4 @@
+import { lastExecutionMarker } from '../ledger/record.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -102,13 +103,7 @@ export async function evaluateStop(
     log('IDLE', `in_progress 0건(범위: ${range}) — 막을 이유가 없다`);
     return result;
   }
-  const marks = rows.map(
-    (row) =>
-      String(row.notes ?? '')
-        .split('\n')
-        .filter((line) => /^(VERIFY_PENDING|DELEGATED)/.test(line))
-        .at(-1) ?? '',
-  );
+  const marks = rows.map(lastExecutionMarker);
   const vp = marks.filter((mark) => mark.startsWith('VERIFY_PENDING')).length; // VERIFY_MARK
   const dg = marks.filter((mark) => mark.startsWith('DELEGATED')).length; // DELEGATED_MARK
   const pending = vp + dg;
@@ -152,7 +147,7 @@ export async function evaluateStop(
   result.stdout =
     JSON.stringify({
       decision: 'block',
-      reason: `범위 ${range} 안에 in_progress 인 일이 ${n}건 남아 있고 그중 ${n - pending}건은 표시가 없다. 마감했다면 ledger.mjs close 로 닫고, 구현이 끝났다면 VERIFY_PENDING: <커밋 해시>, 위임 직후면 DELEGATED: <마일스톤ID> 를 ledger.mjs note --file 로 남겨라. 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 \`${cancel}\` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — ${scope.stopLog} 참고.`,
+      reason: `범위 ${range} 안에 in_progress 인 일이 ${n}건 남아 있고 그중 ${n - pending}건은 표시가 없다. 마감했다면 ledger.mjs close 로 닫고, 구현이 끝났다면 VERIFY_PENDING: <커밋 해시>, 위임 직후면 DELEGATED: <마일스톤ID> 를 ledger.mjs state --file 로 남겨라. 사람을 기다리는 중이거나 의도적으로 멈추는 것이면 \`${cancel}\` 로 이 가드를 끈 뒤 종료하라(마커는 이 세션이 끝날 때까지 유효하다). 상한에 닿으면 가드가 스스로 물러난다 — ${scope.stopLog} 참고.`,
     }) + '\n';
   return result;
 }

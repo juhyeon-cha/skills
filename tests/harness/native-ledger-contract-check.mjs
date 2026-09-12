@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {executeLedger,commands,beadsCommands} from '../../plugins/harness/lib/ledger.mjs';
+import {projectViews} from '../../plugins/harness/lib/ledger/github-project.mjs';
 import {normalizeGithub} from '../../plugins/harness/lib/ledger/github.mjs';
 import {richText} from '../../plugins/harness/lib/ledger/notion.mjs';
 import {runCommand} from '../../plugins/harness/lib/process.mjs';
@@ -51,7 +52,7 @@ try{
   });
   // Stateful Notion transport: requests/normalization are exercised without an
   // API-host override or a production fixture executable.
-  const pages=new Map(),notes=new Map(),requests=[];let serial=0,failRequest=false,paginate=false;
+  const pages=new Map(),notes=new Map(),requests=[];let serial=0,failRequest=false,paginate=false,notePagination=false;
   const plain=properties=>JSON.parse(JSON.stringify(properties),(key,value)=>key==='rich_text'||key==='title'?value.map(part=>({...part,plain_text:part.text?.content??part.plain_text??''})):value);
   const request=async(method,endpoint,body)=>{
     requests.push({method,endpoint,body});if(failRequest)throw new Error('HTTP 503 fixture unavailable');
@@ -61,7 +62,7 @@ try{
     if(method==='POST'&&endpoint==='pages'){const id='page-'+(++serial),page={id,properties:plain(body.properties),created_time:'created',last_edited_time:'updated'};pages.set(id,page);return page;}
     const [kind,id]=endpoint.split('/');
     if(kind==='pages'){if(!pages.has(id))throw new Error('HTTP 404 object_not_found');if(method==='GET')return structuredClone(pages.get(id));Object.assign(pages.get(id).properties,plain(body.properties));return pages.get(id);}
-    if(kind==='blocks'){if(method==='GET')return{results:(notes.get(id)??[]).map(text=>({type:'paragraph',paragraph:{rich_text:[{plain_text:text}]}}))};notes.set(id,[...(notes.get(id)??[]),...body.children.map(row=>row.paragraph.rich_text.map(part=>part.text.content).join(''))]);return{};}
+    if(kind==='blocks'){if(method==='GET'){const all=notes.get(id)??[],more=notePagination&&all.length>100&&!endpoint.includes('start_cursor=');const chunk=notePagination?(endpoint.includes('start_cursor=')?all.slice(100):all.slice(0,100)):all;return{results:chunk.map(text=>({type:'paragraph',paragraph:{rich_text:[{plain_text:text}]}})),has_more:more,next_cursor:more?'page2':null};}notes.set(id,[...(notes.get(id)??[]),...body.children.map(row=>row.paragraph.rich_text.map(part=>part.text.content).join(''))]);return{};}
     throw new Error('unexpected request '+method+' '+endpoint);
   };
   const n=args=>executeLedger(args,{root,cwd:root,env:{NOTION_TOKEN:'fixture-token'},request,process:noProcess});
@@ -84,6 +85,41 @@ try{
     assert.deepEqual(JSON.parse(await must(n(['children',epic,'--json']))).map(row=>row.id),[task]);
     assert.match(await must(n(['show',task])),/ACCEPTANCE/);assert.match(await must(n(['list','--all'])),/\ttask\t/);
   });
+  await check('Notion mutable state and summaries preserve body, counters and events', async()=>{
+    const count=(notes.get(task)??[]).length;
+    await must(n(['state',task,'DELEGATED: milestone']));
+    await must(n(['state',task,'VERIFY_PENDING: abc123']));
+    await must(n(['state',task,'RETRY: verify-code 2/2']));
+    await must(n(['summary',task,'review','LGTM first']));
+    await must(n(['summary',task,'review','LGTM final']));
+    let row=JSON.parse(await must(n(['show',task,'--json'])))[0];
+    assert.equal(row.description,'description\nline2');
+    assert.equal(row.execution.phase.kind,'VERIFY_PENDING');
+    assert.equal(row.execution.retries['verify-code'].count,2);
+    assert.equal(row.summaries.review,'LGTM final');
+    assert.equal((notes.get(task)??[]).length,count);
+    const writes=requests.filter(r=>r.method==='PATCH').length;
+    await must(n(['summary',task,'review','LGTM final']));
+    assert.equal(requests.filter(r=>r.method==='PATCH').length,writes);
+    await must(n(['update',task,'--description','human body updated']));
+    await must(n(['note',task,'DELEGATED: milestone-again']));
+    row=JSON.parse(await must(n(['show',task,'--json'])))[0];
+    assert.equal(row.description,'human body updated');
+    assert.equal(row.execution.phase.kind,'DELEGATED');
+    assert.equal(row.summaries.review,'LGTM final');
+    assert.equal((notes.get(task)??[]).length,count);
+    await must(n(['state',task,'PHASE: idle']));
+    row=JSON.parse(await must(n(['show',task,'--json'])))[0];
+    assert.doesNotMatch(row.notes,/VERIFY_PENDING:|DELEGATED:/);
+    const old=(await must(n(['create','legacy-many-comments','--silent']))).trim();
+    notes.set(old,[...Array(100).fill('old event'),'RETRY: verify-code 9/2','VERIFY_PENDING: latest']);
+    notePagination=true;
+    await must(n(['summary',old,'review','migrated']));
+    const migrated=JSON.parse(await must(n(['show',old,'--json'])))[0];
+    assert.equal(migrated.execution.retries['verify-code'].count,9);
+    assert.equal(migrated.execution.phase.value,'latest');
+    notePagination=false;pages.delete(old);notes.delete(old);
+  });
   await check('Notion registries and all pagination/filter/failure boundaries',async()=>{
     assert.deepEqual(JSON.parse(await must(n(['rails','--json']))),[{id:'r1',owner:'owner'}]);
     await must(n(['sprint-add','2026-S01']));await absent(n(['sprint-add','2026-S01']));assert.deepEqual(JSON.parse(await must(n(['sprints','--json']))),[{id:'2026-S01',status:'active'}]);
@@ -96,7 +132,7 @@ try{
     const body='line1\n--json\n한글';await must(executeLedger(['note',task,'--stdin'],{root,cwd:root,env:{NOTION_TOKEN:'fixture'},input:Buffer.from(body),request,process:noProcess}));assert.ok(notes.get(task).includes(body));
     await must(executeLedger(['dep','add','--file','-'],{root,cwd:root,env:{NOTION_TOKEN:'fixture'},input:Buffer.from(JSON.stringify({from:task,to:epic})+'\n'),request,process:noProcess}));
   });
-  const ghCalls=[],nodes=new Map();let ghSerial=1,addFailure=false,membership=true,authFailure=false,patchFailure=false,truncate=false;
+  const ghCalls=[],nodes=new Map();let ghSerial=1,addFailure=false,membership=true,authFailure=false,patchFailure=false,truncate=false,commentPagination=false;
   const node=(number,title='issue')=>({number,id:'NODE'+number,databaseId:number,title,state:'OPEN',body:'description\n\n## Acceptance\n\ncriteria',repository:{name:'repo'},labels:{nodes:[{name:'repo:repo'},{name:'type:task'}]},comments:{nodes:[]},assignees:{nodes:[]},blockedBy:{totalCount:0,nodes:[]},projectItems:{nodes:[{project:{number:5}}]},parent:null,createdAt:'created',updatedAt:'updated',closedAt:null});nodes.set(1,node(1));
   const gh=async(command,options)=>{
     assert.equal(command.argv[0],'gh');const args=command.argv.slice(1);ghCalls.push({args,input:options.input?.toString()});const q=args.find(arg=>arg.startsWith('query='))?.slice(6),field=key=>args.find(arg=>arg.startsWith(key+'='))?.slice(key.length+1);
@@ -112,12 +148,25 @@ try{
       if(args[1]==='edit'){const raw=nodes.get(num);for(let i=3;i<args.length;i++){if(args[i]==='--add-label')raw.labels.nodes.push({name:args[++i]});else if(args[i]==='--remove-label'){const label=args[++i];raw.labels.nodes=raw.labels.nodes.filter(row=>row.name!==label);}else if(args[i]==='--add-assignee')raw.assignees.nodes=[{login:args[++i]}];else if(args[i]==='-F')raw.body=await fs.readFile(args[++i],'utf8');}return result('');}
     }
     if(args[0]==='api'){
+      if(args[1]==='users/fixture')return result({id:1,type:'User'});
+      if(args[1]==='graphql' && args.includes('--input')) {
+        const input=JSON.parse(options.input);
+        const query=input.query;
+        if(query.includes('projectV2(number:$number)'))return result({data:{user:{projectV2:{id:'PROJECT'}}}});
+        if(query.includes('node(id:$id)') && query.includes('fields(first:100'))return result({data:{node:{fields:{nodes:[{id:'FIELD',name:'Sprint',dataType:'ITERATION',configuration:{iterations:[],completedIterations:[]}},{id:'STATUS',name:'Harness Status',dataType:'SINGLE_SELECT',options:['open','in_progress','blocked','deferred','closed','needs_decision'].map(name=>({id:name,name}))}],pageInfo:{hasNextPage:false}}}}});
+        if(query.includes('node(id:$id)') && query.includes('views(first:100'))return result({data:{node:{views:{nodes:projectViews.map((v,i)=>({...v,id:'VIEW'+i})),pageInfo:{hasNextPage:false}}}}});
+      }
       if(q){
         if(q.startsWith('mutation'))return result({data:{addSubIssue:{},createProjectV2Field:{}}});
         if(q.includes('fields(first:100)'))return result({data:{user:{projectV2:{id:'PROJECT',fields:{nodes:[{id:'FIELD',name:'Sprint',configuration:{duration:14,iterations:[],completedIterations:[]}}]}}}}});
         if(q.includes('items(first:100'))return result([{data:{user:{projectV2:{items:{nodes:[{content:{repository:{name:'repo'}}}]}}}}}]);
         if(q.includes('issues(first:100'))return result([{data:{repository:{issues:{nodes:[...nodes.values()].map(raw=>({...raw,blockedBy:truncate?{totalCount:51,nodes:[]}:raw.blockedBy,projectItems:{nodes:membership?[{project:{number:5}}]:[]}}))}}}}]);
         const raw=structuredClone(nodes.get(Number(field('n'))));if(!raw)return result({data:{repository:{issue:null}}});
+        if(commentPagination) {
+          const all=raw.comments.nodes;
+          const next=q.includes('comments(first:100,after:');
+          raw.comments={nodes:next?all.slice(100):all.slice(0,100),pageInfo:{hasNextPage:!next&&all.length>100,endCursor:'page2'}};
+        }
         if(q.includes('subIssues'))raw.subIssues={nodes:[...nodes.values()].filter(row=>row.parent?.number===raw.number)};
         if(q.includes('projectItems'))raw.projectItems={nodes:membership?[{project:{number:5}}]:[]};return result({data:{repository:{issue:raw}}});
       }
@@ -151,6 +200,41 @@ try{
     await absent(g(['update','repo#1','--claim','--assignee','x']));await must(g(['update','repo#1','--assignee','']));patchFailure=true;await absent(g(['update','repo#1','--assignee','']));patchFailure=false;
     await must(g(['note','repo#1','note --json']));await must(g(['label','add','repo#1','extra']));await must(g(['label','remove','repo#1','extra']));await must(g(['update','repo#1','--status','open','--acceptance','updated']));await must(g(['dep','add','repo#1','repo#2']));await must(g(['close','repo#1','--reason','done']));
     authFailure=true;await absent(g(['show','repo#1','--json']));authFailure=false;await absent(g(['delete','repo#1']));
+  });
+  await check('GitHub mutable execution and summaries survive body/acceptance edits without comments', async()=>{
+    const id='repo#1', count=nodes.get(1).comments.nodes.length;
+    const before=JSON.parse(await must(g(['show',id,'--json'])))[0];
+    await must(g(['state',id,'ACTOR: repo sess-new']));
+    await must(g(['state',id,'VERIFY_PENDING: abc123']));
+    await must(g(['state',id,'RETRY: verify-code 1/2']));
+    await must(g(['summary',id,'implementation','implemented']));
+    await must(g(['summary',id,'review','LGTM']));
+    let row=JSON.parse(await must(g(['show',id,'--json'])))[0];
+    assert.equal(row.description,before.description);
+    assert.equal(row.acceptance_criteria,before.acceptance_criteria);
+    assert.equal(row.execution.actors.repo,'sess-new');
+    assert.equal(row.execution.phase.kind,'VERIFY_PENDING');
+    assert.equal(nodes.get(1).comments.nodes.length,count);
+    await must(g(['update',id,'--description','new human body','--acceptance','new criteria']));
+    await must(g(['note',id,'DELEGATED: next-pass']));
+    row=JSON.parse(await must(g(['show',id,'--json'])))[0];
+    assert.equal(row.description,'new human body');
+    assert.equal(row.acceptance_criteria,'new criteria');
+    assert.equal(row.execution.phase.kind,'DELEGATED');
+    assert.equal(row.summaries.review,'LGTM');
+    assert.equal(row.execution.retries['verify-code'].count,1);
+    assert.equal(nodes.get(1).comments.nodes.length,count);
+    const writes=ghCalls.filter(c=>c.args[0]==='issue'&&c.args[1]==='edit').length;
+    await must(g(['summary',id,'review','LGTM']));
+    assert.equal(ghCalls.filter(c=>c.args[0]==='issue'&&c.args[1]==='edit').length,writes);
+    await absent(g(['state',id,'RETRY: verify-code bad']));
+    const old=node(99);old.comments.nodes=[...Array(100).fill({body:'old event'}),{body:'RETRY: verify-code 9/2'},{body:'VERIFY_PENDING: latest'}];nodes.set(99,old);
+    commentPagination=true;
+    await must(g(['summary','repo#99','review','migrated']));
+    const migrated=JSON.parse(await must(g(['show','repo#99','--json'])))[0];
+    assert.equal(migrated.execution.retries['verify-code'].count,9);
+    assert.equal(migrated.execution.phase.value,'latest');
+    commentPagination=false;nodes.delete(99);
   });
   await check('GitHub registry/init/sprint replacement retains complete request contract',async()=>{await must(g(['init']));await must(g(['rails','--json']));assert.deepEqual(JSON.parse(await must(g(['sprints','--json']))),[]);await must(g(['sprint-add','2026-S02']));const payload=JSON.parse(ghCalls.findLast(call=>call.input?.includes('iterationConfiguration')).input);assert.equal(payload.variables.it[0].title,'2026-S02');assert.equal(payload.variables.d,14);});
   await check('BOM/CRLF init preserves extensions and persisted coordinates prevent retry duplicates', async()=>{
@@ -190,5 +274,5 @@ try{
     assert.doesNotMatch(read.stderr,/함께 반영한다/);
     const pushed=await executeLedger(['sync-check','--push'],{root,cwd:root,process:transport});assert.equal(pushed.code,0,pushed.stderr);assert.match(pushed.stderr,/bd dolt push 로 함께 반영한다/);assert.equal(pushes,1);assert.equal(ahead,0);
   });
-  assert.equal(reached,15,'nonempty complete native judgment set');console.log(`PASS native ledger ${reached}; host=${process.platform}; offline transports, no remote writes`);
+  assert.equal(reached,17,'nonempty complete native judgment set');console.log(`PASS native ledger ${reached}; host=${process.platform}; offline transports, no remote writes`);
 }finally{await fs.rm(root,{recursive:true,force:true});}

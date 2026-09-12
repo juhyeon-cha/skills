@@ -1,3 +1,4 @@
+import { lastExecutionMarker } from './ledger/record.mjs';
 // Read-only consumer boundary. Fixture transports are ordinary library arguments,
 // never environment-selected executables or alternate production ledger files.
 import { executeLedger, ledgerRoot } from './ledger.mjs';
@@ -72,11 +73,7 @@ export const labels = (row, prefix) =>
   (row.labels ?? [])
     .filter((value) => value.startsWith(prefix))
     .map((value) => value.slice(prefix.length));
-export const lastMarker = (row) =>
-  (row.notes ?? '')
-    .split(/\r?\n/)
-    .filter((line) => /^(VERIFY_PENDING|DELEGATED)/.test(line))
-    .at(-1) ?? '';
+export const lastMarker = lastExecutionMarker;
 export function registry(rows, kind) {
   const seen = new Set();
   for (const row of rows) {

@@ -9,7 +9,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 ## 1. Fix the sprint ID
 
-The ID format is `YYYY-SNN` (4-digit year - S + 2-digit sequence). Read the existing IDs with `ledger list --label-pattern 'sprint:*' --all --json -n 0` and take the next sequence for that year. When the sprint has dates, hang them on the stories with `--due`.
+The ID format is `YYYY-SNN` (4-digit year - S + 2-digit sequence). Keep that ID unchanged; an optional human objective belongs in sprint documentation, not issue titles. Read the existing IDs with `ledger list --label-pattern 'sprint:*' --all --json -n 0` and take the next sequence for that year. When the sprint has dates, hang them on the stories with `--due`.
 
 **Once the ID is fixed, register it: `ledger sprint-add <ID>`.** One command with the same argument on every backend — where the registration actually lands (a Projects v2 iteration, a Notion page, a key in a file) is the adapter's business, so this procedure does not split by backend. Then confirm the round trip: `ledger sprints --json` has to answer `{"id": "<ID>", "status": "active"}`. An unregistered ID gets blocked by `board-check`, which names it.
 

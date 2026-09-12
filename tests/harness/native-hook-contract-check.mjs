@@ -65,11 +65,15 @@ try {
     }
   });
   await check('all shared ledger read exemptions and implementer write allowance', async () => {
-    assert.ok(BD_READ_EXEMPT.split(' ').length >= 15); assert.equal(IMPL_BD_WRITE_ALLOW, 'note');
+    assert.ok(BD_READ_EXEMPT.split(' ').length >= 15); assert.deepEqual(IMPL_BD_WRITE_ALLOW.split(' ').sort(), ['note', 'state', 'summary']);
     for (const role of [...GR_ROLES.split(' '), ...IMPL_ROLES.split(' ')]) for (const sub of (BD_READ_EXEMPT + ' ' + LEDGER_READ_EXEMPT).split(' ')) assert.equal((await judge(event(`node /plugin/ledger.mjs --root /fixture ${sub}`, role))).code, 0, `${role} ${sub}`);
-    for (const role of GR_ROLES.split(' ')) assert.equal((await judge(event('node /plugin/ledger.mjs --root /fixture note task fixture', role))).code, 2);
-    assert.equal((await judge(event('node /plugin/ledger.mjs --root /fixture note task fixture', 'harness:implementer'))).code, 0);
-    assert.equal((await judge(event('node /plugin/ledger.mjs note task fixture', 'harness:implementer'))).code, 2);
+    for (const command of ['note task fixture', 'state task "VERIFY_PENDING: abc123"', 'summary task implementation --file /tmp/result.md']) {
+      for (const role of GR_ROLES.split(' ')) assert.equal((await judge(event(`node /plugin/ledger.mjs --root /fixture ${command}`, role))).code, 2, `${role} ${command}`);
+      assert.equal((await judge(event(`node /plugin/ledger.mjs --root /fixture ${command}`, 'harness:implementer'))).code, 0, command);
+      assert.equal((await judge(event(`node /plugin/ledger.mjs ${command}`, 'harness:implementer'))).code, 2, `unscoped ${command}`);
+    }
+    for (const command of ['update task --claim --actor session', 'close task', 'project-setup --apply'])
+      assert.equal((await judge(event(`node /plugin/ledger.mjs --root /fixture ${command}`, 'harness:implementer'))).code, 2, command);
   });
   await check('read-only searches keep protected paths and policy words as data', async () => {
     for (const command of [`rg -n 'ledger.sh close' ${shellPath(main)}`, `grep -n 'git push' ${shellPath(main)}`, `cat ${shellPath(path.join(main, '한글 공백.txt'))}`]) assert.equal((await judge(event(command, 'harness:reviewer'))).code, 0, command);

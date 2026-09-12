@@ -37,6 +37,7 @@ with function transports and no live writes. The legacy POSIX adapter corpus
 retains its backend response cases and membership mutation control. Its Notion
 preload rejects unconfigured network access. Passing fixtures establish these
 contracts, not installed CLI credentials, provider write permissions, real hook
-firing or whole-product native support. Existing provider query ceilings remain
-(for example GitHub blockedBy truncation is an error, and Notion note reads retain
-the first 100 blocks); this port does not invent completeness beyond them.
+firing or whole-product native support. GitHub blockedBy truncation remains an error. GitHub comments and Notion note
+blocks are paginated before legacy state is migrated; an invalid cursor fails
+instead of accepting a truncated execution history. Mutable execution and summary
+commands are described in [Ledger names and records](ledger-records.md).

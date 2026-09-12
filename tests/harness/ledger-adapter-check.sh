@@ -368,7 +368,10 @@ PI70='[{"project":{"number":9}}]'
 PI71='[]'
 case "$1 $2" in
   "auth status") [ -z "${FAKE_GH_AUTH_FAIL:-}" ] || exit 1; exit 0 ;;
-  "label create"|"issue comment"|"issue close"|"issue edit"|"issue reopen") exit 0 ;;
+  "label create"|"issue comment"|"issue close"|"issue reopen") exit 0 ;;
+  "issue edit")
+    while [ $# -gt 0 ]; do [ "$1" = "-F" ] && cp "$2" "$FAKE_GH_LOG.edit-body"; shift; done
+    exit 0 ;;
   # item-add 는 rc 를 고를 수 있다 — create 의 판정이 그 rc 에 기대지 않는다는 것을 보는 축이다.
   # 실패판은 stderr 에 표지를 낸다: 호출부가 그것을 버리면 진짜 사유가 영영 보이지 않는다.
   "project item-add")
@@ -506,7 +509,7 @@ grun create "제목" -t task -l repo:harness,rail:r1 --parent 'harness#58' --acc
 step "create --silent 가 <repo>#<번호> 만 낸다" [ "$OUT" = "harness#61" ]
 step "create → 라벨 생성(type:task·repo·rail) → issue create(-R·-t·-l) → addSubIssue(부모 58) → item-add(project 4) 순서" \
   bash -c 'grep -q "^label create type:task -R juhyeon-cha/harness --force$" "$1" && grep -q "^label create rail:r1 -R" "$1" \
-    && grep -q "^issue create -R juhyeon-cha/harness -t 제목 -F .* -l type:task,repo:harness,rail:r1$" "$1" \
+    && grep -q "^issue create -R juhyeon-cha/harness -t \[태스크\] 제목 -F .* -l type:task,repo:harness,rail:r1$" "$1" \
     && grep -q "addSubIssue.* -f p=NODE_58 -f c=NODE_61" "$1" \
     && grep -q "^project item-add 4 --owner juhyeon-cha --url https://github.com/juhyeon-cha/harness/issues/61$" "$1" \
     && [ "$(grep -n "^issue create" "$1" | cut -d: -f1)" -lt "$(grep -n "^project item-add" "$1" | cut -d: -f1)" ]' _ "$LOG"
@@ -698,8 +701,10 @@ grun close 'harness#57' --reason-file "$TMP/gh-body.txt"
 step "close --reason-file → 사유 코멘트와 함께 close" bash -c '[ "$1" -eq 0 ] && grep -q "^issue close 57 -R juhyeon-cha/harness -c 본문$" "$2"' _ "$RC" "$LOG"
 : > "$LOG"
 grun update 'harness#57' --claim --actor "skills sess-abc"
-step "update --claim --actor → assignee @me · ACTOR: 코멘트 · status:in_progress 라벨(기존 status: 제거)" \
-  bash -c '[ "$1" -eq 0 ] && grep -q "^issue edit 57 -R juhyeon-cha/harness --add-assignee @me$" "$2" && grep -q "^issue comment 57 -R juhyeon-cha/harness -b ACTOR: skills sess-abc$" "$2" && grep -q "^issue edit 57 -R juhyeon-cha/harness --remove-label status:blocked --add-label status:in_progress$" "$2"' _ "$RC" "$LOG"
+step "update --claim --actor → assignee · 상태 라벨 · 본문 보존한 실행 상태 (코멘트 없음)" \
+  bash -c '[ "$1" -eq 0 ] && grep -q "^issue edit 57 -R juhyeon-cha/harness --add-assignee @me$" "$2" && ! grep -q "^issue comment" "$2" && grep -q "^issue edit 57 -R juhyeon-cha/harness --remove-label status:blocked --add-label status:in_progress$" "$2"' _ "$RC" "$LOG"
+step "claim GitHub 본문에는 기존 본문과 repo별 actor가 함께 남는다" \
+  "$NODE_EXEC" --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const {splitRecord} = await import(process.argv[1]); const row = splitRecord(fs.readFileSync(process.argv[2], "utf8")); assert.match(row.body, /본문/); assert.equal(row.record.execution.actors.skills, "sess-abc");' "$PLUGIN_ROOT/lib/ledger/record.mjs" "$LOG.edit-body"
 : > "$LOG"
 grun update 'harness#57' --status deferred
 step "update --status deferred → status:deferred 라벨" bash -c 'grep -q -- "--add-label status:deferred$" "$1"' _ "$LOG"
@@ -750,27 +755,10 @@ step "필드는 있고 iteration 이 0개 → rc 0 의 빈 배열 (갓 init 한 
 step "그 빈 배열이 '스프린트가 없다' 임을 stderr 가 밝히고 '필드가 없다' 와 문면이 다르다" \
   bash -c 'printf "%s" "$1" | grep -q "iteration 이 하나도 없다" && ! printf "%s" "$1" | grep -q "ITERATION 필드가 없다"' _ "$ERR"
 
-# ── init 이 ITERATION 필드를 만든다 (skills#167). 이 필드가 없으면 갓 세운 github 하네스가
-#    문서화된 경로로 sprints 를 rc 0 으로 만들 수 없다 — 실제로 이 스토리의 오케스트레이터도
-#    필드 생성 명령을 손으로 돌려야 했다.
-: > "$LOG"
-OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" FAKE_GH_NO_ITERATION=1 HARNESS_ROOT="$GH" bash "$LEDGER" init 2>"$TMP/err"); RC=$?; ERR=$(cat "$TMP/err")
-step "init: ITERATION 필드가 없으면 createProjectV2Field(dataType: ITERATION) 를 부른다" \
-  bash -c '[ "$1" -eq 0 ] && grep -q "createProjectV2Field" "$2" && grep -q "dataType: ITERATION" "$2"' _ "$RC" "$LOG"
-step "init: 뮤테이션이 project 의 node id 를 넘긴다 (번호가 아니다)" \
-  bash -c 'grep -q "p=PVT_x" "$1"' _ "$LOG"
-step "init: iteration 은 만들지 않는다 (스프린트 ID 는 사람이 정한다 — 자리를 채우면 없는 스프린트가 등재된다)" \
-  bash -c '! grep -q "iterationConfiguration" "$1"' _ "$LOG"
-step "init: 무엇을 만들었는지 한 줄로 말한다" bash -c 'printf "%s" "$1" | grep -q "ITERATION 필드"' _ "$OUT"
-# ② 멱등 — project 가 이미 있는 .harness.json 에 다시 돌려도 필드를 겹쳐 만들지 않는다.
-: > "$LOG"
-OUT=$(PATH="$TMP/ghbin:$TMP/jqbin:/usr/bin:/bin" FAKE_GH_LOG="$LOG" HARNESS_ROOT="$GH" bash "$LEDGER" init 2>"$TMP/err"); RC=$?
-step "init 멱등: ITERATION 필드가 이미 있으면 createProjectV2Field 를 부르지 않는다" \
-  bash -c '[ "$1" -eq 0 ] && ! grep -q "createProjectV2Field" "$2"' _ "$RC" "$LOG"
-step "init 멱등: 이미 있다는 사실을 필드 이름과 함께 한 줄로 말한다" \
-  bash -c 'printf "%s" "$1" | grep -q "이미 있다" && printf "%s" "$1" | grep -q Sprint' _ "$OUT"
-step "init 멱등: project 가 이미 있으므로 project create 도 부르지 않는다" \
-  bash -c '! grep -q "^project create" "$1"' _ "$LOG"
+# Project setup now owns both fields and views. Its stateful transport fixture
+# covers first apply and idempotent rerun; the old fixed-response gh cannot prove those.
+step "GitHub Project init: 필드·뷰 생성, 멱등 재실행, 표시 필드 동기화" \
+  "$NODE_EXEC" "$PLUGIN_ROOT/../../tests/harness/github-project-check.mjs"
 
 # ── 스프린트 등재 (skills#181). GitHub 에는 "iteration 하나를 더한다" 는 API 가 없다 —
 #    updateProjectV2Field 의 iterationConfiguration 이 **iterations 전체를 대체한다**(입력의
@@ -891,7 +879,7 @@ printf '본문\n' > "$TMP/nt-body.txt"
 nrun create "제목" -t task -l repo:harness,rail:r1 --parent "$F" --acceptance "조건" --body-file "$TMP/nt-body.txt" --silent
 step "create --silent 가 새 페이지 id 만 낸다" [ "$OUT" = "n0000000-0000-0000-0000-00000000000e" ]
 step "create 의 POST /pages 본문: parent.database_id · Name · Type · Status=open · Labels · Acceptance · Description · Parent 관계" \
-  bash -c 'jq -e --arg f "$2" ".parent.database_id == \"d0000000-0000-0000-0000-00000000000d\" and .properties.Name.title[0].text.content == \"제목\" and .properties.Type.select.name == \"task\" and .properties.Status.select.name == \"open\" and (.properties.Labels.multi_select | map(.name)) == [\"repo:harness\",\"rail:r1\"] and .properties.Acceptance.rich_text[0].text.content == \"조건\" and .properties.Description.rich_text[0].text.content == \"본문\" and .properties.Parent.relation[0].id == \$f" "$1" >/dev/null' _ "$(body_of POST pages)" "$F"
+  bash -c 'jq -e --arg f "$2" ".parent.database_id == \"d0000000-0000-0000-0000-00000000000d\" and .properties.Name.title[0].text.content == \"[태스크] 제목\" and .properties.Type.select.name == \"task\" and .properties.Status.select.name == \"open\" and (.properties.Labels.multi_select | map(.name)) == [\"repo:harness\",\"rail:r1\"] and .properties.Acceptance.rich_text[0].text.content == \"조건\" and .properties.Description.rich_text[0].text.content == \"본문\" and .properties.Parent.relation[0].id == \$f" "$1" >/dev/null' _ "$(body_of POST pages)" "$F"
 # ── create 의 라벨 상속과 epic 의 assignee (skills#179) ───────────────
 # 위 create 는 `-l repo:harness,rail:r1` 을 직접 줬으므로 상속이 낼 것이 없다(명시가 이긴다).
 # 여기서는 -l 없이 만들어 **물려받는 쪽**을 본다.
@@ -950,8 +938,10 @@ step "close --reason-file → Status=closed PATCH + 사유 블록" \
   bash -c '[ "$1" -eq 0 ] && jq -e ".properties.Status.select.name == \"closed\"" "$2" >/dev/null && jq -e ".children[0].paragraph.rich_text[0].text.content == \"본문\"" "$3" >/dev/null' _ "$RC" "$(body_of PATCH "pages/$E")" "$(body_of PATCH "blocks/$E/children")"
 : > "$NLOG"
 nrun update "$E" --claim --actor "skills sess-abc"
-step "update --claim --actor → Status=in_progress · Assignee · ACTOR: 블록" \
-  bash -c '[ "$1" -eq 0 ] && jq -e ".properties.Status.select.name == \"in_progress\" and .properties.Assignee.rich_text[0].text.content == \"skills sess-abc\"" "$2" >/dev/null && jq -e ".children[0].paragraph.rich_text[0].text.content == \"ACTOR: skills sess-abc\"" "$3" >/dev/null' _ "$RC" "$(body_of PATCH "pages/$E")" "$(body_of PATCH "blocks/$E/children")"
+step "update --claim --actor → Status·Assignee·본문 실행 상태 (ACTOR 블록 없음)" \
+  bash -c '[ "$1" -eq 0 ] && jq -e ".properties.Status.select.name == \"in_progress\" and .properties.Assignee.rich_text[0].text.content == \"skills sess-abc\"" "$2" >/dev/null && ! grep -q " PATCH blocks/" "$3"' _ "$RC" "$(body_of PATCH "pages/$E")" "$NLOG"
+step "claim Notion Description은 기존 본문과 actor를 함께 보존한다" \
+  "$NODE_EXEC" --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const {splitRecord} = await import(process.argv[1]); const payload = JSON.parse(fs.readFileSync(process.argv[2], "utf8")); const row = splitRecord(payload.properties.Description.rich_text.map(x => x.text.content).join("")); assert.equal(row.body, "본문"); assert.equal(row.record.execution.actor, "skills sess-abc");' "$PLUGIN_ROOT/lib/ledger/record.mjs" "$(body_of PATCH "pages/$E")"
 : > "$NLOG"
 nrun update "$E" --status deferred
 step "update --status deferred → Status=deferred" bash -c 'jq -e ".properties.Status.select.name == \"deferred\"" "$1" >/dev/null' _ "$(body_of PATCH "pages/$E")"

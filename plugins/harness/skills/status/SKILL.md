@@ -75,8 +75,8 @@ Same call with `--status blocked`.
 
 ## 5. Unresolved decisions
 
-A task is waiting on a human when the **last non-empty line of its notes** starts with
-`DECISION_NEEDED` — the same reading the stop guard uses for `VERIFY_PENDING`.
+A task is waiting on a human when the **last non-empty line of its `events` (or legacy `notes` when `events` is absent)** starts with
+`DECISION_NEEDED`; execution phase is read separately by the stop guard.
 
 Read `id` and `title` from matching rows whose status is not `closed` in the snapshot.
 

@@ -1,3 +1,5 @@
+import { githubProject } from './github-project.mjs';
+import { splitRecord, recordBody, normalizeRecord, preserveRecord, rowRecord, applyMarker } from './record.mjs';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -22,7 +24,7 @@ import {
 } from './common.mjs';
 
 const fields =
-  'id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body}} parent{number repository{name}} blockedBy(first:50){totalCount nodes{number state repository{name}}}';
+  'id databaseId number title state body createdAt updatedAt closedAt repository{name} labels(first:100){nodes{name}} assignees(first:10){nodes{login}} comments(first:100){nodes{body} pageInfo{hasNextPage endCursor}} parent{number repository{name}} blockedBy(first:50){totalCount nodes{number state repository{name}}}';
 const projectField = 'projectItems(first:20){nodes{project{number}}}';
 export function normalizeGithub(node) {
   if (
@@ -44,17 +46,19 @@ export function normalizeGithub(node) {
     fail(
       `blockedBy 가 잘렸다: ${id} — totalCount=${node.blockedBy.totalCount} 받은 노드=${deps.length} · FIELDS 의 blockedBy(first:N) 을 늘려라`,
     );
-  let body = node.body ?? '';
+  const managed = splitRecord(node.body ?? '');
+  let body = managed.body;
   if (body.startsWith('## Acceptance\n')) body = '\n' + body;
   const parts = body.split('\n## Acceptance\n');
+  if (node.comments.pageInfo?.hasNextPage) fail(`comments 가 잘렸다: ${id} — 실행 상태를 추측하지 않는다`);
   const comments = (node.comments?.nodes ?? []).map((row) => row.body);
   const actors = comments
     .map((text) => /^ACTOR:[ \t]*([^\r\n]*)/.exec(text)?.[1]?.split(' ').filter(Boolean).at(-1))
     .filter((value) => value != null);
-  return {
+  return normalizeRecord({
     id,
     title: node.title,
-    description: (parts[0] ?? '').replace(/\n$/, ''),
+    description: recordBody((parts[0] ?? '').replace(/\n$/, ''), managed.record),
     acceptance_criteria:
       parts.length > 1
         ? parts.slice(1).join('\n## Acceptance\n').replace(/^\n/, '').replace(/\n$/, '')
@@ -78,7 +82,7 @@ export function normalizeGithub(node) {
     created_at: node.createdAt ?? null,
     updated_at: node.updatedAt ?? null,
     closed_at: node.closedAt ?? null,
-  };
+  });
 }
 const compose = (desc, acceptance) =>
   desc + (acceptance ? '\n\n## Acceptance\n\n' + acceptance : '') + '\n';
@@ -131,6 +135,17 @@ export async function githubLedger(argv, ctx) {
     );
     const node = result.data?.repository?.issue;
     if (!node) fail(`없는 id 이거나 읽지 못했다: ${id}`);
+    const cursors = new Set();
+    while (node.comments?.pageInfo?.hasNextPage) {
+      const cursor = node.comments.pageInfo.endCursor;
+      if (!cursor || cursors.has(cursor)) fail(`comments pagination: ${id} 의 cursor 가 없거나 반복된다`);
+      cursors.add(cursor);
+      const next = await query('query($o:String!,$r:String!,$n:Int!,$after:String!){repository(owner:$o,name:$r){issue(number:$n){comments(first:100,after:$after){nodes{body} pageInfo{hasNextPage endCursor}}}}}', {o:owner,r:repo,n:Number(num),after:cursor});
+      const page = next.data?.repository?.issue?.comments;
+      if (!Array.isArray(page?.nodes) || !page.pageInfo) fail(`comments pagination: ${id} 의 응답이 없다`);
+      node.comments.nodes.push(...page.nodes);
+      node.comments.pageInfo = page.pageInfo;
+    }
     return node;
   };
   const ensure = async (slug, label) => gh(['label', 'create', label, '-R', slug, '--force']);
@@ -156,6 +171,23 @@ export async function githubLedger(argv, ctx) {
   };
   const requireProject = () => {
     if (!project) fail(`${ctx.file} 에 ledger.project 가 없다 — ledger.sh init 이 만든다`);
+  };
+  let projectClient;
+  const projects = () => {
+    requireProject();
+    projectClient ??= githubProject({ command: ctx.command, owner, number: project });
+    return projectClient;
+  };
+  const enableProjection = async () => {
+    const { config: current } = await loadConfig(ctx.root);
+    current.ledger.project_views = true;
+    await replaceJSON(ctx.file, current);
+    ctx.config.ledger.project_views = true;
+  };
+  const syncIssue = async (id) => {
+    if (!ctx.config.ledger.project_views) return;
+    const result = await projects().sync(normalizeGithub(await issueQuery(id, fields)), { apply: true });
+    if (result.skipped) fail(`Project projection: ${result.skipped}`);
   };
   const list = async (options) => {
     requireProject();
@@ -195,7 +227,8 @@ export async function githubLedger(argv, ctx) {
         ),
       );
       kept += selected.length;
-      rows.push(...selected.map(normalizeGithub));
+      for (const node of selected)
+        rows.push(normalizeGithub(node.comments?.pageInfo?.hasNextPage ? await issueQuery(`${node.repository.name}#${node.number}`, fields) : node));
     }
     if (!kept && seen)
       ctx.err(
@@ -214,7 +247,7 @@ export async function githubLedger(argv, ctx) {
       fail(
         `sprints: 사용자 ${owner} 의 Projects v2 ${project} 를 읽지 못했다 — 조직 소유 project 에는 이 질의가 닿지 않는다`,
       );
-    return { project: p, field: p.fields.nodes.find((field) => field.configuration != null) };
+    return { project: p, field: p.fields.nodes.find((field) => field.name === 'Sprint' && field.configuration != null) };
   };
   switch (cmd) {
     case 'init': {
@@ -238,17 +271,23 @@ export async function githubLedger(argv, ctx) {
         await replaceJSON(ctx.file, current);
       }
       await gh(['project', 'view', String(project), '--owner', owner, '--format', 'json']);
-      const found = await iteration();
-      if (found.field)
-        ctx.out(`✓ ITERATION 필드 '${found.field.name}' 가 이미 있다 — 다시 만들지 않는다\n`);
-      else {
-        await query(
-          'mutation($p:ID!){ createProjectV2Field(input: {projectId: $p, dataType: ITERATION, name: "Sprint"}) { projectV2Field { ... on ProjectV2IterationField { name } } } }',
-          { p: found.project.id },
-        );
-        ctx.out("✓ ITERATION 필드 'Sprint' 를 만들었다 — iteration 은 비어 있다\n");
-      }
+      const result = await projects().setup({ apply: true });
+      await enableProjection();
+      for (const limitation of result.limitations) ctx.err(`Project: ${limitation}\n`);
       ctx.out(`✓ github 원장: owner=${owner} project=${project} (${ctx.file})\n`);
+      break;
+    }
+    case 'project-setup': {
+      if (args.some((arg) => !['--apply', '--json'].includes(arg))) fail('project-setup: --apply, --json only');
+      const result = await projects().setup({ apply: args.includes('--apply') });
+      if (args.includes('--apply')) await enableProjection();
+      ctx.out(json(result));
+      break;
+    }
+    case 'project-sync': {
+      if (args.some((arg) => !['--apply', '--json'].includes(arg))) fail('project-sync: --apply, --json only');
+      const results = await projects().syncAll(await list({ all: true, limit: 0 }), { apply: args.includes('--apply') });
+      ctx.out(json(results));
       break;
     }
     case 'create': {
@@ -289,6 +328,7 @@ export async function githubLedger(argv, ctx) {
             `이슈 ${id} 은 만들었지만 Project ${project} 소속이 아니다 (item-add rc=${added.code}, 소속을 다시 읽어도 없다) — ${added.stderr?.toString() ?? ''}`,
           );
       }
+      await syncIssue(id);
       ctx.out(options.silent ? id + '\n' : `✓ Created issue: ${id} — ${title}\n`);
       break;
     }
@@ -299,7 +339,9 @@ export async function githubLedger(argv, ctx) {
     }
     case 'children': {
       const node = await issueQuery(args[0], `subIssues(first:100){ nodes{ ${fields} } }`);
-      const rows = node.subIssues.nodes.map(normalizeGithub);
+      const rows = [];
+      for (const child of node.subIssues.nodes)
+        rows.push(normalizeGithub(child.comments?.pageInfo?.hasNextPage ? await issueQuery(`${child.repository.name}#${child.number}`, fields) : child));
       ctx.out(args.includes('--json') ? json(rows) : rowsText(rows));
       break;
     }
@@ -321,6 +363,7 @@ export async function githubLedger(argv, ctx) {
       const id = args.shift(),
         { slug, num } = split(id);
       await gh(['issue', 'comment', num, '-R', slug, '-b', await noteBody(args, ctx)]);
+      await syncIssue(id);
       ctx.out(`✓ Note added to ${id}\n`);
       break;
     }
@@ -334,7 +377,10 @@ export async function githubLedger(argv, ctx) {
       const reason = options.reasonFile ? await bodyFile(options.reasonFile, ctx) : options.reason;
       for (const id of options.positional) {
         const { slug, num } = split(id);
-        await gh(['issue', 'close', num, '-R', slug, ...(reason ? ['-c', reason] : [])]);
+        const current = await issueQuery(id, 'state');
+        if (current.state !== 'CLOSED')
+          await gh(['issue', 'close', num, '-R', slug, ...(reason ? ['-c', reason] : [])]);
+        await syncIssue(id);
         ctx.out(`✓ Closed ${id}\n`);
       }
       break;
@@ -347,8 +393,11 @@ export async function githubLedger(argv, ctx) {
         fail('update: --claim 과 --assignee 는 같이 쓸 수 없다');
       if (options.claim) {
         await gh(['issue', 'edit', num, '-R', slug, '--add-assignee', '@me']);
-        if (options.actor)
-          await gh(['issue', 'comment', num, '-R', slug, '-b', `ACTOR: ${options.actor}`]);
+        if (options.actor) {
+          const raw = await issueQuery(id, fields), row = normalizeGithub(raw), record = rowRecord(row);
+          record.execution = applyMarker(record.execution, `ACTOR: ${options.actor}`);
+          await withBody(recordBody(raw.body ?? '', record), file => gh(['issue', 'edit', num, '-R', slug, '-F', file]));
+        }
         options.status ||= 'in_progress';
       }
       if (options.assignee !== undefined) {
@@ -401,19 +450,21 @@ export async function githubLedger(argv, ctx) {
       }
       if (options.parent) await parent(options.parent, id);
       if (
-        options.acceptance ||
+        options.acceptance !== undefined ||
         options.description !== undefined ||
         options.bodyFile !== undefined
       ) {
-        const row = normalizeGithub(await issueQuery(id, fields));
+        const raw = await issueQuery(id, fields);
+        const row = normalizeGithub(raw);
         const desc =
           options.description !== undefined || options.bodyFile !== undefined
             ? await description(options, ctx)
             : row.description;
-        await withBody(compose(desc, options.acceptance || row.acceptance_criteria), (file) =>
+        await withBody(preserveRecord(raw.body ?? '', compose(desc, options.acceptance ?? row.acceptance_criteria)), (file) =>
           gh(['issue', 'edit', num, '-R', slug, '-F', file]),
         );
       }
+      if (options.status || options.type || options.claim || options.parent) await syncIssue(id);
       ctx.out(`✓ Updated issue: ${id}\n`);
       break;
     }
@@ -451,6 +502,7 @@ export async function githubLedger(argv, ctx) {
           sub === 'add' ? '--add-label' : '--remove-label',
           label,
         ]);
+        await syncIssue(id);
         ctx.out(
           `✓ ${sub === 'add' ? 'Added' : 'Removed'} label '${label}' ${sub === 'add' ? 'to' : 'from'} ${id}\n`,
         );

@@ -65,19 +65,7 @@ Follow the one branch that matches `ledger.backend`, then continue at "all backe
 
 Prerequisites: `gh` installed and `gh auth login` done, with the `project` scope on the token — `gh auth refresh -s project,read:project` (add `-h github.com` when the runner is non-interactive; without it gh dies with `--hostname required`). Write `.harness.json` with `ledger` = `{"backend": "github", "owner": "<github login>"}`, then run `ledger init` (optionally `--title <project name>`) — it fills in `ledger.project`. Issues live in the repos a story's `repo:` label names, so there is no ledger repo to create and no remote wiring — the ledger is remote by nature. `type:*`·`status:*` labels are created on demand.
 
-**What `init` makes, and what it deliberately does not.** Two things, and it is idempotent in both — running it again on a repo that already has them changes nothing and says so:
-
-| | made by `init` | why |
-|---|---|---|
-| the Projects v2 | created when `ledger.project` is absent, and its number written back into `.harness.json`; when it is already there, the number is only verified as readable | it is the ledger's boundary — see the paragraph below |
-| an `ITERATION` field named `Sprint` on it | created when the project has no `ITERATION` field; when one is already there, `init` names it and leaves it alone | **this backend's sprints are that field's iterations.** Without it `ledger sprints` dies rc≠0 and no sprint can be registered |
-| iterations inside that field | **none** — GitHub adds none of its own either (measured, below) | an iteration's title *is* the sprint ID (`YYYY-SNN`), and people pick it in `plan-sprint`. A placeholder would show up in `sprints` as a sprint that does not exist |
-
-So a freshly initialized repo answers `ledger sprints --json` with rc 0 and `[]`, and a stderr line saying the field is there but holds no iterations yet — that is the normal empty state, and it reads differently from the missing-field failure.
-
-**That empty answer was measured against real GitHub, not only against the fixture.** A throwaway Projects v2 got the same `createProjectV2Field(dataType: ITERATION)` call `init` makes: the mutation answered `configuration` `{duration:0, startDay:0, iterations:[], completedIterations:[]}`; reading the field back with a separate `fields(first:100)` query gave the same two empty arrays, so it is not an artifact of the create response; and `ledger sprints --json` on that state gave rc 0, `[]`, and the "iteration 이 하나도 없다" stderr line. The throwaway project was deleted afterwards. This matters because a default configuration shipped by GitHub would make a freshly initialized repo register a sprint that does not exist — the very hazard the row above names.
-
-**A harness set up before `init` made that field** has the project but no `ITERATION` field, so `sprints` dies rc≠0 naming the field. Re-run `ledger init`: it sees the project already present, creates only the missing field, and touches nothing else.
+**GitHub Project setup and upgrades:** follow `${CLAUDE_PLUGIN_ROOT}/docs/ledger-projects.md` when initializing a ledger, enabling views on an existing Project, or reconciling its issue fields. `init` ensures the named Sprint iteration field, Harness Status and four shared views, then enables automatic projection. Existing view settings are preserved. Sprint iterations are registered by `plan-sprint`; an empty Sprint field answers `sprints` with an empty list.
 
 **The ledger's boundary is membership in that Projects v2, not "the issues of the repos".** Reads (`list`·`ready`, and therefore every projection and check built on them) return only the issues that are in the `project`, so a repo's own issues — bug reports, other people's backlog — stay outside the harness even though they live in a repo the harness reads. That is the point: without the boundary, `triage` would offer somebody else's backlog as harness work. What puts an issue inside is `ledger create`, which adds it to the project as it makes it; an issue made any other way is not in the ledger until someone adds it to the project.
 
@@ -152,7 +140,7 @@ Install through 1.1, then clone. The clone brought the ledger coordinates with i
 
 ### 2.2 The repo does not carry it yet — write the marker
 
-Someone stood up the ledger without committing `.harness.json` to this repo (or this is a second repo joining an existing ledger). Write it from the coordinates you were handed, following section 5, in a worktree, and commit it. **Do not run `ledger init`** — the ledger exists, and `init` writes to a structure that belongs to whoever created it (on `github` it creates the `ITERATION` field when that is missing). If `sprints` dies naming a missing `ITERATION` field, say so to that person rather than running `init` yourself; 1.3's github branch has the upgrade path.
+Someone stood up the ledger without committing `.harness.json` to this repo (or this is a second repo joining an existing ledger). Write it from the coordinates you were handed, following section 5, in a worktree, and commit it. **Do not run `ledger init`** — the ledger exists, and `init` writes to a structure that belongs to whoever created it (on `github` it ensures fields and shared views and enables projection). If `sprints` dies naming a missing `ITERATION` field, say so to that person rather than running `init` yourself; 1.3's github branch has the upgrade path.
 
 ### 2.3 Credentials — per backend
 
@@ -278,7 +266,7 @@ The three `ledger` shapes:
 | `project` (github) | the Projects v2 number. `ledger init` creates the project and writes it; `create` refuses to make an issue without it. **It is also the read boundary** — `list`·`ready` return only the issues in this project, so a wrong number yields 0 rows (with a stderr line saying so) |
 | `database_id` (notion) | the database. `ledger init --parent-page <id>` creates it and writes it. The token is `NOTION_TOKEN` in the environment and never in this file |
 
-`ledger init` writes `ledger.project`·`ledger.database_id` into this file — the only values a tool writes here. **Commit what it wrote.**
+`ledger init` writes the backend coordinates and, on GitHub, `ledger.project_views` into this file; `project-setup --apply` also enables that flag. **Commit what it wrote.**
 
 ### `rails.json` · `sprints.json` — `beads` only
 

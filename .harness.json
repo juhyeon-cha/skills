@@ -5,6 +5,7 @@
   "ledger": {
     "backend": "github",
     "owner": "juhyeon-cha",
-    "project": 5
+    "project": 5,
+    "project_views": true
   }
 }

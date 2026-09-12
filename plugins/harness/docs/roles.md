@@ -7,7 +7,7 @@ Before delegating in develop, verify-code or verify-implement, use this contract
 The default is the native path below. An explicitly selected `codex` / `collaboration`
 cycle may use `permission: prompt-only` through the generic protocol in
 [Runtime observations](transcripts.md#generic-parent-observations). Record that
-selection in the task notes before delegation. Native failure never selects this
+selection in the task execution-<role> summary before delegation. Native failure never selects this
 path automatically. A request requiring enforced role permissions is unavailable
 on this provider: reject it before spawning a child and follow develop's human wait.
 
@@ -30,7 +30,7 @@ Both paths preserve the calling skill's SIGNAL handling and persisted RETRY limi
 Use independent reviewer and evaluator children, distinct from each other, the
 parent and all implementation authors. On a retry use a fresh child and include
 all earlier attempts in `previousAgentIds`; a follow-up cannot stand in for it.
-Record the call and validated outcome in task notes, keeping private runtime
+Upsert the call and validated outcome with `ledger summary <task ID> execution-<role> --file <file>`, keeping private runtime
 identities and response evidence in the parent-owned local inventory when needed.
 PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handling
 or close: preserve the task and use develop's human-wait procedure.
@@ -55,7 +55,7 @@ For a retry, follow verify-code's persisted RETRY procedure before creating a ne
 
 ## Result (native)
 
-Use `workflow.mjs complete-native` with the actual native return recorded by the orchestrator, following [Runtime observations](transcripts.md). It loads ordinary events after begin, checks invocation ownership, and calls the existing `roleResult` contract. Require rc 0 and `status: REACHED` before handling its `signal` through the calling skill. The adapter checks ordered Start → tool → Stop events from the same session, role and instance, and the Stop result's first line against the current source role's vocabulary. Record call, outcome and result paths in the task note so identity and scope survive re-entry. These are evidence records, not an authenticated audit service: only the orchestrator supplies native returns, never a child's summary. `roles.mjs result` remains a direct contract inspector for explicit fixtures/probes; it does not replace ordinary inventory or its observation boundary.
+Use `workflow.mjs complete-native` with the actual native return recorded by the orchestrator, following [Runtime observations](transcripts.md). It loads ordinary events after begin, checks invocation ownership, and calls the existing `roleResult` contract. Require rc 0 and `status: REACHED` before handling its `signal` through the calling skill. The adapter checks ordered Start → tool → Stop events from the same session, role and instance, and the Stop result's first line against the current source role's vocabulary. Upsert call, outcome and result paths with `ledger summary <task ID> execution-<role> --file <file>` so identity and scope survive re-entry. These are evidence records, not an authenticated audit service: only the orchestrator supplies native returns, never a child's summary. `roles.mjs result` remains a direct contract inspector for explicit fixtures/probes; it does not replace ordinary inventory or its observation boundary.
 
 Supply one invocation per child instance: exactly one Start and one Stop, with all tool starts between them. Repeated Start/Stop or tool starts after Stop make the result UNREACHED, including an unfinished follow-up after an earlier successful verdict. Use a fresh child and call for another judgment instead of combining responses from a reused instance.
 
