@@ -65,8 +65,9 @@ An OBSERVED evaluator MATCH can ground close in this generic path.
 It is not native REACHED, registered-role evidence or proof of semantic acceptance.
 
 Both paths preserve the calling skill's SIGNAL handling and persisted RETRY limits.
-Use independent reviewer and evaluator children, distinct from each other, the
-parent and all implementation authors. On a retry use a fresh child and include
+Each grader is independent of the parent and all implementation authors. When
+separate reviewer and evaluator calls are required, their children are distinct.
+Combined verification uses one evaluator as defined by `verify-code` "Verification path". On a retry use a fresh child and include
 all earlier attempts in `previousAgentIds`; a follow-up cannot stand in for it.
 Upsert the call and validated outcome with `ledger summary <task ID> execution-<role> --file <file>`, keeping private runtime
 identities and response evidence in the parent-owned local inventory when needed.

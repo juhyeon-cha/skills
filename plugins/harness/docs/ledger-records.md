@@ -14,6 +14,7 @@ Existing titles and comments remain intact. For an existing-title migration, fir
 |---|---|---|
 | Actor, delegation, verification phase, retry count | `ledger state <ID> <marker>` or `ledger state <ID> --file <file>` | Update execution state; no progress comment |
 | Latest role result, evidence, integration or delivery result | `ledger summary <ID> <section> --file <file>` | Upsert that body section; no progress comment |
+| Result and execution phase together | `ledger summary <ID> <section> --file <body> --state-file <marker>` | Validate both and update in one locked body write; repeating the same pair performs no write |
 | Blocker, human decision request, judgment reversal | `ledger note <ID> --file <file>` | Append a durable event |
 | Completion | `ledger close <ID> --reason-file <file>` | Leave the single completion comment |
 
@@ -28,5 +29,7 @@ Create a body file before calling the ledger, following develop's “원장에 �
 ## Storage and concurrency
 
 The description contains one versioned managed block with structured execution state and named summaries. GitHub keeps acceptance separate from this block; Notion and beads retain their existing description storage. Malformed or duplicate blocks fail instead of being discarded. Existing exact machine `note` calls are routed to state for interrupted older sessions. JSON reads expose `execution`, `summaries` and original `events`, while `notes` supplies current marker lines for older consumers.
+
+The combined summary/state form removes an intermediate remote body update, but is not a transaction with Git commit, claim, or another backend operation. A failed record leaves the commit intact; retry the same pair after resolving the diagnostic.
 
 State/summary writes lock the item on the local host, re-read the body before writing and verify the result afterward. Repeating an unchanged record performs no write. GitHub and Notion do not provide an atomic body compare-and-swap here: another host can still race between the checks. A detected conflict fails; inspect the remote body before retrying. A lock left by a crashed process is retained for inspection rather than stolen by age.

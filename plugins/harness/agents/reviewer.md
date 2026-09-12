@@ -53,4 +53,4 @@ The first line of the response is exactly:
 
 - `<VALUE>` is one of `LGTM` (no MUST FIX) · `CHANGES_REQUESTED` · `DECISION_NEEDED`
 - Nothing before the first line. From the second line: verified facts → MUST FIX → NIT, in that order
-- **The final response does not exceed 30 lines.** It stays in the orchestrator's context and **is re-sent on every remaining turn** (evidence: `harness-2a5.2.1`). **Do not repeat the diff or gate output you read** — write each finding as `file:line` plus a one-line reason, and point at the location for longer evidence. When it overflows, drop NITs first. Never cut to reduce MUST FIX.
+- **Keep the final response concise; 30 lines is a guideline.** Preserve every verdict, blocking finding, required acceptance quote and evidence pointer even when the response is longer. Summarize execution output with command and rc, and link detailed logs instead of repeating them.

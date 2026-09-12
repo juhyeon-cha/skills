@@ -11,6 +11,22 @@ The reviewer role definition (`${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`) holds 
 
 Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED or generic OBSERVED under that contract before the branches below apply. That contract owns execution-path selection and explicit enforcement requirements; the SIGNAL and retry rules below hold in both paths.
 
+## Verification path
+
+Use combined verification for changes limited to behavior-neutral spelling,
+formatting, comments or user-facing documentation, when the repository does not
+require separate reviews. Changes to executable instructions, gates, permissions,
+public contracts, dependencies, persistence or runtime behavior use separate
+reviewer and evaluator calls. Uncertain risk uses the separate path.
+
+For the combined path, call `verify-implement` with `combined verification` in the
+delegation context instead of spawning a reviewer. The independent evaluator
+applies its acceptance procedure and the reviewer checklist, returning MATCH only
+when both pass. Record both quality and acceptance grounds; the evaluator's
+validated MATCH is the combined review receipt. No separate reviewer result is
+invented. A quality defect returns VIOLATION with its evidence. Rework repeats
+this selected path and uses the verify-implement retry counter.
+
 ## 1. Delegate
 
 Delegate to reviewer. The message carries ① first line: harness root absolute path + worktree absolute path + the commit range under review + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every task in that milestone awaiting verification, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ claims in the implementer's report that reviewer must fact-check. That is the whole message — the discipline for receiving a list (one SIGNAL · attributing each finding to a task · relationships between changes across tasks) is held by `${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`, so leave it out of the delegation message.
@@ -31,14 +47,16 @@ Delegate to reviewer. The message carries ① first line: harness root absolute 
 
 The re-review / re-fix limit **counts only once it is recorded with `ledger state`.** Kept in memory it returns to 0 across session compaction and loop restarts.
 
-- The format is one fixed line: `RETRY: <단계> <n>/<상한>`. Put the values below in the `<상한>` slot verbatim.
+- The stored format is `RETRY: <stage> <count>/<checkpoint>`. Use the initial checkpoints below for a new unit and retain any recorded extension when resuming.
 - **The unit is the target of one verify pass** — the milestone in batch mode (`develop` section 3), the task outside it. Write `ledger state <unit ID> "RETRY: <단계> <n>/<상한>"` on that unit's bead and read it from that bead. One batch re-review is one count, whatever the number of tasks (`harness-2a5.4`).
 - **Immediately before re-delegating**, read the last `RETRY:` line for that stage from the notes of `ledger show <unit ID>` to get `n`. Absent, it is 0.
-- Once `n+1` puts the counter at **limit exceeded**, stop re-delegating — switch to human wait and leave the reason with `ledger note`.
-- Limits: `verify-code` re-review **2**, `verify-implement` re-judgment **1**. The implementer's own gate retries (up to 3) stay out of this record. Raising a limit takes a case where a third round was actually needed (`harness-yty`).
+- At the recorded checkpoint, compare the remaining failure with the previous attempt. If new evidence identifies a distinct correction, record that evidence and the next bounded attempt, advance the stored checkpoint, and continue. If the failure repeats without progress, a user decision is needed, or an explicit user budget is exhausted, record the reason and use human wait.
+- Initial checkpoints: `verify-code` **2**, `verify-implement` **1**. These trigger a progress review, not automatic human escalation. An extension advances the checkpoint by one attempt and preserves the cumulative count. Explicit user limits override these defaults and are never extended without approval. Implementation gate retries use the same progress rule, recorded in the implementation summary.
 - **`SCOPE_EXCESS` sits outside the counter.** It is a decision request about scope rather than a rework demand. What gets counted is rework caused by unmet acceptance.
 - The counter ends when the unit (task or milestone) closes.
 
 ## Completion criteria
 
-The state where the orchestrator has upserted the LGTM receipt and the NIT list with `ledger summary <unit ID> review --file <file>` — in batch mode once on the milestone bead (with the task list in the body), outside it on that task. Reach this state before moving on to verify-implement.
+For separate verification, the state where the orchestrator has upserted the LGTM receipt and the NIT list with `ledger summary <unit ID> review --file <file>` — in batch mode once on the milestone bead (with the task list in the body), outside it on that task. Reach this state before moving on to verify-implement.
+
+For combined verification, completion is the validated evaluator MATCH and both grounds recorded by verify-implement.

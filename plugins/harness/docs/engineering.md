@@ -35,6 +35,8 @@ Write a new gate in the **inverted-polarity** form (`harness:develop` "운영 �
 
 ## Where a document goes
 
+A standalone user-requested report or investigation can be saved in the task artifact directory. It is not a generated ledger projection or a plugin instruction. Repository files still use an assigned linked worktree; producing an external artifact does not require creating a story or PR.
+
 **Pick the place from this table before creating a document.** If none of the five fits, it is not a document yet but an unsorted memo.
 
 | Kind | Place | Why there |

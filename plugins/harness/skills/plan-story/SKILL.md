@@ -44,7 +44,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 Build epic (story) → feature (milestone) → task per the session context block "Agile hierarchy ↔ ledger mapping". Express ordering constraints as `blocks` dependencies. A story headed for an unattended loop carries **only tasks with no external wait** (a live system, a human approval).
 
-**Story size ceiling: one story = one PR = 5 milestones.** Size a milestone to the batch condition (single repo · task count) — that condition is written in `develop` section 3 and stays there.
+**Story size ceiling: one story = one PR = 5 milestones.** Size a milestone to the batch condition (single repo · coherent review scope) — that condition is written in `develop` section 3 and stays there.
 
 - **5 is not the planner's to exceed.** When it looks like it has to be, ask the user **on the spot** and take approval — this is **the confirmation of one decision** rather than the design question round of section 1, so it sits outside that round's ceiling and its "only one round" constraint (section 1). **With no approval the breakdown stops** — a sixth milestone waits for the answer.
 - **Splitting a story is a proposal and the user judges it.** Two conditions produce the proposal: the milestones' `repo:` labels diverge, or the planner sees a reason to split. Once the split is decided, split the story and join the parts with `blocks`.

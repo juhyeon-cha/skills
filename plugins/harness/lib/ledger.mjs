@@ -30,7 +30,7 @@ export const help = `사용: ledger.mjs [--root <절대 경로>] <하위 명령>
   ready [-l <라벨,…>] [-t <type>] [-n <N>] [--json]
   children <id> [--json]
   state <id> <실행 표식> | --file <f> | --stdin
-  summary <id> <section> <본문> | --file <f> | --stdin
+  summary <id> <section> (<본문> | --file <f> | --stdin) [--state-file <f>]
   note <id> <사건 기록> | --file <f> | --stdin
   close <id>… [--reason <문>|--reason-file <f>] [--force]
   update <id> [--status <s>] [--claim --actor <값>] [-a|--assignee <값>] [--parent <id>] [-t <type>] [--acceptance <문>] [--body-file <f>]
@@ -172,6 +172,15 @@ export async function executeLedger(argv, options = {}) {
       if (!id) fail(`${command}: id 가 필요하다`);
       const section = command === 'summary' ? rest.shift() : null;
       if (section !== null && !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(section ?? '')) fail('summary: 유효한 section 이 필요하다');
+      let marker;
+      const stateIndex = rest.indexOf('--state-file');
+      if (stateIndex >= 0) {
+        if (command !== 'summary' || stateIndex !== rest.lastIndexOf('--state-file') ||
+            !rest[stateIndex + 1] || rest[stateIndex + 1].startsWith('--'))
+          fail('--state-file: summary에서 파일 하나가 필요하다');
+        const file = rest.splice(stateIndex, 2)[1];
+        marker = await fs.readFile(path.resolve(ctx.cwd, file), 'utf8');
+      }
       const value = await noteBody(rest, ctx);
       const identity = JSON.stringify([ctx.backend, ctx.config.ledger.owner ?? ctx.config.ledger.database_id ?? ctx.root, id]);
       await withRecordLock(identity, async () => {
@@ -182,7 +191,10 @@ export async function executeLedger(argv, options = {}) {
         };
         const before = await readRow(), record = structuredClone(rowRecord(before));
         if (command === 'state') record.execution = applyMarker(record.execution, value);
-        else record.summaries[section] = value;
+        else {
+          if (marker !== undefined) record.execution = applyMarker(record.execution, marker);
+          record.summaries[section] = value;
+        }
         if (JSON.stringify(record) === JSON.stringify(rowRecord(before)) && before.execution) return;
         const fingerprint = row => JSON.stringify([row.description, row.acceptance_criteria, rowRecord(row)]);
         if (fingerprint(before) !== fingerprint(await readRow())) fail('record conflict: 본문이 변경됐다 — 다시 읽고 재시도하라');
