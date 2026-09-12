@@ -1,3 +1,5 @@
+import { normalizeRecord, preserveRecord, rowRecord, recordBody } from './record.mjs';
+import { updateOptions, description } from './common.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { parse, json, fail, replaceJSON } from './common.mjs';
@@ -133,14 +135,37 @@ export async function beadsLedger(argv, ctx) {
     ctx.out(`✓ 원장 게이트 통과 — 원격 반영 ${verdict}\n`);
     return;
   }
-  const result = await bd(argv, { allowFailure: true });
+  let call = argv;
+  if (cmd === 'update' && args.some(arg => ['--body-file', '--description', '-d', '--claim'].includes(arg))) {
+    const options = updateOptions(args.slice(1));
+    const current = await bd(['show', args[0], '--json']);
+    const row = JSON.parse(current.stdout.toString())[0];
+    let body = row.description ?? '';
+    if (options.bodyFile !== undefined || options.description !== undefined)
+      body = preserveRecord(body, await description(options, ctx));
+    if (options.claim) {
+      const record = rowRecord(normalizeRecord(row));
+      record.execution.actor = options.actor ?? null;
+      body = recordBody(body, record);
+    }
+    call = ['update', args[0]];
+    for (let i = 1; i < args.length; i++) {
+      if (['--body-file', '--description', '-d'].includes(args[i])) i++;
+      else call.push(args[i]);
+    }
+    call.push('--description', body);
+  }
+  const result = await bd(call, { allowFailure: true });
   if (
     ['show', 'list', 'ready', 'blocked', 'children', 'search', 'query'].includes(cmd) &&
     args.includes('--json')
   ) {
     const parsed = JSON.parse(result.stdout.toString());
     if (Array.isArray(parsed))
-      for (const row of parsed) if (!Object.hasOwn(row, 'actor')) row.actor = row.assignee ?? null;
+      for (let i = 0; i < parsed.length; i++) {
+        if (!Object.hasOwn(parsed[i], 'actor')) parsed[i].actor = parsed[i].assignee ?? null;
+        parsed[i] = normalizeRecord(parsed[i]);
+      }
     return { code: result.code ?? 1, stdout: json(parsed), stderr: result.stderr.toString() };
   }
   return resultText(result);

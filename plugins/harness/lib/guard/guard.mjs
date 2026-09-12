@@ -32,7 +32,7 @@ export const GR_ROLES = 'harness:reviewer harness:evaluator';
 export const GR_GIT_READ =
   'status log diff show ls-files rev-parse blame describe cat-file ls-remote branch grep';
 export const IMPL_ROLES = 'harness:implementer';
-export const IMPL_BD_WRITE_ALLOW = 'note';
+export const IMPL_BD_WRITE_ALLOW = 'note state summary';
 export const BD_READ_EXEMPT =
   'show list ready blocked children search query count graph history status prime where context info version help';
 export const LEDGER_READ_EXEMPT = 'rails sprints';

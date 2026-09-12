@@ -27,7 +27,7 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
 - Harness root discovery uses explicit `--root`, then `HARNESS_ROOT`, then the first `.harness.json` above cwd. That repository-owned file is the discriminator; a clone may live anywhere. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
 - When delegating to a subagent, give the harness root absolute path on the first line. Every native ledger call carries that explicit `--root`; the legacy wrapper can carry `HARNESS_ROOT`. Never let an incidental cwd select another harness's ledger.
 - The ledger is the SSOT. `board all` projects it into `docs/sprints/`·`docs/backlog/`·`docs/adr/` **only on a backend with no UI of its own** — where those exist they are generated, never edited by hand.
-- Bodies (note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".
+- Bodies (state·summary·note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".
 
 ## Procedure skills (9)
 

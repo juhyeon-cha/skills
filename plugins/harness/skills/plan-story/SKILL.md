@@ -9,6 +9,8 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 ## 1. Define the story
 
+**Backlog registration creates one story (`epic`) only.** Backlog means a story without a `sprint:` assignment, not another issue type. Use the stable title convention in `${CLAUDE_PLUGIN_ROOT}/docs/ledger-records.md`; sprint assignment never changes its title. Create milestones and tasks on pickup, or when the user explicitly requests decomposition. A filing-only request ends after the story body is recorded and shown.
+
 - Write **the problem the story solves in one sentence** first. Until that sentence exists it is not yet a story.
 - **Put the five below in the body.** The one-sentence problem opens a story; it is not the body — the breakdown happens **when the owner picks the story up**, not when the author files it, so the body holds enough that the owner skips repeating the same investigation.
 
@@ -36,7 +38,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
   - **The planner investigates facts directly — the user gets asked about choices.** Files, counts, and current behavior are read and confirmed; what goes to the user is choice and priority.
   - **Stop at the end of round 2.** Write the remaining questions into the story body's "open" and move to the approval gate — the owner closes them at pickup.
   - **This is the only design question round.** From section 2 on, the round stays closed — once approved, run to the end. The approval taken in section 2 for exceeding the milestone ceiling is **the confirmation of one decision** rather than a reopened design round, so it sits outside this constraint.
-- **Approval gate.** After creating the story bead, show the user **the five in the table plus the repos**, take approval, and then go to section 2. Milestone and task creation come after approval. When the entry point is "break down a story that already exists", showing that story's body stands in for the gate — and **close the questions left in "open" first**, since breaking down around an open question nails its answer into the task tree as an assumption.
+- **Approval gate.** After creating the story bead, show the user **the five in the table plus the repos**, use the authorization already given for pickup or decomposition, and then go to section 2. If decomposition is not authorized, finish with the registered story; milestone and task creation wait for pickup or an explicit decomposition request. When the entry point is "break down a story that already exists", showing that story's body stands in for the gate — and **close the questions left in "open" first**, since breaking down around an open question nails its answer into the task tree as an assumption.
 
 ## 2. Break it down
 
@@ -86,7 +88,7 @@ Build epic (story) → feature (milestone) → task per the session context bloc
 - Apply this to every item: "reading this sentence alone, can pass/fail be called without disagreement?" Reject anything of the "works well" kind.
 - **Attach a judging command to every item that can carry one.** All three forms above are shapes a single shell line can judge — existence is `test` / `grep`, input-output is that command plus the expected value, a check is that check's exit code. **An item carrying a command is judged by the machine**, not by a human or an agent (`verify-implement` section 1).
   - **When an item cannot carry a command, leave one line saying why.** Silence is indistinguishable from "could have carried one and did not". Examples that cannot: which item a diff hunk belongs to, whether a passage has gone stale — both are natural-language judgments, so the evaluator sees them.
-  - **Confirm the role that runs the command can actually run it.** `guard.sh` narrowly blocks subagent writes — the implementer's `bd` writes are `note` alone, and reviewer and evaluator are barred from `bd` and `git` writes entirely. An unrunnable command leaves the item unjudged and the worker blocked on return (twice in `harness-dfd`). When only the orchestrator can do it, write that fact into the item.
+  - **Confirm the role that runs the command can actually run it.** `guard.sh` narrowly blocks subagent writes — the implementer's ledger writes are state, summary and event notes only, and reviewer and evaluator are barred from `bd` and `git` writes entirely. An unrunnable command leaves the item unjudged and the worker blocked on return (twice in `harness-dfd`). When only the orchestrator can do it, write that fact into the item.
 - **Write the failure path alongside.** All three forms above describe the happy path only. Make **what is observed** on bad input, a missing target, and denied permission into items of their own.
 
 ## 4. Promoting a review NIT into a task — the convention gate

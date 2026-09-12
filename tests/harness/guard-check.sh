@@ -2435,12 +2435,13 @@ done
 IMPL_ALLOW_SRC=$(hook_inventory IMPL_BD_WRITE_ALLOW)
 step "허용 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -n "$IMPL_ALLOW_SRC" ]
 echo "  IMPL_BD_WRITE_ALLOW: $IMPL_ALLOW_SRC"
-# 허용 키가 실제 bd 하위 명령인가 (BD_ALL 은 ⑩ 이 `bd --help` 에서 파생했다).
+# 허용 키가 실제 bd 또는 공통 원장 하위 명령인가. 각 CLI에서 집합을 읽는다.
+IMPL_LEDGER_ALL=$(node "$ROOT/scripts/ledger.mjs" --commands | jq -r '.[]')
 impl_missing=""
 for e in $IMPL_ALLOW_SRC; do
-  printf '%s\n' "$BD_ALL" | grep -qx -- "$e" || impl_missing="$impl_missing $e"
+  printf '%s\n%s\n' "$BD_ALL" "$IMPL_LEDGER_ALL" | grep -qx -- "$e" || impl_missing="$impl_missing $e"
 done
-step "허용 키가 전부 실제 bd 하위 명령이다 (역방향 단언)" [ -z "$impl_missing" ]
+step "허용 키가 전부 실제 bd 또는 ledger 하위 명령이다 (역방향 단언)" [ -z "$impl_missing" ]
 [ -n "$impl_missing" ] && echo "    실재하지 않는 허용 키:$impl_missing"
 # 허용 목록과 읽기 면제가 겹치지 않는가. 겹치면 "쓰기 중 무엇이 허용됐나"가 흐려지고,
 # 읽기 면제만 늘려도 쓰기가 열리는 경로가 생긴다.
@@ -2606,7 +2607,7 @@ step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -
 echo "  IMPL_ROLES: $IMPL_ROLES_SRC"
 # 표지는 역할 정의 자신의 문장이다 — implementer.md "**Ledger writes other than `ledger.sh note`**".
 # 손으로 고르지 않고 이 문장에서 파생한다. 접두 `harness:` 는 ⑫ 와 같은 이유로 붙인다.
-IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger note`' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger state`, `ledger summary` and `ledger note`' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
 echo "  'Ledger writes other than ledger.sh note' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 대상 집합을 파생했다 (비어 있지 않다)" [ -n "$IMPL_DECLARED" ]
 step "훅의 IMPL_ROLES 가 역할 정의에서 파생한 집합과 일치한다 (역방향 단언)" \

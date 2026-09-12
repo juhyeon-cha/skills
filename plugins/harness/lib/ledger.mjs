@@ -16,6 +16,9 @@ import {
 import { githubLedger } from './ledger/github.mjs';
 import { notionLedger } from './ledger/notion.mjs';
 import { beadsLedger } from './ledger/beads.mjs';
+import { applyMarker, isStateMarker, recordBody, rowRecord, withRecordLock } from './ledger/record.mjs';
+import { namedTitle } from './ledger/naming.mjs';
+import { noteBody } from './ledger/common.mjs';
 
 export { commands, beadsCommands };
 export const help = `사용: ledger.mjs [--root <절대 경로>] <하위 명령> [인자…] (bd 호환; legacy ledger.sh 동일)
@@ -26,7 +29,9 @@ export const help = `사용: ledger.mjs [--root <절대 경로>] <하위 명령>
   list [-l <라벨,…>] [--label-pattern <glob>] [--status <s,…>] [-t <type>] [--parent <id>] [--all] [-n <N>] [--json]
   ready [-l <라벨,…>] [-t <type>] [-n <N>] [--json]
   children <id> [--json]
-  note <id> <본문> | --file <f> | --stdin
+  state <id> <실행 표식> | --file <f> | --stdin
+  summary <id> <section> <본문> | --file <f> | --stdin
+  note <id> <사건 기록> | --file <f> | --stdin
   close <id>… [--reason <문>|--reason-file <f>] [--force]
   update <id> [--status <s>] [--claim --actor <값>] [-a|--assignee <값>] [--parent <id>] [-t <type>] [--acceptance <문>] [--body-file <f>]
   dep add <id> <의존 대상 id> | --file - (JSONL {"from","to"})
@@ -37,6 +42,9 @@ export const help = `사용: ledger.mjs [--root <절대 경로>] <하위 명령>
   rails --json
   sprints --json
   sprint-add <YYYY-SNN>
+GitHub 전용:
+  project-setup [--apply] (기본은 읽기 전용 계획)
+  project-sync [--apply] (기본은 읽기 전용 계획)
   help | --help
 본문 파일: create --title-file <f> 로 제목을 대신하고 create/update --acceptance-file <f> 로 완료 조건을 읽는다.
 init --title-file <f> 도 지원한다. 파일과 같은 값의 인라인 인자를 함께 주면 거부한다.
@@ -156,7 +164,35 @@ export async function executeLedger(argv, options = {}) {
       if (result?.stderr) ctx.err(result.stderr);
       return captured + (result?.stdout ?? '');
     };
-    if (args[0] === 'create') {
+    // Legacy exact machine notes are routed to mutable state as well, so an
+    // interrupted session running an older prompt does not resume comment spam.
+    if (args[0] === 'note' && isStateMarker(await noteBody(args.slice(2), ctx))) args[0] = 'state';
+    if (['state', 'summary'].includes(args[0])) {
+      const [command, id, ...rest] = args;
+      if (!id) fail(`${command}: id 가 필요하다`);
+      const section = command === 'summary' ? rest.shift() : null;
+      if (section !== null && !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,79}$/.test(section ?? '')) fail('summary: 유효한 section 이 필요하다');
+      const value = await noteBody(rest, ctx);
+      const identity = JSON.stringify([ctx.backend, ctx.config.ledger.owner ?? ctx.config.ledger.database_id ?? ctx.root, id]);
+      await withRecordLock(identity, async () => {
+        const readRow = async () => {
+          const row = JSON.parse(await invoke(['show', id, '--json']))[0];
+          if (!row?.id) fail(`${command}: 이슈를 읽지 못했다`);
+          return row;
+        };
+        const before = await readRow(), record = structuredClone(rowRecord(before));
+        if (command === 'state') record.execution = applyMarker(record.execution, value);
+        else record.summaries[section] = value;
+        if (JSON.stringify(record) === JSON.stringify(rowRecord(before)) && before.execution) return;
+        const fingerprint = row => JSON.stringify([row.description, row.acceptance_criteria, rowRecord(row)]);
+        if (fingerprint(before) !== fingerprint(await readRow())) fail('record conflict: 본문이 변경됐다 — 다시 읽고 재시도하라');
+        await invoke(['update', id, '--description', recordBody(before.description, record)]);
+        const after = await readRow();
+        if (after.description !== before.description || after.acceptance_criteria !== before.acceptance_criteria || JSON.stringify(rowRecord(after)) !== JSON.stringify(record))
+          fail('record conflict: 쓰기 후 결과가 다르다 — 덮어쓰지 말고 원장을 확인하라');
+      });
+      ctx.out(`✓ ${command} updated: ${id}\n`);
+    } else if (args[0] === 'create') {
       // Keep backend-specific argv intact; only shared label flags are replaced.
       const parsed = parse(args.slice(1), writeValues, writeFlags, true),
         labels = csv(parsed.labels);
@@ -187,6 +223,10 @@ export async function executeLedger(argv, options = {}) {
           final.push(arg);
           if (Object.hasOwn(writeValues, arg)) final.push(args[++i]);
         }
+      }
+      for (let i = 1; i < final.length; i++) {
+        if (Object.hasOwn(writeValues, final[i])) { i++; continue; }
+        if (!final[i].startsWith('-')) { final[i] = namedTitle(final[i], parsed.type ?? 'task'); break; }
       }
       if (labels.length) final.push('-l', labels.join(','));
       let owner;
@@ -234,7 +274,9 @@ export async function executeLedger(argv, options = {}) {
         if (rows.some((row) => row.id === args[1]))
           fail(`sprint-add: '${args[1]}' 는 이미 등재돼 있다 — 덮어쓰지 않는다`);
       }
-      const result = await backend(args, ctx);
+      const result = args[0] === 'update'
+        ? await withRecordLock(JSON.stringify([ctx.backend, ctx.config.ledger.owner ?? ctx.config.ledger.database_id ?? ctx.root, args[1]]), () => backend(args, ctx))
+        : await backend(args, ctx);
       if (result)
         return {
           ...result,

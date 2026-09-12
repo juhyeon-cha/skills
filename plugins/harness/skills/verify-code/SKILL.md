@@ -17,8 +17,8 @@ Delegate to reviewer. The message carries ① first line: harness root absolute 
 
 ## 2. Signal handling
 
-- `LGTM` → record the receipt and the NIT list with `ledger note` and move on to the verify-implement procedure. **In batch mode write it once on the milestone bead** and **leave the task notes untouched** — the stop guard passes a task only while its last note is `VERIFY_PENDING`, and a NIT appended per task releases that marker, so the guard blocks when the turn ends before close. Outside batch mode write it on that task. Promoting a NIT into a task goes through the convention gate in `plan-story` section 4.
-- `CHANGES_REQUESTED` → record the findings with `ledger note` → **read and raise the counter before re-delegating** → delegate the fix to implementer → reviewer re-reviews (**whether the earlier findings are resolved, and nothing else**). When the implementer signal returned from the fix delegation is something other than `IMPLEMENTATION_COMPLETE` (`IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED` · outside the list), handle it through the branches in `develop` 3-4 instead of re-review.
+- `LGTM` → upsert the receipt and NIT list with `ledger summary <unit ID> review --file <file>` and move on to verify-implement. In batch mode use the milestone and identify the tasks; outside batch mode use the task. The summary leaves `VERIFY_PENDING` standing. Promoting a NIT into a task goes through the convention gate in `plan-story` section 4.
+- `CHANGES_REQUESTED` → upsert the findings with `ledger summary <unit ID> review --file <file>` → **read and raise the counter before re-delegating** → delegate the fix to implementer → reviewer re-reviews (**whether the earlier findings are resolved, and nothing else**). When the implementer signal returned from the fix delegation is something other than `IMPLEMENTATION_COMPLETE` (`IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED` · outside the list), handle it through the branches in `develop` 3-4 instead of re-review.
   - **Re-review runs on a fresh reviewer instance.** The instance that raised the findings is done.
   - **In exchange the re-review delegation message is written thick — this is the explicit exception to the thin-delegation discipline (`develop` section 3).** A fresh instance regathers its context, and the delegation message pays that rediscovery cost in its place. Carry three things:
     1. **The earlier findings verbatim** — leave them unsummarised. What was asked for is the control the re-review compares against
@@ -29,10 +29,10 @@ Delegate to reviewer. The message carries ① first line: harness root absolute 
 
 ## 재시도 카운터
 
-The re-review / re-fix limit **counts only once it is recorded with `ledger note`.** Kept in memory it returns to 0 across session compaction and loop restarts.
+The re-review / re-fix limit **counts only once it is recorded with `ledger state`.** Kept in memory it returns to 0 across session compaction and loop restarts.
 
 - The format is one fixed line: `RETRY: <단계> <n>/<상한>`. Put the values below in the `<상한>` slot verbatim.
-- **The unit is the target of one verify pass** — the milestone in batch mode (`develop` section 3), the task outside it. Leave `RETRY:` on that unit's bead and read it from that bead. One batch re-review is one count, whatever the number of tasks (`harness-2a5.4`).
+- **The unit is the target of one verify pass** — the milestone in batch mode (`develop` section 3), the task outside it. Write `ledger state <unit ID> "RETRY: <단계> <n>/<상한>"` on that unit's bead and read it from that bead. One batch re-review is one count, whatever the number of tasks (`harness-2a5.4`).
 - **Immediately before re-delegating**, read the last `RETRY:` line for that stage from the notes of `ledger show <unit ID>` to get `n`. Absent, it is 0.
 - Once `n+1` puts the counter at **limit exceeded**, stop re-delegating — switch to human wait and leave the reason with `ledger note`.
 - Limits: `verify-code` re-review **2**, `verify-implement` re-judgment **1**. The implementer's own gate retries (up to 3) stay out of this record. Raising a limit takes a case where a third round was actually needed (`harness-yty`).
@@ -41,4 +41,4 @@ The re-review / re-fix limit **counts only once it is recorded with `ledger note
 
 ## Completion criteria
 
-The state where the orchestrator has left the LGTM receipt and the NIT list with `ledger note` — in batch mode once on the milestone bead (with the task list in the body), outside it on that task. Reach this state before moving on to verify-implement.
+The state where the orchestrator has upserted the LGTM receipt and the NIT list with `ledger summary <unit ID> review --file <file>` — in batch mode once on the milestone bead (with the task list in the body), outside it on that task. Reach this state before moving on to verify-implement.

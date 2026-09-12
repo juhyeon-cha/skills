@@ -26,7 +26,8 @@ const text = (value) =>
 const label = (row, prefix) => labels(row, prefix).join(', ');
 const detail = (title, body) =>
   body ? `\n<details><summary>${title}</summary>\n\n${body}\n\n</details>\n` : '';
-const notes = (row) => detail('기록 (bd notes)', text(row.notes));
+const notes = (row) => detail('기록 (bd notes)', text(row.notes)) +
+  Object.entries(row.summaries ?? {}).map(([section, body]) => detail(`결과 · ${section}`, text(body))).join('');
 // Match the previous dotted-ID numeric segment order, without locale-dependent
 // collation (so the same snapshot emits identical bytes on every host).
 const compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0);

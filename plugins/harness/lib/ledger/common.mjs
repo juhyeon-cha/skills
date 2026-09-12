@@ -9,6 +9,10 @@ export const commands = [
   'ready',
   'children',
   'note',
+  'state',
+  'summary',
+  'project-setup',
+  'project-sync',
   'close',
   'update',
   'dep',
@@ -149,7 +153,7 @@ export function filterRows(rows, options) {
 export const rowsText = (rows) =>
   rows.map((row) => `${row.id}\t${row.status}\t${row.issue_type}\t${row.title}\n`).join('');
 export const showText = (row) =>
-  `${row.id} [${row.issue_type} · ${row.status}] ${row.title}\nlabels: ${row.labels.join(', ')}\nparent: ${row.parent ?? '-'}  assignee: ${row.assignee ?? '-'}\n\n${row.description}\n\nACCEPTANCE\n${row.acceptance_criteria}\n\nNOTES\n${row.notes ?? ''}\n`;
+  `${row.id} [${row.issue_type} · ${row.status}] ${row.title}\nlabels: ${row.labels.join(', ')}\nparent: ${row.parent ?? '-'}  assignee: ${row.assignee ?? '-'}\n\n${row.description}\n\nACCEPTANCE\n${row.acceptance_criteria}\n\nNOTES\n${row.notes ?? ''}\n${row.execution ? `\nEXECUTION\n${JSON.stringify(row.execution, null, 2)}\nSUMMARIES\n${JSON.stringify(row.summaries ?? {}, null, 2)}\n` : ''}`;
 export const bodyFile = async (file, ctx) =>
   (file === '-'
     ? ctx.input.toString()

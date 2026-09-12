@@ -9,13 +9,13 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 ## 1. Gather the material
 
-There are three inputs — **the ledger (notes)**, **the subagent transcripts**, and **the guard firing log**. A note holds what a role decided to write down; a transcript holds what the role actually did; the log holds what the guardrail refused to let it do. None stands in for the others.
+There are three inputs — **the ledger (body summaries and event notes)**, **the subagent transcripts**, and **the guard firing log**. A body summary or event note holds what a role decided to write down; a transcript holds what the role actually did; the log holds what the guardrail refused to let it do. None stands in for the others.
 
 ### 1-1. The ledger
 
-- Read the full `ledger show <ID>` of the target story (or stories) and the notes of every task under it.
+- Read the full `ledger show <ID>` of the target story (or stories) and the body summaries and event notes of every milestone and task under it.
 - Check what this round left in the harness backlog with `ledger list -l harness`.
-- In each note, separate **observation** (what actually happened) from **proposal** (what to change) and pull both out.
+- In each summary and event note, separate **observation** (what actually happened) from **proposal** (what to change) and pull both out.
 
 ### 1-2. Subagent transcripts
 
@@ -23,7 +23,7 @@ There are three inputs — **the ledger (notes)**, **the subagent transcripts**,
 - For ordinary workflow inventory, call `transcript --scope <scope.json> --json`. Use the actual session metadata retained at begin; a missing inventory is UNREACHED. This aggregate covers the session, including failed and unfinished attempts. Identify the story's calls from their recorded task scope rather than discarding failures.
 - For historical Claude transcripts, the documented directory adapter accepts `--projects`, `--session` and `--since` together. Pass the known session and story start time. An unknown session must be recorded as an attribution limit; wider observations are trends, not automatically this story's population.
 - Quote `signals`, `tools`, `reuse` and `a9.verdicts` together with `population`, `complete`, and `unreached`. `complete: false` makes counts partial observations, unsuitable as a full rejection-rate denominator. Token `UNKNOWN` and `total: null` are unmeasured cost, independent of A9's SIGNAL judgment.
-- On rc 2, record the `unreached` reasons verbatim in the story note and proceed using the reached observations and ledger with those limits. Missing observations contribute nothing to the two-observation promotion bar. Never report missing tools, tokens, unfinished calls or unsupported formats as zero.
+- On rc 2, upsert the `unreached` reasons verbatim with `ledger summary <story ID> retrospective --file <file>` and proceed using the reached observations and ledger with those limits. Missing observations contribute nothing to the two-observation promotion bar. Never report missing tools, tokens, unfinished calls or unsupported formats as zero.
 
 ### 1-3. The guard log — false-positive rate per rule
 
@@ -75,7 +75,7 @@ Skipping the sort promotes personal taste into a rule and turns the harness into
 **"Edit the harness file directly" means the plugin's source, never the installed copy.** The skills, role definitions, hooks, checks, and scripts an agent runs come from the installed plugin (`${CLAUDE_PLUGIN_ROOT}`), and the next plugin update overwrites that copy — even a typo fix made there **disappears quietly**. The file to edit is in the skills repo `plugins/harness/`, and the edit reaches installs through a release and a plugin update (`setup` section 3). Landing it there is a PR to that repo, so it goes out **only on explicit user instruction**; until then the improvement goes out as a **ledger** entry rather than a file edit:
 
 - Leave it in your own ledger as backlog — make a `-t task -l harness` issue with `ledger create` and write the verbatim observation and the reproduction conditions into it. That is the only record that survives in this tree.
-- Once the fix has landed in the plugin's source, leave a "반영됨 → <커밋>" note on that bead.
+- Once the fix has landed in the plugin's source, upsert "반영됨 → <커밋>" in that bead's `retrospective` summary.
 
 **Almost nothing is outside the plugin any more** — the rail and sprint registries are the adapter's answers, and each target repo's gate command and ledger coordinates are its own `.harness.json`. Neither is a place to land a rule, so the table above covers every proposal this procedure can make.
 
@@ -83,9 +83,9 @@ Skipping the sort promotes personal taste into a rule and turns the harness into
 
 Propose a change to a rule, a role definition, or a skill only once the same finding has been **observed twice or more**.
 
-**A one-off gets registered as a harness backlog bead** — make it with `-l harness` and write into the body the verbatim observation, the reproduction conditions, and **that it is waiting for a second observation**. **A note alone loses it**: section 1-1 reads the notes of the target story only, `ledger search` cannot search notes (title · ID, plus description via `--desc-contains`), and a closed story drops out of the default query — three layers deep, so **the next retrospective never finds the first observation.** Then the same finding gets judged "one observation" however often it appears, and promotion never arrives — or the count gets filled from outside the round (another session). That has happened (the account is in `harness-r4zw`).
+**A one-off gets registered as a harness backlog bead** — create one story with `-t epic -l harness` and no sprint assignment and write into the body the verbatim observation, the reproduction conditions, and **that it is waiting for a second observation**. **A note alone loses it**: section 1-1 reads the notes of the target story only, `ledger search` cannot search notes (title · ID, plus description via `--desc-contains`), and a closed story drops out of the default query — three layers deep, so **the next retrospective never finds the first observation.** Then the same finding gets judged "one observation" however often it appears, and promotion never arrives — or the count gets filled from outside the round (another session). That has happened (the account is in `harness-r4zw`).
 
-Once registered, the `ledger list -l harness` in 1-1 picks it up at the next retrospective. On the second observation, promote on the strength of that bead, and leave a "반영됨 → <커밋>" note on it afterwards.
+Once registered, the `ledger list -l harness` in 1-1 picks it up at the next retrospective. On the second observation, promote on the strength of that bead, and upsert "반영됨 → <커밋>" in its `retrospective` summary afterwards.
 
 **The observation count covers this round alone.** The `--session` in 1-2 cuts the population down to this round, which makes hand-matching **the fallback** — reach for it only when the session UUID was unknown and the run used `--since` alone, then screen attribution by matching each violation's `agent_id` against what this round actually delegated, and read the unattributed ones **as a trend, outside the count.**
 
@@ -100,7 +100,7 @@ Once registered, the `ledger list -l harness` in 1-1 picks it up at the next ret
 
 - Present a change as a **per-file diff** and apply it **after human approval**. Applying on your own is out. (The "immediate fix" in section 2 is limited to notation changes that leave behavior unchanged — a blurry boundary belongs on this path.)
 - Quote the source (story ID, the gist of the note) in the applying commit message — that keeps the rule's lineage in git.
-- Once a lesson has landed, leave a "반영됨 → <커밋>" note on the original bead to block a double application.
+- Once a lesson has landed, upsert "반영됨 → <커밋>" in the original bead's `retrospective` summary to block a double application.
 
 ## 6. Rule audit (once a quarter)
 
