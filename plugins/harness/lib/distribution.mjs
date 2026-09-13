@@ -157,6 +157,26 @@ export function generateDistribution(root = pluginRoot) {
   return inspectDistribution(root);
 }
 
+// Claude owns root .in_use/<PID>, including partially written marker bodies.
+// Validate the filesystem shape, not process identity or marker contents.
+function inspectRuntimeMarkers(directory) {
+  const optional = (read) => {
+    try { return read(); }
+    catch (error) { if (error.code !== 'ENOENT') throw error; }
+  };
+  const stat = optional(() => fs.lstatSync(directory));
+  if (!stat) return; // The runtime may withdraw the directory after root listing.
+  if (!stat.isDirectory() || stat.isSymbolicLink())
+    throw new Error('unsupported runtime metadata: .in_use must be a directory');
+  for (const name of optional(() => fs.readdirSync(directory)) ?? []) {
+    if (!/^[1-9][0-9]*$/.test(name))
+      throw new Error(`unsupported runtime metadata: .in_use/${name}`);
+    const marker = optional(() => fs.lstatSync(path.join(directory, name)));
+    if (marker && (!marker.isFile() || marker.isSymbolicLink() || marker.nlink !== 1))
+      throw new Error(`unsupported runtime metadata: .in_use/${name}`);
+  }
+}
+
 export function inspectDistribution(root = pluginRoot) {
   root = fs.realpathSync(root);
   for (const [relative, text] of Object.entries(projections(root)))
@@ -189,6 +209,10 @@ export function inspectDistribution(root = pluginRoot) {
     for (const name of fs.readdirSync(directory).sort()) {
       const file = path.join(directory, name);
       const relative = prefix + name;
+      if (relative === '.in_use') {
+        inspectRuntimeMarkers(file);
+        continue;
+      }
       const stat = fs.lstatSync(file);
       if (stat.isSymbolicLink()) throw new Error(`symlink artifact unsupported: ${relative}`);
       if (stat.isDirectory()) walk(file, relative + '/');

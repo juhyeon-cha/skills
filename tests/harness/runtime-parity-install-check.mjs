@@ -22,6 +22,14 @@ try {
   put(manifest, JSON.stringify(changed));
   put(path.join(newer, 'hooks/session-context.md'), read(path.join(newer, 'hooks/session-context.md')) + '\nFixture updated context.\n');
   generateDistribution(newer);
+  const markerSource = path.join(scratch, 'marker-source');
+  fs.cpSync(source, markerSource, {recursive:true});
+  put(path.join(markerSource, '.in_use/12345'), '{"pid":');
+  const markerInstall = installDistribution({source:markerSource, destination:path.join(scratch, 'marker-install'), surface:'claude-cli'});
+  assert.equal(markerInstall.receipt.sourceHash, inspectDistribution(source).hash);
+  assert(!fs.existsSync(path.join(markerInstall.receipt.installedRoot, '.in_use')));
+  assert(!Object.keys(markerInstall.receipt.files).some(file => file.includes('/.in_use/')));
+  assert.deepEqual(inspectDistribution(markerInstall.receipt.installedRoot).files, inspectDistribution(source).files);
   const baseline = inspectDistribution(source);
   for (const surface of ['claude-cli','codex-cli','codex-desktop','antigravity-cli']) {
     const destination = path.join(scratch, surface, 'plugin');
