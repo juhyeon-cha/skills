@@ -17,6 +17,13 @@ the old `harness@skills` is disabled only in this disposable project to avoid
 duplicate policy. Review that exact project and its hooks through the official
 UI before claiming activation. Preparation remains static evidence.
 
+For linked Codex worktrees, the
+[official app-server hook contract](https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md)
+reads matching root-checkout `.codex` declarations. Worktree-only hooks were
+absent in actual discovery even after project trust. The preparation helper
+therefore defines the root hook input before Git initialization. Preserve the
+failed discovery control and record the new repository as a different baseline.
+
 Use `runtime-parity-live-run.mjs <invocation.json> <new-observation-directory>`
 under `tests/harness/` for explicit CLI invocations. The input holds `command`,
 string-array `args`, `cwd` and optional `timeoutMs`. It captures stdout, stderr,
@@ -64,3 +71,25 @@ hook review and handoff first. After the supported restart/new-chat step, captur
 the actual desktop version, artifact source, session/workspace, hook output,
 native or observed child identity, canary effects and completion. Never relabel
 a CLI receipt as desktop, or substitute fixture roles for actual child loading.
+
+## Native permission and ordering limits observed
+
+Antigravity's [permission documentation](https://antigravity.google/docs/cli/permissions)
+defaults non-workspace file reads and unconfigured commands to approval. A
+headless read of the external candidate script was denied. The separate
+operator-owned role API subsequently worked without retrying that read.
+Reading a staged script is not the same as provider plugin installation;
+this probe does not establish the permissions of a globally installed plugin.
+Use an exact, harmless command approval in the supported TUI to measure required
+shell tools; do not enable a global bypass to make the probe pass.
+
+Native reviewer reads and result delivery completed under fast operator binding.
+An earlier child reached its result before binding and was correctly denied;
+fast binding is a positive control, not an ordering guarantee. A pending/ready
+handshake must distinguish pre-registration idle from final completion while
+retaining actual child identity, source checks and pre-registration write denial.
+
+The reviewer shell `touch` canary passed the harness policy and was denied by
+provider permissions. This matches the documented shell-mediated-write limit.
+It must not be reported as a harness reviewer-write denial, and a successful
+native file-tool denial must not erase that limitation.
