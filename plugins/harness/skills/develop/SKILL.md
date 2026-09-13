@@ -34,6 +34,20 @@ Claude's native `EnterWorktree` remains a supported creation/entry transport: it
 
 Before delegation, require a successful entry, `linked: true`, the expected branch and a matching Git common directory. Run `node <plugin>/scripts/workspace.mjs ready <workspace>` and require exit 0 with `canDelegate: true`. A verified bootstrap gives `ready: true`; `not-configured` permits delegation only when preparation is unnecessary and there is no repository EnterWorktree hook. Preparation failure, timeout, unknown lock ownership or `LEGACY_HOOK_UNVERIFIED` blocks implementation delegation and preserves the workspace. Resolve the diagnostic, then retry `prepare` and check `ready` again. Never promote an old marker or hook existence to success. Retain the returned workspace path and the explicit harness root for every delegation and ledger call. The workspace path is Git-owned; `HARNESS_ROOT` selects ledger coordinates and never changes which repository is inspected or cleaned.
 
+## Design premises during implementation
+
+Use the agreed design and, when applicable, the independent M0 findings from
+`${CLAUDE_PLUGIN_ROOT}/skills/plan-story/SKILL.md` "M0 scope" as the baseline.
+Verification checks implemented behavior against that baseline and acceptance.
+When an observation contradicts a premise, record the failing input and affected
+interface. Apply "사람 대기" when a decision is required; after resolution,
+revisit the affected premise through M0 and revise its dependent plan. Work whose
+premises still hold can continue under the existing signal-handling rules.
+
+Select the required repository gate and checks for changed behavior. A slow or
+live check needs a concrete affected boundary to justify it. Reuse and freshness
+follow "상태 주장의 근거"; record untested scope and respect user limits.
+
 ## 3. Task cycle
 
 Start from the first task whose dependencies are clear and go **milestone by milestone**. The batch condition fixes the unit of verification:

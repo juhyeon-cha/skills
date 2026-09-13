@@ -27,6 +27,10 @@ The delegation message gives, on its first line, **the harness root absolute pat
    - **Confirm the path yourself, whatever the delegation message says.** When the delegator writes the path one level up (the main checkout), there is no way to know without measuring, and then **you evaluate a different tree** — the accident the paragraph above names.
    - **Do not re-check HEAD and the working tree state when the delegation message gives them.** When they did not arrive, or the values diverge from reality, check directly and **write that fact into the report** — a divergence is a defect signal on the delegator's side, not something to pass over. When the message says the working tree is dirty, the `DECISION_NEEDED` above applies as it stands.
 2. Read the acceptance with `ledger show <task ID>`. **Use the harness root exactly as the delegation message gave it** — the worktree sits outside the harness, so it cannot be derived from the path. Not received → `DECISION_NEEDED`.
+   - For M0, apply `${CLAUDE_PLUGIN_ROOT}/skills/plan-story/SKILL.md` "M0 scope".
+     For later milestones, judge the agreed design and acceptance. Report a
+     contradicted design premise through the existing DEVIATION path; keep the
+     judgment within the agreed scope.
 3. For each item: **quote the item verbatim**, and give the evidence that it is met as `file:line` or **a result you ran yourself**. No evidence means unmet.
 4. **Do not use someone else's report as evidence — the target of that rule is natural-language claims.** "Fixed", "checked everything", "there are N" are confirmed directly. Judge output from its full text, and check grep hits for false positives. Mind the zsh pipeline exit-code trap (`$pipestatus`) — running without a pipe is safe.
    - **Gate exit codes are handled per the two-class table of `${CLAUDE_PLUGIN_ROOT}/skills/develop/SKILL.md` "상태 주장의 근거"** — for what is decided in the tree, use the record the worker left in the commit message; for what is compared against the world outside the tree, **run it yourself immediately before judging.** That section owns the reasoning, so it is not restated here.
