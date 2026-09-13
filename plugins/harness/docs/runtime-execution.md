@@ -51,12 +51,10 @@ Direct protected configuration/state writes are denied; authorized common
 commands retain their existing effects. Arbitrary shell effects remain limited
 by the guard's documented static analysis; this is not an OS sandbox.
 
-Child identity resolution has a separate `resolveAntigravityIdentity` seam.
-The production resolver currently recognizes only an externally attested parent;
-unidentified child mutations fail. Fixture-supplied child roles test shared
-policy, not native identity loading or an implemented child correlation protocol.
-Native child tools, asynchronous input and other unsupported tool contracts
-remain UNREACHED until their implementation and independent verification.
+The production resolver recognizes externally attested parents and bound children.
+For child registration, READY/START activation and completion evidence, follow
+[Runtime role execution](runtime-roles.md).
+Unidentified children and unsupported tool contracts remain UNREACHED.
 
 ## Evidence limits
 

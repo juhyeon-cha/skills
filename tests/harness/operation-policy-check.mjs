@@ -23,6 +23,11 @@ try {
   const wt = path.join(repo, '.claude/worktrees/story'); git('worktree', 'add', '-q', '-b', 'worktree-story', wt);
   const event = (tool_name, tool_input, extra = {}) => ({tool_name, tool_input, cwd: wt, ...extra});
   const guard = (e, overrides = {}) => run('/bin/bash', [path.join(root, 'hooks/guard.sh')], {cwd: wt, env: {...env, ...overrides}, input: JSON.stringify(e)});
+  const skill = event('Skill', {skill: 'harness:status'});
+  check(guard(skill).status === 0, 'model-initiated Skill invocation is allowed');
+  check(guard({...skill, tool_name: 'UnregisteredSkill'}).status === 2, 'unregistered tools remain denied');
+  check(guard({...skill, agent_id: 'child', agent_type: 'unknown'}).status === 2, 'Skill does not bypass role identity');
+  check(guard(event('Write', {file_path: path.join(repo, 'blocked')})).status === 2, 'file operations after Skill keep their guard');
   const patch = text => `*** Begin Patch\n${text}\n*** End Patch`;
   const multi = patch('*** Add File: 한글 새 파일\n+one\n*** Update File: old\n*** Move to: moved file\n@@\n-old\n+new\n*** Delete File: obsolete');
   const ops = patchOperations(multi.replaceAll('\n', '\r\n'), wt);

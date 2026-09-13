@@ -145,7 +145,7 @@ export function isReadonlySearch(command, env = process.env) {
   if (!segments.at(-1).length) return false;
   return segments.every(([name, ...args]) => {
     if (name === 'git') return gitReadonly(args);
-    if (!['rg', 'grep', 'cat', 'head', 'tail', 'wc', 'pwd'].includes(name)) return false;
+    if (!['rg', 'grep', 'cat', 'head', 'tail', 'wc', 'pwd', 'ls', 'printenv'].includes(name)) return false;
     if (name === 'rg' && !ripgrepReadonly(args, command, env)) return false;
     return true;
   });

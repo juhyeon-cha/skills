@@ -31,8 +31,39 @@ try {
   git('-C', main, 'add', '.');
   git('-C', main, '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture');
   git('-C', main, 'worktree', 'add', '-qb', 'fixture', work);
+  // Guard inputs exercise classification without executing the candidate commands.
+  const spacedWork = path.join(temp, 'spaced work');
+  git('-C', main, 'worktree', 'add', '-qb', 'spaced-fixture', spacedWork);
+  const spacedData = path.join(temp, 'state data');
+  const readEnv = {...env, HARNESS_DATA_DIR: spacedData};
+  const readTargets = [spacedData, path.join(spacedWork, '.harness.json'),
+    path.join(spacedWork, '.codex', 'config.toml'), path.join(main, 'spaced file')];
+  for (const target of readTargets) {
+    for (const tool_name of ['Bash', 'exec_command']) {
+      for (const agent_type of ['', 'harness:implementer', 'harness:reviewer', 'harness:evaluator']) {
+        const judge = command => evaluateGuard({...event(command), cwd: spacedWork, tool_name,
+          ...(agent_type ? {agent_id: 'child', agent_type} : {})}, {pluginRoot: root, env: readEnv});
+        for (const command of [`ls "${target}"`, `cat "${target}"; printenv`,
+          `ls "${target}" | head -1`, `printenv HARNESS_RUNTIME; rg marker "${target}"`]) {
+          const result = await judge(command);
+          assert.equal(result.code, 0, `${command}\n${result.stderr}`);
+          count++;
+        }
+        for (const command of [`ls "${target}" > "${target}"`, `printenv > "${target}"`,
+          `cat "${target}"; touch "${target}"`, `rg --pre cat marker "${target}"`,
+          `git diff --output "${target}"`, `bash /tmp/read-script.sh "${target}"`]) {
+          assert.equal((await judge(command)).code, 2, command);
+          count++;
+        }
+      }
+    }
+    const direct = await evaluateGuard({cwd: spacedWork, tool_name: 'Write', tool_input: {file_path: target}},
+      {pluginRoot: root, env: readEnv});
+    assert.equal(direct.code, 2, target);
+    count++;
+  }
   // These are policy inputs only: no search, environment dump or destructive command executes.
-  const compound = `pwd -P; cat fixture.txt; ls -la ${temp}; cat ${main}/.codex/config.toml; printenv | rg 'HARNESS|CODEX|CLAUDE_PLUGIN'`;
+  const compound = `pwd -P; stat fixture.txt; cat fixture.txt; ls -la ${temp}; cat ${main}/.codex/config.toml; printenv | rg 'HARNESS|CODEX|CLAUDE_PLUGIN'`;
   await check(`ls ${temp}`, 0);
   await check(compound, 0);
   await check(`ls ${temp}; printenv`, 0);
@@ -70,6 +101,21 @@ try {
     const result = await evaluateMutant(event(compound), {env, pluginRoot: mutant});
     assert.equal(result.code, 2);
     assert.throws(() => assert.equal(result.code, 0), assert.AssertionError);
+    count++;
+  }
+  for (const word of ['ls', 'printenv']) {
+    const mutant = path.join(temp, `without-strict-${word}`);
+    fs.cpSync(root, mutant, {recursive: true});
+    const source = path.join(mutant, 'lib/guard/operations.mjs');
+    const original = fs.readFileSync(source, 'utf8');
+    const changed = original.replace(`, '${word}'`, '');
+    assert.notEqual(changed, original);
+    fs.writeFileSync(source, changed);
+    const {evaluateGuard: evaluateMutant} = await import(pathToFileURL(path.join(mutant, 'lib/guard/guard.mjs')));
+    const command = word === 'ls' ? `ls "${spacedData}"` : `cat "${spacedData}/a"; printenv`;
+    const result = await evaluateMutant(event(command), {env: readEnv, pluginRoot: mutant});
+    assert.equal(result.code, 2, `${word} classification removal must restore the false positive`);
+    assert.equal(result.rule, 'r_main_write');
     count++;
   }
   console.log(`PASS readonly search guard: ${count} policy assertions (commands never executed)`);
