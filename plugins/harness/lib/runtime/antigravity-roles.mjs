@@ -32,7 +32,8 @@ export function observedAntigravityRows(scope, source) {
 }
 export function validateAntigravityParent(scope, root) {
   const parent = read(path.join(scope.session, 'antigravity-parent.json'));
-  if (parent.kind !== 'parent' || parent.evidence !== 'operator-attested' ||
+  if (parent.version !== 1 || parent.runtime !== scope.runtime ||
+      parent.kind !== 'parent' || parent.evidence !== 'operator-attested' ||
       parent.sessionId !== scope.sessionId || parent.repoKey !== scope.repoKey ||
       parent.workspace !== scope.top || !isDeepStrictEqual(parent.source, sourceOf(root)))
     throw new Error('parent scope/source mismatch');

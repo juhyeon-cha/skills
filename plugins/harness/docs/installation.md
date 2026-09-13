@@ -36,6 +36,18 @@ Review the plugin's exact hook definitions in Codex `/hooks` and trust them befo
 
 ### Owned staging and parity projections
 
+| Source | Claude | Codex CLI and desktop | Antigravity CLI |
+|---|---|---|---|
+| Repository `.harness.json` | Same repository file | Same repository file | Same repository file |
+| `skills/*/SKILL.md` | Original skill directories | Original skill directories | Flat `skills/*.md` with resolved plugin-root references |
+| `agents/*.md` | Original role Markdown | Generated `harness-*.toml` with `developer_instructions` | Generated agent Markdown with tool/model frontmatter |
+| Hook handlers | `hooks/hooks.json` | Manifest selects `hooks/codex.json` | Generated root `hooks.json`: PreInvocation, PreToolUse, Stop |
+
+Provider settings remain provider-owned: staging preserves model selection,
+sandbox and approval policy, plugin enablement, and hook trust. Codex staging
+does not generate or merge `config.toml`. For supported model selection and
+role execution, follow [Runtime role execution](runtime-roles.md).
+
 For an explicit local bundle destination, `scripts/parity-install.mjs stage
 <options.json>` generates and reconciles provider files from the same inspected
 source. Options are `source`, `destination`, and `surface` (`claude-cli`,

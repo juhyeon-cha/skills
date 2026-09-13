@@ -94,8 +94,7 @@ with no later child event. The final result message must follow the last continu
 so an older verdict cannot certify a resumed turn. Busy, killed, error, missing,
 duplicate or externally reawakened execution completions fail. Parent busy Stop events live
 in a different session and never join the child's chain. An OBSERVED result still
-has `nativeLoaded: false` and `liveCertified: false`; whole-environment certification
-belongs to the parity evidence comparison and independent acceptance judgment.
+has `nativeLoaded: false` and `liveCertified: false`.
 
 The state directory holds result messages and dispatch prompts for this comparison.
 Keep it local; publish sanitized evidence summaries, not raw provider transcripts.

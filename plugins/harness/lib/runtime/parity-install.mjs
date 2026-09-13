@@ -79,8 +79,7 @@ export function installationPlan({source, destination, surface, agentsDestinatio
     }
     const hooks = {};
     for (const [id, event] of [['context', 'PreInvocation'], ['guard', 'PreToolUse'], ['stop', 'Stop']]) {
-      // No fabricated SubagentStart/Stop or EnterWorktree events. M3 supplies
-      // the common handler's AG input/output adapter; until then it fails closed.
+      // Only provider-supported events enter the common Antigravity adapter.
       const handler = {type: 'command', command: `node ${shellQuote(path.join(installedRoot, 'scripts/hook.mjs'))} ${id} --runtime antigravity`, timeout: id === 'stop' ? 30 : 10};
       hooks[event] = event === 'PreToolUse' ? [{matcher: '*', hooks: [handler]}] : [handler];
       components.hooks.push(`${event}:${id}`);

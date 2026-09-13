@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {inspectDistribution} from '../distribution.mjs';
 import {resolveState, withStateLock} from './state.mjs';
-import {antigravityChildFile, antigravityChildIdentity, authorizeAntigravitySpawn, authorizeAntigravityMessage} from './antigravity-roles.mjs';
+import {antigravityChildFile, antigravityChildIdentity, authorizeAntigravitySpawn, authorizeAntigravityMessage, validateAntigravityParent} from './antigravity-roles.mjs';
 
 export async function registerAntigravityParent(scope, sourceHash, root) {
   if (scope.runtime !== 'antigravity' || !scope.session || scope.dataSource !== 'explicit')
@@ -28,7 +28,7 @@ export async function registerAntigravityParent(scope, sourceHash, root) {
 }
 
 // Operator attestation is a workflow trust boundary, not an OS authentication
-// service. M4 can resolve provider-returned child correlations at this seam.
+// service.
 export async function antigravityIdentity(event, {env, pluginRoot}) {
   const workspace = event.harness_workspace || event.cwd;
   const scope = await resolveState({runtime: 'antigravity', cwd: workspace, sessionId: event.session_id}, env);
@@ -45,14 +45,7 @@ export async function antigravityIdentity(event, {env, pluginRoot}) {
       throw new Error('repeated handshake acknowledgement');
     return identity;
   }
-  const record = JSON.parse(fs.readFileSync(path.join(scope.session, 'antigravity-parent.json'), 'utf8'));
-  const source = inspectDistribution(pluginRoot);
-  if (record.version !== 1 || record.kind !== 'parent' || record.evidence !== 'operator-attested' ||
-      record.runtime !== scope.runtime || record.repoKey !== scope.repoKey || record.sessionId !== scope.sessionId ||
-      record.workspace !== scope.top || path.resolve(workspace) !== scope.top ||
-      !(event.cwd === scope.top || event.cwd.startsWith(scope.top + path.sep)) ||
-      record.source?.root !== source.root || record.source?.hash !== source.hash)
-    throw new Error('Antigravity parent scope/source mismatch');
+  validateAntigravityParent(scope, pluginRoot);
   if (event.harness_native_tool === 'invoke_subagent') authorizeAntigravitySpawn(scope, event, pluginRoot);
   if (event.harness_native_tool === 'send_message') authorizeAntigravityMessage(scope, event, pluginRoot);
   return {kind: 'parent'};

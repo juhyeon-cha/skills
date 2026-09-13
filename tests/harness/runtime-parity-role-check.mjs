@@ -82,6 +82,21 @@ try {
     return beginAntigravityRole({...coordinate(callId), task: 'fixture-task', role, prompt: 'Read and return canonical SIGNAL.',
       implementerIds: ['author'], previousAgentIds: [], capabilities: {availableTools: requiredRoleTools('antigravity', role)}}, options);
   }
+  await check('parent guard and role enrollment reject the same invalid identity records', async () => {
+    const parent = await scope('parent');
+    const file = path.join(parent.session, 'antigravity-parent.json');
+    const original = fs.readFileSync(file, 'utf8');
+    try {
+      for (const [field, value] of [['version', 2], ['runtime', 'codex'], ['kind', 'child'],
+        ['evidence', 'invented'], ['sessionId', 'other'], ['repoKey', 'other'],
+        ['workspace', main], ['source', {root, hash: 'stale'}]]) {
+        fs.writeFileSync(file, JSON.stringify({...JSON.parse(original), [field]: value}));
+        assert.equal(tool('parent', 'write_to_file', {TargetFile: path.join(work, 'invalid-parent')}).decision, 'deny', field);
+        await assert.rejects(begin('invalid-' + field), /parent scope\/source mismatch/, field);
+      }
+    } finally { fs.writeFileSync(file, original); }
+    assert.equal(tool('parent', 'write_to_file', {TargetFile: path.join(work, 'valid-parent')}).decision, 'allow');
+  });
   async function active(callId, role = 'reviewer') {
     const request = await begin(callId, role);
     assert.equal(tool('parent', 'invoke_subagent', request.dispatch.args).decision, 'allow');
