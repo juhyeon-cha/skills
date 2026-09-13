@@ -65,7 +65,7 @@ export function normalizeHookEvent(
       event.harness_shell_readonly = parsed.readonly;
       event.harness_operations = parsed.paths.map((path) => ({ kind: 'update', path }));
     } else {
-      event.harness_shell_readonly = isReadonlySearch(command);
+      event.harness_shell_readonly = isReadonlySearch(command, env);
       if (!event.harness_shell_readonly)
         event.harness_operations = quotedPathCandidates(command, raw.cwd);
     }

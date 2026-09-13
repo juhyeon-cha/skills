@@ -3,7 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { normalizeHookEvent } from './hook-event.mjs';
-import { normalizePath } from './operations.mjs';
+import { normalizePath, ripgrepReadonly } from './operations.mjs';
 import { workspaceShellCommand, literalShellWords } from '../workspace/workspace-command.mjs';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
 import { guardLog, resolveState } from '../runtime/state.mjs';
@@ -21,7 +21,7 @@ export const EXEC_WRAPPERS =
   'timeout env nice sudo bash sh zsh if then else elif while until do node node.exe';
 export const LEDGER_TOOLS = 'ledger.sh ledger.mjs bd';
 export const MC_READ_CMDS =
-  'ls cat head tail wc stat file grep diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find';
+  'ls cat head tail wc stat file grep rg printenv diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find';
 export const MC_WRITE_OPTS =
   'sed:-[A-Za-z]*[iI][^\\s]*|--i[^\\s]*|-[A-Za-z]*f[^\\s]*|--file[^\\s]* awk:-[A-Za-z]*f[^\\s]*|--file[^\\s]* sort:-[A-Za-z]*o[^\\s]*|--o[^\\s]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)';
 export const MC_GIT_READ =
@@ -188,7 +188,7 @@ function scriptWrites(word, raw) {
   if (!expressions.length && first !== undefined) expressions.push(first);
   return expressions.some((value) => /[wW]/.test(value));
 }
-function allReadonly(command) {
+function allReadonly(command, env = process.env) {
   let any = false;
   for (const raw of quotedSegments(command)) {
     const segment = stripQuotes(raw);
@@ -205,6 +205,12 @@ function allReadonly(command) {
     const word = execWord(segment);
     if (!word || ['for', 'done', 'fi', 'esac'].includes(word)) continue;
     if (member(MC_READ_CMDS, word)) {
+      if (word === 'rg' || word === 'printenv') {
+        const words = literalShellWords(raw);
+        // Only literal direct invocations receive the new read exemption.
+        if (!words || basename(words[0] ?? '') !== word) return false;
+        if (word === 'rg' && !ripgrepReadonly(words.slice(1), command, env)) return false;
+      }
       const expression = MC_WRITE_OPTS.split(' ')
         .find((entry) => entry.startsWith(word + ':'))
         ?.slice(word.length + 1);
@@ -453,10 +459,10 @@ export async function r_main_shell(ctx) {
     return; // The exact loaded renderer confines publication to its docs projection.
   }
   for (const candidate of pathCandidates(ctx)) {
-    if (protectedTarget(ctx, candidate) && !allReadonly(ctx.raw))
+    if (protectedTarget(ctx, candidate) && !allReadonly(ctx.raw, ctx.env))
       deny(ctx, '보호 설정/상태 경로 쓰기 금지 — 승인된 공통 명령을 사용한다');
     if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]|^\\\\/.test(candidate)) {
-      if (allReadonly(ctx.raw)) return;
+      if (allReadonly(ctx.raw, ctx.env)) return;
       throw new Error('Windows filesystem policy is unavailable on this host');
     }
     let found = await locate(ctx, candidate);
@@ -471,13 +477,13 @@ export async function r_main_shell(ctx) {
     if (!found) {
       const holder = holdsTrees(ctx, candidate);
       if (!holder) continue; // HOLDER_CHECK
-      if (allReadonly(ctx.raw)) return;
+      if (allReadonly(ctx.raw, ctx.env)) return;
       deny(
         ctx,
         `클론 루트 자체 금지 — 명령에 ${holder.holder} 가 들어 있다. 하네스 트리들을 **품고 있다**: ${holder.trees.join(' ')}. 클론·워크트리·미커밋 변경이 함께 사라진다.`,
       );
     }
-    if (allReadonly(ctx.raw)) return;
+    if (allReadonly(ctx.raw, ctx.env)) return;
     deny(
       ctx,
       `본 체크아웃 경로 금지 — 명령에 ${found.target} 가 들어 있다. 대상 레포 '${found.repo}' 의 본 체크아웃은 직접 건드리지 않는다. 읽기 전용 명령만으로 된 명령은 통과한다. 쓰기는 스토리 워크트리 안에서 한다: ${found.root}/.claude/worktrees/<워크트리 이름>/`,
@@ -721,7 +727,7 @@ export async function evaluateGuard(
             );
           return powershellTargets([executable, ...rest], event.cwd);
         }
-        if (!parsed.redirect && allReadonly(policyText(words))) return [];
+        if (!parsed.redirect && allReadonly(policyText(words), env)) return [];
         return powershellTargets(words, event.cwd);
       });
       // Redirection targets are already normalized by the lexer.
