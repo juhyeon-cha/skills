@@ -18,14 +18,12 @@ Use this procedure when switching artifacts or moving repository preparation fro
 
 Completion requires a matching artifact/role registration, repository readiness, current-session evidence for the intended runtime scope and readable ledger state. An installation list, old doctor PASS or preserved state file establishes none of the missing observations. Historical isolated Codex probes certify only their captured source/hash/session and capabilities; they do not certify the newly selected source or an ordinary task's completion. Claude live activation remains a separate prerequisite tracked in skills#268.
 
-실행 중 PID 표식은 [payload 경계](installation.md)에 따라 검사하므로 해시 비교를
-위해 `.in_use`를 지우지 않는다. ordinary 읽기 허용은 역할 실행 권한의 증거가 아니다.
-terminal 처리된 child의 새로운 역할 작업에는 정식 retry 등록이 필요하며, 이전 결과나
-단순 follow-up으로 대체하지 않는다. 진단 역할의 REACHED/DECISION_NEEDED와 generic
-managed 관측도 ordinary native 결과 소비나 실제 태스크 acceptance를 대신하지 않는다.
-새 candidate 검증과 정식 이전 릴리스 rollback 증거는 따로 확보한다. 이전 immutable
-artifact와 당시 일치하는 registration receipt가 없으면 rollback 검증은 미완료이며,
-같은 버전 문자열을 가진 개발 복사본으로 대체하지 않는다.
+Preserve `.in_use` during hash comparisons; inspection applies the
+[payload boundary](installation.md#doctor-static-loaded-and-live) to runtime PID
+markers. Collect candidate verification and previous-release rollback evidence
+separately. Without the previous immutable artifact and its original matching
+registration receipt, rollback verification remains incomplete; a development
+copy with the same version string cannot substitute for that pair.
 
 ## Roll back without discarding work
 

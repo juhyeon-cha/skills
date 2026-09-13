@@ -104,15 +104,18 @@ evidence.
 
 Run the doctor from the **expected source artifact**, passing the installed root: `node <expected source>/scripts/doctor.mjs check <installed root>`. Static PASS requires matching payload content hashes and generated metadata, not equal version strings. Without current-session evidence, loaded/live are UNREACHED and the command exits nonzero. An open session using an earlier install remains unverified even when its version number equals the source version.
 
-배포 payload는 포함 파일 목록과 그 bytes의 해시다. root의 `.in_use`만 Claude가
-관리하는 런타임 표식 디렉터리로 구분한다. 직접 자식 이름이 선행 0 없는 양의 정수인
-단일 링크 일반 파일일 때만 payload와 installer 복사 대상에서 제외한다. 빈 디렉터리도
-허용한다. `.in_use` 자체의 파일·symlink, 자식 symlink·hardlink·디렉터리와 그 밖의
-이름은 실패한다. 다른 숨김 파일과 하위 경로의 `.in_use`는 payload에 포함된다.
-표식 생성·회수 중 이 디렉터리와 직접 자식의 조회에서 발생한 ENOENT만 허용하며,
-payload 파일 누락과 다른 I/O 오류는 실패한다. 작성 중일 수 있는 표식 body는 읽거나
-JSON 검증하지 않는다. 이 구분은 process 신원 인증이나 같은 사용자 권한의 악의적
-filesystem 변경 방어가 아니다. source·role·nonce·session 검증은 그대로 적용한다.
+The payload hash covers the included file paths and their bytes. Only the root
+`.in_use` directory is treated as Claude runtime metadata. Its direct children
+are excluded from hashing and installer copies only when they are single-link
+regular files named with positive integer PIDs without leading zeros; an empty
+directory is also valid. A file or symlink at `.in_use`, or a child with any other
+name or type, fails inspection. Other hidden files and nested `.in_use` paths
+remain payload. Only ENOENT from inspecting this directory or its direct children
+is tolerated during marker creation or removal; missing payload files and other
+I/O errors fail. Marker bodies may be partially written, so they are neither read
+nor JSON-validated. This classification does not authenticate processes or defend
+against malicious filesystem changes by the same user. Source, role, nonce and
+session validation still apply.
 
 For an explicit diagnostic session, create a new private directory with `doctor.mjs challenge <new absolute state directory> <claude|codex> <installed root> <role registration.json>`. Launch the runtime with `HARNESS_DOCTOR_DIR` pointing there. The actual shipped wrapper runs each original hook and signs a nonce-bound receipt containing its result, executing root/version/content hash, session and role identity. SessionStart records the hash of the actual emitted context. After the diagnostic session completes, use `doctor.mjs check <installed root> <state directory> <actual session ID>` from the expected source artifact.
 
