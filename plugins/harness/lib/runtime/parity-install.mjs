@@ -3,8 +3,9 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {inspectDistribution, digest, readJson, skillName} from '../distribution.mjs';
 import {projectRole, nativeAgentName} from './roles.mjs';
-import {parityContract} from './parity-contract.mjs';
 import {diagnose} from './doctor.mjs';
+
+const installationSurfaces = ['claude-cli', 'codex-cli', 'codex-desktop', 'antigravity-cli'];
 
 const json = value => JSON.stringify(value, null, 2) + '\n';
 const inside = (root, file) => file === root || file.startsWith(root + path.sep);
@@ -37,7 +38,7 @@ const fileHash = file => {
  * Codex agentsDestination is its separately discovered native agents directory.
  */
 export function installationPlan({source, destination, surface, agentsDestination}) {
-  if (!parityContract.surfaces.includes(surface)) throw new Error('unknown surface');
+  if (!installationSurfaces.includes(surface)) throw new Error('unknown surface');
   source = fs.realpathSync(source);
   safePath(destination);
   if (inside(source, destination) || inside(destination, source))
@@ -218,7 +219,7 @@ export function diagnoseInstallation(options) {
       report.reasons.push(...observed.reasons);
       if (observed.runtime !== plan.runtime) {
         report.reasons.push('observed runtime missing or differs from installation runtime');
-      } else if (parityContract.surfaces.filter(surface => surface.startsWith(plan.runtime + '-')).length !== 1) {
+      } else if (plan.runtime === 'codex') {
         // The current doctor binds runtime, source and session but has no
         // independently observed CLI/desktop identity. A caller/challenge label
         // cannot supply it. Later execution adapters must provide that evidence.

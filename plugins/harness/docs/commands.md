@@ -54,11 +54,6 @@ contract; a repository's existing string command retains explicit Bash semantics
 Changing that repository-owned command is a separate migration, not something
 the plugin silently rewrites.
 
-`node "<plugin-root>/scripts/runtime-parity.mjs" <canonical-baseline.json> <reports.json>`
-compares normalized four-surface reports against the common C1–C10 contract.
-Read [runtime-parity.md](runtime-parity.md) for the input schema and evidence
-boundary. A fixture MATCH is not live support or an acceptance verdict.
-
 The old `.sh` entrypoints remain POSIX convenience wrappers. Windows native
 procedures use the Node entrypoints above. Read [platforms.md](platforms.md) for
 host and backend requirements and [installation.md](installation.md) before
