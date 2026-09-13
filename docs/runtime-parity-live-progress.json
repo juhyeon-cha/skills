@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "candidateSourceSha256": "ce75db478aed271a9381b84eddff314f902c0065c848098c88a1075ea9eaff77",
+  "status": "UNREACHED",
+  "liveCertified": false,
+  "scope": "partial candidate observations, not C1-C10 acceptance",
+  "surfaces": {
+    "claude-cli": {
+      "version": "2.1.270",
+      "observed": ["candidate inline plugin path in provider init", "nine canonical skills and three roles discovered", "SessionStart context and actual file read", "same-session resume", "worktree write allowed", "main write denied", "protected settings write denied", "native reviewer start, same child read, native stop"],
+      "missing": ["complete C1-C10 corpus", "reviewer write-denial probe", "implementer and evaluator live role tools", "model policy matrix", "unfinished Stop and bounded resume", "installation update and rollback live sessions"]
+    },
+    "antigravity-cli": {
+      "version": "1.2.2",
+      "observed": ["candidate PreInvocation context and actual file read", "external parent registration matched observed source and workspace", "same-conversation resume", "worktree write allowed", "main write denied", "protected configuration write denied"],
+      "missing": ["complete C1-C10 corpus", "canonical native child role cycle", "model policy matrix", "unfinished Stop and bounded resume", "installation update and rollback live sessions"]
+    },
+    "codex-cli": {
+      "version": "0.154.0",
+      "observed": ["isolated candidate bundle and canonical roles staged"],
+      "missing": ["candidate hook activation", "complete C1-C10 corpus"]
+    },
+    "codex-desktop": {
+      "version": "26.908.40834",
+      "observed": [],
+      "missing": ["candidate installation and supported restart with new chat", "complete C1-C10 corpus"]
+    }
+  },
+  "preservedFailures": [
+    "First Claude and Antigravity runs received an unissued doctor directory from the new runner. Hooks failed with missing challenge. Corrected runner removes that diagnostic environment variable, and separately recorded second runs reached ordinary workflow observations. Initial transport zero did not count as success."
+  ],
+  "rawEvidencePolicy": "Raw invocations, stream logs, session identifiers and state observations remain in a private local bundle. Independent evaluation must inspect those files; this sanitized progress summary cannot certify live results."
+}
