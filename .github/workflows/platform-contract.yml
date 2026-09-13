@@ -10,11 +10,38 @@ concurrency:
 permissions:
   contents: read
 jobs:
-  core:
+  policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Check canonical checkout bytes
+        run: node tests/harness/native-checkout-contract-check.mjs
+      - name: Check offline backend contracts
+        run: node tests/harness/ledger-contract-check.mjs
+      - name: Check board and ledger policies
+        run: node tests/harness/consumer-policy-check.mjs
+      - name: Check hook policy regressions
+        run: node tests/harness/native-hook-contract-check.mjs
+      - name: Check native guardrail wiring and negative controls
+        run: node plugins/harness/checks/guardrail-check.mjs
+      - name: Run generic delegation and capability integration contracts
+        run: node tests/harness/delegation-contract-check.mjs
+      - name: Run delegation procedure and doctor integration contracts
+        run: node tests/harness/delegation-integration-check.mjs
+      - name: Run registered generic child hook contracts
+        run: node tests/harness/generic-hook-check.mjs
+      - name: Run Codex identity transport and model contracts
+        run: node tests/harness/codex-identity-check.mjs
+  native:
     strategy:
       fail-fast: false
       matrix:
-        node: [24]
         host:
           - {runner: macos-latest, platform: darwin}
           - {runner: ubuntu-latest, platform: linux}
@@ -26,7 +53,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 24
           package-manager-cache: false
       # pwsh is the native Windows runner shell; the test spawns no shell.
       - name: Run identical Node/Git core suite (not full product certification)
@@ -34,47 +61,24 @@ jobs:
       - name: Run native process and configured preparation contracts
         if: ${{ !cancelled() }}
         run: node tests/harness/native-preparation-contract-check.mjs ${{ matrix.host.platform }}
-      - name: Check canonical plugin bytes with Windows checkout settings
-        if: ${{ !cancelled() }}
-        run: node tests/harness/native-checkout-contract-check.mjs
-      - name: Run identical native ledger contracts with offline transports
+      - name: Check native ledger CLI, paths and stdio
         if: ${{ !cancelled() }}
         run: node tests/harness/native-ledger-contract-check.mjs ${{ matrix.host.platform }}
-      - name: Run native board and operational consumer contracts
+      - name: Check native board files, locks and worktrees
         if: ${{ !cancelled() }}
         run: node tests/harness/native-consumers-contract-check.mjs ${{ matrix.host.platform }}
-      - name: Run native hook policy contracts
+      - name: Run native guard filesystem contracts
         if: ${{ !cancelled() }}
-        run: node tests/harness/native-hook-contract-check.mjs ${{ matrix.host.platform }}
+        run: node tests/harness/native-guard-path-check.mjs ${{ matrix.host.platform }}
       - name: Run runtime hook transport contracts
         if: ${{ !cancelled() }}
         run: node tests/harness/native-hook-transport-check.mjs ${{ matrix.host.platform }}
-      - name: Check native guardrail wiring and negative controls
-        if: ${{ !cancelled() }}
-        run: node plugins/harness/checks/guardrail-check.mjs
-      - name: Run generic delegation and capability integration contracts
-        if: ${{ !cancelled() }}
-        run: node tests/harness/delegation-contract-check.mjs
-      - name: Run delegation procedure and doctor integration contracts
-        if: ${{ !cancelled() }}
-        run: node tests/harness/delegation-integration-check.mjs
-      - name: Run registered generic child hook contracts
-        if: ${{ !cancelled() }}
-        run: node tests/harness/generic-hook-check.mjs
-      - name: Run Codex identity transport and model contracts
-        if: ${{ !cancelled() }}
-        run: node tests/harness/codex-identity-check.mjs
-      - name: Diagnose Windows PowerShell native launch channels
-        if: always() && runner.os == 'Windows'
-        continue-on-error: true
-        run: node tests/harness/windows-launch-canary.mjs windows-launch-canary.json
       - name: Preserve reached scope even when a contract fails
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: platform-${{ matrix.host.platform }}-node-${{ matrix.node }}
+          name: platform-${{ matrix.host.platform }}-node-24
           path: |
             platform-contract.json
-            windows-launch-canary.json
           if-no-files-found: error
           retention-days: 14

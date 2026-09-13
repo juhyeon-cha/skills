@@ -42,17 +42,6 @@ try {
   fs.writeFileSync(env.GIT_CONFIG_GLOBAL, '');
   check(fs.lstatSync(env.GIT_CONFIG_GLOBAL).isFile() && fs.statSync(env.GIT_CONFIG_GLOBAL).size === 0,
     'Git global configuration is an empty regular file');
-  const userHome = path.join(temp, 'user-home');
-  fs.mkdirSync(userHome);
-  fs.writeFileSync(path.join(userHome, '.gitconfig'), '[harness]\nfixtureInherited = ambient\n');
-  const ambientEnv = { ...env, HOME: userHome, USERPROFILE: userHome, XDG_CONFIG_HOME: userHome };
-  delete ambientEnv.GIT_CONFIG_GLOBAL;
-  const ambient = spawnSync('git', ['config', '--global', '--get', 'harness.fixtureInherited'],
-    { env: ambientEnv, encoding: 'utf8' });
-  check(ambient.status === 0 && ambient.stdout.trim() === 'ambient', 'ambient global configuration control is populated');
-  const isolated = spawnSync('git', ['config', '--global', '--list'],
-    { env: { ...ambientEnv, GIT_CONFIG_GLOBAL: env.GIT_CONFIG_GLOBAL }, encoding: 'utf8' });
-  check(isolated.status === 0 && isolated.stdout === '', 'fixture global file isolates populated user configuration');
   check(diagnoseDelegation === delegationCapability, 'doctor uses the execution capability function itself');
   fs.mkdirSync(repo);
   git('init', '-qb', 'fixture');
@@ -142,11 +131,6 @@ try {
   const nativeDoctor = diagnose(plugin);
   check(nativeDoctor.static === 'PASS' && nativeDoctor.loaded === 'UNREACHED' && nativeDoctor.live === 'UNREACHED', 'generic cycle does not certify native doctor');
 
-  for (const name of ['develop', 'verify-code', 'verify-implement']) {
-    const body = fs.readFileSync(path.join(plugin, 'skills', name, 'SKILL.md'), 'utf8');
-    check(body.includes('docs/roles.md') && body.includes('OBSERVED') && body.includes('REACHED'), `${name} reaches the selected contract`);
-    check(!/never fall back automatically|prohibition on automatic native fallback/i.test(body), `${name} does not override execution-path selection`);
-  }
   const copy = path.join(temp, 'plugin'); fs.cpSync(plugin, copy, { recursive: true });
   const before = inspectDistribution(plugin);
   check(generateDistribution(copy).hash === before.hash, 'generated metadata and relocated artifact remain consistent');

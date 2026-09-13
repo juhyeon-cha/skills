@@ -5,6 +5,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
 import { runCommand } from '../process.mjs';
 import { fileURLToPath } from 'node:url';
+import {inspectDistribution} from '../distribution.mjs';
 
 const plugin = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (value) => createHash('sha256').update(value).digest('hex');
@@ -21,7 +22,7 @@ const absolute = (value) => {
 export function runtimeIdentity(explicit, env = process.env) {
   const selected = explicit || env.HARNESS_RUNTIME;
   const codex = Boolean(env.PLUGIN_ROOT || env.PLUGIN_DATA);
-  if (selected && !['claude', 'codex'].includes(selected)) throw new Error('unknown runtime');
+  if (selected && !['claude', 'codex', 'antigravity'].includes(selected)) throw new Error('unknown runtime');
   if (selected === 'claude' && codex)
     throw new Error('runtime contradicts Codex plugin environment');
   if (explicit && env.HARNESS_RUNTIME && explicit !== env.HARNESS_RUNTIME)
@@ -35,7 +36,7 @@ export function runtimeIdentity(explicit, env = process.env) {
   throw new Error('runtime unidentified: pass HARNESS_RUNTIME or an explicit runtime');
 }
 export function formatStateContext(metadata) {
-  if (!['claude', 'codex'].includes(metadata.runtime))
+  if (!['claude', 'codex', 'antigravity'].includes(metadata.runtime))
     throw new Error('state context runtime invalid');
   absolute(metadata.repository);
   absolute(metadata.data);
@@ -55,19 +56,21 @@ export async function resolveState({ runtime, cwd, sessionId } = {}, env = proce
   runtime = runtimeIdentity(runtime, env);
   const identity = await inspectWorkspace(nonempty(cwd, 'repository cwd'), { exact: false, env });
   const home = env.HOME || env.USERPROFILE || os.homedir();
+  const pluginData = runtime === 'antigravity' ? undefined :
+    runtime === 'codex' ? env.PLUGIN_DATA || env.CLAUDE_PLUGIN_DATA : env.CLAUDE_PLUGIN_DATA;
   const data = absolute(
     env.HARNESS_DATA_DIR ||
-      (runtime === 'codex' ? env.PLUGIN_DATA || env.CLAUDE_PLUGIN_DATA : env.CLAUDE_PLUGIN_DATA) ||
+      pluginData ||
       path.join(
         runtime === 'codex'
           ? env.CODEX_HOME || path.join(home, '.codex')
-          : path.join(home, '.claude'),
+          : runtime === 'antigravity' ? path.join(home, '.gemini', 'antigravity-cli') : path.join(home, '.claude'),
         'plugins/data/harness',
       ),
   );
   const dataSource = env.HARNESS_DATA_DIR
     ? 'explicit'
-    : (runtime === 'codex' ? env.PLUGIN_DATA || env.CLAUDE_PLUGIN_DATA : env.CLAUDE_PLUGIN_DATA)
+    : pluginData
       ? 'plugin-environment'
       : 'fallback-unverified';
   const repoKey = hash(identity.common);
@@ -376,7 +379,7 @@ export function readWorkflow(scope, kind, id) {
     throw new Error('workflow scope mismatch');
   return record.value;
 }
-export async function recordStateEvent(event, code, env = process.env) {
+export async function recordStateEvent(event, code, env = process.env, executingRoot, executionOutput) {
   const scope = await resolveState({ cwd: event.cwd, sessionId: event.session_id }, env);
   if (!scope.events) throw new Error('event session missing');
   const kept = {};
@@ -389,8 +392,18 @@ export async function recordStateEvent(event, code, env = process.env) {
     'tool_name',
     'turn_id',
     'tool_use_id',
+    'harness_native_event',
+    'harness_native_tool',
+    'recipient',
+    'message',
+    'termination_reason',
+    'runtime_error',
   ])
     if (typeof event[key] === 'string') kept[key] = event[key];
+  for (const key of ['step_idx', 'execution_num', 'invocation_num'])
+    if (Number.isSafeInteger(event[key]) && event[key] >= 0) kept[key] = event[key];
+  if (typeof event.fully_idle === 'boolean') kept.fully_idle = event.fully_idle;
+  if (Array.isArray(event.subagents)) kept.subagents = event.subagents;
   if (event.hook_event_name === 'SubagentStop')
     kept.last_assistant_message = /^SIGNAL: [A-Z_]+$/.test(
       event.last_assistant_message?.split(/\r?\n/)[0] ?? '',
@@ -406,6 +419,15 @@ export async function recordStateEvent(event, code, env = process.env) {
       code,
       observedAt: new Date().toISOString(),
       event: kept,
+      // Only the executable wrapper supplies this argument. Payload fields are
+      // never provenance, even when named source or observation.
+      ...(executingRoot && (event.hook_event_name === 'SessionStart' || scope.runtime === 'antigravity') ? {
+        observation: {kind: 'executing-wrapper', workspace: scope.top,
+          ...(scope.runtime === 'antigravity' && event.hook_event_name === 'Stop' && executionOutput ? {
+            stopDecision: JSON.parse(executionOutput.stdout || '{}').decision === 'block' ? 'continue' : 'stop',
+          } : {}),
+          source: (({root, hash}) => ({root, hash}))(inspectDistribution(executingRoot))},
+      } : {}),
     }),
     { maxLines: 0 },
   );

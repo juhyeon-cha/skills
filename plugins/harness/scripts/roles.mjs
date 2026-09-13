@@ -1,12 +1,17 @@
 import fs from 'node:fs';
 import { registerRoles, verifyRegistration, roleCall, roleResult } from '../lib/runtime/roles.mjs';
+import {roleCapabilities} from '../lib/runtime/role-capabilities.mjs';
 
 // JSON files keep delegation text and runtime evidence out of shell quoting.
 const read = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
 const [action, first, second, third] = process.argv.slice(2);
 try {
   let result;
-  if (action === 'register') result = registerRoles(first, second);
+  if (action === 'capabilities') {
+    const input = read(first);
+    result = roleCapabilities(input.runtime, input.role, input);
+  }
+  else if (action === 'register') result = registerRoles(first, second);
   else if (action === 'verify') result = verifyRegistration(read(first));
   else if (action === 'call') result = roleCall(read(first), read(second));
   else if (action === 'result') result = roleResult(read(first), read(second), read(third));

@@ -30,6 +30,12 @@ try {
     const [runtime, cwd, sessionId] = args;
     const scope = await resolveState({ runtime: runtime || undefined, cwd, sessionId }, env);
     if (action === 'paths') console.log(JSON.stringify(scope));
+    else if (action === 'parent-register') {
+      const {registerAntigravityParent} = await import('../lib/runtime/antigravity-identity.mjs');
+      const {pluginRoot} = await import('../lib/distribution.mjs');
+      if (args.length !== 4) throw new Error('parent-register requires runtime workspace session source-hash');
+      console.log(JSON.stringify(await registerAntigravityParent(scope, args[3], pluginRoot)));
+    }
     else if (action === 'actors') {
       const result = readActors(scope);
       console.log(JSON.stringify(result));

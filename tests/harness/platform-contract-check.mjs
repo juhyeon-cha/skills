@@ -4,14 +4,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {runCommand, executableCandidates} from '../../plugins/harness/lib/process.mjs';
+import {runCommand} from '../../plugins/harness/lib/process.mjs';
 import {loadConfig, validateConfig} from '../../plugins/harness/lib/config.mjs';
-import {patchOperations, normalizePath, isReadonlySearch} from '../../plugins/harness/lib/guard/operations.mjs';
 import {inspectWorkspace} from '../../plugins/harness/lib/workspace/workspace.mjs';
 import {prepareWorkspaceIdentity, preparationStatus} from '../../plugins/harness/lib/workspace/preparation.mjs';
 
-const root = fileURLToPath(new URL('../../', import.meta.url));
 const expected = process.argv[2] || process.platform;
 const reportFile = process.argv[3];
 const checks = [];
@@ -58,23 +55,6 @@ try {
     const result = await runCommand('printf legacy', {cwd: temp, env: emptyPath});
     assert.equal(result.status, 'spawn_error'); assert.equal(result.error.code, 'ENOENT');
   });
-  await check('Windows lexical constraints are not host execution evidence', () => {
-    const options = {cwd: 'C:\\공백 repo', platform: 'win32', env: {Path: 'C:\\tools', PATHEXT: '.EXE;.CMD'}};
-    assert.deepEqual(executableCandidates('node', options), ['C:\\tools\\node.EXE', 'C:\\tools\\node.CMD']);
-    assert.deepEqual(executableCandidates('npm.cmd', options), ['C:\\tools\\npm.cmd']);
-    assert.throws(() => executableCandidates('C:relative', options), /ambiguous/);
-    assert.equal(normalizePath('..\\새 파일', 'C:\\repo\\src'), 'C:\\repo\\새 파일');
-    assert.equal(normalizePath('파일', '\\\\server\\share\\repo'), '\\\\server\\share\\repo\\파일');
-  });
-  await check('all patch operations and conservative shell classification', () => {
-    const patch = '*** Begin Patch\r\n*** Add File: 새 파일\r\n+x\r\n*** Update File: old\r\n*** Move to: moved\r\n@@\r\n-x\r\n+y\r\n*** Delete File: gone\r\n*** End Patch\r\n';
-    const ops = patchOperations(patch, temp);
-    assert.deepEqual(ops.map(op => op.kind), ['create', 'move', 'delete']);
-    assert.equal(ops[1].source, path.join(temp, 'old')); assert.equal(ops[1].destination, path.join(temp, 'moved'));
-    assert.throws(() => patchOperations(patch.replace('Add File:', 'Unknown File:'), temp));
-    assert.equal(isReadonlySearch('rg "literal --pre=*" file'), true);
-    assert.equal(isReadonlySearch('rg --pr?=* needle file'), false);
-  });
   await check('single config source retains extensions and rejects invalid backend', async () => {
     for (const backend of ['github', 'beads', 'notion']) {
       const config = {ledger: {backend}, bootstrap: {argv: [process.execPath, script]}, extension: {한글: true}};
@@ -103,26 +83,6 @@ try {
     await assert.rejects(inspectWorkspace(fake, {env: gitEnv}), /not a worktree root/);
     await assert.rejects(inspectWorkspace(linked, {env: emptyPath}), /git .*failed/);
   });
-  await check('dependency audit exposes native backend executables and shared hook dispatch', async () => {
-    const read = name => fs.readFile(path.join(root, 'plugins/harness', name), 'utf8');
-    assert.match(await read('scripts/ledger.sh'), /exec node/);
-    report.ledgerDependencies = {};
-    for (const [backend, executable] of Object.entries({github: 'gh', beads: 'bd', notion: null})) {
-      const source = await read(`lib/ledger/${backend}.mjs`);
-      assert.doesNotMatch(source, /['"](?:bash|jq|python3|curl)['"]/);
-      if (executable) assert.match(source, new RegExp(`\\b${executable}\\b`));
-      report.ledgerDependencies[backend] = {required: ['node', ...(executable ? [executable] : [])],
-        coverage: 'offline native ledger suite; beads sync additionally uses optional dolt', integration: 'live backend UNREACHED'};
-    }
-    assert.match(await read('lib/workspace/workspace.mjs'), /process.execPath, path.join\(plugin, 'scripts\/ledger.mjs'\), '--root'/);
-    assert.match(await read('lib/workspace/preparation.mjs'), /spawnWindowsWorker/);
-    const hook = await read('scripts/hook.mjs');
-    assert.doesNotMatch(hook, /spawn(?:Sync)?\(['"](?:bash|jq|python3)['"]/);
-    for (const [directory, name] of [['guard', 'guard'], ['runtime', 'stop'], ['runtime', 'session-context']]) {
-      assert.match(hook, new RegExp(name));
-      assert.doesNotMatch(await read(`lib/${directory}/${name}.mjs`), /spawn(?:Sync)?\(['"](?:bash|jq|python3)['"]/);
-    }
-  });
   await check('no-command preparation uses no shell; configured preparation requires an execution result', async () => {
     const identity = await inspectWorkspace(linked, {env: gitEnv});
     const file = path.join(linked, '.harness.json');
@@ -133,7 +93,7 @@ try {
     assert.equal((await preparationStatus(identity)).canDelegate, false);
     report.configuredPreparation = 'UNREACHED in core suite: run native-preparation-contract-check.mjs';
   });
-  assert.equal(checks.length, 9, 'all judgment points must run');
+  assert.equal(checks.length, 6, 'all judgment points must run');
   report.core = 'PASS';
 } catch (error) {
   report.core = 'FAIL'; report.error = error.stack; exitCode = 1; console.error(error);

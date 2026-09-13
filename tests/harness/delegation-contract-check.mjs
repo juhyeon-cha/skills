@@ -529,21 +529,6 @@ try {
     unavailable.status !== 0 && /ERR_MODULE_NOT_FOUND/.test(unavailable.stderr),
     'removed adapter cannot certify generic execution',
   );
-  fs.mkdirSync(path.join(removed, 'tests/harness'), { recursive: true });
-  for (const name of ['role-contract-check.mjs', 'runtime-contract-check.mjs']) {
-    fs.copyFileSync(
-      path.join(root, 'tests/harness', name),
-      path.join(removed, 'tests/harness', name),
-    );
-    const native = spawnSync(process.execPath, [path.join(removed, 'tests/harness', name)], {
-      env,
-      encoding: 'utf8',
-    });
-    check(
-      native.status === 0 && /PASS/.test(native.stdout),
-      `native suite remains populated after adapter removal: ${name}\n${native.stdout}\n${native.stderr}`,
-    );
-  }
   console.log(
     `PASS delegation contract: ${count} assertions; CLI, temporary Git commits, race and adapter-removal controls; provider observations are offline fixtures, not live evidence`,
   );

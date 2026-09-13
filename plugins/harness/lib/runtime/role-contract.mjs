@@ -1,7 +1,7 @@
 // Runtime identifiers only; bodies and SIGNAL vocabularies belong to agents/*.md.
 export const roleNames = Object.freeze(['implementer', 'reviewer', 'evaluator']);
 export function roleIdentifier(runtime, role) {
-  if (!roleNames.includes(role) || !['claude', 'codex'].includes(runtime))
+  if (!roleNames.includes(role) || !['claude', 'codex', 'antigravity'].includes(runtime))
     throw new Error('unidentified runtime/role');
   return `harness${runtime === 'claude' ? ':' : '-'}${role}`;
 }

@@ -3,12 +3,14 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { normalizeHookEvent } from './hook-event.mjs';
-import { normalizePath } from './operations.mjs';
-import { workspaceShellCommand } from '../workspace/workspace-command.mjs';
+import { normalizePath, ripgrepReadonly } from './operations.mjs';
+import { workspaceShellCommand, literalShellWords } from '../workspace/workspace-command.mjs';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
-import { guardLog } from '../runtime/state.mjs';
+import { guardLog, resolveState } from '../runtime/state.mjs';
 import { powershellTargets, powershellReadonly } from './powershell-operations.mjs';
 import { commonCommand, windowsCommandOperands } from './common-command.mjs';
+import { antigravityIdentity } from '../runtime/antigravity-identity.mjs';
+import { canonicalRole } from '../runtime/role-contract.mjs';
 
 // Policy inventories have one owner. Developer tests derive their populations
 // from these exports and mutate copies, never an environment injection point.
@@ -19,7 +21,7 @@ export const EXEC_WRAPPERS =
   'timeout env nice sudo bash sh zsh if then else elif while until do node node.exe';
 export const LEDGER_TOOLS = 'ledger.sh ledger.mjs bd';
 export const MC_READ_CMDS =
-  'ls cat head tail wc stat file grep diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find';
+  'ls cat head tail wc stat file grep rg printenv diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find';
 export const MC_WRITE_OPTS =
   'sed:-[A-Za-z]*[iI][^\\s]*|--i[^\\s]*|-[A-Za-z]*f[^\\s]*|--file[^\\s]* awk:-[A-Za-z]*f[^\\s]*|--file[^\\s]* sort:-[A-Za-z]*o[^\\s]*|--o[^\\s]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)';
 export const MC_GIT_READ =
@@ -186,7 +188,7 @@ function scriptWrites(word, raw) {
   if (!expressions.length && first !== undefined) expressions.push(first);
   return expressions.some((value) => /[wW]/.test(value));
 }
-function allReadonly(command) {
+function allReadonly(command, env = process.env) {
   let any = false;
   for (const raw of quotedSegments(command)) {
     const segment = stripQuotes(raw);
@@ -203,6 +205,12 @@ function allReadonly(command) {
     const word = execWord(segment);
     if (!word || ['for', 'done', 'fi', 'esac'].includes(word)) continue;
     if (member(MC_READ_CMDS, word)) {
+      if (word === 'rg' || word === 'printenv') {
+        const words = literalShellWords(raw);
+        // Only literal direct invocations receive the new read exemption.
+        if (!words || basename(words[0] ?? '') !== word) return false;
+        if (word === 'rg' && !ripgrepReadonly(words.slice(1), command, env)) return false;
+      }
       const expression = MC_WRITE_OPTS.split(' ')
         .find((entry) => entry.startsWith(word + ':'))
         ?.slice(word.length + 1);
@@ -238,7 +246,19 @@ const deny = (ctx, message) => {
 function norm(ctx, value) {
   if (value.startsWith('~/'))
     value = (ctx.env.HOME || ctx.env.USERPROFILE || os.homedir()) + value.slice(1);
-  return normalizePath(value, ctx.event.cwd);
+  const target = normalizePath(value, ctx.event.cwd);
+  if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]|^\\\\/.test(target)) return target;
+  let existing = target;
+  const missing = [];
+  for (;;) {
+    try { return path.join(fs.realpathSync(existing), ...missing); }
+    catch (error) {
+      if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
+      const parent = path.dirname(existing);
+      if (parent === existing) return target;
+      missing.unshift(path.basename(existing)); existing = parent;
+    }
+  }
 }
 function rootOf(ctx, value) {
   const target = norm(ctx, value);
@@ -399,9 +419,26 @@ function ledgerCalls(ctx) {
 
 export const RULES = [];
 
+function protectedTarget(ctx, value) {
+  const target = norm(ctx, value);
+  const found = rootOf(ctx, target);
+  if (found) {
+    const first = path.relative(found.root, target).split(path.sep)[0];
+    if (['.git', '.harness.json', '.agents', '.claude', '.codex'].includes(first)) return true;
+  }
+  const rawData = ctx.stateData || ctx.env.HARNESS_DATA_DIR;
+  if (rawData && (typeof rawData !== 'string' || !path.isAbsolute(rawData) || /[\0\r\n]/.test(rawData)))
+    throw new Error('state path missing/invalid');
+  const data = rawData && norm(ctx, rawData);
+  if (data && (target === data || target.startsWith(data + path.sep)))
+    return !(ctx.common?.effect === 'state' && ctx.common.writes.some(value => norm(ctx, value) === target));
+  return false;
+}
+
 export async function r_main_write(ctx) {
   const value = filePath(ctx);
   if (!value) return;
+  if (protectedTarget(ctx, value)) deny(ctx, '보호 설정/상태 파일 직접 쓰기 금지 — 승인된 공통 명령을 사용한다');
   const found = await locate(ctx, value);
   if (!found) return;
   deny(
@@ -422,8 +459,10 @@ export async function r_main_shell(ctx) {
     return; // The exact loaded renderer confines publication to its docs projection.
   }
   for (const candidate of pathCandidates(ctx)) {
+    if (protectedTarget(ctx, candidate) && !allReadonly(ctx.raw, ctx.env))
+      deny(ctx, '보호 설정/상태 경로 쓰기 금지 — 승인된 공통 명령을 사용한다');
     if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]|^\\\\/.test(candidate)) {
-      if (allReadonly(ctx.raw)) return;
+      if (allReadonly(ctx.raw, ctx.env)) return;
       throw new Error('Windows filesystem policy is unavailable on this host');
     }
     let found = await locate(ctx, candidate);
@@ -438,13 +477,13 @@ export async function r_main_shell(ctx) {
     if (!found) {
       const holder = holdsTrees(ctx, candidate);
       if (!holder) continue; // HOLDER_CHECK
-      if (allReadonly(ctx.raw)) return;
+      if (allReadonly(ctx.raw, ctx.env)) return;
       deny(
         ctx,
         `클론 루트 자체 금지 — 명령에 ${holder.holder} 가 들어 있다. 하네스 트리들을 **품고 있다**: ${holder.trees.join(' ')}. 클론·워크트리·미커밋 변경이 함께 사라진다.`,
       );
     }
-    if (allReadonly(ctx.raw)) return;
+    if (allReadonly(ctx.raw, ctx.env)) return;
     deny(
       ctx,
       `본 체크아웃 경로 금지 — 명령에 ${found.target} 가 들어 있다. 대상 레포 '${found.repo}' 의 본 체크아웃은 직접 건드리지 않는다. 읽기 전용 명령만으로 된 명령은 통과한다. 쓰기는 스토리 워크트리 안에서 한다: ${found.root}/.claude/worktrees/<워크트리 이름>/`,
@@ -570,6 +609,7 @@ export async function evaluateGuard(
   {
     env = process.env,
     readThread,
+    resolveAntigravityIdentity = antigravityIdentity,
     pluginRoot = env.CLAUDE_PLUGIN_ROOT ||
       path.resolve(fileURLToPath(new URL('../../', import.meta.url))),
   } = {},
@@ -582,6 +622,29 @@ export async function evaluateGuard(
     const roleIndependent = event.harness_shell_readonly ||
       ['Read', 'NotebookRead', 'Glob', 'Grep'].includes(event.tool_name) ||
       /^collaboration\.?(?:send_message|list_agents|wait_agent)$/.test(event.tool_name);
+    if (raw?.harness_runtime === 'antigravity' && !roleIndependent) {
+      const identity = await resolveAntigravityIdentity(raw, {env, pluginRoot});
+      if (identity?.kind === 'parent') raw = {...raw, agent_id: '', agent_type: ''};
+      else if (identity?.kind === 'child' && canonicalRole(identity.role))
+        raw = {...raw, agent_type: canonicalRole(identity.role)};
+      else throw new Error('Antigravity role identity UNREACHED');
+      event = normalizeHookEvent(raw, {env});
+      if (event.tool_name === 'Bash') {
+        const commands = quotedSegments(event.tool_input.command).filter(part => part.trim());
+        const parsed = commands.map(command => literalShellWords(command, {
+          dialect: event.harness_shell_dialect, cwd: event.cwd,
+        }));
+        // Inspect literal argv, including quoted paths and wrapper operands.
+        // Literal segments preserve existing composed commands. Dynamic child
+        // commands cannot establish that enrollment is absent.
+        if (hasToken(event.tool_input.command, 'parent-register') ||
+            (identity.kind !== 'parent' && parsed.some(words => !words ||
+              words.some(word => basename(word) === 'antigravity-role.mjs') ||
+              (words.some(word => ['bash', 'sh', 'zsh'].includes(basename(word))) &&
+                words.some(word => /^-[A-Za-z]*c/.test(word) || word === '--command')))))
+          throw new Error('parent registration is operator-only; agent tool enrollment forbidden');
+      }
+    }
     if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default') && !roleIndependent) {
       const { delegationHookRole } = await import('../runtime/delegation.mjs');
       const delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env, readThread });
@@ -664,7 +727,7 @@ export async function evaluateGuard(
             );
           return powershellTargets([executable, ...rest], event.cwd);
         }
-        if (!parsed.redirect && allReadonly(policyText(words))) return [];
+        if (!parsed.redirect && allReadonly(policyText(words), env)) return [];
         return powershellTargets(words, event.cwd);
       });
       // Redirection targets are already normalized by the lexer.
@@ -696,6 +759,8 @@ export async function evaluateGuard(
       workspaces: new Map(),
       rule,
     };
+    try { ctx.stateData = (await resolveState({cwd: event.cwd, sessionId: event.session_id}, env)).data; }
+    catch { /* An unscoped call receives no state-write exception. */ }
     await dispatch(ctx);
     for (const target of operations) {
       ctx.event = { ...event, tool_name: 'Write', tool_input: { file_path: target } };

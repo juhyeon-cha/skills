@@ -4,12 +4,13 @@ import { pluginRoot, readJson } from '../lib/distribution.mjs';
 import { recordHook } from '../lib/runtime/doctor.mjs';
 import { recordStateEvent, formatStateContext } from '../lib/runtime/state.mjs';
 import { sessionContext } from '../lib/runtime/session-context.mjs';
+import { antigravityEvent, antigravityOutput } from '../lib/runtime/antigravity-hook.mjs';
 
 try {
   const id = process.argv[2];
   const rest = process.argv.slice(3);
   if (rest.length) {
-    if (rest.length !== 2 || rest[0] !== '--runtime' || !['claude', 'codex'].includes(rest[1]))
+    if (rest.length !== 2 || rest[0] !== '--runtime' || !['claude', 'codex', 'antigravity'].includes(rest[1]))
       throw new Error('invalid hook runtime argument');
     if (process.env.HARNESS_RUNTIME && process.env.HARNESS_RUNTIME !== rest[1])
       throw new Error('hook runtime conflicts with environment');
@@ -20,7 +21,7 @@ try {
   );
   if (!definition) throw new Error('unknown hook');
   const input = fs.readFileSync(0, 'utf8');
-  const event = JSON.parse(input);
+  const event = process.env.HARNESS_RUNTIME === 'antigravity' ? antigravityEvent(id, JSON.parse(input)) : JSON.parse(input);
   if (event.hook_event_name !== definition.event) throw new Error('hook event mismatch');
   let run = { code: 0, stdout: '', stderr: '' };
   if (id === 'context') run.stdout = JSON.stringify(sessionContext(pluginRoot));
@@ -48,7 +49,7 @@ try {
   const code = run.code;
   let stateContext;
   try {
-    const scope = await recordStateEvent(event, code);
+    const scope = await recordStateEvent(event, code, process.env, pluginRoot, run);
     if (id === 'context' && code === 0) {
       const output = JSON.parse(run.stdout);
       stateContext = {
@@ -70,10 +71,15 @@ try {
     stdout: run.stdout ?? '',
     stateContext,
   });
-  process.stdout.write(run.stdout ?? '');
+  process.stdout.write(process.env.HARNESS_RUNTIME === 'antigravity' ? antigravityOutput(id, run) : run.stdout ?? '');
   process.stderr.write(run.stderr ?? '');
-  process.exitCode = code;
+  // AG consumes the JSON decision. A successfully delivered deny is not a
+  // failed hook transport; keep the policy code in state/doctor observations.
+  process.exitCode = process.env.HARNESS_RUNTIME === 'antigravity' && id === 'guard' ? 0 : code;
 } catch (error) {
   console.error(`UNREACHED: ${error.message}`);
-  process.exitCode = 2;
+  if (process.env.HARNESS_RUNTIME === 'antigravity' && process.argv[2] === 'guard') {
+    process.stdout.write(JSON.stringify({decision: 'deny', reason: `UNREACHED: ${error.message}`}));
+    process.exitCode = 0;
+  } else process.exitCode = 2;
 }

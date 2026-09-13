@@ -73,7 +73,16 @@ export function gitReadonly(input) {
 
 // A deliberately narrow POSIX read-only subset, not a shell interpreter.
 // Dynamic expansion, redirects and execution-capable options stay conservative.
-export function isReadonlySearch(command) {
+export function ripgrepReadonly(args, command, env = process.env) {
+  // Preprocessors, hostname discovery and decompression can run external programs.
+  // Config can supply these flags too. Only a leading --no-config is an
+  // unambiguous option: after -e the same token could instead be a pattern.
+  if ((env.RIPGREP_CONFIG_PATH || command.includes('RIPGREP_CONFIG_PATH')) &&
+      args[0] !== '--no-config') return false;
+  return !args.some(arg => /^--(?:pre|pre-glob|hostname-bin|search-zip)(?:=|$)|^-[^-]*z/.test(arg));
+}
+
+export function isReadonlySearch(command, env = process.env) {
   if (typeof command !== 'string' || /[\0\r]/.test(command)) return false;
   const segments = [[]];
   let word = '';
@@ -136,12 +145,8 @@ export function isReadonlySearch(command) {
   if (!segments.at(-1).length) return false;
   return segments.every(([name, ...args]) => {
     if (name === 'git') return gitReadonly(args);
-    if (!['rg', 'grep', 'cat', 'head', 'tail', 'wc', 'pwd'].includes(name)) return false;
-    if (
-      name === 'rg' &&
-      args.some((arg) => /^--(?:pre|pre-glob|hostname-bin|search-zip)(?:=|$)|^-[^-]*z/.test(arg))
-    )
-      return false;
+    if (!['rg', 'grep', 'cat', 'head', 'tail', 'wc', 'pwd', 'ls', 'printenv'].includes(name)) return false;
+    if (name === 'rg' && !ripgrepReadonly(args, command, env)) return false;
     return true;
   });
 }
