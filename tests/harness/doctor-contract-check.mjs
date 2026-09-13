@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {createHmac} from 'node:crypto';
-import {pluginRoot, readJson, digest} from '../../plugins/harness/lib/distribution.mjs';
+import {pluginRoot as sourceRoot, readJson, digest} from '../../plugins/harness/lib/distribution.mjs';
 import {createChallenge, diagnose} from '../../plugins/harness/lib/runtime/doctor.mjs';
 import {registerRoles, loadRole} from '../../plugins/harness/lib/runtime/roles.mjs';
 
@@ -12,19 +12,25 @@ const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'doctor-contract-'));
 let count = 0;
 const check = (condition, message) => { assert.ok(condition, message); count++; };
 try {
+  const pluginRoot = path.join(temp, 'plugin');
+  fs.cpSync(sourceRoot, pluginRoot, {recursive: true});
   const env = {...process.env, HOME: temp, HARNESS_GUARD_LOG: path.join(temp, 'guard.tsv'), HARNESS_SESSION_ACTOR_LOG: path.join(temp, 'actors.tsv'), HARNESS_DATA_DIR: path.join(temp, 'data')};
   delete env.HARNESS_ROOT;
   for (const key of ['PLUGIN_ROOT', 'PLUGIN_DATA', 'CLAUDE_PLUGIN_DATA', 'HARNESS_RUNTIME']) delete env[key];
   const git = args => { const result = spawnSync('git', ['-C', temp, ...args], {env, encoding: 'utf8'}); assert.equal(result.status, 0, result.stderr); };
   git(['init', '-q']); fs.writeFileSync(path.join(temp, 'README'), 'fixture'); git(['add', 'README']); git(['-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture']);
   for (const runtime of ['claude', 'codex']) {
-    const registration = registerRoles(runtime, path.join(temp, runtime, 'agents'));
+    const registration = registerRoles(runtime, path.join(temp, runtime, 'agents'), pluginRoot);
     const state = path.join(temp, runtime, 'challenge');
     if (runtime === 'claude') fs.mkdirSync(path.join(temp, runtime));
     createChallenge(state, runtime, pluginRoot, registration);
     check(diagnose(pluginRoot, state, 'session').loaded === 'UNREACHED', `${runtime} disabled/untrusted/managed-only: no execution receipt`);
     const invoke = (id, event) => {
+      const markers = path.join(pluginRoot, '.in_use');
+      fs.mkdirSync(markers, {recursive: true});
+      fs.writeFileSync(path.join(markers, '12345'), `partial ${id}`);
       const result = spawnSync(process.execPath, [path.join(pluginRoot, 'scripts/hook.mjs'), id], {cwd: temp, env: {...env, HARNESS_RUNTIME: runtime, HARNESS_DOCTOR_DIR: state}, input: JSON.stringify({session_id: 'session', cwd: temp, ...event}), encoding: 'utf8'});
+      fs.unlinkSync(path.join(markers, '12345'));
       assert.equal(result.status, 0, result.stderr); return result;
     };
     invoke('context', {hook_event_name: 'SessionStart'});
@@ -38,6 +44,10 @@ try {
     check(diagnose(pluginRoot, state, 'session').live === 'UNREACHED', 'missing Stop hook');
     invoke('stop', {hook_event_name: 'Stop'});
     const good = diagnose(pluginRoot, state, 'session'); check(good.static === 'PASS' && good.loaded === 'PASS' && good.live === 'PASS', 'direct hook fixture reaches all stages');
+    const payload = path.join(pluginRoot, 'lib/distribution.mjs'); const originalPayload = fs.readFileSync(payload);
+    fs.appendFileSync(payload, '\n');
+    check(diagnose(pluginRoot, state, 'session').static === 'UNREACHED', 'payload change still rejects current challenge');
+    fs.writeFileSync(payload, originalPayload);
     check(diagnose(pluginRoot, state, 'other').loaded === 'UNREACHED', 'wrong session');
     const receipts = path.join(state, 'receipts.jsonl'); const before = fs.readFileSync(receipts, 'utf8');
     for (const mutation of ['body', 'suffix']) {
