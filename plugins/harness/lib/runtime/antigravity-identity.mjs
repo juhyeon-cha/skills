@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {inspectDistribution} from '../distribution.mjs';
 import {resolveState, withStateLock} from './state.mjs';
+import {antigravityChildFile, antigravityChildIdentity, authorizeAntigravitySpawn} from './antigravity-roles.mjs';
 
 export async function registerAntigravityParent(scope, sourceHash, root) {
   if (scope.runtime !== 'antigravity' || !scope.session || scope.dataSource !== 'explicit')
@@ -31,6 +32,15 @@ export async function registerAntigravityParent(scope, sourceHash, root) {
 export async function antigravityIdentity(event, {env, pluginRoot}) {
   const workspace = event.harness_workspace || event.cwd;
   const scope = await resolveState({runtime: 'antigravity', cwd: workspace, sessionId: event.session_id}, env);
+  if (path.resolve(workspace) !== scope.top || !(event.cwd === scope.top || event.cwd.startsWith(scope.top + path.sep)))
+    throw new Error('Antigravity execution workspace mismatch');
+  if (fs.existsSync(antigravityChildFile(scope))) {
+    const identity = await antigravityChildIdentity(scope, pluginRoot, env);
+    if (event.harness_native_tool === 'invoke_subagent') throw new Error('child delegation unavailable');
+    if (event.harness_native_tool === 'send_message' && event.tool_input.Recipient !== identity.binding.parentId)
+      throw new Error('child result recipient differs from parent');
+    return identity;
+  }
   const record = JSON.parse(fs.readFileSync(path.join(scope.session, 'antigravity-parent.json'), 'utf8'));
   const source = inspectDistribution(pluginRoot);
   if (record.version !== 1 || record.kind !== 'parent' || record.evidence !== 'operator-attested' ||
@@ -39,5 +49,7 @@ export async function antigravityIdentity(event, {env, pluginRoot}) {
       !(event.cwd === scope.top || event.cwd.startsWith(scope.top + path.sep)) ||
       record.source?.root !== source.root || record.source?.hash !== source.hash)
     throw new Error('Antigravity parent scope/source mismatch');
+  if (event.harness_native_tool === 'invoke_subagent') authorizeAntigravitySpawn(scope, event, pluginRoot);
+  if (event.harness_native_tool === 'send_message') throw new Error('parent child reawakening requires a fresh call');
   return {kind: 'parent'};
 }

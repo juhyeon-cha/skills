@@ -379,7 +379,7 @@ export function readWorkflow(scope, kind, id) {
     throw new Error('workflow scope mismatch');
   return record.value;
 }
-export async function recordStateEvent(event, code, env = process.env, executingRoot) {
+export async function recordStateEvent(event, code, env = process.env, executingRoot, executionOutput) {
   const scope = await resolveState({ cwd: event.cwd, sessionId: event.session_id }, env);
   if (!scope.events) throw new Error('event session missing');
   const kept = {};
@@ -393,8 +393,17 @@ export async function recordStateEvent(event, code, env = process.env, executing
     'turn_id',
     'tool_use_id',
     'harness_native_event',
+    'harness_native_tool',
+    'recipient',
+    'message',
+    'termination_reason',
+    'runtime_error',
   ])
     if (typeof event[key] === 'string') kept[key] = event[key];
+  for (const key of ['step_idx', 'execution_num', 'invocation_num'])
+    if (Number.isSafeInteger(event[key]) && event[key] >= 0) kept[key] = event[key];
+  if (typeof event.fully_idle === 'boolean') kept.fully_idle = event.fully_idle;
+  if (Array.isArray(event.subagents)) kept.subagents = event.subagents;
   if (event.hook_event_name === 'SubagentStop')
     kept.last_assistant_message = /^SIGNAL: [A-Z_]+$/.test(
       event.last_assistant_message?.split(/\r?\n/)[0] ?? '',
@@ -412,8 +421,11 @@ export async function recordStateEvent(event, code, env = process.env, executing
       event: kept,
       // Only the executable wrapper supplies this argument. Payload fields are
       // never provenance, even when named source or observation.
-      ...(executingRoot && code === 0 && event.hook_event_name === 'SessionStart' ? {
+      ...(executingRoot && (event.hook_event_name === 'SessionStart' || scope.runtime === 'antigravity') ? {
         observation: {kind: 'executing-wrapper', workspace: scope.top,
+          ...(scope.runtime === 'antigravity' && event.hook_event_name === 'Stop' && executionOutput ? {
+            stopDecision: JSON.parse(executionOutput.stdout || '{}').decision === 'block' ? 'continue' : 'stop',
+          } : {}),
           source: (({root, hash}) => ({root, hash}))(inspectDistribution(executingRoot))},
       } : {}),
     }),

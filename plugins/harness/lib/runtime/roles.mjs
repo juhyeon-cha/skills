@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { roleNames, roleIdentifier } from './role-contract.mjs';
 import { roleSignals, roleChain } from './role-contract.mjs';
 import { roleSpawnOptions } from './role-models.mjs';
+import { requiredRoleTools, roleCapabilities } from './role-capabilities.mjs';
 
 const plugin = fileURLToPath(new URL('../../', import.meta.url));
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
@@ -130,7 +131,9 @@ export function loadRole(role, root = plugin) {
   };
 }
 
-export function projectRole(runtime, role, root, installedRoot = root) {
+export function projectRole(runtime, role, root, installedRoot = root, options = {}) {
+  if (runtime !== 'antigravity' && Object.keys(options).length)
+    throw new Error('projection options require Antigravity; use native runtime model selection');
   const definition = loadRole(role, root);
   const identifier = roleIdentifier(runtime, role);
   // Codex custom-agent TOML has no plugin variable substitution contract.
@@ -143,7 +146,9 @@ export function projectRole(runtime, role, root, installedRoot = root) {
   const text =
     runtime === 'codex'
       ? `name = ${JSON.stringify(identifier)}\ndescription = ${JSON.stringify(definition.description)}\n${modelConfig}developer_instructions = ${JSON.stringify(instructions)}\n`
-      : fs.readFileSync(definition.source, 'utf8');
+      : runtime === 'antigravity'
+        ? `---\nname: ${identifier}\ndescription: ${JSON.stringify(definition.description)}\nsubagent: true\nmainAgent: false\nmodel: ${roleCapabilities(runtime, role, {availableTools: requiredRoleTools(runtime, role), ...options}).model.model}\ntools: ${JSON.stringify(requiredRoleTools(runtime, role))}\ncommandExecutionPolicy: sandbox\n---\n\n${instructions}`
+        : fs.readFileSync(definition.source, 'utf8');
   return { ...definition, identifier, text };
 }
 

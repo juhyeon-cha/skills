@@ -49,7 +49,7 @@ try {
   const code = run.code;
   let stateContext;
   try {
-    const scope = await recordStateEvent(event, code, process.env, pluginRoot);
+    const scope = await recordStateEvent(event, code, process.env, pluginRoot, run);
     if (id === 'context' && code === 0) {
       const output = JSON.parse(run.stdout);
       stateContext = {

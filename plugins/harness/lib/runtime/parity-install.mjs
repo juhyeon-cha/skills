@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {inspectDistribution, digest, readJson, skillName} from '../distribution.mjs';
-import {loadRole, projectRole, nativeAgentName} from './roles.mjs';
+import {projectRole, nativeAgentName} from './roles.mjs';
 import {parityContract} from './parity-contract.mjs';
 import {diagnose} from './doctor.mjs';
 
@@ -73,8 +73,7 @@ export function installationPlan({source, destination, surface, agentsDestinatio
     }
     for (const {role} of artifact.roles) {
       const file = path.join(destination, 'agents', `${role}.md`);
-      files[file] = fs.readFileSync(loadRole(role, source).source, 'utf8')
-        .replaceAll('${CLAUDE_PLUGIN_ROOT}', installedRoot);
+      files[file] = projectRole('antigravity', role, source, installedRoot).text;
       components.roles.push(file);
     }
     const hooks = {};

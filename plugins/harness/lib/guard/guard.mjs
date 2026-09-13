@@ -623,7 +623,8 @@ export async function evaluateGuard(
         raw = {...raw, agent_type: canonicalRole(identity.role)};
       else throw new Error('Antigravity role identity UNREACHED');
       event = normalizeHookEvent(raw, {env});
-      if (event.tool_name === 'Bash' && hasToken(event.tool_input.command, 'parent-register'))
+      if (event.tool_name === 'Bash' && (hasToken(event.tool_input.command, 'parent-register') ||
+          (identity.kind !== 'parent' && /(?:^|[\s/])antigravity-role\.mjs(?:\s|$)/.test(event.tool_input.command))))
         throw new Error('parent registration is operator-only; agent tool enrollment forbidden');
     }
     if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default') && !roleIndependent) {

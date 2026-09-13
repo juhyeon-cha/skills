@@ -152,3 +152,7 @@ Missing identity, missing/unregistered SIGNAL, interrupted execution, stale regi
 The existing guard owns file/Git/ledger permissions through the common identity mapping. Role prompts and generated registration alone are not enforcement: disabled or unidentified hooks invalidate the runtime capability prerequisite. Transcript layouts are not used by this contract.
 
 Ordinary paths and immutable storage are owned by [Runtime state](state.md); [Runtime observations](transcripts.md) owns their workflow consumer and optional transcript decoders. Missing ordinary call/outcome association is UNREACHED. Doctor evidence remains diagnostic.
+# Runtime parity adapters
+
+The [runtime role execution contract](runtime-roles.md) describes capability
+checks, Antigravity native projections and parent-observed child/result binding.

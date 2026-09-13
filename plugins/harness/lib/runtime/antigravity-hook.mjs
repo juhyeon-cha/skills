@@ -18,6 +18,7 @@ export function antigravityEvent(id, raw) {
   if (id === 'context') {
     if (!integer(raw.invocationNum) || !integer(raw.initialNumSteps)) throw new Error('invalid PreInvocation counters');
     event.hook_event_name = 'SessionStart';
+    event.invocation_num = raw.invocationNum;
   } else if (id === 'stop') {
     if (!integer(raw.executionNum) || typeof raw.fullyIdle !== 'boolean' || !text(raw.terminationReason) ||
         (raw.error != null && typeof raw.error !== 'string')) throw new Error('invalid Antigravity Stop');
@@ -28,7 +29,7 @@ export function antigravityEvent(id, raw) {
       throw new Error('invalid Antigravity toolCall');
     const {name, args} = raw.toolCall;
     Object.assign(event, {hook_event_name: 'PreToolUse', tool_name: name, tool_input: args,
-      harness_native_tool: name, agent_id: raw.conversationId});
+      harness_native_tool: name, agent_id: raw.conversationId, step_idx: raw.stepIdx});
     const files = {view_file: ['Read', 'AbsolutePath'], write_to_file: ['Write', 'TargetFile'],
       replace_file_content: ['Edit', 'TargetFile'], multi_replace_file_content: ['Edit', 'TargetFile'],
       list_dir: ['Glob', 'DirectoryPath'], find_by_name: ['Glob', 'SearchDirectory'], grep_search: ['Grep', 'SearchPath']};
@@ -42,6 +43,17 @@ export function antigravityEvent(id, raw) {
       event.tool_name = 'Bash'; event.tool_input = {command: args.CommandLine};
       event.cwd = path.resolve(args.Cwd);
       event.harness_workspace = path.resolve(raw.workspacePaths[0]);
+    } else if (name === 'invoke_subagent') {
+      if (!Array.isArray(args.Subagents) || args.Subagents.length !== 1)
+        throw new Error('one registered subagent per invocation required');
+      event.tool_name = 'Agent';
+      event.subagents = args.Subagents;
+    } else if (name === 'send_message') {
+      if (!text(args.Recipient) || typeof args.Message !== 'string' || !args.Message.trim())
+        throw new Error('child result message/recipient required');
+      event.tool_name = 'SendMessage';
+      event.recipient = args.Recipient;
+      event.message = args.Message;
     } else if (name === 'manage_task' && ['list', 'status'].includes(args.Action)) {
       event.tool_name = 'Read'; event.tool_input = {};
     } else if (name === 'list_permissions') {
