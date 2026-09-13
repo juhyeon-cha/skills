@@ -42,7 +42,7 @@ Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}
 
 ## 2. Break it down
 
-Build epic (story) → feature (milestone) → task per the session context block "Agile hierarchy ↔ ledger mapping". Express ordering constraints as `blocks` dependencies. A story headed for an unattended loop carries **only tasks with no external wait** (a live system, a human approval).
+First decide whether M0 is needed using the section below. Build epic (story) → feature (milestone) → task per the session context block "Agile hierarchy ↔ ledger mapping". Express ordering constraints as `blocks` dependencies. A story headed for an unattended loop carries **only tasks with no external wait** (a live system, a human approval).
 
 **Story size ceiling: one story = one PR = 5 milestones.** Size a milestone to the batch condition (single repo · coherent review scope) — that condition is written in `develop` section 3 and stays there.
 
@@ -51,7 +51,13 @@ Build epic (story) → feature (milestone) → task per the session context bloc
 
 ### M0 — the milestone that proves the premise first
 
-**M0 is an ordinary milestone that happens to be numbered 0** — it runs the develop cycle like any other. Only its character differs: its job is proving the premise the later milestones stand on, and **when the proof comes out different from the expectation, it stops there** (rather than going on to the later milestones). **M0 stays out of the milestone ceiling above.**
+**Resolve M0 before designing dependent milestones.** When a spike is needed,
+register only M0 and its tasks. Keep later work as a provisional outline in the
+story body; do not fix its task tree or acceptance until M0's independent judgment
+establishes the premises. Then resume this procedure with the observed findings.
+M0 uses the existing execution and judgment procedures and stays outside the
+milestone ceiling. A spike need not create production code or a reusable test tool;
+record its bounded experiment and result in the ledger.
 
 **A trigger list decides whether to attach one.** Attach M0 when the story leans on any of these.
 
@@ -65,7 +71,27 @@ Build epic (story) → feature (milestone) → task per the session context bloc
 - Promoting something outside the list to M0 on the planner's own judgment stays allowed.
 - **When a trigger fires and the decision is to skip M0, leave one line of reasoning in the story body's "decided".** Silence there is indistinguishable from never having judged.
 
-**Nail the expected result into an M0 task's acceptance** — "what counts as a pass" rather than "confirm it". That is what makes a divergence judgeable. On a divergence the evaluator's `NO_MATCH` / `DEVIATION` stops through the existing human-wait path (`harness:develop` "사람 대기"). **Invent no new signal.**
+**Nail the expected result into an M0 task's acceptance** — "what counts as a pass" rather than "confirm it". That is what makes a divergence judgeable. On a divergence the evaluator's `DEVIATION` stops through the existing human-wait path (`harness:develop` "사람 대기"). **Invent no new signal.**
+
+### M0 scope
+
+Choose experiments for facts that can change architecture, scope or feasibility.
+Exercise the chosen minimal end-to-end path on the intended execution surface,
+including the failure or timing condition on which the design depends. Record
+input, expected and observed behavior, environment, chosen interface and remaining
+uncertainty. M0 passes when these observations resolve the design premises; a
+confirmed fallback may satisfy them. Checks that require the finished product
+belong to implementation acceptance rather than the spike.
+
+### Detailed planning after M0
+
+The main session owns the goal, non-goals, shared interfaces and milestone
+boundaries, using M0's independent judgment when a spike was required. For complex
+stories, delegate a coherent detailed plan to one subagent: give it the decided
+premises and request affected modules, task dependencies, observable outcomes and
+the smallest useful checks. The child returns a proposal; the main session resolves
+conflicts and registers the integrated plan. Small stories remain local. Parallel
+design requires fixed shared interfaces and independent scopes.
 
 **Task size rule: one task = one acceptance = one or more commits.** When an acceptance is one passage in one file, merge the task into its neighbor.
 
@@ -86,8 +112,11 @@ Build epic (story) → feature (milestone) → task per the session context bloc
   The form is one of three: ① what exists ② what output follows what input ③ which check passes.
 - Write a gate item as a command and an exit code (e.g. "npm test exit code 0").
 - Apply this to every item: "reading this sentence alone, can pass/fail be called without disagreement?" Reject anything of the "works well" kind.
-- **Attach a judging command to every item that can carry one.** All three forms above are shapes a single shell line can judge — existence is `test` / `grep`, input-output is that command plus the expected value, a check is that check's exit code. **An item carrying a command is judged by the machine**, not by a human or an agent (`verify-implement` section 1).
-  - **When an item cannot carry a command, leave one line saying why.** Silence is indistinguishable from "could have carried one and did not". Examples that cannot: which item a diff hunk belongs to, whether a passage has gone stale — both are natural-language judgments, so the evaluator sees them.
+- **Choose the smallest useful check for each acceptance item.** Prefer existing
+  commands or direct assertions for observable outputs, with the command and
+  expected exit code. Use code review for semantic judgments and state why a
+  command is insufficient or disproportionate. Reusable validation infrastructure
+  belongs in the plan only when it is part of the requested product.
   - **Confirm the role that runs the command can actually run it.** `guard.sh` narrowly blocks subagent writes — the implementer's ledger writes are state, summary and event notes only, and reviewer and evaluator are barred from `bd` and `git` writes entirely. An unrunnable command leaves the item unjudged and the worker blocked on return (twice in `harness-dfd`). When only the orchestrator can do it, write that fact into the item.
 - **Write the failure path alongside.** All three forms above describe the happy path only. Make **what is observed** on bad input, a missing target, and denied permission into items of their own.
 
