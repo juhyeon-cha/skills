@@ -327,10 +327,12 @@ export async function checkGuardrails({
     let observedLines = 0,
       expectedLines = 0,
       runs = 0;
-    const scopeFor = (sessionId) =>
-      state.resolveState({ runtime: 'claude', cwd: workspace, sessionId }, isolated);
-    const bindFixture = async (sessionId) => {
-      const scope = await scopeFor(sessionId);
+    const scopeFor = (sessionId, runtime = 'claude') =>
+      state.resolveState({ runtime, cwd: workspace, sessionId }, {
+        ...isolated, HARNESS_RUNTIME: runtime,
+      });
+    const bindFixture = async (sessionId, runtime = 'claude') => {
+      const scope = await scopeFor(sessionId, runtime);
       fs.mkdirSync(path.dirname(scope.actors), { recursive: true });
       fs.writeFileSync(
         scope.actors,
@@ -353,17 +355,19 @@ export async function checkGuardrails({
         rootFinder,
         implementation = stop.evaluateStop,
         lines = 1,
+        runtime = 'claude',
+        event = {},
       } = {},
     ) => {
-      if (binding) await bindFixture(sessionId);
-      const scope = await scopeFor(sessionId);
+      if (binding) await bindFixture(sessionId, runtime);
+      const scope = await scopeFor(sessionId, runtime);
       const before = fs.existsSync(scope.stopLog)
         ? fs.readFileSync(scope.stopLog, 'utf8').trimEnd().split('\n').length
         : 0;
       const result = await implementation(
-        { cwd: workspace, session_id: sessionId, stop_hook_active: active },
+        { ...event, cwd: workspace, session_id: sessionId, stop_hook_active: active },
         {
-          env: isolated,
+          env: { ...isolated, HARNESS_RUNTIME: runtime },
           ledger:
             oracle ??
             (async (args) => {
@@ -402,6 +406,30 @@ export async function checkGuardrails({
         await stopCase('block', [{ assignee: 'mine' }], 'BLOCK');
       },
     );
+    await check('S7 Antigravity busy and error events log without consulting the ledger', async () => {
+      for (const [name, event, expected] of [
+        ['busy', { fully_idle: false }, 'RUNTIME_BUSY'],
+        ['error', { fully_idle: true, runtime_error: 'provider failure' }, 'RUNTIME_ERROR'],
+        ['termination-error', { fully_idle: true, termination_reason: 'ERROR' }, 'RUNTIME_ERROR'],
+      ]) {
+        let oracleCalls = 0;
+        const result = await stopCase(`runtime-${name}`, [], expected, {
+          runtime: 'antigravity',
+          event: { harness_runtime: 'antigravity', ...event },
+          oracle: async () => {
+            oracleCalls++;
+            return { code: 0, stdout: '[]' };
+          },
+        });
+        assert.deepEqual(result.outcomes, [expected]);
+        assert.equal(oracleCalls, 0);
+        assert.match(result.stderr, /completion not established/);
+      }
+      await stopCase('runtime-idle', [], 'IDLE', {
+        runtime: 'antigravity',
+        event: { harness_runtime: 'antigravity', fully_idle: true, termination_reason: 'NO_TOOL_CALL' },
+      });
+    });
     const marked = (notes) => ({ assignee: 'mine', notes });
     await check(
       'S7 both marks, mixed marks, prose, missing marks and rework preserve outcomes',
