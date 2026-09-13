@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {createHash} from 'node:crypto';
+import {createHash, randomBytes} from 'node:crypto';
 import {isDeepStrictEqual} from 'node:util';
 import {fileURLToPath} from 'node:url';
 import {inspectDistribution} from '../distribution.mjs';
@@ -61,10 +61,11 @@ export async function beginAntigravityRole(input, {root, env = process.env}) {
   if (input.role !== 'implementer' && !input.implementerIds.length) throw new Error('implementation identity missing');
   const args = {Subagents: [{TypeName: roleIdentifier('antigravity', input.role),
     Model: capabilities.model.model, Workspace: 'inherit', Role: input.role,
-    Prompt: `Harness call ${input.callId}\n${input.prompt}`} ]};
+    Prompt: `Harness call ${input.callId}\nPreparation only. Read the canonical ${input.role} instructions and safe workspace context. Do not execute the task, mutate files, or return a SIGNAL. Wait idle for the parent's HARNESS_READY message; send its exact ACK as instructed, then wait idle for HARNESS_START. Only after acknowledging START may you execute its task. This is a harness handshake, not native lifecycle registration.`} ]};
   const call = {version: 1, runtime: 'antigravity', callId: input.callId, task: input.task,
     parentId: input.parentId, workspace: scope.top, repoKey: scope.repoKey,
     role: input.role, roleHash: definition.sha256, source: sourceOf(root), args,
+    phase: 'awaiting-bind', prompt: input.prompt,
     implementerIds: input.implementerIds, previousAgentIds: input.previousAgentIds,
     capabilities, provenance: 'parent-attested-tool-observation'};
   save(callFile(scope, call.callId), call);
@@ -118,8 +119,95 @@ export async function bindAntigravityRole(input, {root, env = process.env}) {
   // A child may already be safely reading. Binding never relies on its claimed
   // role, and absent context keeps mutation denied until the hook is observed.
   save(antigravityChildFile(childScope), binding);
-  save(callFile(scope, input.callId) + '.bound', {childId: result.child});
-  return {status: 'BOUND', childId: result.child, nativeLoaded: false};
+  const nonce = randomBytes(32).toString('hex');
+  const ack = `HARNESS_READY_ACK ${call.callId} ${nonce}`;
+  const message = `HARNESS_READY ${call.callId} ${nonce}\nSend exactly ${JSON.stringify(ack)} to ${call.parentId}, then wait idle for HARNESS_START. Do not execute the task or return a SIGNAL.`;
+  save(callFile(scope, input.callId) + '.bound', {childId: result.child, phase: 'bound-not-ready', nonce, ack, message});
+  return {status: 'BOUND_NOT_READY', childId: result.child, nativeLoaded: false,
+    dispatch: {tool: 'send_message', args: {Recipient: result.child, Message: message}}};
+}
+const messageRows = (rows, recipient, message) => rows.filter(row => row.code === 0 &&
+  row.event.harness_native_tool === 'send_message' && row.event.recipient === recipient && row.event.message === message);
+function received(observation, sender, recipient, body) {
+  if (observation?.source !== 'parent-received-message' || observation.sender !== sender ||
+      observation.recipient !== recipient || observation.body !== body) throw new Error('parent received message differs');
+}
+function normalStops(rows) {
+  const stops = rows.filter(row => row.event.harness_native_event === 'Stop');
+  if (stops.some(row => row.code !== 0 ||
+      !row.event.fully_idle || row.event.termination_reason !== 'NO_TOOL_CALL' || row.event.runtime_error))
+    throw new Error('interrupted/repeated child completion');
+  return stops;
+}
+function phaseStops(rows) {
+  const stops = normalStops(rows);
+  if (stops.some((row, i) => row.event.execution_num !== i ||
+      (i < stops.length - 1 && row.observation.stopDecision !== 'continue')))
+    throw new Error('interrupted/repeated child completion phase');
+  return stops;
+}
+function beforeAck(rows, ack) {
+  const before = rows.slice(0, rows.indexOf(ack));
+  const stops = phaseStops(before);
+  const lastStop = stops.at(-1);
+  if (lastStop && !before.slice(before.indexOf(lastStop) + 1).some(row =>
+      row.code === 0 && row.event.harness_native_event === 'PreInvocation'))
+    throw new Error('message resume context missing');
+}
+function delivered(observation, rows, child, message) {
+  const matches = messageRows(rows, child, message);
+  const returned = typeof observation?.value === 'string' &&
+    /^Created At: [^\r\n]+\r?\nCompleted At: [^\r\n]+\r?\nMessage sent to "([^"\r\n]+)"\.\s*$/.exec(observation.value);
+  if (matches.length !== 1 || observation?.source !== 'parent-tool-return' || observation.tool !== 'send_message' ||
+      observation.stepIdx !== matches[0].event.step_idx || observation.recipient !== child ||
+      observation.message !== message || observation.success !== true ||
+      !returned || returned[1] !== child)
+    throw new Error('exact successful native message delivery observation required');
+  // The parent attests the native success and retains its raw return. A hook
+  // allow is not delivery and no assistant-authored success is accepted here.
+}
+export function authorizeAntigravityMessage(scope, event, root) {
+  const directory = path.join(scope.session, 'antigravity-calls');
+  const calls = fs.readdirSync(directory).filter(name => name.endsWith('.json')).map(name => read(path.join(directory, name)));
+  const matches = [];
+  for (const call of calls) {
+    validCall(call, scope, root);
+    const file = callFile(scope, call.callId);
+    if (!fs.existsSync(file + '.bound') || fs.existsSync(file + '.result')) continue;
+    const bound = read(file + '.bound');
+    const active = fs.existsSync(file + '.active') ? read(file + '.active') : null;
+    const message = active ? active.message : bound.message;
+    if (event.recipient === bound.childId && event.message === message &&
+        messageRows(observedAntigravityRows(scope, call.source), bound.childId, message).length === 0) matches.push(call);
+  }
+  if (matches.length !== 1) throw new Error('unregistered/repeated parent handshake message');
+  return matches[0];
+}
+export async function activateAntigravityRole(input, {root, env = process.env}) {
+  const scope = await scoped(input, root, env);
+  const file = callFile(scope, input.callId);
+  const call = read(file); validCall(call, scope, root);
+  const bound = read(file + '.bound');
+  if (input.childId !== bound.childId) throw new Error('activation child differs');
+  const childScope = await resolveState({runtime: 'antigravity', cwd: scope.top, sessionId: bound.childId}, env);
+  await antigravityChildIdentity(childScope, root, env);
+  const rows = observedAntigravityRows(childScope, call.source);
+  normalStops(rows);
+  delivered(input.delivery, observedAntigravityRows(scope, call.source), bound.childId, bound.message);
+  const acks = messageRows(rows, call.parentId, bound.ack);
+  if (acks.length !== 1) throw new Error('child ready acknowledgement missing');
+  beforeAck(rows, acks[0]);
+  phaseStops(rows.slice(rows.indexOf(acks[0]) + 1));
+  received(input.observation, bound.childId, call.parentId, bound.ack);
+  const nonce = randomBytes(32).toString('hex');
+  const ack = `HARNESS_START_ACK ${call.callId} ${nonce}`;
+  const message = `HARNESS_START ${call.callId} ${nonce}\nSend exactly ${JSON.stringify(ack)} to ${call.parentId} before any task operation, then execute:\n${call.prompt}`;
+  const activation = {phase: 'awaiting-start-ack', childId: bound.childId, ack, message,
+    prefixLength: rows.length, prefixHash: hash(JSON.stringify(rows)),
+    readyDelivery: input.delivery, readyReceived: input.observation};
+  save(file + '.active', activation);
+  return {status: 'AWAITING_START_ACK', childId: bound.childId,
+    dispatch: {tool: 'send_message', args: {Recipient: bound.childId, Message: message}}};
 }
 export async function antigravityChildIdentity(scope, root, env) {
   const binding = read(antigravityChildFile(scope));
@@ -136,7 +224,21 @@ export async function antigravityChildIdentity(scope, root, env) {
   if (fs.existsSync(callFile(parentScope, binding.callId) + '.result')) throw new Error('child call is complete');
   if (!observedAntigravityRows(scope, binding.source).some(row => row.code === 0 && row.event.harness_native_event === 'PreInvocation'))
     throw new Error('child context not observed');
-  return {kind: 'child', role: roleIdentifier('antigravity', binding.role), binding, parentScope};
+  const file = callFile(parentScope, binding.callId);
+  const bound = read(file + '.bound');
+  const activation = fs.existsSync(file + '.active') ? read(file + '.active') : null;
+  const rows = observedAntigravityRows(scope, binding.source);
+  const parentRows = observedAntigravityRows(parentScope, binding.source);
+  const message = activation ? activation.message : bound.message;
+  const ack = activation ? activation.ack : bound.ack;
+  const parentSent = messageRows(parentRows, binding.childId, message).length === 1;
+  const acknowledgements = messageRows(rows, binding.parentId, ack);
+  if (activation && hash(JSON.stringify(rows.slice(0, activation.prefixLength))) !== activation.prefixHash)
+    throw new Error('activation evidence prefix drift');
+  const active = !!activation && parentSent && acknowledgements.length === 1 &&
+    rows.indexOf(acknowledgements[0]) >= activation.prefixLength;
+  return {kind: 'child', role: roleIdentifier('antigravity', binding.role), binding, parentScope,
+    active, activation, handshakeAck: parentSent && !acknowledgements.length ? ack : null};
 }
 export async function completeAntigravityRole(input, {root, env = process.env}) {
   const scope = await scoped(input, root, env);
@@ -144,21 +246,30 @@ export async function completeAntigravityRole(input, {root, env = process.env}) 
   const bound = read(callFile(scope, input.callId) + '.bound');
   if (input.childId !== bound.childId) throw new Error('completion child differs');
   const childScope = await resolveState({runtime: 'antigravity', cwd: scope.top, sessionId: input.childId}, env);
-  await antigravityChildIdentity(childScope, root, env);
+  const identity = await antigravityChildIdentity(childScope, root, env);
+  if (!identity.active) throw new Error('child handshake is not active');
   const rows = observedAntigravityRows(childScope, call.source);
-  const stops = rows.filter(row => row.event.harness_native_event === 'Stop');
+  const activation = identity.activation;
+  delivered(input.startDelivery, observedAntigravityRows(scope, call.source), bound.childId, activation.message);
+  received(input.startObservation, bound.childId, call.parentId, activation.ack);
+  const ack = messageRows(rows, call.parentId, activation.ack)[0];
+  const readyAck = messageRows(rows, call.parentId, bound.ack)[0];
+  beforeAck(rows, readyAck);
+  beforeAck(rows.slice(rows.indexOf(readyAck) + 1), ack);
+  const execution = rows.slice(rows.indexOf(ack) + 1);
+  const stops = phaseStops(execution);
   const stop = stops.at(-1);
   // Continue is recorded from the actual wrapper's output, never a caller's
   // event field. Only that continuation may extend this fresh child's call.
   if (!stops.length || stop !== rows.at(-1) || stops.some((row, i) => row.code !== 0 ||
-      row.event.execution_num !== i || !row.event.fully_idle ||
+      !row.event.fully_idle ||
       row.event.termination_reason !== 'NO_TOOL_CALL' || row.event.runtime_error ||
       row.observation.stopDecision !== (i === stops.length - 1 ? 'stop' : 'continue')))
     throw new Error('missing/interrupted/repeated child completion');
-  const turn = rows.slice(stops.length > 1 ? rows.indexOf(stops.at(-2)) + 1 : 0);
+  const turn = execution.slice(stops.length > 1 ? execution.indexOf(stops.at(-2)) + 1 : 0);
   const messages = turn.filter(row => row.code === 0 && row.event.harness_native_tool === 'send_message' &&
     row.event.recipient === call.parentId);
-  if (messages.length !== 1 || !rows.some(row => row.code === 0 && row.event.harness_native_tool === 'view_file'))
+  if (messages.length !== 1 || !execution.some(row => row.code === 0 && row.event.harness_native_tool === 'view_file'))
     throw new Error('child read/result chain missing');
   const message = messages[0].event.message;
   if (input.observation?.source !== 'parent-received-message' ||

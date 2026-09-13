@@ -6,7 +6,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {requiredRoleTools, roleCapabilities} from '../../plugins/harness/lib/runtime/role-capabilities.mjs';
 import {projectRole} from '../../plugins/harness/lib/runtime/roles.mjs';
-import {beginAntigravityRole, bindAntigravityRole, completeAntigravityRole} from '../../plugins/harness/lib/runtime/antigravity-roles.mjs';
+import {beginAntigravityRole, bindAntigravityRole, activateAntigravityRole, completeAntigravityRole} from '../../plugins/harness/lib/runtime/antigravity-roles.mjs';
 import {registerAntigravityParent} from '../../plugins/harness/lib/runtime/antigravity-identity.mjs';
 import {resolveState, recordStateEvent} from '../../plugins/harness/lib/runtime/state.mjs';
 import {antigravityEvent} from '../../plugins/harness/lib/runtime/antigravity-hook.mjs';
@@ -44,7 +44,14 @@ const nativeReturn = child => `Created the following subagents:\n${JSON.stringif
   workspaceUris: [pathToFileURL(work).href]})}\nThe subagents will send you a message when completed.`;
 const bind = (callId, childId) => bindAntigravityRole({...coordinate(callId), observation: {
   source: 'parent-tool-return', tool: 'invoke_subagent', stepIdx: dispatchSteps.get(callId), value: nativeReturn(childId)}}, options);
+const starts = new Map();
+const receipt = (child, dispatch, stepIdx) => ({source: 'parent-tool-return', tool: 'send_message', stepIdx,
+  recipient: child, message: dispatch.args.Message, success: true,
+  value: `Created At: 2026-09-13T10:08:33+09:00\nCompleted At: 2026-09-13T10:08:33+09:00\nMessage sent to "${child}".`});
+const ackOf = dispatch => JSON.parse(/Send exactly ("[^"\n]+")/.exec(dispatch.args.Message)[1]);
+const receivedAck = (child, dispatch) => ({source: 'parent-received-message', sender: child, recipient: 'parent', body: ackOf(dispatch)});
 const finish = (callId, childId, body = 'SIGNAL: LGTM\nfixture') => completeAntigravityRole({...coordinate(callId), childId,
+  ...starts.get(callId),
   observation: {source: 'parent-received-message', sender: childId, recipient: 'parent', body}}, options);
 let checks = 0;
 const check = async (label, fn) => {await fn(); checks++; console.log('PASS ' + label);};
@@ -78,23 +85,41 @@ try {
   async function active(callId, role = 'reviewer') {
     const request = await begin(callId, role);
     assert.equal(tool('parent', 'invoke_subagent', request.dispatch.args).decision, 'allow');
-    await bind(callId, callId + '-child'); context(callId + '-child'); return callId + '-child';
+    const child = callId + '-child';
+    const bound = await bind(callId, child); context(child);
+    await ready(callId, child, bound); return child;
+  }
+  async function ready(callId, child, bound, idle = false) {
+    const readyStep = step;
+    assert.equal(tool('parent', 'send_message', bound.dispatch.args).decision, 'allow');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'allow');
+    if (idle) stop(child);
+    const activation = await activateAntigravityRole({...coordinate(callId), childId: child,
+      delivery: receipt(child, bound.dispatch, readyStep), observation: receivedAck(child, bound.dispatch)}, options);
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'premature')}).decision, 'deny');
+    const startStep = step;
+    assert.equal(tool('parent', 'send_message', activation.dispatch.args).decision, 'allow');
+    if (idle) context(child);
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(activation.dispatch)}).decision, 'allow');
+    starts.set(callId, {startDelivery: receipt(child, activation.dispatch, startStep), startObservation: receivedAck(child, activation.dispatch)});
+    return activation;
   }
   await check('native returned child binds without fabrication; safe read before context does not allow writes', async () => {
     const call = await begin('race');
     assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'allow');
     assert.equal(tool('race-child', 'view_file', {AbsolutePath: path.join(work, '.harness.json')}).decision, 'allow');
     assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'deny');
-    await bind('race', 'race-child');
+    const bound = await bind('race', 'race-child');
     assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'deny');
     context('race-child');
+    await ready('race', 'race-child', bound);
     assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'deny');
     const state = await scope('race-child');
     assert.match(fs.readFileSync(state.guardLog, 'utf8'), /r_grader_write/);
     const implementer = await active('implement', 'implementer');
     const spacedRoot = path.join(temp, 'plugin with spaces');
     fs.symlinkSync(root, spacedRoot, 'dir');
-    for (const action of ['begin', 'bind', 'complete']) {
+    for (const action of ['begin', 'bind', 'activate', 'complete']) {
       for (const [plugin, quote] of [[root, ''], [root, "'"], [root, '"'],
         [spacedRoot, "'"], [spacedRoot, '"']]) {
         const registrationCommand = {CommandLine: `node ${quote}${path.join(plugin, 'scripts/antigravity-role.mjs')}${quote} ${action} ${path.join(temp, 'input.json')}`, Cwd: work};
@@ -125,6 +150,78 @@ try {
     await bind('badbind', 'badbind-child');
     assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'deny');
     await assert.rejects(bind('badbind', 'badbind-child'));
+  });
+  await check('delayed binding and idle preparation require exact delivered ready, ack and start before execution', async () => {
+    const callId = 'delayed', child = 'delayed-child';
+    const call = await begin(callId, 'implementer');
+    assert.ok(!call.dispatch.args.Subagents[0].Prompt.includes(call.call.prompt));
+    assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'allow');
+    context(child);
+    tool(child, 'view_file', {AbsolutePath: path.join(work, '.harness.json')});
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: 'SIGNAL: IMPLEMENTATION_COMPLETE\nold'}).decision, 'deny');
+    stop(child);
+    const bound = await bind(callId, child);
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-ready')}).decision, 'deny');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'deny');
+    const readyStep = step;
+    assert.equal(tool('parent', 'send_message', {...bound.dispatch.args, Message: 'forged'}).decision, 'deny');
+    const actualReadyStep = step;
+    assert.equal(tool('parent', 'send_message', bound.dispatch.args).decision, 'allow');
+    assert.equal(tool('parent', 'send_message', bound.dispatch.args).decision, 'deny');
+    const input = {...coordinate(callId), childId: child,
+      delivery: receipt(child, bound.dispatch, actualReadyStep), observation: receivedAck(child, bound.dispatch)};
+    await assert.rejects(activateAntigravityRole(input, options), /acknowledgement/);
+    context(child);
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch) + '-wrong'}).decision, 'deny');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'allow');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'deny');
+    stop(child, {executionNum: 0});
+    for (const change of [{childId: 'wrong'}, {delivery: {...input.delivery, success: false}},
+      {callId: 'missing-call'}, {workspace: main},
+      {delivery: {...input.delivery, stepIdx: readyStep}},
+      {delivery: {...input.delivery, value: 'Message failed'}},
+      {delivery: {...input.delivery, value: input.delivery.value.replace(child, 'wrong')}},
+      {observation: {...input.observation, sender: 'wrong'}}, {observation: {...input.observation, body: 'old'}}])
+      await assert.rejects(activateAntigravityRole({...input, ...change}, options));
+    const otherSource = path.join(temp, 'other-source');
+    fs.cpSync(root, otherSource, {recursive: true});
+    await assert.rejects(activateAntigravityRole(input, {...options, root: otherSource}), /source mismatch/);
+    const activation = await activateAntigravityRole(input, options);
+    await assert.rejects(activateAntigravityRole(input, options));
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-start')}).decision, 'deny');
+    await assert.rejects(finish(callId, child), /not active/);
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(activation.dispatch)}).decision, 'deny');
+    const startStep = step;
+    assert.equal(tool('parent', 'send_message', activation.dispatch.args).decision, 'allow');
+    assert.equal(tool('parent', 'send_message', activation.dispatch.args).decision, 'deny');
+    context(child);
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-start-ack')}).decision, 'deny');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(activation.dispatch)}).decision, 'allow');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(activation.dispatch)}).decision, 'deny');
+    starts.set(callId, {startDelivery: receipt(child, activation.dispatch, startStep), startObservation: receivedAck(child, activation.dispatch)});
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'after-start')}).decision, 'allow');
+    tool(child, 'send_message', {Recipient: 'parent', Message: 'SIGNAL: IMPLEMENTATION_COMPLETE\nfixture'});
+    stop(child, {executionNum: 0});
+    await assert.rejects(finish(callId, child, 'SIGNAL: IMPLEMENTATION_COMPLETE\nfixture'), /read\/result/);
+    // The old preparation read cannot supply the required execution read.
+  });
+  await check('idle preparation resumes into a fresh accepted execution with successful start delivery', async () => {
+    const callId = 'delayed-success', child = 'delayed-success-child';
+    const call = await begin(callId, 'implementer');
+    tool('parent', 'invoke_subagent', call.dispatch.args); context(child); stop(child);
+    const bound = await bind(callId, child); context(child);
+    await ready(callId, child, bound, true);
+    tool(child, 'view_file', {AbsolutePath: path.join(work, '.harness.json')});
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'after-ready')}).decision, 'allow');
+    const body = 'SIGNAL: IMPLEMENTATION_COMPLETE\nfixture';
+    tool(child, 'send_message', {Recipient: 'parent', Message: body}); stop(child, {executionNum: 0});
+    const evidence = starts.get(callId);
+    starts.set(callId, {...evidence, startDelivery: {...evidence.startDelivery, success: false}});
+    await assert.rejects(finish(callId, child, body), /delivery/);
+    starts.set(callId, {...evidence, startObservation: {...evidence.startObservation, sender: 'wrong'}});
+    await assert.rejects(finish(callId, child, body), /received/);
+    starts.set(callId, evidence);
+    assert.equal((await finish(callId, child, body)).signal, 'IMPLEMENTATION_COMPLETE');
   });
   await check('fresh child read, result and single successful idle close one exact call', async () => {
     const child = await active('success');

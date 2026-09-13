@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {inspectDistribution} from '../distribution.mjs';
 import {resolveState, withStateLock} from './state.mjs';
-import {antigravityChildFile, antigravityChildIdentity, authorizeAntigravitySpawn} from './antigravity-roles.mjs';
+import {antigravityChildFile, antigravityChildIdentity, authorizeAntigravitySpawn, authorizeAntigravityMessage} from './antigravity-roles.mjs';
 
 export async function registerAntigravityParent(scope, sourceHash, root) {
   if (scope.runtime !== 'antigravity' || !scope.session || scope.dataSource !== 'explicit')
@@ -39,6 +39,10 @@ export async function antigravityIdentity(event, {env, pluginRoot}) {
     if (event.harness_native_tool === 'invoke_subagent') throw new Error('child delegation unavailable');
     if (event.harness_native_tool === 'send_message' && event.tool_input.Recipient !== identity.binding.parentId)
       throw new Error('child result recipient differs from parent');
+    if (!identity.active && !(event.harness_native_tool === 'send_message' &&
+        event.message === identity.handshakeAck)) throw new Error('child task waits for ready/start handshake');
+    if (identity.active && /^HARNESS_(?:READY|START)_ACK /.test(event.message ?? ''))
+      throw new Error('repeated handshake acknowledgement');
     return identity;
   }
   const record = JSON.parse(fs.readFileSync(path.join(scope.session, 'antigravity-parent.json'), 'utf8'));
@@ -50,6 +54,6 @@ export async function antigravityIdentity(event, {env, pluginRoot}) {
       record.source?.root !== source.root || record.source?.hash !== source.hash)
     throw new Error('Antigravity parent scope/source mismatch');
   if (event.harness_native_tool === 'invoke_subagent') authorizeAntigravitySpawn(scope, event, pluginRoot);
-  if (event.harness_native_tool === 'send_message') throw new Error('parent child reawakening requires a fresh call');
+  if (event.harness_native_tool === 'send_message') authorizeAntigravityMessage(scope, event, pluginRoot);
   return {kind: 'parent'};
 }
