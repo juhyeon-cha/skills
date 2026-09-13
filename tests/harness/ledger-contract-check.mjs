@@ -1,0 +1,245 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {executeLedger, beadsCommands} from '../../plugins/harness/lib/ledger.mjs';
+import {projectViews} from '../../plugins/harness/lib/ledger/github-project.mjs';
+import {normalizeGithub} from '../../plugins/harness/lib/ledger/github.mjs';
+import {richText} from '../../plugins/harness/lib/ledger/notion.mjs';
+
+const root=await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(),'native-ledger 한글 space-')));
+const config=backend=>({ledger:{backend,owner:'fixture',project:5,database_id:'database'},extension:{한글:'preserve'}});
+const result=(value='',code=0)=>({status:'exited',code,signal:null,stdout:Buffer.from(typeof value==='string'?value:JSON.stringify(value)),stderr:Buffer.alloc(0)});
+let reached=0;
+const check=async(name,fn)=>{await fn();reached++;console.log('PASS '+name);};
+const save=backend=>fs.writeFile(path.join(root,'.harness.json'),JSON.stringify(config(backend)));
+const must=async promise=>{const value=await promise;assert.equal(value.code,0,value.stderr);return value.stdout;};
+const absent=async promise=>{const value=await promise;assert.notEqual(value.code,0);return value;};
+const noProcess=async()=>{throw new Error('unexpected process/remote transport');};
+try{
+  // Stateful Notion transport: requests/normalization are exercised without an
+  // API-host override or a production fixture executable.
+  const pages=new Map(),notes=new Map(),requests=[];let serial=0,failRequest=false,paginate=false,notePagination=false;
+  const plain=properties=>JSON.parse(JSON.stringify(properties),(key,value)=>key==='rich_text'||key==='title'?value.map(part=>({...part,plain_text:part.text?.content??part.plain_text??''})):value);
+  const request=async(method,endpoint,body)=>{
+    requests.push({method,endpoint,body});if(failRequest)throw new Error('HTTP 503 fixture unavailable');
+    if(method==='POST'&&endpoint==='databases')return{id:'database'};
+    if(method==='PATCH'&&endpoint.startsWith('databases/'))return{};
+    if(method==='POST'&&endpoint.endsWith('/query')){const rows=[...pages.values()];return{results:paginate?(body.start_cursor?rows.slice(1):rows.slice(0,1)):rows,has_more:paginate&&!body.start_cursor,next_cursor:paginate&&!body.start_cursor?'next':null};}
+    if(method==='POST'&&endpoint==='pages'){const id='page-'+(++serial),page={id,properties:plain(body.properties),created_time:'created',last_edited_time:'updated'};pages.set(id,page);return page;}
+    const [kind,id]=endpoint.split('/');
+    if(kind==='pages'){if(!pages.has(id))throw new Error('HTTP 404 object_not_found');if(method==='GET')return structuredClone(pages.get(id));Object.assign(pages.get(id).properties,plain(body.properties));return pages.get(id);}
+    if(kind==='blocks'){if(method==='GET'){const all=notes.get(id)??[],more=notePagination&&all.length>100&&!endpoint.includes('start_cursor=');const chunk=notePagination?(endpoint.includes('start_cursor=')?all.slice(100):all.slice(0,100)):all;return{results:chunk.map(text=>({type:'paragraph',paragraph:{rich_text:[{plain_text:text}]}})),has_more:more,next_cursor:more?'page2':null};}notes.set(id,[...(notes.get(id)??[]),...body.children.map(row=>row.paragraph.rich_text.map(part=>part.text.content).join(''))]);return{};}
+    throw new Error('unexpected request '+method+' '+endpoint);
+  };
+  const n=args=>executeLedger(args,{root,cwd:root,env:{NOTION_TOKEN:'fixture-token'},request,process:noProcess});
+  await save('notion');let epic,task;
+  await check('Notion init preserves config extensions and creates relations',async()=>{await must(n(['init']));assert.equal(JSON.parse(await fs.readFile(path.join(root,'.harness.json'),'utf8')).extension.한글,'preserve');assert.ok(requests.at(-1).body.properties['Blocked by']);});
+  await check('Notion create, inheritance, body files, empty fields and actor contract',async()=>{
+    epic=(await must(n(['create','epic','-t','epic','-l','repo:a,repo:b,rail:r1,sprint:2026-S01,slug:r1-epic','--silent']))).trim();
+    await must(n(['update',epic,'--assignee','owner']));await fs.writeFile(path.join(root,'한글 body.txt'),'description\nline2\n');
+    task=(await must(n(['create','task','--parent',epic,'-l','repo:a','--body-file','한글 body.txt','--acceptance','조건','--silent']))).trim();
+    let row=JSON.parse(await must(n(['show',task,'--json'])))[0];assert.deepEqual(row.labels,['rail:r1','repo:a','sprint:2026-S01']);assert.equal(row.description,'description\nline2');assert.equal(row.actor,null);
+    await must(n(['update',task,'--claim','--actor','sess-A']));row=JSON.parse(await must(n(['show',task,'--json'])))[0];assert.equal(row.actor,'sess-A');assert.equal(row.status,'in_progress');assert.match(row.notes,/ACTOR: sess-A/);
+    await absent(n(['update',task,'--claim','--assignee','other']));await must(n(['update',task,'--acceptance','','--assignee','']));row=JSON.parse(await must(n(['show',task,'--json'])))[0];assert.equal(row.acceptance_criteria,'');assert.equal(row.assignee,null);
+    const literal=(await must(n(['create','literal','--description','-l','--acceptance','--labels','--silent']))).trim();
+    const literalRow=JSON.parse(await must(n(['show',literal,'--json'])))[0];assert.equal(literalRow.description,'-l');assert.equal(literalRow.acceptance_criteria,'--labels');pages.delete(literal);
+  });
+  await check('Notion notes, label add/remove, children, ready and close contracts',async()=>{
+    await must(n(['note',task,'text --json remains a body']));await must(n(['label','add',task,'custom']));await must(n(['label','remove',task,'custom']));
+    await must(n(['update',task,'--status','open']));await must(n(['dep','add',task,epic]));assert.deepEqual(JSON.parse(await must(n(['ready','--json']))).map(row=>row.id),[epic]);
+    await must(n(['close',epic,'--reason','closed reason']));assert.deepEqual(JSON.parse(await must(n(['ready','--json']))).map(row=>row.id),[task]);
+    assert.deepEqual(JSON.parse(await must(n(['children',epic,'--json']))).map(row=>row.id),[task]);
+    assert.match(await must(n(['show',task])),/ACCEPTANCE/);assert.match(await must(n(['list','--all'])),/\ttask\t/);
+  });
+  await check('Notion mutable state and summaries preserve body, counters and events', async()=>{
+    const count=(notes.get(task)??[]).length;
+    await must(n(['state',task,'DELEGATED: milestone']));
+    await must(n(['state',task,'VERIFY_PENDING: abc123']));
+    await must(n(['state',task,'RETRY: verify-code 2/2']));
+    await must(n(['summary',task,'review','LGTM first']));
+    await must(n(['summary',task,'review','LGTM final']));
+    let row=JSON.parse(await must(n(['show',task,'--json'])))[0];
+    assert.equal(row.description,'description\nline2');
+    assert.equal(row.execution.phase.kind,'VERIFY_PENDING');
+    assert.equal(row.execution.retries['verify-code'].count,2);
+    assert.equal(row.summaries.review,'LGTM final');
+    assert.equal((notes.get(task)??[]).length,count);
+    const writes=requests.filter(r=>r.method==='PATCH').length;
+    await must(n(['summary',task,'review','LGTM final']));
+    assert.equal(requests.filter(r=>r.method==='PATCH').length,writes);
+    await must(n(['update',task,'--description','human body updated']));
+    await must(n(['note',task,'DELEGATED: milestone-again']));
+    row=JSON.parse(await must(n(['show',task,'--json'])))[0];
+    assert.equal(row.description,'human body updated');
+    assert.equal(row.execution.phase.kind,'DELEGATED');
+    assert.equal(row.summaries.review,'LGTM final');
+    assert.equal((notes.get(task)??[]).length,count);
+    await must(n(['state',task,'PHASE: idle']));
+    row=JSON.parse(await must(n(['show',task,'--json'])))[0];
+    assert.doesNotMatch(row.notes,/VERIFY_PENDING:|DELEGATED:/);
+    const old=(await must(n(['create','legacy-many-comments','--silent']))).trim();
+    notes.set(old,[...Array(100).fill('old event'),'RETRY: verify-code 9/2','VERIFY_PENDING: latest']);
+    notePagination=true;
+    await must(n(['summary',old,'review','migrated']));
+    const migrated=JSON.parse(await must(n(['show',old,'--json'])))[0];
+    assert.equal(migrated.execution.retries['verify-code'].count,9);
+    assert.equal(migrated.execution.phase.value,'latest');
+    notePagination=false;pages.delete(old);notes.delete(old);
+  });
+  await check('Notion registries and all pagination/filter/failure boundaries',async()=>{
+    assert.deepEqual(JSON.parse(await must(n(['rails','--json']))),[{id:'r1',owner:'owner'}]);
+    await must(n(['sprint-add','2026-S01']));await absent(n(['sprint-add','2026-S01']));assert.deepEqual(JSON.parse(await must(n(['sprints','--json']))),[{id:'2026-S01',status:'active'}]);
+    paginate=true;assert.ok(JSON.parse(await must(n(['list','--all','-n','0','--json']))).length>=3);paginate=false;
+    failRequest=true;await absent(n(['ready','--json']));await absent(n(['list','--json']));failRequest=false;
+    await absent(executeLedger(['show',task],{root,cwd:root,env:{},request,process:noProcess}));await absent(n(['show','missing','--json']));await absent(n(['delete',task]));
+    const text='😀'.repeat(2001);const chunks=richText(text);assert.equal([...chunks[0].text.content].length,2000);assert.equal(chunks.map(part=>part.text.content).join(''),text);
+  });
+  await check('Notion stdin bodies and dependency JSONL retain command-looking text',async()=>{
+    const body='line1\n--json\n한글';await must(executeLedger(['note',task,'--stdin'],{root,cwd:root,env:{NOTION_TOKEN:'fixture'},input:Buffer.from(body),request,process:noProcess}));assert.ok(notes.get(task).includes(body));
+    await must(executeLedger(['dep','add','--file','-'],{root,cwd:root,env:{NOTION_TOKEN:'fixture'},input:Buffer.from(JSON.stringify({from:task,to:epic})+'\n'),request,process:noProcess}));
+  });
+  const ghCalls=[],nodes=new Map();let ghSerial=1,addFailure=false,membership=true,authFailure=false,patchFailure=false,truncate=false,commentPagination=false;
+  const node=(number,title='issue')=>({number,id:'NODE'+number,databaseId:number,title,state:'OPEN',body:'description\n\n## Acceptance\n\ncriteria',repository:{name:'repo'},labels:{nodes:[{name:'repo:repo'},{name:'type:task'}]},comments:{nodes:[]},assignees:{nodes:[]},blockedBy:{totalCount:0,nodes:[]},projectItems:{nodes:[{project:{number:5}}]},parent:null,createdAt:'created',updatedAt:'updated',closedAt:null});nodes.set(1,node(1));
+  const gh=async(command,options)=>{
+    assert.equal(command.argv[0],'gh');const args=command.argv.slice(1);ghCalls.push({args,input:options.input?.toString()});const q=args.find(arg=>arg.startsWith('query='))?.slice(6),field=key=>args.find(arg=>arg.startsWith(key+'='))?.slice(key.length+1);
+    if(args.join(' ')==='auth status')return result('',authFailure?1:0);
+    if(args[0]==='label')return result('');
+    if(args[0]==='project'){if(args[1]==='create')return result({number:5});if(args[1]==='view')return result({});if(args[1]==='item-add')return result('',addFailure?1:0);}
+    if(args[0]==='issue'){
+      const num=Number(args[2]);
+      if(args[1]==='create'){const created=node(++ghSerial,args[args.indexOf('-t')+1]);created.body=await fs.readFile(args[args.indexOf('-F')+1],'utf8');created.labels.nodes=args[args.indexOf('-l')+1].split(',').map(name=>({name}));nodes.set(ghSerial,created);return result('https://github.com/fixture/repo/issues/'+ghSerial+'\n');}
+      if(args[1]==='comment'){nodes.get(num).comments.nodes.push({body:args[args.indexOf('-b')+1]});return result('');}
+      if(args[1]==='view')return result(nodes.get(num).labels.nodes.map(row=>row.name).join('\n'));
+      if(args[1]==='close'){nodes.get(num).state='CLOSED';return result('');}if(args[1]==='reopen'){nodes.get(num).state='OPEN';return result('');}
+      if(args[1]==='edit'){const raw=nodes.get(num);for(let i=3;i<args.length;i++){if(args[i]==='--add-label')raw.labels.nodes.push({name:args[++i]});else if(args[i]==='--remove-label'){const label=args[++i];raw.labels.nodes=raw.labels.nodes.filter(row=>row.name!==label);}else if(args[i]==='--add-assignee')raw.assignees.nodes=[{login:args[++i]}];else if(args[i]==='-F')raw.body=await fs.readFile(args[++i],'utf8');}return result('');}
+    }
+    if(args[0]==='api'){
+      if(args[1]==='users/fixture')return result({id:1,type:'User'});
+      if(args[1]==='graphql' && args.includes('--input')) {
+        const input=JSON.parse(options.input);
+        const query=input.query;
+        if(query.includes('projectV2(number:$number)'))return result({data:{user:{projectV2:{id:'PROJECT'}}}});
+        if(query.includes('node(id:$id)') && query.includes('fields(first:100'))return result({data:{node:{fields:{nodes:[{id:'FIELD',name:'Sprint',dataType:'ITERATION',configuration:{iterations:[],completedIterations:[]}},{id:'STATUS',name:'Harness Status',dataType:'SINGLE_SELECT',options:['open','in_progress','blocked','deferred','closed','needs_decision'].map(name=>({id:name,name}))}],pageInfo:{hasNextPage:false}}}}});
+        if(query.includes('node(id:$id)') && query.includes('views(first:100'))return result({data:{node:{views:{nodes:projectViews.map((v,i)=>({...v,id:'VIEW'+i})),pageInfo:{hasNextPage:false}}}}});
+      }
+      if(q){
+        if(q.startsWith('mutation'))return result({data:{addSubIssue:{},createProjectV2Field:{}}});
+        if(q.includes('fields(first:100)'))return result({data:{user:{projectV2:{id:'PROJECT',fields:{nodes:[{id:'FIELD',name:'Sprint',configuration:{duration:14,iterations:[],completedIterations:[]}}]}}}}});
+        if(q.includes('items(first:100'))return result([{data:{user:{projectV2:{items:{nodes:[{content:{repository:{name:'repo'}}}]}}}}}]);
+        if(q.includes('issues(first:100'))return result([{data:{repository:{issues:{nodes:[...nodes.values()].map(raw=>({...raw,blockedBy:truncate?{totalCount:51,nodes:[]}:raw.blockedBy,projectItems:{nodes:membership?[{project:{number:5}}]:[]}}))}}}}]);
+        const raw=structuredClone(nodes.get(Number(field('n'))));if(!raw)return result({data:{repository:{issue:null}}});
+        if(commentPagination) {
+          const all=raw.comments.nodes;
+          const next=q.includes('comments(first:100,after:');
+          raw.comments={nodes:next?all.slice(100):all.slice(0,100),pageInfo:{hasNextPage:!next&&all.length>100,endCursor:'page2'}};
+        }
+        if(q.includes('subIssues'))raw.subIssues={nodes:[...nodes.values()].filter(row=>row.parent?.number===raw.number)};
+        if(q.includes('projectItems'))raw.projectItems={nodes:membership?[{project:{number:5}}]:[]};return result({data:{repository:{issue:raw}}});
+      }
+      if(args.includes('--input')){
+        const body=JSON.parse(options.input);if(args[1]==='graphql')return result({data:{updateProjectV2Field:{projectV2Field:{name:'Sprint'}}}});
+        if(patchFailure)return result({message:'Not Found'},1);return result({assignees:(body.assignees??[]).map(login=>({login}))});
+      }
+      if(args.includes('--jq'))return result(args.at(-1)==='.node_id'?'NODE':'1');
+      if(args.includes('POST'))return result({});
+    }
+    throw new Error('unexpected gh transport '+args.join(' '));
+  };
+  const g=args=>executeLedger(args,{root,cwd:root,env:{},process:gh});await save('github');
+  await check('GitHub full normalized actor/dependency vocabulary and truncated dependencies refusal',async()=>{
+    const raw=node(42);raw.comments.nodes=[{body:'ACTOR: first'},{body:'ACTOR: login sess-final\nmore'}];const row=normalizeGithub(raw);assert.equal(row.actor,'sess-final');assert.equal(row.acceptance_criteria,'criteria');assert.equal(row.assignee,null);
+    truncate=true;await absent(g(['list','--json']));truncate=false;
+    for (const field of ['labels','comments','assignees','blockedBy']) {
+      const malformed=node(43);delete malformed[field];
+      assert.throws(()=>normalizeGithub(malformed),/필수/,'missing '+field+' must not become an empty successful read');
+    }
+  });
+  await check('GitHub create distinguishes item-add failure/reached membership from partial failure',async()=>{
+    addFailure=true;membership=true;const created=(await must(g(['create','title','-l','repo:repo','--silent']))).trim();assert.match(created,/repo#/);
+    membership=false;const failed=await absent(g(['create','partial','-l','repo:repo','--silent']));assert.match(failed.stderr,/만들었지만/);assert.ok(nodes.size>=3);
+    addFailure=false;const before=ghCalls.length;await must(g(['create','reported success','-l','repo:repo','--silent']));assert.equal(ghCalls.slice(before).some(call=>call.args.some(arg=>arg.includes('projectItems'))),false);membership=true;
+    await absent(g(['create','bad repo','--silent']));
+  });
+  await check('GitHub show/list/ready/children, update/note/label/close and HTTP failures',async()=>{
+    await must(g(['show','repo#1','--json']));await must(g(['list','--all','--json']));await must(g(['ready','--json']));await must(g(['children','repo#1','--json']));
+    await must(g(['update','repo#1','--claim','--actor','sess-native']));assert.equal(JSON.parse(await must(g(['show','repo#1','--json'])))[0].actor,'sess-native');
+    await absent(g(['update','repo#1','--claim','--assignee','x']));await must(g(['update','repo#1','--assignee','']));patchFailure=true;await absent(g(['update','repo#1','--assignee','']));patchFailure=false;
+    await must(g(['note','repo#1','note --json']));await must(g(['label','add','repo#1','extra']));await must(g(['label','remove','repo#1','extra']));await must(g(['update','repo#1','--status','open','--acceptance','updated']));await must(g(['dep','add','repo#1','repo#2']));await must(g(['close','repo#1','--reason','done']));
+    authFailure=true;await absent(g(['show','repo#1','--json']));authFailure=false;await absent(g(['delete','repo#1']));
+  });
+  await check('GitHub mutable execution and summaries survive body/acceptance edits without comments', async()=>{
+    const id='repo#1', count=nodes.get(1).comments.nodes.length;
+    const before=JSON.parse(await must(g(['show',id,'--json'])))[0];
+    await must(g(['state',id,'ACTOR: repo sess-new']));
+    await must(g(['state',id,'VERIFY_PENDING: abc123']));
+    await must(g(['state',id,'RETRY: verify-code 1/2']));
+    await must(g(['summary',id,'implementation','implemented']));
+    await must(g(['summary',id,'review','LGTM']));
+    let row=JSON.parse(await must(g(['show',id,'--json'])))[0];
+    assert.equal(row.description,before.description);
+    assert.equal(row.acceptance_criteria,before.acceptance_criteria);
+    assert.equal(row.execution.actors.repo,'sess-new');
+    assert.equal(row.execution.phase.kind,'VERIFY_PENDING');
+    assert.equal(nodes.get(1).comments.nodes.length,count);
+    await must(g(['update',id,'--description','new human body','--acceptance','new criteria']));
+    await must(g(['note',id,'DELEGATED: next-pass']));
+    row=JSON.parse(await must(g(['show',id,'--json'])))[0];
+    assert.equal(row.description,'new human body');
+    assert.equal(row.acceptance_criteria,'new criteria');
+    assert.equal(row.execution.phase.kind,'DELEGATED');
+    assert.equal(row.summaries.review,'LGTM');
+    assert.equal(row.execution.retries['verify-code'].count,1);
+    assert.equal(nodes.get(1).comments.nodes.length,count);
+    const writes=ghCalls.filter(c=>c.args[0]==='issue'&&c.args[1]==='edit').length;
+    await must(g(['summary',id,'review','LGTM']));
+    assert.equal(ghCalls.filter(c=>c.args[0]==='issue'&&c.args[1]==='edit').length,writes);
+    await absent(g(['state',id,'RETRY: verify-code bad']));
+    const old=node(99);old.comments.nodes=[...Array(100).fill({body:'old event'}),{body:'RETRY: verify-code 9/2'},{body:'VERIFY_PENDING: latest'}];nodes.set(99,old);
+    commentPagination=true;
+    await must(g(['summary','repo#99','review','migrated']));
+    const migrated=JSON.parse(await must(g(['show','repo#99','--json'])))[0];
+    assert.equal(migrated.execution.retries['verify-code'].count,9);
+    assert.equal(migrated.execution.phase.value,'latest');
+    commentPagination=false;nodes.delete(99);
+  });
+  await check('GitHub registry/init/sprint replacement retains complete request contract',async()=>{await must(g(['init']));await must(g(['rails','--json']));assert.deepEqual(JSON.parse(await must(g(['sprints','--json']))),[]);await must(g(['sprint-add','2026-S02']));const payload=JSON.parse(ghCalls.findLast(call=>call.input?.includes('iterationConfiguration')).input);assert.equal(payload.variables.it[0].title,'2026-S02');assert.equal(payload.variables.d,14);});
+  await check('BOM/CRLF init preserves extensions and persisted coordinates prevent retry duplicates', async()=>{
+    for (const backend of ['github','notion']) for (const failSetup of [false,true]) {
+      const initial=config(backend);delete initial.ledger[backend==='github'?'project':'database_id'];
+      await fs.writeFile(path.join(root,'.harness.json'),'\uFEFF'+JSON.stringify(initial,null,2).replaceAll('\n','\r\n')+'\r\n');
+      const countCreates=()=>backend==='github'?ghCalls.filter(call=>call.args[0]==='project'&&call.args[1]==='create').length:requests.filter(call=>call.method==='POST'&&call.endpoint==='databases').length;
+      const before=countCreates();let failOnce=failSetup;
+      const invoke=()=>executeLedger(['init',...(backend==='notion'?['--parent-page','parent']:[])],{root,cwd:root,env:{NOTION_TOKEN:'fixture-token'},
+        process:async(command,options)=>{if(failOnce&&command.argv[1]==='project'&&command.argv[2]==='view'){failOnce=false;return result('fixture setup failed',9);}return gh(command,options);},
+        request:async(method,endpoint,body)=>{if(failOnce&&method==='PATCH'&&endpoint.startsWith('databases/')){failOnce=false;throw new Error('fixture setup failed');}return request(method,endpoint,body);}});
+      const first=await invoke();if(failSetup){assert.notEqual(first.code,0);assert.match(first.stderr,/fixture setup failed|gh 실패/);}else assert.equal(first.code,0,first.stderr);
+      const persisted=JSON.parse(await fs.readFile(path.join(root,'.harness.json'),'utf8'));
+      assert.equal(persisted.extension.한글,'preserve');assert.equal(persisted.ledger[backend==='github'?'project':'database_id'],backend==='github'?5:'database');
+      await must(invoke());assert.equal(countCreates()-before,1,'retry must reuse '+backend+' coordinates');
+    }
+  });
+  await save('beads');const bdCalls=[];let childLabels=['slug:parent','repo:wrong','rail:r1'],created=false;
+  const beadProcess=async(command,options)=>{assert.equal(command.argv[0],'bd');assert.deepEqual(command.argv.slice(1,3),['-C',root]);const args=command.argv.slice(3);bdCalls.push({args,input:options.input});
+    if(args[0]==='show')return result([{id:args[1],labels:args[1]==='parent'?['slug:parent','rail:r1','repo:wrong']:childLabels,assignee:'owner'}]);
+    if(args[0]==='create'){created=true;childLabels=[...new Set([...childLabels,...args[args.indexOf('-l')+1].split(',')])];return result('child\n');}if(args[0]==='label'){childLabels=childLabels.filter(label=>label!==args.at(-1));return result('');}return result('raw output\n',args[0]==='delete'?7:0);};
+  const b=args=>executeLedger(args,{root,cwd:root,process:beadProcess});
+  await check('beads inherited extras are removed and read-only actor enrichment preserves passthrough',async()=>{
+    assert.equal((await must(b(['create','child','--parent','parent','-l','repo:new','--silent']))).trim(),'child');assert.equal(created,true);assert.deepEqual(childLabels,['rail:r1','repo:new']);
+    const row=JSON.parse(await must(b(['show','child','--json'])))[0];assert.equal(row.actor,'owner');assert.equal(await must(b(['note','child','text --json'])),'raw output\n');const failed=await b(['delete','child']);assert.equal(failed.code,7);assert.equal(failed.stdout,'raw output\n');
+    for(const command of beadsCommands.filter(command=>!['delete','search','blocked','query'].includes(command)))await must(b([command]));
+  });
+  await check('beads registries have no absent-file fallback and sprint duplicates fail',async()=>{
+    await absent(b(['rails','--json']));await fs.writeFile(path.join(root,'rails.json'),JSON.stringify({rails:{r1:{owner:'owner'}}}));assert.deepEqual(JSON.parse(await must(b(['rails','--json']))),[{id:'r1',owner:'owner'}]);
+    await fs.writeFile(path.join(root,'sprints.json'),JSON.stringify({sprints:{}}));await must(b(['sprint-add','2026-S01']));await absent(b(['sprint-add','2026-S01']));assert.deepEqual(JSON.parse(await must(b(['sprints','--json']))),[{id:'2026-S01',status:'active'}]);
+  });
+  await check('beads sync read path never pushes and explicit push requires reread',async()=>{
+    const database=path.join(root,'database');await fs.mkdir(path.join(database,'fixture-db'),{recursive:true});let ahead=1,pushes=0;
+    const transport=async(command)=>{const [executable,...args]=command.argv;if(executable==='bd'){if(args.includes('where'))return result('database: '+database+'\n');assert.deepEqual(args,['dolt','push']);pushes++;ahead=0;return result('');}
+      assert.equal(executable,'dolt');if(args[0]==='version')return result('dolt');if(args[0]==='remote')return result('origin fixture');if(args[0]==='branch')return result('remotes/origin/main');if(args[0]==='merge-base')return result('base');if(args[0]==='log')return result(ahead?'commit\n':'');throw new Error('unreached fixture');};
+    const read=await executeLedger(['sync-check'],{root,cwd:root,process:transport});assert.equal(read.code,0,read.stderr);assert.equal(pushes,0);assert.match(read.stdout,/반영하지 않음/);
+    assert.doesNotMatch(read.stderr,/함께 반영한다/);
+    const pushed=await executeLedger(['sync-check','--push'],{root,cwd:root,process:transport});assert.equal(pushed.code,0,pushed.stderr);assert.match(pushed.stderr,/bd dolt push 로 함께 반영한다/);assert.equal(pushes,1);assert.equal(ahead,0);
+  });
+  assert.equal(reached,15); console.log(`PASS ledger contracts ${reached}; offline transports, no remote writes`);
+}finally{await fs.rm(root,{recursive:true,force:true});}
