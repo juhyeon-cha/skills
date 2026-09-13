@@ -4,7 +4,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { normalizeHookEvent } from './hook-event.mjs';
 import { normalizePath } from './operations.mjs';
-import { workspaceShellCommand } from '../workspace/workspace-command.mjs';
+import { workspaceShellCommand, literalShellWords } from '../workspace/workspace-command.mjs';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
 import { guardLog, resolveState } from '../runtime/state.mjs';
 import { powershellTargets, powershellReadonly } from './powershell-operations.mjs';
@@ -623,9 +623,21 @@ export async function evaluateGuard(
         raw = {...raw, agent_type: canonicalRole(identity.role)};
       else throw new Error('Antigravity role identity UNREACHED');
       event = normalizeHookEvent(raw, {env});
-      if (event.tool_name === 'Bash' && (hasToken(event.tool_input.command, 'parent-register') ||
-          (identity.kind !== 'parent' && /(?:^|[\s/])antigravity-role\.mjs(?:\s|$)/.test(event.tool_input.command))))
-        throw new Error('parent registration is operator-only; agent tool enrollment forbidden');
+      if (event.tool_name === 'Bash') {
+        const commands = quotedSegments(event.tool_input.command).filter(part => part.trim());
+        const parsed = commands.map(command => literalShellWords(command, {
+          dialect: event.harness_shell_dialect, cwd: event.cwd,
+        }));
+        // Inspect literal argv, including quoted paths and wrapper operands.
+        // Literal segments preserve existing composed commands. Dynamic child
+        // commands cannot establish that enrollment is absent.
+        if (hasToken(event.tool_input.command, 'parent-register') ||
+            (identity.kind !== 'parent' && parsed.some(words => !words ||
+              words.some(word => basename(word) === 'antigravity-role.mjs') ||
+              (words.some(word => ['bash', 'sh', 'zsh'].includes(basename(word))) &&
+                words.some(word => /^-[A-Za-z]*c/.test(word) || word === '--command')))))
+          throw new Error('parent registration is operator-only; agent tool enrollment forbidden');
+      }
     }
     if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default') && !roleIndependent) {
       const { delegationHookRole } = await import('../runtime/delegation.mjs');

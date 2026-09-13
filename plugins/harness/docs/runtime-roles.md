@@ -27,7 +27,11 @@ a user's requested model into another provider's model.
 
 Use `node <plugin-root>/scripts/antigravity-role.mjs begin|bind|complete <input.json>`
 from the registered parent or external operator. Child shell tools cannot enroll
-identities through this command. All inputs carry `runtime:
+identities through this command. The guard checks normalized literal argv,
+including quoted paths and composed literal commands. Dynamic child shell
+arguments and inline `sh`/`bash`/`zsh -c` commands are denied because their
+enrollment effects cannot be classified; ordinary script-file invocations remain
+available. All inputs carry `runtime:
 "antigravity"`, exact `workspace`, actual `parentId`, `callId`, and explicit `data`.
 The registry is scoped by the actual repository, session, source root and hash.
 It is parent-attested workflow evidence, not an authenticated provider API.

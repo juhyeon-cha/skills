@@ -92,9 +92,24 @@ try {
     const state = await scope('race-child');
     assert.match(fs.readFileSync(state.guardLog, 'utf8'), /r_grader_write/);
     const implementer = await active('implement', 'implementer');
-    const registrationCommand = {CommandLine: `node ${path.join(root, 'scripts/antigravity-role.mjs')} begin ${path.join(temp, 'input.json')}`, Cwd: work};
-    assert.equal(tool('parent', 'run_command', registrationCommand).decision, 'allow');
-    assert.equal(tool(implementer, 'run_command', registrationCommand).decision, 'deny');
+    const spacedRoot = path.join(temp, 'plugin with spaces');
+    fs.symlinkSync(root, spacedRoot, 'dir');
+    for (const action of ['begin', 'bind', 'complete']) {
+      for (const [plugin, quote] of [[root, ''], [root, "'"], [root, '"'],
+        [spacedRoot, "'"], [spacedRoot, '"']]) {
+        const registrationCommand = {CommandLine: `node ${quote}${path.join(plugin, 'scripts/antigravity-role.mjs')}${quote} ${action} ${path.join(temp, 'input.json')}`, Cwd: work};
+        assert.equal(tool('parent', 'run_command', registrationCommand).decision, 'allow');
+        assert.equal(tool(implementer, 'run_command', registrationCommand).decision, 'deny');
+      }
+    }
+    for (const id of ['parent', implementer])
+      assert.equal(tool(id, 'run_command', {CommandLine: `node "${path.join(root, 'scripts/state.mjs')}" parent-register`, Cwd: work}).decision, 'deny');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: 'git status --short', Cwd: work}).decision, 'allow');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: 'git status --short && git diff --stat', Cwd: work}).decision, 'allow');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: `git status; node "${path.join(root, 'scripts/antigravity-role.mjs')}" begin input.json`, Cwd: work}).decision, 'deny');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: 'node "$ENROLLMENT" begin input.json', Cwd: work}).decision, 'deny');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: `bash -c 'node "${path.join(root, 'scripts/antigravity-role.mjs')}" begin input.json'`, Cwd: work}).decision, 'deny');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: 'bash tests/check.sh && node tests/check.mjs', Cwd: work}).decision, 'allow');
     assert.equal(tool(implementer, 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'allow');
     assert.equal(tool(implementer, 'write_to_file', {TargetFile: path.join(main, 'canary')}).decision, 'deny');
     assert.equal(tool(implementer, 'run_command', {CommandLine: 'git push origin HEAD', Cwd: work}).decision, 'deny');
