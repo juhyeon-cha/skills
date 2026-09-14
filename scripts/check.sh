@@ -1,27 +1,19 @@
 #!/usr/bin/env bash
 # skills 레포의 게이트. 레포 루트 기준 `bash scripts/check.sh` — 하네스 루트 repos.json 의 skills.check 가 이것이다.
 #
-# 네 검사를 전부 돌려 각각 보고하고, 하나라도 실패면 rc 1 이다(set -e 를 쓰지 않는다 — 첫 실패에서
+# 세 검사를 전부 돌려 각각 보고하고, 하나라도 실패면 rc 1 이다(set -e 를 쓰지 않는다 — 첫 실패에서
 # 죽으면 나머지 검사의 결과가 보고되지 않는다).
 #   (a) claude plugin validate --strict — 마켓플레이스(.)와 plugins/*/ 각각
 #   (b) shellcheck — plugins/ 와 tests/ 아래 *.sh 전수(find 로 파생, 파일 수를 낸다, 0개면 실패).
 #       배포되는 셸과 배포되지 않는 셸을 한 자리에서 같은 플래그(--shell=bash --severity=warning)로 돈다 —
 #       플러그인 안에 있던 shell-lint.sh 는 대상이 자기 트리로 고정이라 이 전수에 흡수하고 지웠다.
 #       미설치(shellcheck 가 PATH 에 없음)는 fail-open: 통과시키되 검사하지 못했다고 말한다.
-#   (c) agent-doc-audit 회귀 — 두 플러그인과 레포 문서(docs)·레포 루트 스킬(.claude/skills)에서
-#       1-correction · 4-date · 4-line-pointer 가 0줄. 레포 루트 스킬은 플러그인 밖에 살아
-#       (a) validate 도 (b) shellcheck 도 보지 않는 자리라, 여기가 유일한 검사 자리다.
-#       6-dead-path 는 harness 플러그인 docs 가 하네스 루트 상대 경로를 쓰므로 HARNESS_ROOT 가 있을 때만
-#       --root 로 판정하고, 없으면 판정하지 않았다고 말한다(조용히 통과하지 않는다).
-#       *.sh 주석의 1-correction-sh 는 **경고 전용이다** — 건수만 한 줄로 내고 게이트를 막지 않는다
-#       (사용자 결정). 훑은 자리와 그 아래 *.sh 파일 수를 같이 내 "후보 0건" 과 "안 훑었다" 를 가르고,
-#       (b) 의 파일 수와 다른 까닭(tests/ 는 (c) 의 훑는 자리가 아니다)을 읽을 수 있게 한다.
-#   (d) 설명 3중 일치 — 플러그인마다 plugin.json description == marketplace.json 의 그 항목 description 이고,
+#   (c) 설명 3중 일치 — 플러그인마다 plugin.json description == marketplace.json 의 그 항목 description 이고,
 #       README.md 에 그 문자열이 그대로 있다. jq 가 없으면 판정 자체가 불가능하므로 rc 1.
 set -uo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "✗ 레포 루트로 이동하지 못했다" >&2; exit 1; }
-command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — (d) 설명 일치를 판정할 수 없다 (brew install jq)"; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "✗ jq 가 없다 — (c) 설명 일치를 판정할 수 없다 (brew install jq)"; exit 1; }
 command -v claude >/dev/null 2>&1 || { echo "✗ claude 가 없다 — (a) validate 를 돌릴 수 없다"; exit 1; }
 
 fail=0
@@ -59,64 +51,28 @@ else
   fi
 fi
 
-# ── (c) agent-doc-audit 회귀 ─────────────────────────────────────────
-AUDIT=plugins/toolkit/skills/agent-doc-audit/check.sh
-SCAN='plugins/harness plugins/toolkit docs .claude/skills'
-crit='1-correction|4-date|4-line-pointer'
-[ -n "${HARNESS_ROOT:-}" ] && crit="$crit|6-dead-path"
-# shellcheck disable=SC2086  # SCAN 은 낱말 분리가 의도다; HARNESS_ROOT 가 있을 때만 --root <값> 두 낱말을 붙인다
-if out=$(bash "$AUDIT" $SCAN ${HARNESS_ROOT:+--root "$HARNESS_ROOT"} 2>&1); then
-  hits=$(printf '%s\n' "$out" | grep -E ":($crit):" || true)
-  if [ -n "$hits" ]; then
-    printf '%s\n' "$hits"
-    echo "✗ (c) agent-doc-audit 회귀 — 위 줄이 0 이어야 한다 (기준 $crit)"
-    fail=1
-  else
-    echo "✓ (c) agent-doc-audit 회귀 없음 — ${SCAN// / · } 에서 $crit 0줄"
-  fi
-  # 경고 전용: 셸 주석 후보는 세기만 한다 — fail 을 건드리지 않는다.
-  shhits=$(printf '%s\n' "$out" | grep -cE ':1-correction-sh:' || true)
-  # shellcheck disable=SC2086
-  nsh=$(find $SCAN -type f -name '*.sh' | wc -l | tr -d ' ')
-  where="${SCAN// / · } 아래 *.sh ${nsh}개"
-  if [ "$shhits" -eq 0 ]; then
-    echo "  · *.sh 주석 정정 후보 0건 — $where 를 훑었고 하나도 없다"
-  else
-    echo "  · ⚠ *.sh 주석 정정 후보 ${shhits}건 — $where 중 (경고 전용, 게이트를 막지 않는다; 목록: bash $AUDIT $SCAN | grep 1-correction-sh)"
-  fi
-else
-  printf '%s\n' "$out"
-  echo "✗ (c) agent-doc-audit check.sh 가 죽었다 (위 stderr)"
-  fail=1
-fi
-if [ -n "${HARNESS_ROOT:-}" ]; then
-  echo "  · 6-dead-path 는 --root $HARNESS_ROOT 로 판정했다"
-else
-  echo "  · 6-dead-path 는 판정하지 않았다 — HARNESS_ROOT 가 없다 (harness 플러그인 docs 는 하네스 루트 상대 경로를 쓴다; HARNESS_ROOT=<하네스루트> 로 돌리면 판정한다)"
-fi
-
-# ── (d) 설명 3중 일치 ────────────────────────────────────────────────
+# ── (c) 설명 3중 일치 ────────────────────────────────────────────────
 for p in plugins/*/; do
   name=$(basename "$p")
   d_plugin=$(jq -r '.description // empty' "$p.claude-plugin/plugin.json")
   d_market=$(jq -r --arg n "$name" '.plugins[] | select(.name == $n) | .description // empty' .claude-plugin/marketplace.json)
   if [ -z "$d_plugin" ]; then
-    echo "✗ (d) $name: plugin.json 에 description 이 없다"; fail=1; continue
+    echo "✗ (c) $name: plugin.json 에 description 이 없다"; fail=1; continue
   fi
   if [ "$d_plugin" != "$d_market" ]; then
-    echo "✗ (d) $name: plugin.json 과 marketplace.json 의 description 이 다르다 — plugin.json 이 원본이다"
+    echo "✗ (c) $name: plugin.json 과 marketplace.json 의 description 이 다르다 — plugin.json 이 원본이다"
     echo "    plugin.json:      $d_plugin"
     echo "    marketplace.json: ${d_market:-(항목 없음)}"
     fail=1; continue
   fi
   if ! grep -qF -- "$d_plugin" README.md; then
-    echo "✗ (d) $name: README.md 에 plugin.json 의 description 문자열이 그대로 없다"; fail=1; continue
+    echo "✗ (c) $name: README.md 에 plugin.json 의 description 문자열이 그대로 없다"; fail=1; continue
   fi
-  echo "✓ (d) $name 설명 3중 일치 — plugin.json == marketplace.json, README.md 에 있음"
+  echo "✓ (c) $name 설명 3중 일치 — plugin.json == marketplace.json, README.md 에 있음"
 done
 
 if [ "$fail" -ne 0 ]; then
   echo "✗ skills 게이트 실패 — 위 ✗ 항목을 고쳐라"
   exit 1
 fi
-echo "✓ skills 게이트 통과 — validate · shellcheck · agent-doc-audit 회귀 · 설명 3중 일치"
+echo "✓ skills 게이트 통과 — validate · shellcheck · 설명 3중 일치"

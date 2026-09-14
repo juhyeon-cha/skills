@@ -1,30 +1,35 @@
-# skills 레포를 고칠 때
+# Working in the skills repository
 
-이 레포는 플러그인 마켓플레이스다. 여기서 세션을 열었을 때 지켜야 하는 규칙 여섯.
+This repository is a plugin marketplace. Follow these six rules when working here.
 
-- **고칠 자리는 설치본이 아니라 이 레포의 `plugins/<이름>/` 이다.** user scope 에 설치된 복사본
-  (`~/.claude/plugins/…`)을 고치면 다음 마켓플레이스 갱신이 덮어쓴다. 설치본에서 발견한 문제도
-  여기서 고치고, 설치본은 갱신으로 받는다.
-- **파일을 `plugins/<이름>/` 에 두는 기준은 하나다 — 설치본이 그것을 실행하거나 읽는가.**
-  마켓플레이스 설치는 그 디렉토리를 통째로 복사하고 제외 목록이 없다. 아니라면 자리는 둘 중 하나다:
-  플러그인 코드를 픽스처로 때리는 검사는 `tests/`, 하네스를 개발하는 사람·에이전트만 읽는 문서는
-  `docs/`. 판정이 갈리는 두 경우(배포물의 저작을 보는 검사는 개발 검사다 · 배포되는 코드가 가리키는
-  문서는 배포된다)는 `docs/development.md` "What belongs in the plugin" 이 든다.
-- **커밋 게이트는 레포 루트에서 `bash scripts/check.sh` 다.** 종료 코드 0 이어야 한다. 무엇을
-  검사하는지는 그 스크립트 머리말 주석이 원본이다.
-- **개발 검사는 `bash tests/run-all.sh` 로 손으로 돌린다.** 커밋 게이트에 배선돼 있지 않다 —
-  느리거나 네트워크·원장에 닿는 것이 섞여 있다. 무엇을 돌리고 무엇을 왜 면제하는지는 그 파일의
-  `SKIP` 이 원본이다. 플러그인 코드를 고쳤으면 관련된 검사를 그 커밋에서 돌린 결과를 근거로 든다.
-- **플러그인 설명은 세 자리가 같아야 한다** — `plugins/<이름>/.claude-plugin/plugin.json` 의
-  `description` 이 원본이고, `.claude-plugin/marketplace.json` 의 그 항목과 `README.md` 가 그것을
-  그대로 따른다. 게이트의 (d) 가 이걸 본다.
-- **릴리스 절차의 소유자는 루트 `.claude/skills/release/SKILL.md`(`/release`) 다.** 버전을 올리거나
-  릴리스할 때는 그 스킬을 따른다 — 릴리스는 이 레포에서 하는 일이지 하네스 루트에서 하는 일이
-  아니라, harness 플러그인 안에는 **릴리스하는 쪽의** 절차도 정책도 두지 않는다(버전의 출처 서술까지).
-  걷는 대상은 릴리스를 **하는** 쪽이 읽을 문장뿐이다. 릴리스를 **받는** 설치본이 읽어야 하는 문장은
-  플러그인 안에 있어야 한다 — `setup` 의 업데이트 절차가 그 예다. 버전 정책은 `README.md` "버전" 절에
-  있다.
+- **Edit `plugins/<name>/` in this repository, not the installed copy.** Changes to
+  user-scoped copies (`~/.claude/plugins/…`) are overwritten by the next marketplace
+  update. Fix issues found in installed copies here, then update the installation.
+- **A file belongs in `plugins/<name>/` only if the installed copy executes or reads it.**
+  Marketplace installation copies that entire directory without exclusions. Otherwise,
+  fixture-based checks of plugin code belong in `tests/`, and documents read only by
+  people or agents developing the harness belong in `docs/`. For the two boundary cases
+  (checks of shipped artifacts are development checks; documents referenced by shipped
+  code must ship), see `docs/development.md`, "What belongs in the plugin, and what belongs in this repo".
+- **The commit gate is `bash scripts/check.sh` from the repository root.** Its exit
+  code must be 0. The script's header comments are the source of truth for its checks.
+- **Run development checks manually with `bash tests/run-all.sh`.** They are not wired
+  into the commit gate; some are slow or access the network or ledger. Its `SKIP` entries
+  define what is excluded and why. When changing plugin code, cite results from running
+  the relevant checks for that commit.
+- **Plugin descriptions must match in three places.** The `description` in
+  `plugins/<name>/.claude-plugin/plugin.json` is canonical; the corresponding entry in
+  `.claude-plugin/marketplace.json` and the text in `README.md` must match it exactly.
+  Gate (c) checks this.
+- **The release procedure belongs to `.claude/skills/release/SKILL.md` (`/release`).**
+  Follow it when bumping versions or releasing. Release operations belong to this
+  repository, not to a harness root; the harness plugin must not carry instructions
+  or policies for the publisher, including descriptions of version provenance.
+  This boundary applies only to text read by the publisher. Instructions needed by
+  installed copies receiving a release must remain in the plugin, such as the update
+  procedure in `setup`. The version policy is in the "버전" section of `README.md`.
 
-하네스 코어를 고칠 때의 나머지 규칙(훅 규칙을 더하는 관례 · 플러그인 경계 · 개발 검사 표)은
-`docs/development.md` 가 든다. 사이클이 어느 레포에서든 지고 다니는 규율(게이트가 살아있음을 증명하는
-법 · 셸 함정 · 문서의 자리)은 배포되는 쪽인 `plugins/harness/docs/engineering.md` 에 있다.
+For other harness development rules (adding hook rules, plugin boundaries, and the
+check catalogue), see `docs/development.md`. Rules carried by a development cycle
+across target repositories (proving a gate is alive, shell pitfalls, and document
+placement) belong in the shipped `plugins/harness/docs/engineering.md`.
