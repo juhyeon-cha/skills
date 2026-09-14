@@ -226,7 +226,7 @@ runh() {  # runh <Node policy source> <json> [env...]
     cp "$ROOT/scripts/workspace.mjs" "$ROOT/scripts/state.mjs" "$copy_root/scripts/"
     cp "$hook" "$copy_root/lib/guard/guard.mjs"
   fi
-  GUARD_OUT=$(printf '%s' "$json" | env "$@" node "$copy_root/hooks/guard.mjs" 2>&1); GUARD_RC=$?
+  GUARD_OUT=$(printf '%s' "$json" | env HOME="$TMP/fixture-home" "$@" node "$copy_root/hooks/guard.mjs" 2>&1); GUARD_RC=$?
 }
 
 run() { runh "$HOOK" "$@"; }
@@ -520,15 +520,12 @@ echo "── ⑨ C3: 본 체크아웃 쓰기 차단 (도구 경로 + 셸 경로)
 # 픽스처 레포를 임시 디렉토리 안에 **실제로 만든다.** 판별자가 `.harness.json` 의 실재라
 # 어휘 판정만으로는 대상 레포를 알 수 없다 — 파일 내용은 보지 않으므로 최소 형태로 둔다.
 # 트리째 trap 으로 지워진다.
-# `~/` 와 `$HOME` 표기를 판정하려면 판별자가 **정말로 홈 아래**에 있어야 한다. 이름에
-# 게이트 이름을 박고 시작할 때와 끝날 때 지운다 — 남으면 진짜 세션의 가드가 이 자리를
-# 대상 레포로 읽는다.
+# `~/` 와 `$HOME` 판정은 runh의 자식 프로세스에만 제공하는 임시 홈에서 검사한다.
+# 호출자의 실제 홈과 기존 파일은 건드리지 않는다.
 HPROBE_NAME=".guard-check-home-probe"
-HPROBE="$HOME/$HPROBE_NAME"
-rm -rf "$HPROBE"
+HPROBE="$TMP/fixture-home/$HPROBE_NAME"
 mkdir -p "$HPROBE/repo"
 printf '{"ledger":{"backend":"beads"}}\n' > "$HPROBE/repo/.harness.json"
-trap 'rm -rf "$HPROBE"' EXIT
 
 MCROOT="$TMP/clone"
 mkdir -p "$MCROOT/repo"
@@ -650,7 +647,7 @@ declare -a MC_SH_READ_PASS=(
   "grep 'a|b' $MCROOT/repo/README.md"                # 인용 안의 파이프 — 조각 경계가 아니다
   "[ -f $MCROOT/repo/README.md ] && echo y"          # `[` 는 tr 이 지우던 낱말 — 첫 실행 낱말이 경로 basename 이었다
   "if [ -f $MCROOT/repo/f ]; then cat $MCROOT/repo/f; fi"
-  "echo \"\$(cat $MCROOT/repo/f)\""                  # 큰따옴표 안의 명령 치환은 경계로 남는다 — 아래 MIX 의 rm 대조군과 쌍
+  "echo \"\$(cat $MCROOT/repo/f)\""                  # 직접 읽기인 치환만 면제 — 아래 MIX 의 rm 대조군과 쌍
   "sed -n 1,5p \"$MCROOT/repo/f\""                   # 인용된 피연산자 — 스크립트 인자(1,5p)에 w 가 없다(아래 sed w 대조군과 쌍)
   "ls $MCROOT/repo | awk '{print \$1}'"             # 인용 밖 파이프는 경계 — awk 조각에 `|` 가 남지 않는다
   "sed 's/a/b/' $MCROOT/repo/f"                      # 경로 없는 스크립트 + 인용 밖 피연산자
@@ -690,7 +687,6 @@ done <<< "$MC_GITOPTS"
 step "읽기 목록의 모든 낱말이 본 체크아웃 경로와 함께 통과한다 (목록 ⊆ 시험)" [ -z "$mc_fails" ]
 # 읽기 명령에 쓰기 조각이나 파일 리다이렉션이 하나라도 섞이면 종전대로 막힌다.
 declare -a MC_SH_READ_MIX=(
-  "cat $MCROOT/repo/a > /tmp/b"
   "ls $MCROOT/repo && rm -rf $MCROOT/repo/src"
   "find $MCROOT/repo -name x -delete"
   "git -C $MCROOT/repo checkout -- ."
@@ -747,6 +743,8 @@ for c in "${MC_SH_READ_MIX[@]}"; do
   printf '  rc=%d  %s\n' "$GUARD_RC" "$c"
   step "차단(읽기+쓰기 혼합): $c" [ "$GUARD_RC" -eq 2 ]
 done
+runm "$(j_bash "cat $MCROOT/repo/a > /tmp/b")"
+step "보호 경로 읽기와 별도 아티팩트 출력은 분리한다" [ "$GUARD_RC" -eq 0 ]
 
 # ── 의도된 오탐. 진짜 차단과 **다른 배열**로 가른다 (⑧ 의 WT_FALSEPOS 선례).
 # 아래는 쓰기 명령의 **인자 텍스트** 안에 경로가 든 형태다 — 판정이 경로의 존재라 막힌다.
@@ -902,7 +900,9 @@ step "상대 읽기(cwd 가 레포의 형제): ../ 는 대상 레포가 아니�
 NEG_CWD="$TMP/guard-no-cwd.sh"
 source_copy no-cwd "$NEG_CWD"
 step "부정 대조군 사본이 원본과 다르다" not_same "$HOOK" "$NEG_CWD"
-runh "$NEG_CWD" "$(j_bash_cwd 'echo 1 > ../../../f' "$MC_CWD_WT")"
+runm "$(j_bash_cwd 'touch ../../../f' "$MC_CWD_WT")"
+step "일반 쓰기도 상대 경로를 접어 차단한다" [ "$GUARD_RC" -eq 2 ]
+runh "$NEG_CWD" "$(j_bash_cwd 'touch ../../../f' "$MC_CWD_WT")"
 step "부정 대조군: 상대 분기를 빼면 같은 입력이 통과한다 (rc=0)" [ "$GUARD_RC" -eq 0 ]
 
 # ── 레포 체크아웃 **자체**. 판별자가 그 레포의 `.harness.json` 이므로 레포 루트를 겨냥한

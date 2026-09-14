@@ -23,7 +23,7 @@ So **these enforcement points are designed as "a guardrail against careless acci
 
 **Six entries share one registry**, `lib/hook-definitions.json`: SessionStart, PreToolUse, PostToolUse(EnterWorktree), Stop, SubagentStart and SubagentStop. Guard and Stop enforce workflow decisions; context injects the shared body, workspace prepares through the common lifecycle, and role observers record identity evidence. PostToolUse failure is explicit but occurs after the original tool. Claude `hooks/hooks.json` and the Codex manifest override `hooks/codex.json` are generated projections; they never register the Codex hooks twice.
 
-## 1. Hook rules (7) — `lib/guard/guard.mjs` (PreToolUse, every tool)
+## 1. Hook rules — `lib/guard/guard.mjs` (PreToolUse, every tool)
 
 Blocking is **exit code 2 + a reason on stderr**. Every judgment is **token presence**, not enumeration of command shapes (enumeration leaked three times in a row in the spike). The price is false positives, accepted deliberately. **The rules are the four anchor-free invariants** of story `harness-lzs3`: work only in a worktree · whoever built it does not grade it · a person opens the remote · one ledger. **No rule leans on a tree anchor** — the rules outside these four, and the ones that used to lean on a tree anchor, are not here; that list and the reasons for it are the table in the note of `harness-lzs3.3.1`.
 
@@ -34,6 +34,28 @@ The normalizer recognizes a narrow quote-aware read-only shell subset, including
 `lib/guard/common-command.mjs` classifies literal calls to exact loaded native entrypoints. Read coordinates are distinct from state destinations, configured repository execution and remote effects. The orchestrator's exact `board` command is a controlled generated-document projection; the renderer still validates publication boundaries, and subagents cannot invoke it. Graders cannot mutate state or preparation, and subagents cannot request ledger-check reflection. [Commands](commands.md) lists the supported forms. Script copies, arbitrary Node commands, extra unsupported arguments and shell composition receive no coordinate exception.
 
 **Role rules compare `agent_type` against `harness:<name>` only** (measured form `harness:implementer` · `harness:reviewer` · `harness:evaluator`). An un-prefixed value is not this harness's role — a same-named agent from outside the plugin must not be read as one.
+
+Additional tool contracts use exact aliases and input schemas in
+`lib/guard/tool-contract.mjs`. Questions (`request_user_input_async`), waits
+(`clock.sleep`/`clocksleep`), Codex task reads and project listings have
+role-independent effects. `create_thread` has a separate `task-create` effect
+allowed only for the parent; the host contract still governs user authorization
+and creation availability. CUA supports only a standalone `await cua.getState();`
+as a read. Arbitrary JavaScript receives no such exemption. Unknown tools return
+`TOOL_CONTRACT_UNSUPPORTED`; malformed inputs for known tools return
+`TOOL_INPUT_INVALID`; unsupported effects return `TOOL_EFFECT_UNSUPPORTED`.
+
+The POSIX `shell-effects.mjs` parser fully interprets a narrow subset: direct reads,
+literal `echo`/`printf` arguments and static `>`/`>>` outputs. Within that subset,
+it separates protected read paths from write targets, allowing
+`cat <main-config> > <worktree-report>`; paths inside output text are not write
+targets. Actual output to main, protected configuration/state paths and symlinks
+into protected paths remains blocked. Command substitutions not established as
+direct reads receive no read exemption; Git external-program/output options are
+also checked. Wrappers, arbitrary scripts, heredocs and dynamic expansion remain
+outside this effect contract and receive the existing conservative judgment.
+A script name containing preflight does not establish a read. These narrow effect
+exceptions also apply to the historical token-judgment table below.
 
 **An internal handler error is a block, not a pass.** The Node entry catches invalid input, module/dispatch failure and rule errors and returns rc 2 with an UNREACHED diagnostic for Claude and Codex. Antigravity delivers native `decision: deny` JSON with transport rc 0; the shared policy code remains two and never certifies an allowed tool. Missing or inactive hooks are diagnosed by doctor; source code alone cannot prove they fired. [Runtime execution](runtime-execution.md) owns the provider translation and parent attestation boundary.
 

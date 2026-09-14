@@ -3,10 +3,11 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { normalizeHookEvent } from './hook-event.mjs';
-import { normalizePath, ripgrepReadonly } from './operations.mjs';
+import { normalizePath, ripgrepReadonly, gitReadOptionsSafe } from './operations.mjs';
 import { workspaceShellCommand, literalShellWords } from '../workspace/workspace-command.mjs';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
 import { guardLog, resolveState } from '../runtime/state.mjs';
+import {hasUnsafeCommandSubstitution} from './shell-effects.mjs';
 import { powershellTargets, powershellReadonly } from './powershell-operations.mjs';
 import { commonCommand, windowsCommandOperands } from './common-command.mjs';
 import { antigravityIdentity } from '../runtime/antigravity-identity.mjs';
@@ -189,6 +190,7 @@ function scriptWrites(word, raw) {
   return expressions.some((value) => /[wW]/.test(value));
 }
 function allReadonly(command, env = process.env) {
+  if (hasUnsafeCommandSubstitution(command, env)) return false;
   let any = false;
   for (const raw of quotedSegments(command)) {
     const segment = stripQuotes(raw);
@@ -220,6 +222,8 @@ function allReadonly(command, env = process.env) {
       continue;
     }
     if (word === 'git') {
+      const words = literalShellWords(raw);
+      if (!gitReadOptionsSafe(words || segment.split(/\s+/))) return false;
       const sub = subcommands('git', GIT_VALUE_OPTS, segment)[0];
       if (member(MC_GIT_READ, sub) || member(MC_GIT_READ_OPT, sub + ':' + nextToken(sub, segment)))
         continue;
@@ -308,6 +312,7 @@ function isHarnessRoot(ctx, value) {
 }
 function pathCandidates(ctx) {
   if (ctx.common) return [...ctx.common.paths, ...ctx.common.writes];
+  if (ctx.event.harness_literal_effects) return ctx.event.harness_literal_effects.writes;
   if (ctx.event.harness_shell_dialect === 'powershell')
     return ctx.event.harness_operations.map((operation) => operation.path);
   let command = ctx.command;
@@ -492,6 +497,12 @@ export async function r_main_shell(ctx) {
 }
 RULES.push({matcher: 'Bash', run: r_main_shell});
 
+export function r_task_create(ctx) {
+  if (ctx.event.harness_tool_contract?.effect === 'task-create' && child(ctx))
+    deny(ctx, '새 사용자 작업 생성은 부모 오케스트레이터만 수행한다');
+}
+RULES.push({matcher: '*', run: r_task_create});
+
 export function r_remote(ctx) {
   if (!child(ctx)) return;
   if (ctx.common?.remote) deny(ctx, remoteReason);
@@ -619,7 +630,7 @@ export async function evaluateGuard(
     result;
   try {
     event = normalizeHookEvent(raw, { env, deferDelegatedRole: true });
-    const roleIndependent = event.harness_shell_readonly ||
+    const roleIndependent = event.harness_tool_contract?.roleIndependent || event.harness_effect_readonly || event.harness_shell_readonly ||
       ['Read', 'NotebookRead', 'Glob', 'Grep'].includes(event.tool_name) ||
       /^collaboration\.?(?:send_message|list_agents|wait_agent)$/.test(event.tool_name);
     if (raw?.harness_runtime === 'antigravity' && !roleIndependent) {
@@ -767,7 +778,8 @@ export async function evaluateGuard(
       await dispatch(ctx);
     }
     rule = '-';
-    result = { code: 0, stdout: '', stderr: '', rule };
+    result = { code: 0, stdout: '', stderr: '', rule,
+      diagnostic: {layer: 'policy', reasonCode: 'ALLOWED'} };
   } catch (error) {
     rule = error instanceof Denial ? error.rule : 'UNREACHED-input';
     result = {
@@ -775,13 +787,30 @@ export async function evaluateGuard(
       stdout: '',
       stderr: `GUARD-DENY: ${error instanceof Denial ? '' : 'UNREACHED — 판정에 도달하지 못했다: '}${error.message}\n`,
       rule,
+      diagnostic: {
+        layer: error instanceof Denial ? 'policy' : error.reasonCode ? 'contract' :
+          ['EPERM', 'EACCES'].includes(error.code) ? 'filesystem' : 'input-or-state',
+        reasonCode: error instanceof Denial ? 'POLICY_DENIED' : error.reasonCode ||
+          (['EPERM', 'EACCES'].includes(error.code) ? error.code : 'INPUT_OR_STATE_UNREACHED'),
+      },
     };
   }
+  event = {...(event ?? {}), harness_guard_diagnostic: {
+    version: 1,
+    ...result.diagnostic,
+    code: result.code,
+    rule,
+    tool: event?.harness_tool_contract?.canonical ||
+      (['Bash', 'exec_command', 'PowerShell', 'Read', 'Write', 'Edit', 'apply_patch'].includes(event?.tool_name) ? event.tool_name : 'OTHER'),
+    effect: event?.harness_tool_contract?.effect || (event?.harness_literal_effects ? 'literal-read-and-output' : 'legacy'),
+  }};
   try {
     await guardLog(event ?? {}, rule, env);
   } catch (error) {
     // GUARD_OBSERVATION
     result.stderr += `STATE UNREACHED: guard observation was not persisted: ${error.message}\n`;
+    result.observation = {status: 'UNREACHED', layer: 'filesystem',
+      reasonCode: ['EPERM', 'EACCES', 'ENOENT'].includes(error.code) ? error.code : 'GUARD_LOG_UNAVAILABLE'};
   }
   return result;
 }

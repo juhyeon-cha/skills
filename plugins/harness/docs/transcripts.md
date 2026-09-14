@@ -92,10 +92,76 @@ those mutable-tree checks. A result for the wrong or dirty final tree is rejecte
 request/outcome files and the actual observation source for re-entry and grading.
 The immutable outcomes store signal and response hash rather than the full body.
 
-This inventory is separate from native workflow records and transcript aggregation.
+This inventory is separate from native workflow records. The retrospective adapter
+selects it when the supplied scope contains `provider: "collaboration"`.
 `enforcement` and native role evidence remain unavailable; `tools` and `tokens`
 remain unknown. Audit OBSERVED does not measure role restrictions, tool counts or
 semantic acceptance and does not satisfy the native doctor's live check.
+
+### Cross-session independent evaluator recovery
+
+`retryOf` names a call in the same session. Use `resumeFrom` to reference a failure
+in another session. Recovery supports REJECTED evaluator calls with the same
+canonical worktree, task, fixed `commitScope` and `implementerIds`. Use the new
+session's actual `sessionId` and `parentAgentId` and create a fresh child. Do not
+impersonate the old session or copy its inventory. A changed HEAD cannot resolve
+the old failure through this contract.
+
+1. Save the previous audit context and call ID as
+   `{context: <previous context>, callId: <failed ID>}` and run
+   `node <plugin>/scripts/delegation.mjs reference <reference-input.json>`.
+   The result contains `sessionId`, `parentAgentId`, `callId`, `callHash`,
+   `dispatchHash`, `bindingHash` and `outcomeHash`. Hashes pin the original envelope
+   bytes; an absent binding has a null `bindingHash`. These are not authentication
+   signatures and cannot defend against the same OS user rewriting all evidence.
+2. Add the returned `resumeFrom` to a new begin JSON with the actual current session
+   coordinates, a new call ID and the current role `sourceHash`. Keep `task`,
+   `repository`, `commitScope` and `implementerIds` identical to the previous call.
+   Omit `retryOf` and `reuseChild`. Give the fresh evaluator the previous evidence,
+   role, task, fixed HEAD and failure, then follow begin → actual spawn → bind →
+   complete above.
+3. `audit` validates every call in the current and referenced historical sessions.
+   It retains the previous REJECTED status and reason, adding `resolvedBy` and
+   `resolvedByRef: {sessionId, parentAgentId, callId}` only for a valid OBSERVED
+   successor. Unrelated failures, unfinished calls and corrupt records still fail
+   audit. Hash mismatches, missing records, scope mismatches, cycles and duplicate
+   consumption of a failure are rejected. A new PENDING call consumes the reference
+   too. If creation fails, record that new call as a terminal failure and reference
+   it on the next recovery. Do not skip PENDING to consume the earlier failure again.
+
+Call identity is `(sessionId, parentAgentId, callId)`; child identity is
+`(sessionId, child path)`. Files are keyed by call ID within a session, so different
+parents must also use distinct call IDs in that session. Calls from worktrees
+sharing a Git common directory coexist in one session inventory. Bind and audit
+validate each call's worktree and Git common identity. Retry repository equality
+and audit's composite session/parent identity remain required. Audit visits other
+parents it discovers and counts each parent's calls only in that visit. References
+to several parents in one historical session do not duplicate counts or hide
+failures and unfinished calls belonging to unreferenced parents.
+
+A recurring `/root` path alone does not identify the same execution.
+`implementerIds` and `previousAgentIds` remain conservative path-based exclusion
+lists: a grader cannot use a listed path even in a new session. Cross-session
+reviewer reuse is unsupported. Same-session reviewer `retryOf` and `reuseChild`
+follow the existing procedure.
+
+When spawn returns a `collab spawn failed: ...` string, supply that actual value
+as the bind observation. The REJECTED outcome preserves the original message,
+`failure.layer: provider`, `failure.kind` and `childState: not-created`. A thread
+limit message is classified as capacity, never success or MATCH. Other return
+shapes remain contract errors; do not infer provider failure. Preserve historical
+`spawn return schema invalid` outcomes unchanged and link the retained original
+observation separately as evidence of the original error.
+
+If the same creation limit recurs, wait in VERIFY_PENDING instead of repeatedly
+creating calls. Report the failure reference, fixed HEAD, required independent
+evaluator and conditions to check before resuming. Resume when new evidence shows
+available capacity or in a new evaluation session requested by the user. Maximum
+creation counts, concurrent versus cumulative limits and reset conditions remain
+UNKNOWN without provider evidence. Parent judgment or changing a reviewer into an
+evaluator cannot replace recovery. The repository-wide lock serializes reference
+consumption, so audit/reference also need write access to the lock directory.
+EPERM indicates a sandbox/state access failure, not a policy denial.
 
 ## Optional transcript-to-outcome adapters
 
@@ -111,6 +177,16 @@ Selectors describe narrow adapter contracts, not a guarantee that every runtime 
 ## Retrospective aggregate
 
 `bash <plugin>/checks/transcript-check.sh --scope <scope.json> --json` reads every stored required call, including missing/failed outcomes. The scoped inventory is session-wide; preserve failed attempts in its population. Do not filter them away to obtain a passing aggregate.
+
+For a generic scope, include the audit context's `version`, `runtime`, `provider`,
+`repository`, `data`, `sessionId` and `parentAgentId`. A report with
+`format: harness-delegation-v1` aggregates `signals`, `tools`, `reuse` and
+`a9.verdicts` alongside `population`, `complete` and `unreached` from the validated
+generic inventory, including referenced historical sessions. Execution audit
+explains resolved REJECTED calls through `resolvedBy`; A9 still retains those
+failed observations, so the aggregate may remain partial. `reuse` counts each
+call's first SIGNAL, not actual child reuse. Unmeasured tool and token costs remain
+UNKNOWN; native observations are not automatically mixed into this aggregate.
 
 The existing Claude directory entry remains: `--projects <directory>` (default `~/.claude/projects`), `--session <id>`, `--since <ISO8601|Nd|Nh>`, `--json`. It derives inventory from actual Agent/Task invocations rather than completions alone. Session and time filters intersect; unfinished invocations remain visible even if they began before the window. Completion-only legacy fragments, malformed tails, missing files and unsupported records are UNREACHED. `--self-check` retains the clean/dirty first-line SIGNAL and asynchronous notification controls.
 
