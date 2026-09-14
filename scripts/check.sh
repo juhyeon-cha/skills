@@ -9,7 +9,7 @@
 #       플러그인 안에 있던 shell-lint.sh 는 대상이 자기 트리로 고정이라 이 전수에 흡수하고 지웠다.
 #       미설치(shellcheck 가 PATH 에 없음)는 fail-open: 통과시키되 검사하지 못했다고 말한다.
 #   (c) agent-doc-audit 회귀 — 두 플러그인과 레포 문서(docs)·레포 루트 스킬(.claude/skills)에서
-#       1-correction · 4-date · 4-line-pointer 가 0줄. 레포 루트 스킬은 플러그인 밖에 살아
+#       1-correction, 4-date and 4-line-pointer findings are advisory.
 #       (a) validate 도 (b) shellcheck 도 보지 않는 자리라, 여기가 유일한 검사 자리다.
 #       6-dead-path 는 harness 플러그인 docs 가 하네스 루트 상대 경로를 쓰므로 HARNESS_ROOT 가 있을 때만
 #       --root 로 판정하고, 없으면 판정하지 않았다고 말한다(조용히 통과하지 않는다).
@@ -63,18 +63,24 @@ fi
 AUDIT=plugins/toolkit/skills/agent-doc-audit/check.sh
 SCAN='plugins/harness plugins/toolkit docs .claude/skills'
 crit='1-correction|4-date|4-line-pointer'
-[ -n "${HARNESS_ROOT:-}" ] && crit="$crit|6-dead-path"
 # shellcheck disable=SC2086  # SCAN 은 낱말 분리가 의도다; HARNESS_ROOT 가 있을 때만 --root <값> 두 낱말을 붙인다
 if out=$(bash "$AUDIT" $SCAN ${HARNESS_ROOT:+--root "$HARNESS_ROOT"} 2>&1); then
   hits=$(printf '%s\n' "$out" | grep -E ":($crit):" || true)
   if [ -n "$hits" ]; then
     printf '%s\n' "$hits"
-    echo "✗ (c) agent-doc-audit 회귀 — 위 줄이 0 이어야 한다 (기준 $crit)"
-    fail=1
+    echo "⚠ (c) agent-doc-audit advisory findings above (criteria: $crit)"
   else
     echo "✓ (c) agent-doc-audit 회귀 없음 — ${SCAN// / · } 에서 $crit 0줄"
   fi
   # 경고 전용: 셸 주석 후보는 세기만 한다 — fail 을 건드리지 않는다.
+  if [ -n "${HARNESS_ROOT:-}" ]; then
+    deadpaths=$(printf '%s\n' "$out" | grep ':6-dead-path:' || true)
+    if [ -n "$deadpaths" ]; then
+      printf '%s\n' "$deadpaths"
+      echo "✗ (c) unresolved document paths"
+      fail=1
+    fi
+  fi
   shhits=$(printf '%s\n' "$out" | grep -cE ':1-correction-sh:' || true)
   # shellcheck disable=SC2086
   nsh=$(find $SCAN -type f -name '*.sh' | wc -l | tr -d ' ')

@@ -6,7 +6,7 @@ import {fileURLToPath, pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {evaluateGuard} from '../../plugins/harness/lib/guard/guard.mjs';
 import {antigravityEvent, antigravityOutput} from '../../plugins/harness/lib/runtime/antigravity-hook.mjs';
-import {resolveState, recordStateEvent, cancelSession, isCancelled, readActors} from '../../plugins/harness/lib/runtime/state.mjs';
+import {resolveState, recordStateEvent, cancelSession, enableContinuation, isCancelled, readActors} from '../../plugins/harness/lib/runtime/state.mjs';
 import {registerAntigravityParent} from '../../plugins/harness/lib/runtime/antigravity-identity.mjs';
 import {inspectDistribution} from '../../plugins/harness/lib/distribution.mjs';
 import {evaluateStop, MAX_BLOCKS} from '../../plugins/harness/lib/runtime/stop.mjs';
@@ -55,7 +55,7 @@ try {
     assert.equal(registered.status, 0, registered.stderr);
     const allowed = hook('guard', envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')}));
     assert.equal(allowed.status, 0, allowed.stderr); assert.equal(JSON.parse(allowed.stdout).decision, 'allow');
-    for (const target of [path.join(main, 'denied.txt'), path.join(work, '.harness.json'), path.join(state.session, 'antigravity-parent.json')])
+    for (const target of [path.join(main, 'denied.txt'), path.join(work, '.git'), path.join(state.session, 'antigravity-parent.json')])
       assert.equal(guardCode(envelope('write_to_file', {TargetFile: target})), 2);
     assert.equal(guardCode(envelope('run_command', {CommandLine: 'node state.mjs parent-register', Cwd: work})), 2);
   });
@@ -153,7 +153,7 @@ try {
     fs.symlinkSync(main, path.join(work, 'main-alias'));
     for (const runtime of ['claude', 'codex', 'antigravity']) {
       const allowed = await judge(runtime, eventFor(runtime, 'file', path.join(work, 'allowed.txt'))); assert.equal(allowed.code, 0, allowed.stderr);
-      for (const target of [path.join(main, 'denied.txt'), path.join(work, 'main-alias', 'denied.txt'), ...['.git', '.harness.json', '.agents/hooks.json', '.codex/config.toml'].map(p => path.join(work, p))])
+      for (const target of [path.join(main, 'denied.txt'), path.join(work, 'main-alias', 'denied.txt'), path.join(work, '.git')])
         assert.equal((await judge(runtime, eventFor(runtime, 'file', target))).code, 2, runtime + ' ' + target);
       const denied = await judge(runtime, eventFor(runtime, 'shell', 'git push origin HEAD:refs/heads/canary'));
       assert.equal(denied.code, 2); assert.equal(denied.rule, 'r_remote');
@@ -184,6 +184,8 @@ try {
       const event = runtime === 'antigravity' ? antigravityEvent('stop', {...invocation, conversationId: 'stop', fullyIdle: true, executionNum: 0, terminationReason: 'NO_TOOL_CALL'}) : {cwd: work, session_id: 'stop'};
       const options = {env: envFor(runtime), rootFinder: async () => main,
         ledger: async (_args, coordinates) => {assert.equal(coordinates.root, main); return {code: 0, stdout: JSON.stringify([{actor: 'mine', notes: ''}, {actor: 'other', notes: ''}])};}};
+      assert.deepEqual((await evaluateStop(event, options)).outcomes, ['NOTICE']);
+      enableContinuation(scope);
       for (let i = 0; i < MAX_BLOCKS; i++) {
         const result = await evaluateStop(event, options); assert.deepEqual(result.outcomes, ['BLOCK']);
         const output = runtime === 'antigravity' ? antigravityOutput('stop', result) : result.stdout;

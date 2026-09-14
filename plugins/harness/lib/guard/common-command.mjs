@@ -136,7 +136,7 @@ export async function commonCommand(command, { pluginRoot, cwd, dialect, env }) 
     }
     const [action, runtime, repository, session, ledgerRoot, task, actor] = args;
     const reading = ['paths', 'actors', 'cancelled'].includes(action),
-      writing = ['bind', 'cancel'].includes(action);
+      writing = ['bind', 'continue', 'cancel'].includes(action);
     if (!reading && !writing) return null;
     if (!['claude', 'codex', 'antigravity'].includes(runtime) || !absolute(repository) || !session) return null;
     if (
@@ -148,7 +148,7 @@ export async function commonCommand(command, { pluginRoot, cwd, dialect, env }) 
     if (writing) {
       const scope = await resolveState({ runtime, cwd: repository, sessionId: session }, stateEnv);
       result.effect = 'state';
-      result.writes = [action === 'bind' ? scope.actors : scope.cancel];
+      result.writes = [action === 'bind' ? scope.actors : action === 'continue' ? scope.continuation : scope.cancel];
     }
     return result;
   }

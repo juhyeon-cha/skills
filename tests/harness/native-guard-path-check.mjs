@@ -35,6 +35,40 @@ try {
       assert.equal((await judge(write(path.join(workspace, 'a'), role))).code, GR_ROLES.split(' ').includes(role) ? 2 : 0);
     }
   });
+  await check('configuration edits and path data are allowed while concrete protected writes stay denied', async () => {
+    for (const relative of ['.harness.json', '.agents/rules.md', '.claude/settings.json', '.codex/config.toml']) {
+      assert.equal((await judge(write(path.join(workspace, relative)))).code, 0, relative);
+      assert.equal((await judge(write(path.join(main, relative)))).code, 2, relative);
+    }
+    for (const target of [path.join(workspace, '.git'), path.join(env.HARNESS_DATA_DIR, 'active.json')]) {
+      assert.equal((await judge(write(target))).code, 2, target);
+      assert.equal((await judge(event(`echo x > '${target}'`))).code, 2, target);
+    }
+    for (const command of [
+      `python3 -c 'print("${main}")'`,
+      `git commit -m 'document ${main}'`,
+      `node script.mjs --input '${main}'`,
+      `echo '${main}' > '${path.join(workspace, 'note')}'`,
+      `cp '${path.join(main, 'source')}' '${path.join(workspace, 'copy')}'`,
+      `touch -r '${path.join(main, 'source')}' '${path.join(workspace, 'stamp')}'`,
+      `touch --reference='${path.join(main, 'source')}' '${path.join(workspace, 'stamp')}'`,
+      `cp -t "$DEST" '${path.join(main, 'source')}'`,
+      `cp --target-directory="$DEST" '${path.join(main, 'source')}'`,
+    ]) assert.equal((await judge(event(command))).code, 0, command);
+    for (const command of [
+      `echo x >> '${path.join(main, 'file')}'`,
+      `rm -rf '${main}'`,
+      `rm -rf '${path.dirname(main)}'`,
+      `cp '${path.join(workspace, 'source')}' '${path.join(main, 'copy')}'`,
+      `cp -t '${main}' '${path.join(workspace, 'source')}'`,
+      `cp --target-directory='${main}' '${path.join(workspace, 'source')}'`,
+      `mv '${path.join(main, 'source')}' '${path.join(workspace, 'moved')}'`,
+      `cat '${main}'; echo x > '${path.join(main, 'file')}'`,
+    ]) assert.equal((await judge(event(command))).code, 2, command);
+    const continueCommand = `node '${path.join(root, 'scripts/state.mjs')}' --data '${env.HARNESS_DATA_DIR}' continue claude '${main}' session`;
+    assert.equal((await evaluateGuard(event(continueCommand), {env, pluginRoot: root})).code, 0);
+    assert.equal((await evaluateGuard(event(continueCommand, 'harness:reviewer'), {env, pluginRoot: root})).code, 2);
+  });
   await check('apply_patch normalizes all multi-file add/update/delete/move endpoints atomically', async () => {
     const patch = `*** Begin Patch\n*** Add File: new.txt\n+hi\n*** Update File: src.txt\n*** Move to: moved.txt\n@@\n-old\n+new\n*** Delete File: gone.txt\n*** End Patch\n`;
     const parsed = patchOperations(patch, workspace); assert.equal(parsed.length, 3); assert.equal(parsed[1].kind, 'move');
@@ -55,7 +89,7 @@ try {
       const command = `node '${path.join(loaded, 'checks/board-check.mjs')}' --root '${main}'`;
       const result = await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: loaded});
       assert.equal(result.code, 0, 'loaded script path inside main is transport: ' + tool + '\n' + command + '\n' + result.stderr);
-      assert.equal((await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: root})).code, 2, 'another identical artifact is not the loaded entrypoint');
+      assert.equal((await evaluateGuard(event(command, 'harness:reviewer', tool), {env, pluginRoot: root})).code, 0, 'opaque script coordinates are not writes');
     }
   });
   await check('loaded root and entrypoint aliases share native filesystem identity', async () => {
@@ -97,7 +131,7 @@ try {
         assert.equal(result.code, 2, tool + '\n' + command + tail + '\n' + result.stderr);
       }
       const target = await judge(event(`node '${path.join(main, 'writer.mjs')}' --output '${path.join(main, 'overwrite')}'`, '', tool));
-      assert.equal(target.code, 2, tool + '\n' + target.stderr);
+      assert.equal(target.code, 0, tool + '\n' + target.stderr);
       const search = tool === 'PowerShell' ? `Select-String -Path '${main}' -Pattern 'ledger.mjs close'` : `rg -n 'ledger.mjs close' '${main}'`;
       const reading = await judge(event(search, 'harness:reviewer', tool));
       assert.equal(reading.code, 0, tool + '\n' + search + '\n' + reading.stderr);
@@ -133,10 +167,10 @@ try {
         assert.equal((await judgeCommand(invoke('scripts/state.mjs', `--data '${main}' ${action}`), '', tool)).code, 2);
       }
       const read = invoke('checks/board-check.mjs', `--root '${main}'`);
-      for (const command of [read + ` > '${path.join(main, 'overwrite')}'`, read + `; Set-Content '${path.join(main, 'overwrite')}' x`, projection + ` > '${path.join(main, 'overwrite')}'`, read + ' --unknown']) assert.equal((await judgeCommand(command, '', tool)).code, 2, command);
+      for (const command of [read + ` > '${path.join(main, 'overwrite')}'`, read + `; echo x > '${path.join(main, 'overwrite')}'`, projection + ` > '${path.join(main, 'overwrite')}'`]) assert.equal((await judgeCommand(command, '', tool)).code, 2, command);
       const fake = path.join(temp, 'spoof', 'board-check.mjs'); fs.mkdirSync(path.dirname(fake), {recursive: true}); fs.copyFileSync(path.join(root, 'checks/board-check.mjs'), fake);
-      assert.equal((await judgeCommand(`node '${fake}' --root '${main}'`, '', tool)).code, 2, 'same basename/content is not loaded identity');
+      assert.equal((await judgeCommand(`node '${fake}' --root '${main}'`, '', tool)).code, 0, 'unknown scripts remain under host permissions');
     }
   });
-  assert.equal(count, 7); console.log(`PASS native guard paths: ${count} judgments on ${process.platform}`);
+  assert.equal(count, 8); console.log(`PASS native guard paths: ${count} judgments on ${process.platform}`);
 } finally { fs.rmSync(temp, {recursive: true, force: true}); }

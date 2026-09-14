@@ -13,7 +13,8 @@ The same independent reviewer can follow up on its findings. The parent can run
 tests that need permissions unavailable to the reviewing child and supply their
 actual results. A standalone report does not authorize ledger close.
 
-The remaining sections govern managed role execution and task completion.
+The remaining sections govern delegated role execution. Local verification selected
+by verify-code requires no delegation inventory or role receipt.
 
 ## Select the execution contract
 
@@ -147,7 +148,8 @@ Use `workflow.mjs complete-native` with the actual native return recorded by the
 
 Supply one invocation per child instance: exactly one Start and one Stop, with all tool starts between them. Repeated Start/Stop or tool starts after Stop make the result UNREACHED, including an unfinished follow-up after an earlier successful verdict. Use a fresh child and call for another judgment instead of combining responses from a reused instance.
 
-Missing identity, missing/unregistered SIGNAL, interrupted execution, stale registration and self-judgment produce `UNREACHED`: the standalone `roles.mjs` inspector returns rc 1; the ordinary `workflow.mjs` consumer returns rc 2. Preserve the task and failed evidence; native unavailability follows execution-path selection above, while identity or result-integrity failures follow develop's human-wait procedure. Only an independently reached evaluator MATCH can ground ordinary close; the explicit human scope-excess decision in verify-implement remains its own branch. A passing test or parent-written SIGNAL cannot replace delegated judgment.
+Missing identity, missing/unregistered SIGNAL, interrupted execution, stale registration and self-judgment produce `UNREACHED`: the standalone `roles.mjs` inspector returns rc 1; the ordinary `workflow.mjs` consumer returns rc 2. Preserve the task and failed evidence; native unavailability follows execution-path selection above, while identity or result-integrity failures follow develop's human-wait procedure. For independent verification, an independently reached evaluator MATCH grounds close; the explicit human scope-excess decision in verify-implement remains its own branch. A parent-written SIGNAL cannot replace required delegated judgment. The local
+verification path records checks and acceptance directly, without a role SIGNAL.
 
 The existing guard owns file/Git/ledger permissions through the common identity mapping. Role prompts and generated registration alone are not enforcement: disabled or unidentified hooks invalidate the runtime capability prerequisite. Transcript layouts are not used by this contract.
 

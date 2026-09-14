@@ -28,6 +28,19 @@ A bind failure does not undo or re-run a successful claim. Diagnose the state/re
 node <plugin>/scripts/state.mjs cancel <runtime> <repo> <session>
 ```
 
+Stop reports unfinished owned tasks without blocking by default. Only after an
+explicit user request for continued execution, enable continuation for the active
+runtime, repository and session:
+
+```text
+node <plugin>/scripts/state.mjs --data <data> continue <runtime> <repository> <session>
+```
+
+The continuation record is scoped like cancellation. Another session does not
+inherit it. `cancel` takes precedence and remains effective for that session;
+`continue` does not clear cancellation. Missing or invalid continuation evidence
+allows termination. Neither advisory output nor termination closes a task.
+
 Cancellation persists for exactly that scope. Another session never acquires it by observing it first. Legacy `stop-resume-cancel` markers and actor TSVs are preserved as UNVERIFIED, without moving, deleting or treating them as successful bindings. Create an explicit scoped cancellation or re-bind through the ledger to migrate. Rollback can still read the untouched legacy files.
 
 `HARNESS_GUARD_LOG` continues to select an explicit legacy TSV for reads and minimal metadata writes; missing runtime/repository identity is diagnosed as UNVERIFIED. `HARNESS_SESSION_ACTOR_LOG` remains a legacy read location and is never overwritten or promoted automatically. Historical TSV rows can still be counted/classified by `guard-log.sh`, but their runtime/repository identity and claim success are not established. New guard rows contain only time, escaped session, role, tool and rule; raw commands and targets are not retained. Rows without commands cannot certify an old false-positive classification.

@@ -1,15 +1,31 @@
 ---
 name: verify-implement
-description: Acceptance judgment and closing procedure for a task — evaluator delegation and ledger close. Use on a "acceptance 판정해" or "이 태스크 닫아도 되나" request, and right after review passes in a develop cycle. Code-quality review is verify-code.
+description: Acceptance judgment and closing procedure using local or independent verification. Use on an "acceptance 판정해" or "이 태스크 닫아도 되나" request, and after verify-code selects a path. Code-quality review is verify-code.
 ---
 
 # Acceptance judgment
 
 Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` and resolve the plugin and harness roots.
 
-The evaluator role definition (`${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`) holds the judgment discipline. `verify-code` "Verification path" owns combined-path eligibility; carry that selection into delegation. This procedure holds delegation, signal handling, and closing only.
+`verify-code` "Verification path" owns path selection. This procedure records
+acceptance evidence and closes the task. For independent verification, the
+evaluator role (`${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`) holds judgment discipline.
 
-Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED or generic OBSERVED under that contract before the branches below apply. That contract owns execution-path selection and explicit enforcement requirements; the SIGNAL and retry rules below hold in both paths.
+## Local verification
+
+Use this branch only when selected by verify-code's "Verification path". Inspect
+all changed files and relevant callers, run the required gate and relevant tests,
+and compare each acceptance item with the resulting state. Reuse a result only
+when its command, inputs and tested commit still match. Record the commit, checks,
+acceptance comparison and anything unverified. A failed check or unmet acceptance
+keeps the task open; fix within scope and retry. A material scope/risk change
+returns to path selection.
+
+With all acceptance items met, proceed to Close with local verification evidence.
+Do not create an evaluator SIGNAL or role receipt for this path.
+
+For the independent paths below, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` before
+delegation and result handling, and validate the selected execution contract.
 
 ## 1. Delegate
 
@@ -21,7 +37,7 @@ Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/do
 Then delegate to evaluator. The message carries ① first line: harness root absolute path + worktree absolute path + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every task awaiting judgment after separate review or selected for combined verification, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ **the items already judged by command and their exit codes** (per task) ④ the items with no command — these are what evaluator judges ⑤ claims from the previous stage's report that evaluator must re-verify. The discipline for receiving a list (one SIGNAL · evaluator writes MATCH/unmet per task in the body) is held by `${CLAUDE_PLUGIN_ROOT}/agents/evaluator.md`, so leave it out of the delegation message.
 
 - For combined verification, explicitly carry `combined verification`, the reviewer checklist, and the fixed base and head commit hashes defining this task or batch diff. Preserve that base on corrective iterations and refresh the head to the corrected commit; do not include earlier milestone changes outside the selected scope.
-- **Always delegate to an independent evaluator.** That holds even when commands cover every item — hunk attribution and stale acceptance wording remain outside those commands. An unavailable selected execution contract follows `harness:develop` human wait and keeps the task open.
+- **In an independent verification path, delegate to an independent evaluator.** That holds even when commands cover every item — hunk attribution and stale acceptance wording remain outside those commands. An unavailable selected execution contract follows `harness:develop` human wait and keeps the task open.
 - A non-zero command judgment is unmet on its own. Handle it as `VIOLATION` without delegating — evaluator would return the same answer.
 
 ## 2. Signal handling
@@ -40,8 +56,11 @@ Then delegate to evaluator. The message carries ① first line: harness root abs
 
 ## 3. Close
 
-**`ledger close` runs on evaluator's MATCH record alone.** Given a list, do 1–2 per MATCH task and 3 once.
+Close on the evidence required by the selected verification path: a complete local
+acceptance comparison, or a validated independent MATCH. Existing user approval
+boundaries for external ledger writes still apply. Given a list, do 1–2 per
+accepted task and 3 once.
 
-1. For combined verification, also upsert the evaluator's quality grounds with `ledger summary <task ID> review --file <file>`, identifying the validated combined MATCH rather than a separate LGTM. Upsert the MATCH grounds with `ledger summary <task ID> acceptance --file <file>`. Prepare a completion file with the result, implementation/review/acceptance evidence, commit hash, gate exit code and limitations.
+1. For combined verification, also upsert the evaluator's quality grounds with `ledger summary <task ID> review --file <file>`, identifying the validated combined MATCH rather than a separate LGTM. Upsert the local acceptance comparison or independent MATCH grounds with `ledger summary <task ID> acceptance --file <file>`. Prepare a completion file with the result, implementation/review/acceptance evidence, commit hash, gate exit code and limitations.
 2. `ledger close <task ID> --reason-file <completion file>` leaves the sole completion comment. Keep the grounds in the body and completion reason; no separate completion note.
 3. Redraw the local projection with `board all` — **after** `ledger close`. The projection lives outside git, so it stays out of the commit.

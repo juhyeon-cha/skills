@@ -2,7 +2,7 @@ import {
   normalizePath,
   patchOperations,
   isReadonlySearch,
-  quotedPathCandidates,
+  shellWriteOperations,
 } from './operations.mjs';
 
 import { canonicalRole } from '../runtime/role-contract.mjs';
@@ -67,7 +67,7 @@ export function normalizeHookEvent(
     } else {
       event.harness_shell_readonly = isReadonlySearch(command, env);
       if (!event.harness_shell_readonly)
-        event.harness_operations = quotedPathCandidates(command, raw.cwd);
+        event.harness_operations = shellWriteOperations(command, raw.cwd);
     }
   } else if (event.tool_name === 'apply_patch') {
     event.harness_operations = patchOperations(raw.tool_input.command, raw.cwd);
