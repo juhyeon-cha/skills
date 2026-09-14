@@ -15,12 +15,14 @@ There are three inputs — **the ledger (body summaries and event notes)**, **th
 
 - Read the full `ledger show <ID>` of the target story (or stories) and the body summaries and event notes of every milestone and task under it.
 - Check what this round left in the harness backlog with `ledger list -l harness`.
+- Before declaring a duplicate, read the candidate body and current implementation. A title or closed status alone does not establish that the current defect is fixed. For authorized ledger writes, use file arguments as `harness:develop` “원장에 본문을 넘기는 형태” requires.
 - In each summary and event note, separate **observation** (what actually happened) from **proposal** (what to change) and pull both out.
 
 ### 1-2. Subagent transcripts
 
 - Read `${CLAUDE_PLUGIN_ROOT}/docs/transcripts.md` for adapter selection and completeness semantics. `transcript` is the native aggregate entry; the legacy shell entry remains a wrapper.
 - For ordinary workflow inventory, call `transcript --scope <scope.json> --json`. Use the actual session metadata retained at begin; a missing inventory is UNREACHED. This aggregate covers the session, including failed and unfinished attempts. Identify the story's calls from their recorded task scope rather than discarding failures.
+- For Codex/collaboration generic delegation, call the same command with `provider: "collaboration"` in the actual scope. This supported path stores its inventory separately from native records. If generic audit finds calls but the native population is empty, check adapter selection before claiming record loss. Referenced historical failures and unfinished calls remain in the aggregate; tools and tokens remain UNKNOWN.
 - For historical Claude transcripts, the documented directory adapter accepts `--projects`, `--session` and `--since` together. Pass the known session and story start time. An unknown session must be recorded as an attribution limit; wider observations are trends, not automatically this story's population.
 - Quote `signals`, `tools`, `reuse` and `a9.verdicts` together with `population`, `complete`, and `unreached`. `complete: false` makes counts partial observations, unsuitable as a full rejection-rate denominator. Token `UNKNOWN` and `total: null` are unmeasured cost, independent of A9's SIGNAL judgment.
 - On rc 2, upsert the `unreached` reasons verbatim with `ledger summary <story ID> retrospective --file <file>` and proceed using the reached observations and ledger with those limits. Missing observations contribute nothing to the two-observation promotion bar. Never report missing tools, tokens, unfinished calls or unsupported formats as zero.
@@ -41,7 +43,7 @@ the individual entries; no shell text-processing utilities are required.
 
 Round × rule × classifiability with a count — that is the denominator per rule, and it is what ② and ③ below are computed over. Then read the full rows of the rules that clear ③'s 5-row floor. **Rules older than the log get their rate quoted per round, never pooled** — ceiling 6 of section 11 says why.
 
-**Read rc before reading a single row.** rc=4 ("blocking really was 0") and rc=6 ("blocking happened, none of it classifiable") are the pair that fabricates a clean rule when folded together, and rc=5 is a missing round, not an empty one. The full rc table and every ceiling on these numbers are **[guardrail-verification.md](../../docs/guardrail-verification.md) section 11, "When firing counts can be used as evidence"** — that section owns them, this one does not restate them. Read it before quoting any rate; two of its ceilings (the 120-character cut halving the denominator, and the log sampling guard firings rather than blocked work) decide how the rate may be worded.
+**Read rc before reading a single row.** rc=4 ("blocking really was 0") and rc=6 ("blocking happened, none of it classifiable") are the pair that fabricates a clean rule when folded together, and rc=5 is a missing round, not an empty one. The full rc table and every ceiling on these numbers are **[guardrail-verification.md](../../docs/guardrail-verification.md) section 11, "When firing counts can be used as evidence"** — that section owns them, this one does not restate them. Historical measurements of 120-character truncation describe their original observations. Current metadata-only rows are unclassifiable, and guard firing counts are not counts of blocked user tasks.
 
 **② What is judged — and by whom**
 
@@ -61,6 +63,17 @@ Do not hide that split, and do not report a rate as if the whole of it were mach
 Over threshold, stand up **a proposal to narrow that rule** — not a note about it. The proposal goes out on the section 5 path (a per-file diff, applied after human approval), and it carries: the rule name · the rate with **its denominator and the round** · the `ok` rows read as false positives, quoted · what narrowing them costs on the other side (which true blocks the narrowing would also drop). A narrowing with no answer to that last one is not ready.
 
 A reproducible false positive can be proposed for correction immediately; the sample floor governs rate claims, not whether a demonstrated defect may be fixed. Record recovery time, required human interventions and potential harm where observed. Keep unmeasured cost unknown. Section 3 separates defect correction from trend-based policy changes.
+
+For each incident, record user intent, actual invocation evidence, error, blocking
+layer, judgment, recovery and observation limits. Separate policy denials,
+unsupported input contracts, provider creation failures, filesystem/sandbox errors
+and caller input mistakes. Historical records without the minimal diagnostic fields
+in [state.md](../../docs/state.md#minimal-guard-diagnostics) remain unmeasured.
+Use separately retained original calls only as individual reproduction evidence;
+do not reconstruct the denominator of `nocmd` rows. When execution results differ,
+compare actual inputs, cwd, environment and loaded source hashes. A version string
+alone does not establish identical execution. Do not rerun operational scripts to
+obtain evidence.
 
 ## 2. Three-way sort
 

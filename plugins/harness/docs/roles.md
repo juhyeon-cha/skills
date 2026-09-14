@@ -93,6 +93,11 @@ use `retryOf` and `reuseChild: true` as `transcripts.md` describes; a fresh chil
 remains available. Keep earlier IDs as history, not a blanket ban on reuse.
 Native protocols that cannot isolate a new invocation use a fresh child or the
 generic path unless the user explicitly requires native execution.
+
+When resuming an evaluator creation failure in another session, follow
+[Cross-session independent evaluator recovery](transcripts.md#cross-session-independent-evaluator-recovery)
+for the supported scope, verified failure reference and capacity-wait procedure.
+
 Upsert the call and validated outcome with `ledger summary <task ID> execution-<role> --file <file>`, keeping private runtime
 identities and response evidence in the parent-owned local inventory when needed.
 PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handling

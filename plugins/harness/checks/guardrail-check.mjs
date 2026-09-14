@@ -119,6 +119,11 @@ export async function checkGuardrails({
       r_grader_shell: shell('git commit -m fixture', 'harness:reviewer'),
       r_impl_bd: shell('bd -C /fixture close task', 'harness:implementer'),
       r_bd_root: shell('bd note task fixture', 'harness:implementer'),
+      r_task_create: {
+        ...shell('', 'harness:reviewer'),
+        tool_name: 'mcp__codex_app__create_thread',
+        tool_input: {prompt: 'Independent evaluation', target: {type: 'projectless'}},
+      },
     };
     await check('surface inventory is nonempty and complete', () =>
       assert.deepEqual(SURFACES, ['S1', 'S2', 'S5', 'S6', 'S7']),

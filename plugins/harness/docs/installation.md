@@ -102,7 +102,20 @@ Project enablement also requires project trust. Preparing new bytes cannot
 certify the currently open desktop or substitute CLI observations for desktop
 evidence.
 
-Run the doctor from the **expected source artifact**, passing the installed root: `node <expected source>/scripts/doctor.mjs check <installed root>`. Static PASS requires matching full content hashes and generated metadata, not equal version strings. Without current-session evidence, loaded/live are UNREACHED and the command exits nonzero. An open session using an earlier install remains unverified even when its version number equals the source version.
+Run the doctor from the **expected source artifact**, passing the installed root: `node <expected source>/scripts/doctor.mjs check <installed root>`. Static PASS requires matching payload content hashes and generated metadata, not equal version strings. Without current-session evidence, loaded/live are UNREACHED and the command exits nonzero. An open session using an earlier install remains unverified even when its version number equals the source version.
+
+The payload hash covers the included file paths and their bytes. Only the root
+`.in_use` directory is treated as Claude runtime metadata. Its direct children
+are excluded from hashing and installer copies only when they are single-link
+regular files named with positive integer PIDs without leading zeros; an empty
+directory is also valid. A file or symlink at `.in_use`, or a child with any other
+name or type, fails inspection. Other hidden files and nested `.in_use` paths
+remain payload. Only ENOENT from inspecting this directory or its direct children
+is tolerated during marker creation or removal; missing payload files and other
+I/O errors fail. Marker bodies may be partially written, so they are neither read
+nor JSON-validated. This classification does not authenticate processes or defend
+against malicious filesystem changes by the same user. Source, role, nonce and
+session validation still apply.
 
 For an explicit diagnostic session, create a new private directory with `doctor.mjs challenge <new absolute state directory> <claude|codex> <installed root> <role registration.json>`. Launch the runtime with `HARNESS_DOCTOR_DIR` pointing there. The actual shipped wrapper runs each original hook and signs a nonce-bound receipt containing its result, executing root/version/content hash, session and role identity. SessionStart records the hash of the actual emitted context. After the diagnostic session completes, use `doctor.mjs check <installed root> <state directory> <actual session ID>` from the expected source artifact.
 

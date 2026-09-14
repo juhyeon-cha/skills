@@ -18,6 +18,13 @@ Use this procedure when switching artifacts or moving repository preparation fro
 
 Completion requires a matching artifact/role registration, repository readiness, current-session evidence for the intended runtime scope and readable ledger state. An installation list, old doctor PASS or preserved state file establishes none of the missing observations. Historical isolated Codex probes certify only their captured source/hash/session and capabilities; they do not certify the newly selected source or an ordinary task's completion. Claude live activation remains a separate prerequisite tracked in skills#268.
 
+Preserve `.in_use` during hash comparisons; inspection applies the
+[payload boundary](installation.md#doctor-static-loaded-and-live) to runtime PID
+markers. Collect candidate verification and previous-release rollback evidence
+separately. Without the previous immutable artifact and its original matching
+registration receipt, rollback verification remains incomplete; a development
+copy with the same version string cannot substitute for that pair.
+
 ## Roll back without discarding work
 
 1. Stop new delegations and identify active preparation workers and descendants. Wait for completion or use the documented recovery contract; never remove a lock based only on age. Preserve the worktree, dirty files, ledger claims and observed results. Rollback does not close tasks or release claims.

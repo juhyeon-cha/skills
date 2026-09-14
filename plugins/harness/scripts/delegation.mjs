@@ -5,6 +5,7 @@ import {
   completeDelegation,
   auditDelegation,
   delegationCapability,
+  delegationResumeReference,
 } from '../lib/runtime/delegation.mjs';
 
 try {
@@ -15,9 +16,10 @@ try {
     complete: completeDelegation,
     audit: auditDelegation,
     capability: delegationCapability,
+    reference: delegationResumeReference,
   };
   if (!Object.hasOwn(actions, action) || !input || extra.length)
-    throw new Error('usage: delegation.mjs capability|begin|bind|complete|audit <input.json>');
+    throw new Error('usage: delegation.mjs capability|begin|bind|complete|audit|reference <input.json>');
   const result = await actions[action](JSON.parse(fs.readFileSync(input, 'utf8')));
   console.log(JSON.stringify(result));
   if (['REJECTED', 'UNAVAILABLE'].includes(result.status)) process.exitCode = 1;

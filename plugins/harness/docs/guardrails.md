@@ -31,6 +31,7 @@ whether the hook recognizes an action.
 |---|---|---|
 | `r_main_write` | File tools and patches | Protect the main checkout, Git internals and active state. Repository settings in a registered worktree are editable within the authorized task. |
 | `r_main_shell` | Shell operations | Check literal output redirects and recognized file-command targets, plus effects declared by exact common commands. A source path, quoted body or arbitrary script argument alone is not a write. |
+| `r_task_create` | Children | Keep user-task creation with the parent; host authorization still applies. |
 | `r_remote` | Children | Reject recognized remote writes; the parent remains responsible for user authorization. |
 | `r_grader_write` | Independent reviewers/evaluators | Keep the reviewed repository unchanged. Scratch files outside it remain available. |
 | `r_grader_shell` | Independent reviewers/evaluators | Reject Git/ledger mutations and common state/preparation writes. |
@@ -39,7 +40,8 @@ whether the hook recognizes an action.
 
 POSIX shell targets are derived from output redirects and literal operands of
 `rm`, `rmdir`, `unlink`, `touch`, `mkdir`, `tee`, `cp` and `mv`. PowerShell recognizes
-file cmdlets and output redirects. Unknown script effects, substitutions and
+file cmdlets and output redirects. Literal Git output options and recognized
+writes inside command substitutions are also checked. Unknown script effects and
 unrecognized write options are outside this bounded analysis. Mere inability to
 classify a command's effects does not prohibit running it under host permissions.
 
@@ -57,6 +59,17 @@ The selected verification path comes from `verify-code`, not tool-hook success.
 Low-risk work can complete with local checks and acceptance evidence. Independent
 review remains required for its risk categories and explicit repository/user
 requirements.
+
+Additional tool aliases and schemas live in `lib/guard/tool-contract.mjs`.
+Questions, waits, task reads and project listings are role-independent. Task
+creation is parent-only. CUA grants read status only to standalone
+`await cua.getState();`. Unknown tools, invalid inputs and unsupported effects
+have separate contract diagnostics.
+
+`literalReadEffects` preserves main's read/output distinction and role-independent
+read recovery. Commands outside that literal subset use recognized write-target
+analysis, not broad path-string blocking. Metadata diagnostics remain separate
+from command bodies and do not establish execution or completion.
 
 ### 1-1. Three limits on slash commands [measured — `harness-dg0.3.1` note 7.1]
 

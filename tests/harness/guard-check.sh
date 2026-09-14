@@ -225,7 +225,7 @@ runh() {  # runh <Node policy source> <json> [env...]
     cp "$ROOT/scripts/workspace.mjs" "$ROOT/scripts/state.mjs" "$copy_root/scripts/"
     cp "$hook" "$copy_root/lib/guard/guard.mjs"
   fi
-  GUARD_OUT=$(printf '%s' "$json" | env "$@" node "$copy_root/hooks/guard.mjs" 2>&1); GUARD_RC=$?
+  GUARD_OUT=$(printf '%s' "$json" | env HOME="$TMP/fixture-home" "$@" node "$copy_root/hooks/guard.mjs" 2>&1); GUARD_RC=$?
 }
 
 run() { runh "$HOOK" "$@"; }

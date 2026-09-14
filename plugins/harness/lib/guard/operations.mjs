@@ -49,7 +49,7 @@ export function patchOperations(command, cwd) {
 // Script bodies, option values and arbitrary path arguments are not write evidence.
 // Dynamic shell effects belong to the host permission boundary.
 export function shellWriteOperations(command, cwd) {
-  const segments = [[]], redirects = [];
+  const segments = [[]], redirects = [], nested = [];
   let word = '', quote = '', active = false, dynamic = false, output = false;
   const finish = () => {
     if (active) {
@@ -71,7 +71,26 @@ export function shellWriteOperations(command, cwd) {
     if (c === '\\') {
       word += command[++i] ?? ''; active = true; continue;
     }
-    if (c === '$' || c === '`') dynamic = true;
+    if (c === '`' || (c === '$' && command[i + 1] === '(')) {
+      const start = i + (c === '`' ? 1 : 2);
+      let end = start, depth = 1, innerQuote = '';
+      for (; end < command.length; end++) {
+        const inner = command[end];
+        if (inner === '\\' && innerQuote !== "'") { end++; continue; }
+        if (c === '`') { if (inner === '`') break; continue; }
+        if (innerQuote) { if (inner === innerQuote) innerQuote = ''; continue; }
+        if (inner === "'" || inner === '"') { innerQuote = inner; continue; }
+        if (inner === '(') depth++;
+        if (inner === ')' && --depth === 0) break;
+      }
+      if (end < command.length) {
+        nested.push(...shellWriteOperations(command.slice(start, end), cwd));
+        i = end;
+      }
+      dynamic = true; active = true;
+      continue;
+    }
+    if (c === '$') dynamic = true;
     if (quote === '"') {
       if (c === '"') quote = '';
       else word += c;
@@ -113,6 +132,27 @@ export function shellWriteOperations(command, cwd) {
   };
   for (const [executable, ...args] of segments) {
     const name = executable?.split('/').at(-1);
+    if (name === 'git') {
+      // Literal output options on inspection commands are concrete writes.
+      let gitCwd = cwd;
+      let globalOptions = true;
+      for (let i = 0; i < args.length; i++) {
+        if (globalOptions && args[i]?.startsWith('-C')) {
+          const directory = args[i] === '-C' ? args[++i] : args[i].slice(2);
+          if (typeof directory !== 'string') gitCwd = null;
+          else if (directory) gitCwd = gitCwd || /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(directory)
+            ? normalizePath(directory, gitCwd || cwd) : null;
+          continue;
+        }
+        if (['-c', '--grep', '--author', '--format', '--pretty'].includes(args[i])) { i++; continue; }
+        if (args[i] === '--') break;
+        if (globalOptions && !args[i]?.startsWith('-')) globalOptions = false;
+        const target = args[i] === '--output' ? args[++i] : args[i]?.startsWith('--output=') ? args[i].slice(9) : null;
+        if (target && (gitCwd || /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(target)))
+          targets.push(normalizePath(target, gitCwd || cwd));
+      }
+      continue;
+    }
     if (!Object.hasOwn(switches, name)) continue;
     // Expansion can supply options as well as filenames. Preserve redirects,
     // but do not infer operand roles from an incomplete argv.
@@ -142,7 +182,8 @@ export function shellWriteOperations(command, cwd) {
     // A copy reads its sources; moving also modifies them.
     targets.push(...(name === 'cp' ? [destination ?? operands.at(-1)] : [...operands, destination]).filter(Boolean));
   }
-  return [...new Set(targets)].map(value => ({kind: 'update', path: normalizePath(value, cwd)}));
+  return [...new Set([...targets.map(value => normalizePath(value, cwd)), ...nested.map(op => op.path)])]
+    .map(path => ({kind: 'update', path}));
 }
 
 export function gitReadonly(input) {
@@ -154,6 +195,10 @@ export function gitReadonly(input) {
     return false;
   // Git accepts abbreviated long options. Output files and external
   // diff/textconv commands are effects, even on a read subcommand.
+  return gitReadOptionsSafe(args);
+}
+
+export function gitReadOptionsSafe(args) {
   return !args.some((arg) => {
     const option = arg.split('=')[0];
     return option.startsWith('--') && option.length > 2 &&
