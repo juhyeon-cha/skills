@@ -98,56 +98,70 @@ selects it when the supplied scope contains `provider: "collaboration"`.
 remain unknown. Audit OBSERVED does not measure role restrictions, tool counts or
 semantic acceptance and does not satisfy the native doctor's live check.
 
-### 세션 간 독립 evaluator 재개
+### Cross-session independent evaluator recovery
 
-`retryOf`는 같은 세션의 호출 ID다. 다른 세션의 실패는 `resumeFrom`으로 명시한다.
-지원 범위는 같은 canonical worktree·task·evaluator 역할·고정 commitScope·
-implementerIds를 유지하는 REJECTED 호출이다. 새 세션의 실제 sessionId와 parentAgentId를
-사용하고 새 child를 생성한다. 과거 세션으로 위장하거나 inventory를 복사하지 않는다.
-HEAD가 바뀌었다면 이 재개 계약으로 과거 실패를 해결할 수 없다.
+`retryOf` names a call in the same session. Use `resumeFrom` to reference a failure
+in another session. Recovery supports REJECTED evaluator calls with the same
+canonical worktree, task, fixed `commitScope` and `implementerIds`. Use the new
+session's actual `sessionId` and `parentAgentId` and create a fresh child. Do not
+impersonate the old session or copy its inventory. A changed HEAD cannot resolve
+the old failure through this contract.
 
-1. 이전 audit context와 callId를 `{context: <이전 context>, callId: <실패 ID>}`로 저장하고
-   `node <plugin>/scripts/delegation.mjs reference <reference-input.json>`을 실행한다.
-   반환값은 sessionId·parentAgentId·callId와 callHash·dispatchHash·bindingHash·outcomeHash다.
-   해시는 envelope 파일의 원래 바이트를 고정하며 binding이 없으면 bindingHash는 null이다.
-   이 값은 인증 서명이 아니다. 같은 OS 사용자의 모든 근거 파일 재작성은 방어하지 못한다.
-2. 새 begin JSON에 실제 현재 세션 좌표, 새 callId, 현재 역할 sourceHash와 반환된
-   `resumeFrom`을 넣는다. task·repository·commitScope·implementerIds는 이전 호출과 같다.
-   `retryOf`와 `reuseChild`를 함께 넣지 않는다. 과거 자료·역할·task·고정 HEAD·이전 실패를
-   새 evaluator 메시지에 연결하고, 위의 begin → 실제 spawn → bind → complete를 수행한다.
-3. `audit`은 현재 세션과 참조된 과거 세션의 전체 호출을 검증한다. 이전 REJECTED와 이유를
-   유지하고 유효한 OBSERVED 후속 호출에만 `resolvedBy`와 `{sessionId,parentAgentId,callId}`인
-   `resolvedByRef`를 붙인다. 관련 없는 실패·미완료·손상 기록은 계속 audit 실패 원인이다.
-   해시 불일치·누락·scope 불일치·순환·같은 실패의 중복 소비는 거부한다. 새 PENDING도
-   참조를 소비한다. 생성에 실패하면 그 새 호출을 terminal 실패로 기록하고, 다음 재개는
-   그 실패를 참조한다. PENDING을 건너뛰어 이전 실패를 다시 소비하지 않는다.
+1. Save the previous audit context and call ID as
+   `{context: <previous context>, callId: <failed ID>}` and run
+   `node <plugin>/scripts/delegation.mjs reference <reference-input.json>`.
+   The result contains `sessionId`, `parentAgentId`, `callId`, `callHash`,
+   `dispatchHash`, `bindingHash` and `outcomeHash`. Hashes pin the original envelope
+   bytes; an absent binding has a null `bindingHash`. These are not authentication
+   signatures and cannot defend against the same OS user rewriting all evidence.
+2. Add the returned `resumeFrom` to a new begin JSON with the actual current session
+   coordinates, a new call ID and the current role `sourceHash`. Keep `task`,
+   `repository`, `commitScope` and `implementerIds` identical to the previous call.
+   Omit `retryOf` and `reuseChild`. Give the fresh evaluator the previous evidence,
+   role, task, fixed HEAD and failure, then follow begin → actual spawn → bind →
+   complete above.
+3. `audit` validates every call in the current and referenced historical sessions.
+   It retains the previous REJECTED status and reason, adding `resolvedBy` and
+   `resolvedByRef: {sessionId, parentAgentId, callId}` only for a valid OBSERVED
+   successor. Unrelated failures, unfinished calls and corrupt records still fail
+   audit. Hash mismatches, missing records, scope mismatches, cycles and duplicate
+   consumption of a failure are rejected. A new PENDING call consumes the reference
+   too. If creation fails, record that new call as a terminal failure and reference
+   it on the next recovery. Do not skip PENDING to consume the earlier failure again.
 
-호출 식별은 `(sessionId, parentAgentId, callId)`, child 식별은 `(sessionId, child 경로)`다.
-파일 키는 세션 안의 callId이므로 서로 다른 부모도 같은 세션에서는 callId를 중복 사용하지 않는다.
-같은 Git common directory의 여러 worktree 호출은 한 세션 inventory에 공존한다.
-bind와 audit은 각 호출의 worktree와 Git 공통 식별자를 검증한다. 재시도의 repository
-동일성 조건과 audit의 세션·부모 복합 식별자는 유지한다.
-audit은 발견한 다른 부모도 방문 대상으로 추가하고 각 부모의 호출을 해당 방문에서만
-집계한다. 같은 과거 세션의 여러 부모를 참조해도 중복 집계하지 않으며, 참조하지 않은
-부모의 실패·미완료도 결과에서 빠지지 않는다.
-세션마다 반복되는 `/root` 자체는 동일 실행의 증거가 아니다. 기존 implementerIds와
-previousAgentIds는 경로 기반의 보수적 배제 목록으로 유지한다. 새 세션에서도 그 목록에
-있는 경로를 grader로 허용하지 않는다. cross-session reviewer 재사용은 지원하지 않는다.
-같은 세션의 reviewer `retryOf`·`reuseChild`는 기존 절차를 따른다.
+Call identity is `(sessionId, parentAgentId, callId)`; child identity is
+`(sessionId, child path)`. Files are keyed by call ID within a session, so different
+parents must also use distinct call IDs in that session. Calls from worktrees
+sharing a Git common directory coexist in one session inventory. Bind and audit
+validate each call's worktree and Git common identity. Retry repository equality
+and audit's composite session/parent identity remain required. Audit visits other
+parents it discovers and counts each parent's calls only in that visit. References
+to several parents in one historical session do not duplicate counts or hide
+failures and unfinished calls belonging to unreferenced parents.
 
-spawn이 `collab spawn failed: ...` 문자열을 반환하면 그 실제 값을 bind 관측에 넣는다.
-REJECTED outcome은 원래 메시지와 `failure.layer: provider`, `failure.kind`,
-`childState: not-created`를 보존한다. thread limit 메시지는 capacity로 분류하며 성공이나
-MATCH로 승격하지 않는다. 다른 반환 모양은 계약 오류로 남고 추측으로 provider 실패라
-분류하지 않는다. 과거의 `spawn return schema invalid`는 불변으로 보존하며 원래 오류는
-보관된 실제 관측을 별도 근거로 연결한다.
+A recurring `/root` path alone does not identify the same execution.
+`implementerIds` and `previousAgentIds` remain conservative path-based exclusion
+lists: a grader cannot use a listed path even in a new session. Cross-session
+reviewer reuse is unsupported. Same-session reviewer `retryOf` and `reuseChild`
+follow the existing procedure.
 
-같은 생성 한도가 재발하면 반복 생성 대신 VERIFY_PENDING으로 대기하고 실패 참조·고정
-HEAD·필요한 독립 evaluator·확인할 재개 조건을 보고한다. 용량이 사용 가능하다는 새 근거나
-사용자가 요청한 새 평가 세션에서 재개한다. 최대 생성 수, 동시/누적 구분과 리셋 조건은
-provider가 확인한 근거 없이는 UNKNOWN이다. 부모의 대리 판정이나 reviewer의 evaluator
-전환은 복구가 아니다. 저장소 공통 lock은 동시 참조 소비를 직렬화하므로 audit/reference도
-lock 디렉터리 쓰기 권한이 필요하다. EPERM은 sandbox/state 접근 실패이지 정책 차단이 아니다.
+When spawn returns a `collab spawn failed: ...` string, supply that actual value
+as the bind observation. The REJECTED outcome preserves the original message,
+`failure.layer: provider`, `failure.kind` and `childState: not-created`. A thread
+limit message is classified as capacity, never success or MATCH. Other return
+shapes remain contract errors; do not infer provider failure. Preserve historical
+`spawn return schema invalid` outcomes unchanged and link the retained original
+observation separately as evidence of the original error.
+
+If the same creation limit recurs, wait in VERIFY_PENDING instead of repeatedly
+creating calls. Report the failure reference, fixed HEAD, required independent
+evaluator and conditions to check before resuming. Resume when new evidence shows
+available capacity or in a new evaluation session requested by the user. Maximum
+creation counts, concurrent versus cumulative limits and reset conditions remain
+UNKNOWN without provider evidence. Parent judgment or changing a reviewer into an
+evaluator cannot replace recovery. The repository-wide lock serializes reference
+consumption, so audit/reference also need write access to the lock directory.
+EPERM indicates a sandbox/state access failure, not a policy denial.
 
 ## Optional transcript-to-outcome adapters
 
@@ -164,13 +178,15 @@ Selectors describe narrow adapter contracts, not a guarantee that every runtime 
 
 `bash <plugin>/checks/transcript-check.sh --scope <scope.json> --json` reads every stored required call, including missing/failed outcomes. The scoped inventory is session-wide; preserve failed attempts in its population. Do not filter them away to obtain a passing aggregate.
 
-generic scope에는 audit context의 version·runtime·provider·repository·data·sessionId·
-parentAgentId를 모두 넣는다. `format: harness-delegation-v1` 보고서는 검증된 generic
-inventory에서 signals·tools·reuse·a9.verdicts와 population·complete·unreached를 함께
-집계한다. 참조된 과거 세션도 포함한다. 해결된 REJECTED는 실행 audit의 resolvedBy로
-설명하지만 A9 관측의 실패 행을 지우지 않으므로 aggregate는 partial일 수 있다.
-reuse는 호출별 첫 SIGNAL의 집계이며 실제 child 재사용 수를 뜻하지 않는다. 미측정
-도구·토큰 비용은 UNKNOWN이고 native 집계와 자동으로 섞지 않는다.
+For a generic scope, include the audit context's `version`, `runtime`, `provider`,
+`repository`, `data`, `sessionId` and `parentAgentId`. A report with
+`format: harness-delegation-v1` aggregates `signals`, `tools`, `reuse` and
+`a9.verdicts` alongside `population`, `complete` and `unreached` from the validated
+generic inventory, including referenced historical sessions. Execution audit
+explains resolved REJECTED calls through `resolvedBy`; A9 still retains those
+failed observations, so the aggregate may remain partial. `reuse` counts each
+call's first SIGNAL, not actual child reuse. Unmeasured tool and token costs remain
+UNKNOWN; native observations are not automatically mixed into this aggregate.
 
 The existing Claude directory entry remains: `--projects <directory>` (default `~/.claude/projects`), `--session <id>`, `--since <ISO8601|Nd|Nh>`, `--json`. It derives inventory from actual Agent/Task invocations rather than completions alone. Session and time filters intersect; unfinished invocations remain visible even if they began before the window. Completion-only legacy fragments, malformed tails, missing files and unsupported records are UNREACHED. `--self-check` retains the clean/dirty first-line SIGNAL and asynchronous notification controls.
 

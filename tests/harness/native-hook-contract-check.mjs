@@ -67,14 +67,20 @@ try {
   await check('read-only searches keep protected paths and policy words as data', async () => {
     const discard = `rg --files -g AGENTS.md -g CLAUDE.md ${shellPath(path.dirname(main))} 2>/dev/null | head -40; cat ${shellPath(path.join(main, 'CLAUDE.md'))}`;
     assert.equal((await judge(event(discard))).code, 0, discard);
-    for (const suffix of [' >/dev/null-other', ' >>/dev/null', ` >${shellPath(path.join(main, 'output'))}`, ` >/dev/null; rm -rf ${shellPath(main)}`])
+    for (const target of ['/dev/null-other', path.join(workspace, 'output')]) {
+      const command = `rg x ${shellPath(main)} >${shellPath(target)}`;
+      assert.equal((await judge(event(command))).code, 0, command);
+      assert.equal((await judge(event(command, 'harness:reviewer'))).code, target.startsWith(workspace + path.sep) ? 2 : 0, command);
+    }
+    for (const suffix of [' >>/dev/null', ` >${shellPath(path.join(main, 'output'))}`, ` >/dev/null; rm -rf ${shellPath(main)}`])
       assert.equal((await judge(event(`rg x ${shellPath(main)}${suffix}`))).code, 2, suffix);
     for (const command of [`rg -n 'ledger.sh close' ${shellPath(main)}`, `grep -n 'git push' ${shellPath(main)}`, `cat ${shellPath(path.join(main, '한글 공백.txt'))}`]) assert.equal((await judge(event(command, 'harness:reviewer'))).code, 0, command);
     assert.equal((await judge(event(`rg --pre sh ${shellPath(main)}`))).code, 2);
     assert.equal((await judge(event(`cat ${shellPath(main)}; rm -rf ${shellPath(main)}`))).code, 2);
   });
   await check('unknown role, invalid event and malformed patch are UNREACHED', async () => {
-    for (const input of [null, [], {}, {...event('echo ok'), agent_id: 'unidentified'}, event('echo ok', 'unknown'), {...event('not a patch'), tool_name: 'apply_patch'}]) { const result = await judge(input); assert.equal(result.code, 2); assert.match(result.stderr, /UNREACHED/); }
+    assert.equal((await judge({...event('echo ok'), agent_id: 'unidentified'})).code, 0);
+    for (const input of [null, [], {}, {...event('touch output'), agent_id: 'unidentified'}, event('touch output', 'unknown'), {...event('not a patch'), tool_name: 'apply_patch'}]) { const result = await judge(input); assert.equal(result.code, 2); assert.match(result.stderr, /UNREACHED/); }
   });
   await check('PowerShell lexer preserves drive/UNC/Korean spaces and denies dynamic read exemption', () => {
     const drive = String.raw`C:\한글 폴더\a.txt`, unc = String.raw`\\server\share\공백 경로.txt`;

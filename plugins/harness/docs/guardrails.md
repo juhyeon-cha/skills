@@ -35,23 +35,27 @@ The normalizer recognizes a narrow quote-aware read-only shell subset, including
 
 **Role rules compare `agent_type` against `harness:<name>` only** (measured form `harness:implementer` · `harness:reviewer` · `harness:evaluator`). An un-prefixed value is not this harness's role — a same-named agent from outside the plugin must not be read as one.
 
-추가 도구 계약은 `lib/guard/tool-contract.mjs`의 정확한 별칭과 입력 구조로 판정한다.
-질문(`request_user_input_async`), 대기(`clock.sleep`/`clocksleep`), Codex 작업 읽기와
-프로젝트 목록 조회는 역할과 무관한 효과다. `create_thread`는 별도 `task-create` 효과로
-부모만 통과하며, 실제 사용자 승인과 생성 가능 여부는 호스트 계약에서 확인한다.
-CUA는 단독 `await cua.getState();`만 읽기로 지원한다. 임의 JavaScript에는 같은 면제를
-적용하지 않는다. 모르는 도구는 `TOOL_CONTRACT_UNSUPPORTED`, 알려진 도구의 잘못된
-입력은 `TOOL_INPUT_INVALID`, 지원되지 않는 효과는 `TOOL_EFFECT_UNSUPPORTED`다.
+Additional tool contracts use exact aliases and input schemas in
+`lib/guard/tool-contract.mjs`. Questions (`request_user_input_async`), waits
+(`clock.sleep`/`clocksleep`), Codex task reads and project listings have
+role-independent effects. `create_thread` has a separate `task-create` effect
+allowed only for the parent; the host contract still governs user authorization
+and creation availability. CUA supports only a standalone `await cua.getState();`
+as a read. Arbitrary JavaScript receives no such exemption. Unknown tools return
+`TOOL_CONTRACT_UNSUPPORTED`; malformed inputs for known tools return
+`TOOL_INPUT_INVALID`; unsupported effects return `TOOL_EFFECT_UNSUPPORTED`.
 
-POSIX `shell-effects.mjs`는 직접 읽기 명령과 `echo`/`printf`의 리터럴 인자,
-정적인 `>`/`>>` 출력만 완전히 해석한다. 이 범위에서는 읽는 보호 경로와 쓰기 대상을
-분리해 `cat <main-config> > <worktree-report>`를 허용하며, 출력 문자열 속 경로는
-쓰기 후보가 아니다. 실제 main·보호 설정·상태 경로 출력과 symlink를 통한 출력은 계속
-차단한다. 내부가 직접 읽기라고 판정되지 않는 명령 치환은 읽기 면제에서 제외하며
-Git의 외부 프로그램/출력 옵션도 검사한다.
-래퍼·임의 스크립트·heredoc·동적 확장은 이 새 효과 계약 밖이므로 기존 보수적 판정을
-받는다. 스크립트 이름이 preflight라는 이유만으로 읽기로 취급하지 않는다.
-아래 역사적 토큰 판정 표에는 이 제한된 효과 계약의 예외가 함께 적용된다.
+The POSIX `shell-effects.mjs` parser fully interprets a narrow subset: direct reads,
+literal `echo`/`printf` arguments and static `>`/`>>` outputs. Within that subset,
+it separates protected read paths from write targets, allowing
+`cat <main-config> > <worktree-report>`; paths inside output text are not write
+targets. Actual output to main, protected configuration/state paths and symlinks
+into protected paths remains blocked. Command substitutions not established as
+direct reads receive no read exemption; Git external-program/output options are
+also checked. Wrappers, arbitrary scripts, heredocs and dynamic expansion remain
+outside this effect contract and receive the existing conservative judgment.
+A script name containing preflight does not establish a read. These narrow effect
+exceptions also apply to the historical token-judgment table below.
 
 **An internal handler error is a block, not a pass.** The Node entry catches invalid input, module/dispatch failure and rule errors and returns rc 2 with an UNREACHED diagnostic for Claude and Codex. Antigravity delivers native `decision: deny` JSON with transport rc 0; the shared policy code remains two and never certifies an allowed tool. Missing or inactive hooks are diagnosed by doctor; source code alone cannot prove they fired. [Runtime execution](runtime-execution.md) owns the provider translation and parent attestation boundary.
 
