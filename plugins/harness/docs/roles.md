@@ -92,6 +92,12 @@ use `retryOf` and `reuseChild: true` as `transcripts.md` describes; a fresh chil
 remains available. Keep earlier IDs as history, not a blanket ban on reuse.
 Native protocols that cannot isolate a new invocation use a fresh child or the
 generic path unless the user explicitly requires native execution.
+
+세션 간 evaluator 생성 실패 재개는 [세션 간 독립 evaluator 재개](transcripts.md#세션-간-독립-evaluator-재개)를 따른다.
+실제 현재 세션을 유지하고 검증된 `resumeFrom`으로 과거 실패를 연결한다. 지원 범위는
+동일한 고정 commit scope의 새 독립 evaluator이며 부모 대리 판정이나 reviewer 역할
+변경으로 대체하지 않는다. provider 용량 실패와 하네스 계약·정책 실패를 구분하고,
+같은 용량 실패가 반복되면 새 호출을 계속 만들지 말고 근거와 재개 조건을 보고한다.
 Upsert the call and validated outcome with `ledger summary <task ID> execution-<role> --file <file>`, keeping private runtime
 identities and response evidence in the parent-owned local inventory when needed.
 PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handling

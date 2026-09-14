@@ -56,7 +56,7 @@ const callKeys = [
   'permission',
 ];
 function callShape(call) {
-  object(call, [...callKeys, ...['retryOf', 'reuseChild', 'modelOptions'].filter(key => Object.hasOwn(call ?? {}, key))], 'call');
+  object(call, [...callKeys, ...['retryOf', 'resumeFrom', 'reuseChild', 'modelOptions'].filter(key => Object.hasOwn(call ?? {}, key))], 'call');
 }
 
 /** Execution-policy eligibility; this does not spawn or certify a child. */
@@ -82,6 +82,17 @@ export function delegationCapability({ runtime, provider, permission = 'prompt-o
 
 function validateCall(call, root) {
   callShape(call);
+  if (call.resumeFrom !== undefined) {
+    object(call.resumeFrom, ['sessionId', 'parentAgentId', 'callId', 'callHash', 'dispatchHash', 'bindingHash', 'outcomeHash'], 'resume reference');
+    for (const key of ['sessionId', 'callId']) text(call.resumeFrom[key], `resume ${key}`);
+    agent(call.resumeFrom.parentAgentId);
+    for (const key of ['callHash', 'dispatchHash', 'outcomeHash', ...(call.resumeFrom.bindingHash === null ? [] : ['bindingHash'])])
+      if (!/^[a-f0-9]{64}$/.test(call.resumeFrom[key])) throw new Error('resume digest invalid');
+    if (call.resumeFrom.sessionId === call.sessionId || call.retryOf || call.reuseChild)
+      throw new Error('cross-session resume requires a fresh child and a distinct session, without retryOf');
+    if (call.role !== 'evaluator' || call.commitScope?.mode !== 'fixed')
+      throw new Error('cross-session resume supports fixed evaluator calls only');
+  }
   if (call.retryOf !== undefined) {
     text(call.retryOf, 'retryOf');
     if (call.retryOf === call.callId) throw new Error('retry cannot reference itself');
@@ -274,37 +285,83 @@ const result = (call, status, extra = {}) => ({
 
 function outcomeIdentity(call, outcome) {
   object(outcome, [...Object.keys(assurances), 'status', 'callId', 'sessionId', 'task', 'role',
-    ...(outcome?.status === 'REJECTED' ? ['reason'] : ['child', 'head', 'signal', 'result', 'bodyHash'])], 'outcome');
+    ...(outcome?.status === 'REJECTED' ? ['reason', ...(Object.hasOwn(outcome, 'failure') ? ['failure'] : [])] : ['child', 'head', 'signal', 'result', 'bodyHash'])], 'outcome');
   if (!outcome || outcome.callId !== call.callId || outcome.sessionId !== call.sessionId ||
       outcome.task !== call.task || outcome.role !== call.role ||
       Object.entries(assurances).some(([key, value]) => outcome[key] !== value) ||
       !['OBSERVED', 'REJECTED'].includes(outcome.status)) throw new Error('outcome association invalid');
   if (outcome.status === 'REJECTED') text(outcome.reason, 'rejection reason');
+  if (outcome.failure) {
+    object(outcome.failure, ['layer', 'kind', 'message', 'childState'], 'provider failure');
+    if (outcome.failure.layer !== 'provider' || outcome.failure.childState !== 'not-created' ||
+        !['capacity', 'spawn-failed'].includes(outcome.failure.kind) ||
+        outcome.failure.message !== outcome.reason || !outcome.reason.startsWith('collab spawn failed: '))
+      throw new Error('provider failure association invalid');
+  }
+}
+const identityKey = call => JSON.stringify([call.sessionId, call.parentAgentId, call.callId]);
+function sessionScope(scope, sessionId) {
+  const session = path.join(scope.repo, 'sessions', hash(sessionId));
+  return {...scope, sessionId, sessionKey: hash(sessionId), session,
+    directory: path.join(session, 'delegation')};
+}
+function priorScope(scope, call) {
+  return call.resumeFrom ? sessionScope(scope, call.resumeFrom.sessionId) : scope;
 }
 function previousCall(scope, call) {
-  return read(scope, {...call, callId: call.retryOf}, 'call');
+  const own = priorScope(scope, call);
+  const ref = call.resumeFrom ?? {callId: call.retryOf};
+  const prior = read(own, {...call, ...ref}, 'call');
+  if (call.resumeFrom) {
+    for (const kind of ['call', 'dispatch', 'binding', 'outcome']) {
+      const filename = file(own, prior.callId, kind);
+      const actual = kind === 'binding' && !fs.existsSync(filename) ? null : hash(fs.readFileSync(filename));
+      if (actual !== ref[`${kind}Hash`])
+        throw new Error(`resume ${kind} digest mismatch`);
+    }
+  }
+  return prior;
 }
 function retryIds(scope, call) {
-  const ids = new Set([call.callId]);
-  while (call.retryOf) {
-    if (ids.has(call.retryOf)) throw new Error('retry cycle');
-    ids.add(call.retryOf);
-    call = previousCall(scope, call);
+  const ids = new Set([identityKey(call)]);
+  while (call.retryOf || call.resumeFrom) {
+    const prior = previousCall(scope, call);
+    scope = priorScope(scope, call);
+    if (ids.has(identityKey(prior))) throw new Error('retry cycle');
+    ids.add(identityKey(prior));
+    call = prior;
   }
   return ids;
 }
 function validateRetry(scope, call, root) {
-  if (!call.retryOf) return null;
+  if (!call.retryOf && !call.resumeFrom) return null;
   const prior = previousCall(scope, call);
   validateCall(prior, root);
   if (prior.task !== call.task || prior.role !== call.role || prior.repository !== call.repository ||
       prior.commitScope.base !== call.commitScope.base || prior.commitScope.mode !== call.commitScope.mode)
     throw new Error('retry scope mismatch');
-  const outcome = read(scope, prior, 'outcome');
+  const outcome = read(priorScope(scope, call), prior, 'outcome');
   outcomeIdentity(prior, outcome);
+  if (call.resumeFrom && (outcome.status !== 'REJECTED' ||
+      !isDeepStrictEqual(prior.commitScope, call.commitScope) ||
+      !isDeepStrictEqual(prior.implementerIds, call.implementerIds)))
+    throw new Error('resume requires rejected evaluator, identical commit scope and implementation identities');
+  if (call.resumeFrom) {
+    const own = priorScope(scope, call);
+    const child = expectedChild(own, prior);
+    if (fs.existsSync(file(own, prior.callId, 'binding'))) {
+      const binding = read(own, prior, 'binding');
+      object(binding, ['child', 'source', 'tool'], 'binding');
+      independent(prior, binding.child);
+      if (binding.child !== child || binding.source !== 'parent-tool-return' || binding.tool !== bindingTool(prior) || outcome.failure)
+        throw new Error('historical binding association invalid');
+    }
+  }
   if (call.commitScope.mode === 'fixed')
     git(call, 'merge-base', '--is-ancestor', prior.commitScope.head, call.commitScope.head);
   retryIds(scope, call);
+  if (prior.retryOf || prior.resumeFrom) validateRetry(priorScope(scope, call), prior, root);
+  validateResumeConsumption(scope, call);
   if (call.reuseChild && (outcome.status !== 'OBSERVED' || !['CHANGES_REQUESTED', 'LGTM'].includes(outcome.signal)))
     throw new Error('reuse requires a completed reviewer result');
   return prior;
@@ -315,12 +372,62 @@ function availableChild(scope, call, child) {
     const record = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
     const owner = read(scope, { ...call, callId: record.id, parentAgentId: record.parentAgentId }, 'call');
     const binding = read(scope, owner, 'binding');
-    if (binding.child === child && !(ancestors.has(owner.callId) &&
+    if (binding.child === child && !(ancestors.has(identityKey(owner)) &&
         fs.existsSync(file(scope, owner.callId, 'outcome'))))
       throw new Error('child already reserved by an inventory call');
   }
 }
 const bindingTool = call => call.reuseChild ? 'collaboration.followup_task' : 'collaboration.spawn_agent';
+
+// One repository-wide writer lock makes cross-session consumption atomic. It
+// encloses the existing session lock; historical records are never rewritten.
+function inventoryLock(scope, fn) {
+  return withStateLock(path.join(scope.repo, 'delegation-retries'), () =>
+    withStateLock(path.join(scope.directory, 'inventory'), fn));
+}
+function validateResumeConsumption(scope, call) {
+  if (!call.resumeFrom && !call.retryOf) return;
+  const target = identityKey(call.resumeFrom ?? {...call, callId: call.retryOf});
+  const sessions = path.join(scope.repo, 'sessions');
+  for (const name of fs.readdirSync(sessions)) {
+    const directory = path.join(sessions, name, 'delegation');
+    if (!fs.existsSync(directory)) continue;
+    for (const filename of fs.readdirSync(directory).filter(name => name.endsWith('.call.json'))) {
+      const envelope = JSON.parse(fs.readFileSync(path.join(directory, filename), 'utf8'));
+      const owner = envelope.value;
+      if (!owner || identityKey(owner) === identityKey(call)) continue;
+      const ref = owner.resumeFrom ?? (owner.retryOf ? {...owner, callId: owner.retryOf} : null);
+      if (ref && (call.resumeFrom || owner.resumeFrom) && identityKey(ref) === target)
+        throw new Error('resume reference already consumed; inspect successor before another retry');
+    }
+  }
+}
+
+/** Produce an explicit immutable reference without rewriting the old session. */
+export async function delegationResumeReference(input, {root, env = process.env} = {}) {
+  object(input, ['context', 'callId'], 'reference input');
+  object(input.context, ['version', 'runtime', 'provider', 'repository', 'data', 'sessionId', 'parentAgentId'], 'audit context');
+  if (input.context.version !== 1 || input.context.runtime !== 'codex' || input.context.provider !== 'collaboration')
+    throw new Error('unsupported reference version/runtime/provider');
+  agent(input.context.parentAgentId);
+  text(input.context.sessionId, 'sessionId');
+  const scope = await storage(input.context, env);
+  return inventoryLock(scope, () => {
+    const call = read(scope, {...input.context, callId: text(input.callId, 'callId')}, 'call');
+    validateCall(call, root);
+    validateRetry(scope, call, root);
+    const outcome = read(scope, call, 'outcome');
+    outcomeIdentity(call, outcome);
+    if (call.role !== 'evaluator' || call.commitScope.mode !== 'fixed' || outcome.status !== 'REJECTED')
+      throw new Error('resume reference requires a rejected fixed evaluator');
+    expectedChild(scope, call);
+    return {sessionId: call.sessionId, parentAgentId: call.parentAgentId, callId: call.callId,
+      callHash: hash(fs.readFileSync(file(scope, call.callId, 'call'))),
+      dispatchHash: hash(fs.readFileSync(file(scope, call.callId, 'dispatch'))),
+      bindingHash: fs.existsSync(file(scope, call.callId, 'binding')) ? hash(fs.readFileSync(file(scope, call.callId, 'binding'))) : null,
+      outcomeHash: hash(fs.readFileSync(file(scope, call.callId, 'outcome')))};
+  });
+}
 
 /** The caller attests that observations came from its provider tool calls.
  * Local records prevent accidental drift/reuse, not forgery by the same OS user. */
@@ -330,9 +437,10 @@ export async function beginDelegation(call, { root, env = process.env } = {}) {
     call = { ...call, permission: 'prompt-only' };
   validateCall(call, root);
   const scope = await storage(call, env);
-  return withStateLock(path.join(scope.directory, 'inventory'), () => {
+  return inventoryLock(scope, () => {
     verifyCommits(call, 'begin');
     const prior = validateRetry(scope, call, root);
+    validateResumeConsumption(scope, call);
     // This nonce correlates the requested task name with the observed spawn return.
     // It is not a provider-issued invocation ID or proof of role enforcement.
     const dispatch = { task_name: 'harness_' + randomUUID().replaceAll('-', '') };
@@ -415,13 +523,22 @@ export async function bindDelegation(input, { root, env = process.env } = {}) {
   const { call } = input;
   validateCall(call, root);
   const scope = await storage(call, env);
-  return withStateLock(path.join(scope.directory, 'inventory'), () => {
+  return inventoryLock(scope, () => {
     savedCall(scope, call);
     terminal(scope, call);
     if (fs.existsSync(file(scope, call.callId, 'binding'))) throw new Error('duplicate binding');
     try {
       validateRetry(scope, call, root);
       const raw = observation(input.observation, bindingTool(call));
+      if (!call.reuseChild && typeof raw === 'string' && raw.startsWith('collab spawn failed: ')) {
+        text(raw, 'provider spawn error');
+        const failure = result(call, 'REJECTED', {reason: raw, failure: {
+          layer: 'provider', kind: raw === 'collab spawn failed: agent thread limit reached' ? 'capacity' : 'spawn-failed',
+          message: raw, childState: 'not-created',
+        }});
+        write(scope, call, 'outcome', failure);
+        return failure;
+      }
       if (!call.reuseChild) object(raw, ['task_name'], 'spawn return');
       const child = call.reuseChild ? expectedChild(scope, call) : raw.task_name;
       independent(call, child);
@@ -448,7 +565,7 @@ export async function completeDelegation(input, { root, env = process.env } = {}
   // Validate source inside the terminal section so drift leaves a failed inventory.
   callShape(call);
   const scope = await storage(call, env);
-  return withStateLock(path.join(scope.directory, 'inventory'), () => {
+  return inventoryLock(scope, () => {
     savedCall(scope, call);
     terminal(scope, call);
     let outcome;
@@ -506,12 +623,21 @@ export async function auditDelegation(context, { root, env = process.env } = {})
   for (const key of ['repository', 'data'])
     if (typeof context[key] !== 'string' || !path.isAbsolute(context[key]))
       throw new Error('absolute audit paths required');
-  const scope = await storage(context, env);
-  return withStateLock(path.join(scope.directory, 'inventory'), () => {
+  let scope = await storage(context, env);
+  return inventoryLock(scope, () => {
     const calls = [],
       errors = [],
       children = new Map(),
       validCalls = new Map();
+    const initialSession = context.sessionId;
+    const scopes = new Map([[JSON.stringify([context.sessionId, context.parentAgentId]), {scope, context}]]);
+    for (const entry of scopes.values()) {
+    scope = entry.scope;
+    context = entry.context;
+    if (!fs.existsSync(scope.directory)) {
+      errors.push(`${context.sessionId}: missing invocation inventory`);
+      continue;
+    }
     const files = fs.readdirSync(scope.directory).filter((name) => name !== 'inventory.lock');
     const names = files.filter((name) => name.endsWith('.call.json'));
     for (const name of files) {
@@ -530,6 +656,13 @@ export async function auditDelegation(context, { root, env = process.env } = {})
         try {
           validateCall(call, root);
           validateRetry(scope, call, root);
+          validateResumeConsumption(scope, call);
+          if (call.resumeFrom) {
+            const ref = call.resumeFrom;
+            const key = JSON.stringify([ref.sessionId, ref.parentAgentId]);
+            if (!scopes.has(key)) scopes.set(key, {scope: priorScope(scope, call),
+              context: {...context, sessionId: ref.sessionId, parentAgentId: ref.parentAgentId}});
+          }
           expectedChild(scope, call);
           const outcome = read(scope, call, 'outcome');
           outcomeIdentity(call, outcome);
@@ -540,17 +673,18 @@ export async function auditDelegation(context, { root, env = process.env } = {})
               throw new Error('binding provenance invalid');
             independent(call, binding.child);
             if (binding.child !== expectedChild(scope, call)) throw new Error('binding dispatch mismatch');
-            if (children.has(binding.child)) {
-              const owner = read(scope, {...call, callId: children.get(binding.child)}, 'call');
-              if (!(call.reuseChild && retryIds(scope, call).has(owner.callId)) &&
-                  !(owner.reuseChild && retryIds(scope, owner).has(call.callId)))
+            const childKey = JSON.stringify([call.sessionId, binding.child]);
+            if (children.has(childKey)) {
+              const owner = children.get(childKey);
+              if (!(call.reuseChild && retryIds(scope, call).has(identityKey(owner))) &&
+                  !(owner.reuseChild && retryIds(scope, owner).has(identityKey(call))))
                 throw new Error('duplicate inventory child');
             }
-            children.set(binding.child, call.callId);
+            children.set(childKey, call);
           }
           if (outcome.status === 'REJECTED') {
             Object.assign(item, outcome);
-            validCalls.set(call.callId, call);
+            validCalls.set(identityKey(call), {call, scope});
             continue;
           }
           if (
@@ -568,7 +702,7 @@ export async function auditDelegation(context, { root, env = process.env } = {})
             throw new Error('outcome association invalid');
           verifyCommits(call, 'audit', outcome.head);
           Object.assign(item, outcome);
-          validCalls.set(call.callId, call);
+          validCalls.set(identityKey(call), {call, scope});
         } catch (error) {
           item.status = fs.existsSync(file(scope, call.callId, 'outcome')) ? 'REJECTED' : 'PENDING';
           item.reason = error.message;
@@ -578,15 +712,26 @@ export async function auditDelegation(context, { root, env = process.env } = {})
       }
     }
     if (!names.length) errors.push('empty invocation inventory');
+    }
     // Resolve execution failures only through explicit, validated retry links.
     // The original rows retain their status and reason; pending/corrupt calls
     // never disappear behind a later success.
     for (const item of calls.filter(item => item.status === 'OBSERVED')) {
-      let call = validCalls.get(item.callId);
-      while (call?.retryOf && validCalls.has(call.retryOf)) {
-        const prior = calls.find(row => row.callId === call.retryOf);
-        if (prior.status === 'REJECTED') prior.resolvedBy = item.callId;
-        call = validCalls.get(call.retryOf);
+      let current = [...validCalls.values()].find(({call}) =>
+        call.sessionId === item.sessionId && call.callId === item.callId);
+      const successor = current?.call;
+      while (current && (current.call.retryOf || current.call.resumeFrom)) {
+        const previous = previousCall(current.scope, current.call);
+        const key = identityKey(previous);
+        if (!validCalls.has(key)) break;
+        const prior = calls.find(row => row.callId === previous.callId && row.sessionId === previous.sessionId);
+        if (prior.status === 'REJECTED') {
+          prior.resolvedBy = item.callId;
+          prior.resolvedByRef = {sessionId: item.sessionId,
+            parentAgentId: successor.parentAgentId,
+            callId: item.callId};
+        }
+        current = validCalls.get(key);
       }
     }
     return {
@@ -595,7 +740,7 @@ export async function auditDelegation(context, { root, env = process.env } = {})
         !errors.length && calls.length && calls.every((call) => call.status === 'OBSERVED' || call.resolvedBy)
           ? 'OBSERVED'
           : 'REJECTED',
-      sessionId: context.sessionId,
+      sessionId: initialSession,
       calls,
       errors,
     };

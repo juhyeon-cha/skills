@@ -92,10 +92,55 @@ those mutable-tree checks. A result for the wrong or dirty final tree is rejecte
 request/outcome files and the actual observation source for re-entry and grading.
 The immutable outcomes store signal and response hash rather than the full body.
 
-This inventory is separate from native workflow records and transcript aggregation.
+This inventory is separate from native workflow records. The retrospective adapter
+selects it when the supplied scope contains `provider: "collaboration"`.
 `enforcement` and native role evidence remain unavailable; `tools` and `tokens`
 remain unknown. Audit OBSERVED does not measure role restrictions, tool counts or
 semantic acceptance and does not satisfy the native doctor's live check.
+
+### 세션 간 독립 evaluator 재개
+
+`retryOf`는 같은 세션의 호출 ID다. 다른 세션의 실패는 `resumeFrom`으로 명시한다.
+지원 범위는 같은 canonical worktree·task·evaluator 역할·고정 commitScope·
+implementerIds를 유지하는 REJECTED 호출이다. 새 세션의 실제 sessionId와 parentAgentId를
+사용하고 새 child를 생성한다. 과거 세션으로 위장하거나 inventory를 복사하지 않는다.
+HEAD가 바뀌었다면 이 재개 계약으로 과거 실패를 해결할 수 없다.
+
+1. 이전 audit context와 callId를 `{context: <이전 context>, callId: <실패 ID>}`로 저장하고
+   `node <plugin>/scripts/delegation.mjs reference <reference-input.json>`을 실행한다.
+   반환값은 sessionId·parentAgentId·callId와 callHash·dispatchHash·bindingHash·outcomeHash다.
+   해시는 envelope 파일의 원래 바이트를 고정하며 binding이 없으면 bindingHash는 null이다.
+   이 값은 인증 서명이 아니다. 같은 OS 사용자의 모든 근거 파일 재작성은 방어하지 못한다.
+2. 새 begin JSON에 실제 현재 세션 좌표, 새 callId, 현재 역할 sourceHash와 반환된
+   `resumeFrom`을 넣는다. task·repository·commitScope·implementerIds는 이전 호출과 같다.
+   `retryOf`와 `reuseChild`를 함께 넣지 않는다. 과거 자료·역할·task·고정 HEAD·이전 실패를
+   새 evaluator 메시지에 연결하고, 위의 begin → 실제 spawn → bind → complete를 수행한다.
+3. `audit`은 현재 세션과 참조된 과거 세션의 전체 호출을 검증한다. 이전 REJECTED와 이유를
+   유지하고 유효한 OBSERVED 후속 호출에만 `resolvedBy`와 `{sessionId,parentAgentId,callId}`인
+   `resolvedByRef`를 붙인다. 관련 없는 실패·미완료·손상 기록은 계속 audit 실패 원인이다.
+   해시 불일치·누락·scope 불일치·순환·같은 실패의 중복 소비는 거부한다. 새 PENDING도
+   참조를 소비한다. 생성에 실패하면 그 새 호출을 terminal 실패로 기록하고, 다음 재개는
+   그 실패를 참조한다. PENDING을 건너뛰어 이전 실패를 다시 소비하지 않는다.
+
+호출 식별은 `(sessionId, parentAgentId, callId)`, child 식별은 `(sessionId, child 경로)`다.
+세션마다 반복되는 `/root` 자체는 동일 실행의 증거가 아니다. 기존 implementerIds와
+previousAgentIds는 경로 기반의 보수적 배제 목록으로 유지한다. 새 세션에서도 그 목록에
+있는 경로를 grader로 허용하지 않는다. cross-session reviewer 재사용은 지원하지 않는다.
+같은 세션의 reviewer `retryOf`·`reuseChild`는 기존 절차를 따른다.
+
+spawn이 `collab spawn failed: ...` 문자열을 반환하면 그 실제 값을 bind 관측에 넣는다.
+REJECTED outcome은 원래 메시지와 `failure.layer: provider`, `failure.kind`,
+`childState: not-created`를 보존한다. thread limit 메시지는 capacity로 분류하며 성공이나
+MATCH로 승격하지 않는다. 다른 반환 모양은 계약 오류로 남고 추측으로 provider 실패라
+분류하지 않는다. 과거의 `spawn return schema invalid`는 불변으로 보존하며 원래 오류는
+보관된 실제 관측을 별도 근거로 연결한다.
+
+같은 생성 한도가 재발하면 반복 생성 대신 VERIFY_PENDING으로 대기하고 실패 참조·고정
+HEAD·필요한 독립 evaluator·확인할 재개 조건을 보고한다. 용량이 사용 가능하다는 새 근거나
+사용자가 요청한 새 평가 세션에서 재개한다. 최대 생성 수, 동시/누적 구분과 리셋 조건은
+provider가 확인한 근거 없이는 UNKNOWN이다. 부모의 대리 판정이나 reviewer의 evaluator
+전환은 복구가 아니다. 저장소 공통 lock은 동시 참조 소비를 직렬화하므로 audit/reference도
+lock 디렉터리 쓰기 권한이 필요하다. EPERM은 sandbox/state 접근 실패이지 정책 차단이 아니다.
 
 ## Optional transcript-to-outcome adapters
 
@@ -111,6 +156,14 @@ Selectors describe narrow adapter contracts, not a guarantee that every runtime 
 ## Retrospective aggregate
 
 `bash <plugin>/checks/transcript-check.sh --scope <scope.json> --json` reads every stored required call, including missing/failed outcomes. The scoped inventory is session-wide; preserve failed attempts in its population. Do not filter them away to obtain a passing aggregate.
+
+generic scope에는 audit context의 version·runtime·provider·repository·data·sessionId·
+parentAgentId를 모두 넣는다. `format: harness-delegation-v1` 보고서는 검증된 generic
+inventory에서 signals·tools·reuse·a9.verdicts와 population·complete·unreached를 함께
+집계한다. 참조된 과거 세션도 포함한다. 해결된 REJECTED는 실행 audit의 resolvedBy로
+설명하지만 A9 관측의 실패 행을 지우지 않으므로 aggregate는 partial일 수 있다.
+reuse는 호출별 첫 SIGNAL의 집계이며 실제 child 재사용 수를 뜻하지 않는다. 미측정
+도구·토큰 비용은 UNKNOWN이고 native 집계와 자동으로 섞지 않는다.
 
 The existing Claude directory entry remains: `--projects <directory>` (default `~/.claude/projects`), `--session <id>`, `--since <ISO8601|Nd|Nh>`, `--json`. It derives inventory from actual Agent/Task invocations rather than completions alone. Session and time filters intersect; unfinished invocations remain visible even if they began before the window. Completion-only legacy fragments, malformed tails, missing files and unsupported records are UNREACHED. `--self-check` retains the clean/dirty first-line SIGNAL and asynchronous notification controls.
 
