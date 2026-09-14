@@ -186,6 +186,32 @@ fs.writeFileSync(record(repeatedNext, 'dispatch'), JSON.stringify(dispatchEnvelo
 finish(repeatedNext, {...repeatedNextBegin, dispatch: repeatedBegin.dispatch});
 assert.equal(run('audit', context(repeatedNext)).status, 'OBSERVED');
 
+// One Git common directory/session may contain calls in different worktrees.
+// Binding and audit must inspect each recorded owner at its own checkout.
+const sibling = path.join(temp, 'sibling');
+git('worktree', 'add', '-qb', 'sibling', sibling);
+const firstWork = call('worktree-session', 'first-work');
+finish(firstWork, run('begin', firstWork));
+const otherWork = call('worktree-session', 'other-work', {repository: sibling,
+  commitScope: {...firstWork.commitScope, branch: 'sibling'}});
+finish(otherWork, run('begin', otherWork));
+const multipleWorktrees = run('audit', context(otherWork));
+assert.equal(multipleWorktrees.status, 'OBSERVED');
+assert.equal(multipleWorktrees.calls.length, 2);
+// A source copy restores the exact wrong-top lookup responsible for the live
+// reviewer bind failure; the same second-worktree bind must reject there.
+const ownerMutant = path.join(temp, 'wrong-owner');
+fs.cpSync(plugin, ownerMutant, {recursive: true});
+const ownerFile = path.join(ownerMutant, 'lib/runtime/delegation.mjs');
+const ownerSource = fs.readFileSync(ownerFile, 'utf8');
+assert.ok(ownerSource.includes('const own = {...scope, top: envelope.value?.repository};'));
+fs.writeFileSync(ownerFile, ownerSource.replace('const own = {...scope, top: envelope.value?.repository};', 'const own = scope;'));
+const mutantWork = call('worktree-session', 'mutant-work', {repository: sibling,
+  commitScope: otherWork.commitScope});
+const mutantBegin = run('begin', mutantWork);
+assert.match(run('bind', {call: mutantWork, observation: observed({task_name: `/root/${mutantBegin.dispatch.task_name}`})},
+  1, path.join(ownerMutant, 'scripts/delegation.mjs')).reason, /stored call identity mismatch/);
+
 fs.writeFileSync(path.join(repo, 'advanced'), 'next commit');
 git('add', '.'); git('commit', '-qm', 'advance');
 const advanced = git('rev-parse', 'HEAD');

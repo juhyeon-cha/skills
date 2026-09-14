@@ -123,6 +123,10 @@ HEAD가 바뀌었다면 이 재개 계약으로 과거 실패를 해결할 수 �
    그 실패를 참조한다. PENDING을 건너뛰어 이전 실패를 다시 소비하지 않는다.
 
 호출 식별은 `(sessionId, parentAgentId, callId)`, child 식별은 `(sessionId, child 경로)`다.
+파일 키는 세션 안의 callId이므로 서로 다른 부모도 같은 세션에서는 callId를 중복 사용하지 않는다.
+같은 Git common directory의 여러 worktree 호출은 한 세션 inventory에 공존한다.
+bind와 audit은 각 호출의 worktree와 Git 공통 식별자를 검증한다. 재시도의 repository
+동일성 조건과 audit의 세션·부모 복합 식별자는 유지한다.
 세션마다 반복되는 `/root` 자체는 동일 실행의 증거가 아니다. 기존 implementerIds와
 previousAgentIds는 경로 기반의 보수적 배제 목록으로 유지한다. 새 세션에서도 그 목록에
 있는 경로를 grader로 허용하지 않는다. cross-session reviewer 재사용은 지원하지 않는다.

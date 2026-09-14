@@ -322,6 +322,20 @@ function previousCall(scope, call) {
   }
   return prior;
 }
+// A session inventory belongs to the Git common directory, not one checkout.
+// Read each unrelated owner at its recorded checkout while proving it still
+// belongs to this repository. Retry scope equality remains in validateRetry.
+function inventoryOwner(scope, name) {
+  const envelope = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
+  const own = {...scope, top: envelope.value?.repository};
+  const owner = read(own, {callId: envelope.id, parentAgentId: envelope.parentAgentId}, 'call');
+  if (name !== path.basename(file(own, owner.callId, 'call')))
+    throw new Error('inventory filename mismatch');
+  if (fs.realpathSync(git(owner, 'rev-parse', '--show-toplevel')) !== owner.repository ||
+      fs.realpathSync(git(owner, 'rev-parse', '--path-format=absolute', '--git-common-dir')) !== fs.realpathSync(scope.common))
+    throw new Error('inventory repository mismatch');
+  return {scope: own, call: owner};
+}
 function retryIds(scope, call) {
   const ids = new Set([identityKey(call)]);
   while (call.retryOf || call.resumeFrom) {
@@ -369,9 +383,9 @@ function validateRetry(scope, call, root) {
 function availableChild(scope, call, child) {
   const ancestors = call.reuseChild ? retryIds(scope, call) : new Set();
   for (const name of fs.readdirSync(scope.directory).filter(name => name.endsWith('.binding.json'))) {
-    const record = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
-    const owner = read(scope, { ...call, callId: record.id, parentAgentId: record.parentAgentId }, 'call');
-    const binding = read(scope, owner, 'binding');
+    const recorded = inventoryOwner(scope, name.replace(/\.binding\.json$/, '.call.json'));
+    const owner = recorded.call;
+    const binding = read(recorded.scope, owner, 'binding');
     if (binding.child === child && !(ancestors.has(identityKey(owner)) &&
         fs.existsSync(file(scope, owner.callId, 'outcome'))))
       throw new Error('child already reserved by an inventory call');
@@ -451,9 +465,9 @@ export async function beginDelegation(call, { root, env = process.env } = {}) {
       availableChild(scope, call, binding.child);
       dispatch.task_name = path.posix.basename(binding.child);
       for (const name of fs.readdirSync(scope.directory).filter(name => name.endsWith('.call.json'))) {
-        const record = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
-        const owner = read(scope, {...call, callId: record.id, parentAgentId: record.parentAgentId}, 'call');
-        if (!fs.existsSync(file(scope, owner.callId, 'outcome')) && expectedChild(scope, owner) === binding.child)
+        const recorded = inventoryOwner(scope, name);
+        const owner = recorded.call;
+        if (!fs.existsSync(file(recorded.scope, owner.callId, 'outcome')) && expectedChild(recorded.scope, owner) === binding.child)
           throw new Error('reviewer already has an active invocation');
       }
     }
@@ -647,10 +661,9 @@ export async function auditDelegation(context, { root, env = process.env } = {})
     }
     for (const name of names) {
       try {
-        const envelope = JSON.parse(fs.readFileSync(path.join(scope.directory, name), 'utf8'));
-        const call = read(scope, { ...context, callId: envelope.id }, 'call');
-        if (name !== path.basename(file(scope, call.callId, 'call')))
-          throw new Error('inventory filename mismatch');
+        const recorded = inventoryOwner(scope, name);
+        const call = recorded.call;
+        scope = recorded.scope;
         const item = result(call, 'PENDING');
         calls.push(item);
         try {

@@ -497,6 +497,12 @@ export async function r_main_shell(ctx) {
 }
 RULES.push({matcher: 'Bash', run: r_main_shell});
 
+export function r_task_create(ctx) {
+  if (ctx.event.harness_tool_contract?.effect === 'task-create' && child(ctx))
+    deny(ctx, '새 사용자 작업 생성은 부모 오케스트레이터만 수행한다');
+}
+RULES.push({matcher: '*', run: r_task_create});
+
 export function r_remote(ctx) {
   if (!child(ctx)) return;
   if (ctx.common?.remote) deny(ctx, remoteReason);
@@ -655,8 +661,6 @@ export async function evaluateGuard(
       const delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env, readThread });
       event = normalizeHookEvent(raw, { env, delegatedRole });
     }
-    if (event.harness_tool_contract?.effect === 'task-create' && (raw?.agent_id || event.harness_policy_role))
-      throw new Denial('r_task_create', '새 사용자 작업 생성은 부모 오케스트레이터만 수행한다');
     const rawCommand = event.tool_input.command ?? '';
     const windowsOperands =
       event.tool_name === 'Bash'

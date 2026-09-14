@@ -86,6 +86,8 @@ for (const [label, relative, from, to, input, expected] of [
     'export function literalReadEffects(command, cwd, env = process.env) { return null;', bash(allowed[0]), 0],
   ['substitution', 'lib/guard/guard.mjs', 'if (hasUnsafeCommandSubstitution(command, env)) return false;', '', bash(denied[4]), 2],
   ['contracts', 'lib/guard/tool-contract.mjs', 'const canonical = aliases.get(name);', 'const canonical = null;', event(...accepted[0]), 0],
+  ['task-rule', 'lib/guard/guard.mjs', "RULES.push({matcher: '*', run: r_task_create});", '',
+    event('mcp__codex_app__create_thread', create, {agent_id: '/root/reviewer', agent_type: 'harness:reviewer'}), 2],
 ]) {
   const copy = path.join(temp, label); fs.cpSync(root, copy, {recursive: true});
   const file = path.join(copy, relative), original = fs.readFileSync(file, 'utf8');
@@ -95,4 +97,4 @@ for (const [label, relative, from, to, input, expected] of [
   assert.notEqual(result.code, expected, `${label}: removing fix must fail regression`);
   checks++;
 }
-console.log(`PASS recovery guard: ${checks} assertions, 3 killed mutations; candidate commands not executed`);
+console.log(`PASS recovery guard: ${checks} assertions, 4 killed mutations; candidate commands not executed`);
