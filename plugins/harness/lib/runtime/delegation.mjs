@@ -663,6 +663,14 @@ export async function auditDelegation(context, { root, env = process.env } = {})
       try {
         const recorded = inventoryOwner(scope, name);
         const call = recorded.call;
+        // Keep the session+parent boundary. Discover every other parent rather
+        // than dropping its failures, but process it only in its own visit.
+        if (call.parentAgentId !== context.parentAgentId) {
+          const ownerKey = JSON.stringify([call.sessionId, call.parentAgentId]);
+          if (!scopes.has(ownerKey)) scopes.set(ownerKey, {scope: recorded.scope,
+            context: {...context, parentAgentId: call.parentAgentId}});
+          continue;
+        }
         scope = recorded.scope;
         const item = result(call, 'PENDING');
         calls.push(item);

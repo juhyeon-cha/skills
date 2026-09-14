@@ -186,6 +186,34 @@ fs.writeFileSync(record(repeatedNext, 'dispatch'), JSON.stringify(dispatchEnvelo
 finish(repeatedNext, {...repeatedNextBegin, dispatch: repeatedBegin.dispatch});
 assert.equal(run('audit', context(repeatedNext)).status, 'OBSERVED');
 
+// Preserve parent-qualified inventory visits without duplicating a session's
+// calls when independent parents each have a resumed failure.
+const parentA = call('multi-history', 'parent-a', {parentAgentId: '/root/a'});
+const parentB = call('multi-history', 'parent-b', {parentAgentId: '/root/b'});
+fail(parentA); fail(parentB);
+const successorA = call('multi-current', 'successor-a', {resumeFrom: reference(parentA)});
+const successorB = call('multi-current', 'successor-b', {resumeFrom: reference(parentB)});
+finish(successorA, run('begin', successorA));
+finish(successorB, run('begin', successorB));
+const multiAudit = run('audit', context(successorA));
+assert.equal(multiAudit.calls.length, 4);
+assert.equal(new Set(multiAudit.calls.map(x => `${x.sessionId}:${x.callId}`)).size, 4);
+assert.equal(multiAudit.calls.filter(x => x.status === 'REJECTED' && x.resolvedByRef).length, 2);
+const parentMutant = path.join(temp, 'without-parent-partition');
+fs.cpSync(plugin, parentMutant, {recursive: true});
+const parentFile = path.join(parentMutant, 'lib/runtime/delegation.mjs');
+const parentSource = fs.readFileSync(parentFile, 'utf8');
+const parentAnchor = 'if (call.parentAgentId !== context.parentAgentId) {';
+assert.ok(parentSource.includes(parentAnchor));
+fs.writeFileSync(parentFile, parentSource.replace(parentAnchor, 'if (false) {'));
+const duplicatedParents = run('audit', context(successorA), 1, path.join(parentMutant, 'scripts/delegation.mjs'));
+assert.equal(duplicatedParents.calls.length, 6);
+const unseenParent = call('multi-history', 'unrelated-parent', {parentAgentId: '/root/c'});
+run('begin', unseenParent);
+const partialParents = run('audit', context(successorA), 1);
+assert.equal(partialParents.calls.length, 5);
+assert.equal(partialParents.calls.find(x => x.callId === unseenParent.callId).status, 'PENDING');
+
 // One Git common directory/session may contain calls in different worktrees.
 // Binding and audit must inspect each recorded owner at its own checkout.
 const sibling = path.join(temp, 'sibling');
