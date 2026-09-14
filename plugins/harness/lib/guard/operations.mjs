@@ -64,6 +64,10 @@ export function gitReadonly(input) {
     return false;
   // Git accepts abbreviated long options. Output files and external
   // diff/textconv commands are effects, even on a read subcommand.
+  return gitReadOptionsSafe(args);
+}
+
+export function gitReadOptionsSafe(args) {
   return !args.some((arg) => {
     const option = arg.split('=')[0];
     return option.startsWith('--') && option.length > 2 &&

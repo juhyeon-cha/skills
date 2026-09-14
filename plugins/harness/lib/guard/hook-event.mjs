@@ -7,6 +7,8 @@ import {
 
 import { canonicalRole } from '../runtime/role-contract.mjs';
 import { powershellOperations } from './powershell-operations.mjs';
+import {additionalToolContract, ToolContractError} from './tool-contract.mjs';
+import {literalReadEffects} from './shell-effects.mjs';
 
 export function normalizeHookEvent(
   raw,
@@ -26,11 +28,12 @@ export function normalizeHookEvent(
     throw new Error('required hook input missing');
   if (!/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(raw.cwd) || /[\0\r\n]/.test(raw.cwd))
     throw new Error('absolute cwd required');
-  if (!['Bash', 'PowerShell', 'exec_command', 'apply_patch', 'Write', 'Edit', 'NotebookEdit',
+  const contract = additionalToolContract(raw.tool_name, raw.tool_input);
+  if (!contract && !['Bash', 'PowerShell', 'exec_command', 'apply_patch', 'Write', 'Edit', 'NotebookEdit',
     'Read', 'NotebookRead', 'Glob', 'Grep', 'Agent', 'Task', 'SendMessage', 'EnterWorktree', 'ExitWorktree',
     'WebSearch', 'WebFetch', 'AskUserQuestion', 'TodoWrite', 'Skill'].includes(raw.tool_name) &&
     !/^collaboration\.?(?:spawn_agent|send_message|list_agents|wait_agent|followup_task|interrupt_agent)$/.test(raw.tool_name))
-    throw new Error('unknown tool contract');
+    throw new ToolContractError('TOOL_CONTRACT_UNSUPPORTED');
   for (const key of ['agent_id', 'agent_type'])
     if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
   if (delegatedRole && (!raw.agent_id || (raw.agent_type && raw.agent_type !== 'default') || !canonicalRole(delegatedRole)))
@@ -45,6 +48,7 @@ export function normalizeHookEvent(
     harness_policy_role: delegatedRole || canonicalRole(raw.agent_type) || '',
     harness_operations: [],
     harness_shell_readonly: false,
+    harness_tool_contract: contract,
   };
   if (raw.tool_name === 'exec_command' || raw.tool_name === 'PowerShell') event.tool_name = 'Bash';
   if (event.tool_name === 'Bash') {
@@ -66,7 +70,11 @@ export function normalizeHookEvent(
       event.harness_operations = parsed.paths.map((path) => ({ kind: 'update', path }));
     } else {
       event.harness_shell_readonly = isReadonlySearch(command, env);
-      if (!event.harness_shell_readonly)
+      event.harness_literal_effects = literalReadEffects(command, raw.cwd, env);
+      if (event.harness_literal_effects) {
+        event.harness_effect_readonly = event.harness_literal_effects.writes.length === 0;
+        event.harness_operations = event.harness_literal_effects.writes.map(path => ({kind: 'update', path}));
+      } else if (!event.harness_shell_readonly)
         event.harness_operations = quotedPathCandidates(command, raw.cwd);
     }
   } else if (event.tool_name === 'apply_patch') {

@@ -15,12 +15,14 @@ There are three inputs — **the ledger (body summaries and event notes)**, **th
 
 - Read the full `ledger show <ID>` of the target story (or stories) and the body summaries and event notes of every milestone and task under it.
 - Check what this round left in the harness backlog with `ledger list -l harness`.
+- 중복 판정 전에 후보 본문과 현재 구현을 읽는다. 제목과 닫힘 상태만으로 현재 결함의 해결을 판단하지 않는다. 승인된 원장 반영에는 `harness:develop` “원장에 본문을 넘기는 형태”의 파일 기반 인자를 쓴다.
 - In each summary and event note, separate **observation** (what actually happened) from **proposal** (what to change) and pull both out.
 
 ### 1-2. Subagent transcripts
 
 - Read `${CLAUDE_PLUGIN_ROOT}/docs/transcripts.md` for adapter selection and completeness semantics. `transcript` is the native aggregate entry; the legacy shell entry remains a wrapper.
 - For ordinary workflow inventory, call `transcript --scope <scope.json> --json`. Use the actual session metadata retained at begin; a missing inventory is UNREACHED. This aggregate covers the session, including failed and unfinished attempts. Identify the story's calls from their recorded task scope rather than discarding failures.
+- Codex/collaboration의 generic delegation은 실제 scope의 `provider: "collaboration"`으로 같은 명령을 호출한다. native inventory와 별도 저장되는 지원 경로다. generic audit에 호출이 보이는데 native population이 비어 있으면 기록 소실로 단정하지 말고 어댑터 선택을 확인한다. 참조된 과거 실패·미완료도 집계에 남기며 tools와 tokens는 UNKNOWN이다.
 - For historical Claude transcripts, the documented directory adapter accepts `--projects`, `--session` and `--since` together. Pass the known session and story start time. An unknown session must be recorded as an attribution limit; wider observations are trends, not automatically this story's population.
 - Quote `signals`, `tools`, `reuse` and `a9.verdicts` together with `population`, `complete`, and `unreached`. `complete: false` makes counts partial observations, unsuitable as a full rejection-rate denominator. Token `UNKNOWN` and `total: null` are unmeasured cost, independent of A9's SIGNAL judgment.
 - On rc 2, upsert the `unreached` reasons verbatim with `ledger summary <story ID> retrospective --file <file>` and proceed using the reached observations and ledger with those limits. Missing observations contribute nothing to the two-observation promotion bar. Never report missing tools, tokens, unfinished calls or unsupported formats as zero.
@@ -41,7 +43,7 @@ the individual entries; no shell text-processing utilities are required.
 
 Round × rule × classifiability with a count — that is the denominator per rule, and it is what ② and ③ below are computed over. Then read the full rows of the rules that clear ③'s 5-row floor. **Rules older than the log get their rate quoted per round, never pooled** — ceiling 6 of section 11 says why.
 
-**Read rc before reading a single row.** rc=4 ("blocking really was 0") and rc=6 ("blocking happened, none of it classifiable") are the pair that fabricates a clean rule when folded together, and rc=5 is a missing round, not an empty one. The full rc table and every ceiling on these numbers are **[guardrail-verification.md](../../docs/guardrail-verification.md) section 11, "When firing counts can be used as evidence"** — that section owns them, this one does not restate them. Read it before quoting any rate; two of its ceilings (the 120-character cut halving the denominator, and the log sampling guard firings rather than blocked work) decide how the rate may be worded.
+**Read rc before reading a single row.** rc=4 ("blocking really was 0") and rc=6 ("blocking happened, none of it classifiable") are the pair that fabricates a clean rule when folded together, and rc=5 is a missing round, not an empty one. The full rc table and every ceiling on these numbers are **[guardrail-verification.md](../../docs/guardrail-verification.md) section 11, "When firing counts can be used as evidence"** — that section owns them, this one does not restate them. 과거 120자 절단 측정은 당시의 관측값이다. 현재 metadata-only 행은 분류 불가이며, 가드 발화 횟수는 차단된 사용자 작업 수가 아니다.
 
 **② What is judged — and by whom**
 
@@ -61,6 +63,13 @@ Do not hide that split, and do not report a rate as if the whole of it were mach
 Over threshold, stand up **a proposal to narrow that rule** — not a note about it. The proposal goes out on the section 5 path (a per-file diff, applied after human approval), and it carries: the rule name · the rate with **its denominator and the round** · the `ok` rows read as false positives, quoted · what narrowing them costs on the other side (which true blocks the narrowing would also drop). A narrowing with no answer to that last one is not ready.
 
 A reproducible false positive can be proposed for correction immediately; the sample floor governs rate claims, not whether a demonstrated defect may be fixed. Record recovery time, required human interventions and potential harm where observed. Keep unmeasured cost unknown. Section 3 separates defect correction from trend-based policy changes.
+
+사건마다 사용자 의도 · 실제 호출 근거 · 오류 · 차단 계층 · 판정 · 복구 · 관측 한계를 남긴다.
+정책 차단, 입력 계약 미지원, provider 생성 실패, 파일시스템/sandbox 오류, 호출자 입력 오류를
+분리한다. [state.md](../../docs/state.md)의 최소 진단 필드가 없는 과거 기록은 미측정이다.
+별도 원문 호출은 개별 재현 근거로만 쓰고 `nocmd` 행의 분모를 복원하지 않는다.
+실행 결과가 다르면 실제 입력·cwd·환경·로드된 소스 해시를 비교한다. 버전 문자열만으로
+동일한 실행을 확정하지 않는다. 근거를 얻으려고 운영 스크립트를 재실행하지 않는다.
 
 ## 2. Three-way sort
 

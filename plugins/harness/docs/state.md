@@ -10,6 +10,17 @@ The base priority is `HARNESS_DATA_DIR`, selected runtime plugin data (`PLUGIN_D
 
 `node <plugin>/scripts/state.mjs paths <runtime> <repo> <session>` prints the resolved paths. `guard-log.sh` uses the same resolver; set `HARNESS_RUNTIME` and the active hook data directory when calling it outside a plugin hook. Its cwd selects the repository. Hook cwd is session context, not verified shell execution cwd.
 
+## 가드 최소 진단
+
+`guard.tsv`의 기존 metadata-only 행은 유지한다. `guard.tsv.diagnostics.jsonl`은
+버전, 시각, session/agent 식별자, 정규화한 도구, 효과, 정책 규칙, 결과 코드,
+`layer`와 `reasonCode`만 남긴다. 입력 키·값, 명령 원문, 파일 경로와 질문 본문은 저장하지 않는다.
+`contract` 계층은 미지원 도구·효과와 잘못된 입력을 구분하고, `policy`는 실제 정책 판정을 뜻한다.
+`input-or-state`는 계약 외 입력·상태 오류이며, `filesystem`의 EPERM/EACCES만으로 sandbox가
+유일한 원인이라고 단정하지 않는다. 로그 기록 실패는 반환값의 `observation: UNREACHED`로
+정책 결과와 구분한다. provider 생성 오류는 delegation outcome에서 조사한다.
+이 필드는 오탐 분류나 사용자 승인 증명이 아니며 `nocmd` 분모를 늘리지 않는다.
+
 ## Confirming an actor and resuming
 
 After `ledger.sh update <task> --claim --actor <actor>` succeeds, run:

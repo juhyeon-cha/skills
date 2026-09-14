@@ -201,6 +201,18 @@ export async function guardLog(event, rule, env = process.env) {
       .join('\t'),
     { maxLines: Number(env.HARNESS_GUARD_LOG_MAX ?? 20000) },
   );
+  // Versioned metadata only. No input keys, values, command text, paths or
+  // provider message bodies enter this sidecar. Legacy TSV stays unchanged.
+  if (event.harness_guard_diagnostic) appendState(
+    file + '.diagnostics.jsonl',
+    JSON.stringify({
+      observedAt: new Date().toISOString(),
+      sessionId: /^[A-Za-z0-9_.:/-]{1,160}$/.test(event.session_id ?? '') ? event.session_id : 'UNKNOWN',
+      agentId: /^[A-Za-z0-9_.:/-]{1,160}$/.test(event.agent_id ?? '') ? event.agent_id : 'UNKNOWN',
+      ...event.harness_guard_diagnostic,
+    }),
+    {maxLines: Number(env.HARNESS_GUARD_LOG_MAX ?? 20000)},
+  );
   return { file, status: scope ? 'SCOPED' : 'UNVERIFIED' };
 }
 export function readActors(scope) {
