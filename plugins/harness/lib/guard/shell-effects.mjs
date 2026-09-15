@@ -68,21 +68,3 @@ export function literalReadEffects(command, cwd, env = process.env) {
   if (!writes.length && !dataCommand) return null;
   return {writes: [...new Set(writes)]};
 }
-
-export function hasUnsafeCommandSubstitution(command, env = process.env) {
-  let quote = '';
-  for (let i = 0; i < command.length; i++) {
-    const c = command[i];
-    if (quote === "'") { if (c === "'") quote = ''; continue; }
-    if (c === '\\') { i++; continue; }
-    if (c === '`' || (c === '$' && command[i + 1] === '(')) {
-      const start = i + (c === '`' ? 1 : 2);
-      const end = command.indexOf(c === '`' ? '`' : ')', start);
-      if (end < 0 || !isReadonlySearch(command.slice(start, end), env)) return true;
-      i = end; continue;
-    }
-    if (c === '"') quote = quote === '"' ? '' : '"';
-    else if (c === "'" && !quote) quote = "'";
-  }
-  return false;
-}

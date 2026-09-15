@@ -60,11 +60,11 @@ Low-risk work can complete with local checks and acceptance evidence. Independen
 review remains required for its risk categories and explicit repository/user
 requirements.
 
-Additional tool aliases and schemas live in `lib/guard/tool-contract.mjs`.
+Additional tool effect classifications live in `lib/guard/tool-contract.mjs`.
 Questions, waits, task reads and project listings are role-independent. Task
-creation is parent-only. CUA grants read status only to standalone
-`await cua.getState();`. Unknown tools, invalid inputs and unsupported effects
-have separate contract diagnostics.
+creation is parent-only. The host validates tool inputs and permissions, including
+CUA and tools without harness-specific policy. Those opaque tools pass through
+without a read-only or safety claim; recognized file tools still enforce targets.
 
 `literalReadEffects` preserves main's read/output distinction and role-independent
 read recovery. Commands outside that literal subset use recognized write-target

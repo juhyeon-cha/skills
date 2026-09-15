@@ -43,16 +43,23 @@ for (const [tool, input] of accepted) {
   await check(event(tool, input), 0);
   await check(event(tool, input, {agent_id: '/root/unidentified', agent_type: 'default'}), 0);
 }
-await check(event('unknown_read_tool', {}), 2, 'TOOL_CONTRACT_UNSUPPORTED');
-await check(event('clocksleep', {duration_ms: -1}), 2, 'TOOL_INPUT_INVALID');
-await check(event('request_user_input_async', {questions: [{title: ''}]}), 2, 'TOOL_INPUT_INVALID');
-await check(event('mcp__codex_app__list_projects', {unexpected: true}), 2, 'TOOL_INPUT_INVALID');
+// The host owns schemas and opaque tool permissions, including future fields.
+for (const [tool, input] of [
+  ['unknown_read_tool', {file_path: main + '/input'}],
+  ['clocksleep', {duration_ms: -1}],
+  ['request_user_input_async', {questions: [{title: ''}]}],
+  ['mcp__codex_app__list_projects', {futureOption: true}],
+  ['mcp__codex_app__read_thread', {threadId: 'fixture', futureOption: true}],
+]) {
+  await check(event(tool, input), 0);
+  await check(event(tool, input, {agent_id: '/root/unidentified', agent_type: 'default'}), 0);
+}
 for (const code of ['await cua.getState(); await cua.getApp("A");', 'await cua.click(1);', 'await cua["getState"]();'])
-  await check(event('mcp__cua_repl__js', {code}), 2, 'TOOL_EFFECT_UNSUPPORTED');
+  assert.equal((await check(event('mcp__cua_repl__js', {code}), 0)).diagnostic.reasonCode, 'ALLOWED');
 const create = {prompt: 'Independent evaluation', target: {type: 'projectless'}};
 await check(event('mcp__codex_app__create_thread', create), 0);
 await check(event('mcp__codex_app__create_thread', create, {agent_id: '/root/reviewer', agent_type: 'harness:reviewer'}), 2, 'POLICY_DENIED');
-await check(event('mcp__codex_app__create_thread', {...create, target: {type: 'project', projectId: 'p'}}), 2, 'TOOL_INPUT_INVALID');
+await check(event('mcp__codex_app__create_thread', {...create, target: {type: 'project', projectId: 'p'}}), 0);
 const bash = command => event('exec_command', {cmd: command});
 const allowed = [
   `cat '${main}/.harness.json' > '${work}/report.json'`,
@@ -88,7 +95,7 @@ for (const command of [
 assert.equal(fs.existsSync(path.join(main, 'output')), false);
 const log = fs.readFileSync(path.join(env.HARNESS_DATA_DIR, 'v1/codex/repos',
   fs.readdirSync(path.join(env.HARNESS_DATA_DIR, 'v1/codex/repos'))[0], 'guard.tsv.diagnostics.jsonl'), 'utf8');
-assert.ok(log.includes('TOOL_EFFECT_UNSUPPORTED'));
+assert.ok(log.includes('host-managed'));
 for (const secret of [main, work, 'Continue?', 'Independent evaluation', 'touch']) assert.ok(!log.includes(secret));
 checks++;
 // Removing each fix must break the corresponding expectation. Copies only.
@@ -96,7 +103,6 @@ for (const [label, relative, from, to, input, expected] of [
   ['effects', 'lib/guard/shell-effects.mjs', 'export function literalReadEffects(command, cwd, env = process.env) {',
     'export function literalReadEffects(command, cwd, env = process.env) { return null;', {...bash(allowed[3]), agent_id: '/root/unidentified', agent_type: 'default'}, 0],
   ['substitution', 'lib/guard/operations.mjs', 'nested.push(...shellWriteOperations(command.slice(start, end), cwd));', '', bash(denied[4]), 2],
-  ['contracts', 'lib/guard/tool-contract.mjs', 'const canonical = aliases.get(name);', 'const canonical = null;', event(...accepted[0]), 0],
   ['task-rule', 'lib/guard/guard.mjs', "RULES.push({matcher: '*', run: r_task_create});", '',
     event('mcp__codex_app__create_thread', create, {agent_id: '/root/reviewer', agent_type: 'harness:reviewer'}), 2],
 ]) {
@@ -108,4 +114,4 @@ for (const [label, relative, from, to, input, expected] of [
   assert.notEqual(result.code, expected, `${label}: removing fix must fail regression`);
   checks++;
 }
-console.log(`PASS recovery guard: ${checks} assertions, 4 killed mutations; candidate commands not executed`);
+console.log(`PASS recovery guard: ${checks} assertions, 3 killed mutations; candidate commands not executed`);

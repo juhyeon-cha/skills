@@ -94,7 +94,8 @@ remains available. Keep earlier IDs as history, not a blanket ban on reuse.
 Native protocols that cannot isolate a new invocation use a fresh child or the
 generic path unless the user explicitly requires native execution.
 
-When resuming an evaluator creation failure in another session, follow
+When an evaluator cannot start, reassess the verification path first. To link
+a fresh independent attempt to a failure in another session, consult
 [Cross-session independent evaluator recovery](transcripts.md#cross-session-independent-evaluator-recovery)
 for the supported scope, verified failure reference and capacity-wait procedure.
 

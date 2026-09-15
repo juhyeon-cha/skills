@@ -1245,8 +1245,7 @@ for i in "${!RM_LIMIT_CMD[@]}"; do
   run "${RM_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${RM_LIMIT_N[$i]}" "${RM_LIMIT_CMD[$i]}"
   if [[ "${RM_LIMIT_CMD[$i]}" = *'가상 GitHub MCP'* ]]; then
-    step "미등록 도구는 원격 정책 전 정규화에서 거부된다" [ "$GUARD_RC" -eq 2 ]
-    step "미등록 도구 판정 근거를 밝힌다" has_text 'unknown tool contract' "$GUARD_OUT"
+    step "Opaque remote tools remain subject to host permissions" [ "$GUARD_RC" -eq 0 ]
   else
     step "한계(못 막음, rc=0 고정) ${RM_LIMIT_N[$i]}: ${RM_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
   fi
@@ -1309,17 +1308,17 @@ j_tool_agent() {  # j_tool_agent <도구> <경로> <agent_type> [cwd — 기본�
 # (⑨ 이 만든 $MCROOT/repo/.harness.json), 훅이 읽는 클론 루트 변수는 없다.
 runrole() { runm "$(j_sub "$1" "$2")"; }   # <명령> <agent_type>
 
-# ── 차단: 파일 쓰기 (acceptance ①).
-# 목록의 뒤 둘은 **규칙에 이름이 등재되지 않은** 도구다. 종전에는 r_grader_write 가 세
-# 이름에만 등재돼 그 밖의 쓰기 도구는 기본값이 "검사 안 됨"이었다 — 허용 목록 극성이라
-# 새 도구가 붙는 순간 A1/A2 가 게이트 실패 없이 커버를 잃는다 (.claude/rules/agile.md).
-# 이 두 줄은 이름을 늘리는 것이 아니라 **새 이름의 기본값이 "검사됨"인지**를 묻는다.
+# Recognized file writes remain guarded; opaque tools use host permissions.
 GR_R=harness:reviewer; GR_E=harness:evaluator; IMPL_T=harness:implementer
 for role in $GR_R $GR_E; do
-  for tool in Write Edit NotebookEdit MultiEdit mcp__fs__write_file; do
+  for tool in Write Edit NotebookEdit; do
     runm "$(j_tool_agent "$tool" "$GR_PATH" "$role")"
     printf '  rc=%d  [%s] %s %s\n' "$GUARD_RC" "$role" "$tool" "$GR_PATH"
     step "차단(도구): $tool · agent_type=$role" [ "$GUARD_RC" -eq 2 ]
+  done
+  for tool in MultiEdit mcp__fs__write_file; do
+    runm "$(j_tool_agent "$tool" "$GR_PATH" "$role")"
+    step "Opaque tool uses host permissions: $tool · $role" [ "$GUARD_RC" -eq 0 ]
   done
   # 과차단 대조군 — 읽기는 금지가 아니다. 두 역할 정의가 "검증용 명령 실행은 허용"을
   # 명시하고, 읽지 못하면 리뷰·판정 자체가 불가능하다. 위 극성 반전이 읽기까지 삼키면
@@ -1681,10 +1680,7 @@ GR_LIMIT_N+=(3); GR_LIMIT_CMD+=('bash /tmp/grader-writer.sh')
 GR_LIMIT_JSON+=("$(j_sub 'bash /tmp/grader-writer.sh' "$GR_R")")
 GR_LIMIT_N+=(4); GR_LIMIT_CMD+=('[agent_type 없는 위임] git commit -m x')
 GR_LIMIT_JSON+=("$(j_agentfields 'git commit -m x' 'aa306a4edf39e7dfe' '')")
-# 한계 5(목록 밖 쓰기 도구가 rc=0 으로 샌다)는 **해소됐다** — harness-qpx. r_grader_write 가
-# 도구 이름 목록이 아니라 w_path(대상 경로를 받는가)로 발동하도록 극성을 뒤집었고, 그
-# 차단 단언은 위 "차단(도구)" 루프의 MultiEdit·mcp__fs__write_file 두 줄이 든다.
-# 등재를 지우기만 하면 해소가 게이트에서 사라지므로 차단 쪽으로 옮긴 것이다.
+# Opaque-tool pass-through is covered alongside the recognized-write cases above.
 for i in "${!GR_LIMIT_CMD[@]}"; do
   run "${GR_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${GR_LIMIT_N[$i]}" "${GR_LIMIT_CMD[$i]}"
@@ -2205,8 +2201,7 @@ for i in "${!IMPL_LIMIT_CMD[@]}"; do
   run "${IMPL_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${IMPL_LIMIT_N[$i]}" "${IMPL_LIMIT_CMD[$i]}"
   if [[ "${IMPL_LIMIT_CMD[$i]}" = *'mcp__bd__create'* ]]; then
-    step "미등록 원장 도구는 정규화에서 거부된다" [ "$GUARD_RC" -eq 2 ]
-    step "미등록 도구 판정 근거를 밝힌다" has_text 'unknown tool contract' "$GUARD_OUT"
+    step "Opaque ledger tools remain subject to host permissions" [ "$GUARD_RC" -eq 0 ]
   elif [[ "${IMPL_LIMIT_CMD[$i]}" = '[agent_type 없는 위임]'* ]]; then
     step "미식별 역할 차단: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
   else

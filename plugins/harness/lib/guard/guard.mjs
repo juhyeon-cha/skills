@@ -182,9 +182,9 @@ function pathCandidates(ctx) {
 }
 
 const filePath = (ctx) =>
-  member('Read NotebookRead Glob Grep', ctx.event.tool_name)
-    ? ''
-    : ctx.event.tool_input.file_path || ctx.event.tool_input.notebook_path || '';
+  member('Write Edit NotebookEdit', ctx.event.tool_name)
+    ? ctx.event.tool_input.file_path || ctx.event.tool_input.notebook_path || ''
+    : '';
 const policyRole = (ctx) => ctx.event.harness_policy_role || ctx.event.agent_type;
 const grader = (ctx) => member(GR_ROLES, policyRole(ctx));
 const child = (ctx) => Boolean(ctx.event.agent_id || ctx.event.agent_type);

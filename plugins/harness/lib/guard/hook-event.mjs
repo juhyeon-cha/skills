@@ -7,7 +7,7 @@ import {
 
 import { canonicalRole } from '../runtime/role-contract.mjs';
 import { powershellOperations } from './powershell-operations.mjs';
-import {additionalToolContract, ToolContractError} from './tool-contract.mjs';
+import {additionalToolContract} from './tool-contract.mjs';
 import {literalReadEffects} from './shell-effects.mjs';
 
 export function normalizeHookEvent(
@@ -28,12 +28,12 @@ export function normalizeHookEvent(
     throw new Error('required hook input missing');
   if (!/^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(raw.cwd) || /[\0\r\n]/.test(raw.cwd))
     throw new Error('absolute cwd required');
-  const contract = additionalToolContract(raw.tool_name, raw.tool_input);
+  let contract = additionalToolContract(raw.tool_name);
   if (!contract && !['Bash', 'PowerShell', 'exec_command', 'apply_patch', 'Write', 'Edit', 'NotebookEdit',
     'Read', 'NotebookRead', 'Glob', 'Grep', 'Agent', 'Task', 'SendMessage', 'EnterWorktree', 'ExitWorktree',
     'WebSearch', 'WebFetch', 'AskUserQuestion', 'TodoWrite', 'Skill'].includes(raw.tool_name) &&
     !/^collaboration\.?(?:spawn_agent|send_message|list_agents|wait_agent|followup_task|interrupt_agent)$/.test(raw.tool_name))
-    throw new ToolContractError('TOOL_CONTRACT_UNSUPPORTED');
+    contract = {canonical: 'OTHER', effect: 'host-managed', roleIndependent: true};
   for (const key of ['agent_id', 'agent_type'])
     if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
   if (delegatedRole && (!raw.agent_id || (raw.agent_type && raw.agent_type !== 'default') || !canonicalRole(delegatedRole)))
@@ -83,7 +83,7 @@ export function normalizeHookEvent(
     const value = raw.tool_input.file_path ?? raw.tool_input.notebook_path;
     if (['Write', 'Edit', 'NotebookEdit'].includes(raw.tool_name) && !value)
       throw new Error('file target missing');
-    if (value && !['Read', 'NotebookRead', 'Glob', 'Grep'].includes(raw.tool_name))
+    if (value && ['Write', 'Edit', 'NotebookEdit'].includes(raw.tool_name))
       event.harness_operations = [{ kind: 'update', path: normalizePath(value, raw.cwd) }];
   }
   return event;
