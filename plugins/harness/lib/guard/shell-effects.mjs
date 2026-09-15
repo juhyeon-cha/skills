@@ -1,7 +1,7 @@
 import {isReadonlySearch, normalizePath} from './operations.mjs';
 
-// A complete parse of a deliberately small literal grammar. Unknown commands
-// retain the legacy conservative policy; this is not a shell interpreter.
+// A complete parse of a deliberately small literal grammar. Other commands
+// use recognized write-target analysis; this is not a shell interpreter.
 export function literalReadEffects(command, cwd, env = process.env) {
   if (typeof command !== 'string' || /[\0\r]/.test(command)) return null;
   const segments = [[]];
@@ -67,22 +67,4 @@ export function literalReadEffects(command, cwd, env = process.env) {
   // Plain searches retain the existing classification and mutation controls.
   if (!writes.length && !dataCommand) return null;
   return {writes: [...new Set(writes)]};
-}
-
-export function hasUnsafeCommandSubstitution(command, env = process.env) {
-  let quote = '';
-  for (let i = 0; i < command.length; i++) {
-    const c = command[i];
-    if (quote === "'") { if (c === "'") quote = ''; continue; }
-    if (c === '\\') { i++; continue; }
-    if (c === '`' || (c === '$' && command[i + 1] === '(')) {
-      const start = i + (c === '`' ? 1 : 2);
-      const end = command.indexOf(c === '`' ? '`' : ')', start);
-      if (end < 0 || !isReadonlySearch(command.slice(start, end), env)) return true;
-      i = end; continue;
-    }
-    if (c === '"') quote = quote === '"' ? '' : '"';
-    else if (c === "'" && !quote) quote = "'";
-  }
-  return false;
 }

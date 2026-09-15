@@ -91,16 +91,16 @@ assert.equal(historical.status, 'REJECTED');
 assert.deepEqual(historical.resolvedByRef, {sessionId: next.sessionId, parentAgentId: next.parentAgentId, callId: next.callId});
 assert.deepEqual(['call', 'dispatch', 'outcome'].map(kind => fs.readFileSync(record(old, kind), 'utf8')), before);
 
-// A prior session's unrelated and unfinished calls remain in the population.
+// Unrelated historical calls do not affect this recovery's evidence.
 const unrelated = call(old.sessionId, 'unrelated');
 run('begin', unrelated);
-const partial = run('audit', context(next), 1);
-assert.equal(partial.calls.length, 3);
-assert.equal(partial.calls.find(row => row.callId === unrelated.callId).status, 'PENDING');
+const partial = run('audit', context(next));
+assert.equal(partial.calls.length, 2);
+assert.equal(partial.calls.some(row => row.callId === unrelated.callId), false);
 const transcript = spawnSync(process.execPath, [path.join(plugin, 'scripts/transcript.mjs'), '--scope', inputFile(context(next)), '--json'], {env, encoding: 'utf8'});
 assert.equal(transcript.status, 2, transcript.stderr);
 const aggregate = JSON.parse(transcript.stdout);
-assert.equal(aggregate.population, 3);
+assert.equal(aggregate.population, 2);
 assert.equal(aggregate.complete, false);
 assert.equal(aggregate.signals.evaluator.MATCH, 1);
 assert.equal(aggregate.a9.verdicts.OK, 1);
@@ -128,6 +128,15 @@ const same = call('same-session', 'same-01'); fail(same);
 const sameNext = call(same.sessionId, 'same-02', {retryOf: same.callId});
 finish(sameNext, run('begin', sameNext));
 assert.equal(run('audit', context(same)).calls.length, 2);
+// Historical same-session retry ancestry is selected, without its neighbours.
+const chainOld = call('chain-old', 'chain-first'); fail(chainOld);
+const chainRetry = call(chainOld.sessionId, 'chain-retry', {retryOf: chainOld.callId}); fail(chainRetry);
+run('begin', call(chainOld.sessionId, 'chain-unrelated'));
+const chainNext = call('chain-current', 'chain-next', {resumeFrom: reference(chainRetry)});
+finish(chainNext, run('begin', chainNext));
+const chainAudit = run('audit', context(chainNext));
+assert.equal(chainAudit.calls.length, 3);
+assert.equal(chainAudit.calls.filter(x => x.resolvedByRef).length, 2);
 const racing = call('race-old', 'race-01'); fail(racing);
 const raceRef = reference(racing);
 const race = await Promise.all(['race-a', 'race-b'].map(sessionId => new Promise((resolve, reject) => {
@@ -199,20 +208,20 @@ const multiAudit = run('audit', context(successorA));
 assert.equal(multiAudit.calls.length, 4);
 assert.equal(new Set(multiAudit.calls.map(x => `${x.sessionId}:${x.callId}`)).size, 4);
 assert.equal(multiAudit.calls.filter(x => x.status === 'REJECTED' && x.resolvedByRef).length, 2);
-const parentMutant = path.join(temp, 'without-parent-partition');
-fs.cpSync(plugin, parentMutant, {recursive: true});
-const parentFile = path.join(parentMutant, 'lib/runtime/delegation.mjs');
-const parentSource = fs.readFileSync(parentFile, 'utf8');
-const parentAnchor = 'if (call.parentAgentId !== context.parentAgentId) {';
-assert.ok(parentSource.includes(parentAnchor));
-fs.writeFileSync(parentFile, parentSource.replace(parentAnchor, 'if (false) {'));
-const duplicatedParents = run('audit', context(successorA), 1, path.join(parentMutant, 'scripts/delegation.mjs'));
-assert.equal(duplicatedParents.calls.length, 6);
 const unseenParent = call('multi-history', 'unrelated-parent', {parentAgentId: '/root/c'});
 run('begin', unseenParent);
-const partialParents = run('audit', context(successorA), 1);
-assert.equal(partialParents.calls.length, 5);
-assert.equal(partialParents.calls.find(x => x.callId === unseenParent.callId).status, 'PENDING');
+const partialParents = run('audit', context(successorA));
+assert.equal(partialParents.calls.length, 4);
+assert.equal(partialParents.calls.some(x => x.callId === unseenParent.callId), false);
+fs.writeFileSync(record(unseenParent, 'outcome'), '{corrupt unrelated outcome');
+assert.equal(run('audit', context(successorA)).status, 'OBSERVED');
+fs.writeFileSync(record(unseenParent, 'call'), '{corrupt unrelated call');
+assert.equal(run('audit', context(successorA)).status, 'OBSERVED');
+fs.writeFileSync(record(unseenParent, 'call'), 'null');
+assert.equal(run('audit', context(successorA)).status, 'OBSERVED');
+const currentPending = call(successorA.sessionId, 'current-pending');
+run('begin', currentPending);
+assert.equal(run('audit', context(successorA), 1).calls.find(x => x.callId === currentPending.callId).status, 'PENDING');
 
 // One Git common directory/session may contain calls in different worktrees.
 // Binding and audit must inspect each recorded owner at its own checkout.

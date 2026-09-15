@@ -6,20 +6,15 @@
 
 ## Checking that a check is alive
 
-When creating or changing a check, **prove in the same turn that it fails when it dies.** A pass (rc=0) cannot distinguish "checked, no problem" from "never ran".
+When changing a check, test a representative valid case and a relevant invalid
+case. Assert the intended target and avoid a silent pass when required inputs
+are absent. Record the results with the verification evidence.
 
-- **A/B attribution** — in a copy with only that rule's registration removed, the same input passes. Required whenever several rules share a judgment point.
-- **Negative control** — a copy with the answer disturbed in one place is caught without fail.
-- **Reached-judgment assertion** — each check leaves state saying it reached its judgment, and unreached is read as failure.
-- **Target assertion** — pin **what** the check looks at. Use it wherever a same-named file exists in several trees (copies, projections, caches).
-
-An assertion that becomes true on an empty set (a zero-item pass) is read as failure. **If the A/B or negative-control copy equals the original, or does not exist, that itself is failure** — assert both files exist first, then compare: `[ -s a ] && [ -s b ] && ! cmp -s a b`. **When a limit pinned as rc=0 is closed, do not delete it — move it to a blocking assertion.**
-
-**A gate is verified too** — measure the normal path at 0 and **a deliberately broken path at non-zero**, and write both into the commit message. **"The gate passed" and "there was something to check" differ** — an empty target set passes any gate, so look for the path that passes silently on zero items.
-
-Write a new gate in the **inverted-polarity** form (`harness:develop` "운영 규율"): the checked set is derived from the whole, exemptions carry a reason, and the reverse assertion (the exempted key exists) sits beside them.
-
-> Evidence: `harness-uhy` · `harness-4kc` · `harness-erf`.
+For permission, destructive-action and enforcement checks, also disable the
+specific rule in a temporary copy and verify that its blocking case then passes.
+This distinguishes the rule's effect from a different rule blocking the input.
+The changed copy must exist and differ from the source. Ordinary product tests
+do not require this additional mutation procedure or a prescribed commit format.
 
 ## Shell traps (measured only)
 

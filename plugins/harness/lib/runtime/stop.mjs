@@ -2,7 +2,7 @@ import { lastExecutionMarker } from '../ledger/record.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveState, readActors, recoverActors, isCancelled, appendState, tsv } from './state.mjs';
+import { resolveState, readActors, recoverActors, isCancelled, continuationEnabled, appendState, tsv } from './state.mjs';
 import { executeLedger, ledgerRoot } from '../ledger.mjs';
 
 export const STOP_OUTCOMES = [
@@ -15,6 +15,7 @@ export const STOP_OUTCOMES = [
   'VERIFY_PENDING',
   'GAVE_UP',
   'BLOCK',
+  'NOTICE',
   'RUNTIME_BUSY',
   'RUNTIME_ERROR',
 ];
@@ -129,6 +130,17 @@ export async function evaluateStop(
     log('VERIFY_PENDING',
       `in_progress ${n}건 전부 표시가 있다(검증 대기 ${vp}건 · 위임 직후 ${dg}건 · 범위: ${range}) — 막을 이유가 없다`,
     );
+    return result;
+  }
+  try {
+    if (!continuationEnabled(scope)) {
+      log('NOTICE', `${n} in-progress items; continuation is not enabled`);
+      result.stderr += `${n} unfinished items remain. Stop allowed; completion is not established.\n`;
+      return result;
+    }
+  } catch (error) {
+    log('NOTICE', `Continuation setting unavailable: ${error.message}`);
+    result.stderr += `Continuation unavailable: ${error.message}; stop allowed\n`;
     return result;
   }
   let blocks = 0;

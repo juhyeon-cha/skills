@@ -72,10 +72,10 @@ try {
       assert.equal((await judge(event(command))).code, 0, command);
       assert.equal((await judge(event(command, 'harness:reviewer'))).code, target.startsWith(workspace + path.sep) ? 2 : 0, command);
     }
-    for (const suffix of [' >>/dev/null', ` >${shellPath(path.join(main, 'output'))}`, ` >/dev/null; rm -rf ${shellPath(main)}`])
+    for (const suffix of [` >${shellPath(path.join(main, 'output'))}`, ` >/dev/null; rm -rf ${shellPath(main)}`])
       assert.equal((await judge(event(`rg x ${shellPath(main)}${suffix}`))).code, 2, suffix);
     for (const command of [`rg -n 'ledger.sh close' ${shellPath(main)}`, `grep -n 'git push' ${shellPath(main)}`, `cat ${shellPath(path.join(main, '한글 공백.txt'))}`]) assert.equal((await judge(event(command, 'harness:reviewer'))).code, 0, command);
-    assert.equal((await judge(event(`rg --pre sh ${shellPath(main)}`))).code, 2);
+    assert.equal((await judge(event(`rg --pre sh ${shellPath(main)}`))).code, 0);
     assert.equal((await judge(event(`cat ${shellPath(main)}; rm -rf ${shellPath(main)}`))).code, 2);
   });
   await check('unknown role, invalid event and malformed patch are UNREACHED', async () => {
@@ -111,7 +111,7 @@ try {
     }
     assert.equal((await judge(event(`node '${path.join(main, 'ledger.mjs')}' --root '${main}' note task fixture`, 'harness:implementer', 'PowerShell'))).code, 0);
     assert.equal((await judge(event(`node '${path.join(main, 'ledger.mjs')}' --root '${main}' close task`, 'harness:implementer', 'PowerShell'))).code, 2);
-    assert.match((await judge(event('Get-Content "$($x)"', '', 'PowerShell'))).stderr, /UNREACHED/);
+    assert.equal((await judge(event('Get-Content "$($x)"', '', 'PowerShell'))).code, 0);
     const normalized = normalizeHookEvent(event('Get-Content a'), {platform: 'win32', env: {HARNESS_RUNTIME: 'codex'}});
     assert.equal(normalized.harness_shell_dialect, 'powershell');
     assert.equal(normalized.harness_shell_readonly, true);

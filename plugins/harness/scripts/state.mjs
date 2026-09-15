@@ -6,6 +6,7 @@ import {
   readActors,
   bindActor,
   cancelSession,
+  enableContinuation,
   isCancelled,
   appendState,
   tsv,
@@ -46,7 +47,10 @@ try {
           await bindActor(scope, { ledgerRoot: args[3], task: args[4], actor: args[5] }, env),
         ),
       );
-    else if (action === 'cancel') {
+    else if (action === 'continue') {
+      enableContinuation(scope);
+      console.log(JSON.stringify({ continuation: true, sessionId }));
+    } else if (action === 'cancel') {
       cancelSession(scope);
       console.log(JSON.stringify({ cancelled: true, sessionId }));
     } else if (action === 'cancelled') process.exitCode = isCancelled(scope) ? 0 : 1;
@@ -58,7 +62,7 @@ try {
       );
     else
       throw new Error(
-        'usage: paths|actors|cancel|cancelled <runtime> <repo> <session> | bind <runtime> <repo> <session> <ledger-root> <task> <actor> | guard <rule> (stdin event) | guard-path',
+        'usage: paths|actors|continue|cancel|cancelled <runtime> <repo> <session> | bind <runtime> <repo> <session> <ledger-root> <task> <actor> | guard <rule> (stdin event) | guard-path',
       );
   }
 } catch (error) {

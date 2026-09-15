@@ -67,7 +67,7 @@ export function powershellOperations(command, cwd) {
     if (c === '>' || c === '<') {
       redirect = true;
       finish();
-      redirectNext = true;
+      redirectNext = c === '>';
       continue;
     }
     if (';|\n'.includes(c)) {
@@ -99,7 +99,7 @@ export function powershellOperations(command, cwd) {
     ? []
     : commands.flatMap((words) => (powershellReadonly(words) ? [] : powershellTargets(words, cwd)));
   paths.push(
-    ...redirects.filter((value) => value !== '$null').map((value) => normalizePath(value, cwd)),
+    ...redirects.filter((value) => value !== '$null' && !/[$`{}]/.test(value)).map((value) => normalizePath(value, cwd)),
   );
   return { commands, readonly, dynamic, redirect, paths };
 }
@@ -117,8 +117,8 @@ export function powershellTargets([name, ...args], cwd) {
         )
       ? 1
       : 0;
-  const targets = [],
-    explicit = /^(?:[A-Za-z]:[\\/]|\\\\|\/|\.\.?[\\/])/;
+  if (!positionalCount) return [];
+  const targets = [];
   const pathParameters = ['path', 'literalpath', 'destination', 'newname', 'filepath'];
   const switchParameters = [
     'force',
@@ -189,14 +189,14 @@ export function powershellTargets([name, ...args], cwd) {
       continue;
     }
     if (operand) {
-      if (pathParameters.includes(operand) || (!positionalCount && explicit.test(value)))
+      if (pathParameters.includes(operand))
         targets.push(value);
       operand = '';
       continue;
     }
-    if (position++ < positionalCount || explicit.test(value)) targets.push(value);
+    if (position++ < positionalCount) targets.push(value);
   }
   if (positionalCount && operand)
     throw new Error(`PowerShell parameter -${operand} has no literal value`);
-  return targets.map((value) => normalizePath(value, cwd));
+  return targets.filter(value => !/[$`{}]/.test(value)).map((value) => normalizePath(value, cwd));
 }

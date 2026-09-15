@@ -100,6 +100,13 @@ semantic acceptance and does not satisfy the native doctor's live check.
 
 ### Cross-session independent evaluator recovery
 
+First reassess the verification path under `verify-code`. When independent
+verification is optional, record the failed attempt and use the selected local
+verification path with fresh acceptance evidence. Historical failures remain
+observations, not a prerequisite for that path. When independence remains required,
+obtain a fresh independent result; the reference procedure below is optional and
+links an unchanged scope to its prior failure.
+
 `retryOf` names a call in the same session. Use `resumeFrom` to reference a failure
 in another session. Recovery supports REJECTED evaluator calls with the same
 canonical worktree, task, fixed `commitScope` and `implementerIds`. Use the new
@@ -120,11 +127,13 @@ the old failure through this contract.
    Omit `retryOf` and `reuseChild`. Give the fresh evaluator the previous evidence,
    role, task, fixed HEAD and failure, then follow begin → actual spawn → bind →
    complete above.
-3. `audit` validates every call in the current and referenced historical sessions.
+3. `audit` validates the current session and only explicitly linked historical
+   attempts, including their retry ancestry.
    It retains the previous REJECTED status and reason, adding `resolvedBy` and
    `resolvedByRef: {sessionId, parentAgentId, callId}` only for a valid OBSERVED
-   successor. Unrelated failures, unfinished calls and corrupt records still fail
-   audit. Hash mismatches, missing records, scope mismatches, cycles and duplicate
+   successor. Unfinished or corrupt records in that selected population still fail
+   audit. Unrelated historical records are outside the population.
+   Hash mismatches, missing records, scope mismatches, cycles and duplicate
    consumption of a failure are rejected. A new PENDING call consumes the reference
    too. If creation fails, record that new call as a terminal failure and reference
    it on the next recovery. Do not skip PENDING to consume the earlier failure again.
@@ -134,10 +143,9 @@ Call identity is `(sessionId, parentAgentId, callId)`; child identity is
 parents must also use distinct call IDs in that session. Calls from worktrees
 sharing a Git common directory coexist in one session inventory. Bind and audit
 validate each call's worktree and Git common identity. Retry repository equality
-and audit's composite session/parent identity remain required. Audit visits other
-parents it discovers and counts each parent's calls only in that visit. References
-to several parents in one historical session do not duplicate counts or hide
-failures and unfinished calls belonging to unreferenced parents.
+and audit's composite session/parent identity remain required. Audit visits each
+parent in the current session. Historical visits select only referenced call IDs,
+so unrelated parents and calls do not affect the result.
 
 A recurring `/root` path alone does not identify the same execution.
 `implementerIds` and `previousAgentIds` remain conservative path-based exclusion
@@ -153,14 +161,13 @@ shapes remain contract errors; do not infer provider failure. Preserve historica
 `spawn return schema invalid` outcomes unchanged and link the retained original
 observation separately as evidence of the original error.
 
-If the same creation limit recurs, wait in VERIFY_PENDING instead of repeatedly
-creating calls. Report the failure reference, fixed HEAD, required independent
-evaluator and conditions to check before resuming. Resume when new evidence shows
-available capacity or in a new evaluation session requested by the user. Maximum
-creation counts, concurrent versus cumulative limits and reset conditions remain
-UNKNOWN without provider evidence. Parent judgment or changing a reviewer into an
-evaluator cannot replace recovery. The repository-wide lock serializes reference
-consumption, so audit/reference also need write access to the lock directory.
+If creation capacity is unavailable, preserve the failure and reassess the
+verification path. Wait only when independent evidence remains required and no
+available execution path can provide it. A new attempt can use a fresh call;
+use `resumeFrom` only when explicitly linking the old failure is useful. Report
+provider limits as unknown without evidence. A failed attempt never supplies MATCH.
+The repository-wide lock serializes reference consumption, so audit/reference
+need write access to the lock directory.
 EPERM indicates a sandbox/state access failure, not a policy denial.
 
 ## Optional transcript-to-outcome adapters

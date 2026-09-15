@@ -355,6 +355,7 @@ export async function checkGuardrails({
       expected,
       {
         active = false,
+        continuation = true,
         binding = true,
         oracle,
         rootFinder,
@@ -366,6 +367,7 @@ export async function checkGuardrails({
     ) => {
       if (binding) await bindFixture(sessionId, runtime);
       const scope = await scopeFor(sessionId, runtime);
+      if (continuation) state.enableContinuation(scope);
       const before = fs.existsSync(scope.stopLog)
         ? fs.readFileSync(scope.stopLog, 'utf8').trimEnd().split('\n').length
         : 0;
@@ -411,6 +413,16 @@ export async function checkGuardrails({
         await stopCase('block', [{ assignee: 'mine' }], 'BLOCK');
       },
     );
+    await check('S7 default is advisory and continuation is session scoped', async () => {
+      const result = await stopCase('advisory', [{assignee: 'mine'}], 'NOTICE', {continuation: false});
+      assert.match(result.stderr, /unfinished/);
+      await stopCase('explicit-continuation', [{assignee: 'mine'}], 'BLOCK');
+      await stopCase('different-session', [{assignee: 'mine'}], 'NOTICE', {continuation: false});
+      const bad = await scopeFor('corrupt-continuation');
+      state.enableContinuation(bad);
+      fs.writeFileSync(bad.continuation, '{}');
+      await stopCase('corrupt-continuation', [{assignee: 'mine'}], 'NOTICE', {continuation: false});
+    });
     await check('S7 Antigravity busy and error events log without consulting the ledger', async () => {
       for (const [name, event, expected] of [
         ['busy', { fully_idle: false }, 'RUNTIME_BUSY'],

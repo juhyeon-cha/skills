@@ -407,8 +407,12 @@ function validateResumeConsumption(scope, call) {
     const directory = path.join(sessions, name, 'delegation');
     if (!fs.existsSync(directory)) continue;
     for (const filename of fs.readdirSync(directory).filter(name => name.endsWith('.call.json'))) {
-      const envelope = JSON.parse(fs.readFileSync(path.join(directory, filename), 'utf8'));
-      const owner = envelope.value;
+      // This scan discovers competing references, not audit population.
+      // Selected calls and ancestry are read and validated separately.
+      let envelope;
+      try { envelope = JSON.parse(fs.readFileSync(path.join(directory, filename), 'utf8')); }
+      catch { continue; }
+      const owner = envelope?.value;
       if (!owner || identityKey(owner) === identityKey(call)) continue;
       const ref = owner.resumeFrom ?? (owner.retryOf ? {...owner, callId: owner.retryOf} : null);
       if (ref && (call.resumeFrom || owner.resumeFrom) && identityKey(ref) === target)
@@ -653,8 +657,10 @@ export async function auditDelegation(context, { root, env = process.env } = {})
       continue;
     }
     const files = fs.readdirSync(scope.directory).filter((name) => name !== 'inventory.lock');
-    const names = files.filter((name) => name.endsWith('.call.json'));
-    for (const name of files) {
+    const names = entry.callId
+      ? [path.basename(file(scope, entry.callId, 'call'))]
+      : files.filter((name) => name.endsWith('.call.json'));
+    for (const name of entry.callId ? [] : files) {
       const match = /^([a-f0-9]{64})\.(call|dispatch|binding|outcome)\.json$/.exec(name);
       if (!match || !files.includes(`${match[1]}.call.json`))
         errors.push('orphan/unknown inventory record');
@@ -678,10 +684,10 @@ export async function auditDelegation(context, { root, env = process.env } = {})
           validateCall(call, root);
           validateRetry(scope, call, root);
           validateResumeConsumption(scope, call);
-          if (call.resumeFrom) {
-            const ref = call.resumeFrom;
-            const key = JSON.stringify([ref.sessionId, ref.parentAgentId]);
-            if (!scopes.has(key)) scopes.set(key, {scope: priorScope(scope, call),
+          if (call.resumeFrom || (entry.callId && call.retryOf)) {
+            const ref = call.resumeFrom ?? {...call, callId: call.retryOf};
+            const key = identityKey(ref);
+            if (!scopes.has(key)) scopes.set(key, {scope: priorScope(scope, call), callId: ref.callId,
               context: {...context, sessionId: ref.sessionId, parentAgentId: ref.parentAgentId}});
           }
           expectedChild(scope, call);
