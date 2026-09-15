@@ -1,5 +1,43 @@
 # Changelog
 
+## 2.4.0 — 2026-09-15
+
+**Version scope — MINOR (explicit user request).** Add session-scoped continuation,
+runtime distribution and role execution, and cross-session evaluation recovery
+while reducing unnecessary blocking. Ordinary use receives these changes through
+a plugin update and a new session. Installations using separately generated native
+role files must verify their existing files and receipt, then regenerate from the
+new artifact. This manual update boundary is documented under the requested MINOR
+release. Existing repository configuration and ledger formats remain compatible.
+
+### Tool use and completion
+
+- Inspect recognized shell write targets instead of treating paths or quoted text
+  as writes. Permit repository configuration edits in linked worktrees while
+  retaining main-checkout, Git-internal and active-state protection.
+- Leave input validation and permissions for unlisted tools and CUA to the host.
+  New tools, including automation tools, no longer fail solely with
+  `unknown tool contract`.
+- Allow local verification for low-risk changes; select combined or separate
+  independent verification according to risk. Stop is advisory by default, with
+  continuation enabled only for an explicitly requested session.
+- Make evaluation recovery depend on the selected verification path. Audit only
+  linked historical attempts and retry ancestry; unrelated historical failures or
+  corrupt records do not block current recovery.
+- Report document-style findings as warnings and focus additional verification
+  on consequential enforcement rules.
+
+### Runtime and planning
+
+- Add common-source distribution, owned-file tracking, rollback and diagnosis
+  commands for Claude, Codex and Antigravity. Antigravity gains tool-event
+  adaptation and role execution observations. Actual loading, hook trust and live
+  behavior on each runtime still require separate verification.
+- Exclude runtime `.in_use` PID markers from payload hashes to avoid drift reports
+  caused by normal use.
+- Resolve design premises through M0 experiments before detailing dependent
+  tasks, and choose the smallest useful acceptance checks.
+
 ## 2.3.5 — 2026-09-13
 
 **폭 판단 — PATCH (사용자 지시).** 기존 위임 경로의 오탐과 과도한 검증 절차를 수정한다.
