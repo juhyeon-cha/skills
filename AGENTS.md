@@ -5,9 +5,7 @@ This repository owns the plugin marketplace source.
 ## Documentation
 
 Before writing or editing agent-facing documentation, read and apply
-`mattpocock-skills:writing-for-agents` and `toolkit:agent-doc-audit`.
-Use the former for authoring and the latter for auditing existing text,
-including its proposal and confirmation procedure.
+`mattpocock-skills:writing-for-agents`.
 
 Write agent-facing documentation in English. Preserve quoted user
 utterances, referenced section titles, and required output strings.
