@@ -10,6 +10,20 @@ The base priority is `HARNESS_DATA_DIR`, selected runtime plugin data (`PLUGIN_D
 
 `node <plugin>/scripts/state.mjs paths <runtime> <repo> <session>` prints the resolved paths. `guard-log.sh` uses the same resolver; set `HARNESS_RUNTIME` and the active hook data directory when calling it outside a plugin hook. Its cwd selects the repository. Hook cwd is session context, not verified shell execution cwd.
 
+## Minimal guard diagnostics
+
+Keep the existing metadata-only `guard.tsv` rows. `guard.tsv.diagnostics.jsonl`
+records only version, time, session/agent identifiers, normalized tool, effect,
+policy rule, result code, `layer` and `reasonCode`. It omits input keys and values,
+raw commands, file paths and question bodies. The `contract` layer distinguishes
+unsupported tools/effects from invalid inputs; `policy` identifies an actual
+policy judgment. `input-or-state` covers errors outside the input contract.
+Filesystem EPERM/EACCES alone does not establish sandboxing as the sole cause.
+Logging failures appear separately from policy results as `observation: UNREACHED`.
+Investigate provider creation errors in delegation outcomes. These fields neither
+classify false positives nor prove user approval, and do not enlarge a `nocmd`
+denominator.
+
 ## Confirming an actor and resuming
 
 After `ledger.sh update <task> --claim --actor <actor>` succeeds, run:
@@ -27,6 +41,19 @@ A bind failure does not undo or re-run a successful claim. Diagnose the state/re
 ```text
 node <plugin>/scripts/state.mjs cancel <runtime> <repo> <session>
 ```
+
+Stop reports unfinished owned tasks without blocking by default. Only after an
+explicit user request for continued execution, enable continuation for the active
+runtime, repository and session:
+
+```text
+node <plugin>/scripts/state.mjs --data <data> continue <runtime> <repository> <session>
+```
+
+The continuation record is scoped like cancellation. Another session does not
+inherit it. `cancel` takes precedence and remains effective for that session;
+`continue` does not clear cancellation. Missing or invalid continuation evidence
+allows termination. Neither advisory output nor termination closes a task.
 
 Cancellation persists for exactly that scope. Another session never acquires it by observing it first. Legacy `stop-resume-cancel` markers and actor TSVs are preserved as UNVERIFIED, without moving, deleting or treating them as successful bindings. Create an explicit scoped cancellation or re-bind through the ledger to migrate. Rollback can still read the untouched legacy files.
 

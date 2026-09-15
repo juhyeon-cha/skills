@@ -136,6 +136,8 @@ esac
   for (const sessionId of [quotedSession, 'other-session']) {
     const scope = await resolveState({runtime: 'claude', cwd: quotedRepo, sessionId}, cancelEnv);
     await bindActor(scope, {ledgerRoot: quotedRepo, task: 'fixture', actor: 'sess-resume'}, cancelEnv);
+    const enabled = run(process.execPath, [path.join(root, 'scripts/state.mjs'), '--data', quotedData, 'continue', 'claude', quotedRepo, sessionId], {env: cancelEnv});
+    check(enabled.status === 0, 'explicit continuation CLI accepts quoted session coordinates');
   }
   const blocked = stopFor(quotedSession);
   check(blocked.status === 0 && JSON.parse(blocked.stdout).decision === 'block', 'quoted-path session reaches actual Stop block');

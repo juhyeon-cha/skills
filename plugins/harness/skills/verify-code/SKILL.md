@@ -13,25 +13,30 @@ Standalone user-requested reviews use `docs/roles.md` "Standalone investigation
 and review" and end with findings. The managed task procedure below is for
 reviews whose result feeds task completion.
 
-Before delegation and before reading its result, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` for execution-contract selection, independent child identity and result validation. Require native REACHED or generic OBSERVED under that contract before the branches below apply. That contract owns execution-path selection and explicit enforcement requirements; the SIGNAL and retry rules below hold in both paths.
-
 ## Verification path
 
-Use combined verification for behavior-neutral edits and small, localized bug
-fixes with a clear regression test and a reviewable diff, when the repository
-does not require separate reviews. Use separate reviewer and evaluator calls for
-permission or enforcement changes, data-loss or migration risks, incompatible
-public contracts, broad dependency/runtime changes, and uncertain impact.
-Record the risk grounds for the selected path; changing runtime behavior alone
-does not require two graders.
+Select verification by the changed behavior and the repository's requirements.
 
-For the combined path, call `verify-implement` with `combined verification` in the
-delegation context instead of spawning a reviewer. The independent evaluator
-applies its acceptance procedure and the reviewer checklist, returning MATCH only
-when both pass. Record both quality and acceptance grounds; the evaluator's
-validated MATCH is the combined review receipt. No separate reviewer result is
-invented. A quality defect returns VIOLATION with its evidence. Rework repeats
-this selected path and uses the verify-implement retry counter.
+- **Local verification**: behavior-neutral edits and small, localized fixes with
+  clear acceptance, a reviewable diff and a regression test where behavior changes.
+  The implementing agent inspects the resulting diff, runs the relevant checks
+  and required repository gate, and compares the result with acceptance. Continue
+  through verify-implement's local path; no child or role receipt is required.
+- **Combined independent verification**: changes outside the local criteria whose
+  impact is understood. One evaluator checks quality and acceptance together.
+- **Separate independent verification**: permission/enforcement changes, data-loss
+  or migration risk, incompatible public contracts, broad dependency/runtime
+  changes or uncertain impact. Use a reviewer and then an evaluator.
+
+Explicit user or repository requirements take precedence. Record the selected
+path and its risk grounds with the verification result. When scope changes,
+reassess the path before completion.
+
+For independent paths, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` before delegation
+and result handling. Combined verification calls verify-implement directly with
+`combined verification`; the evaluator uses the reviewer checklist as well as
+acceptance. Separate verification follows the steps below. Corrective iterations
+repeat the selected path using its retry procedure.
 
 ## 1. Delegate
 
@@ -62,6 +67,9 @@ The re-review / re-fix limit **counts only once it is recorded with `ledger stat
 - The counter ends when the unit (task or milestone) closes.
 
 ## Completion criteria
+
+For local verification, completion is the inspected result and acceptance evidence
+recorded through verify-implement.
 
 For separate verification, the state where the orchestrator has upserted the LGTM receipt and the NIT list with `ledger summary <unit ID> review --file <file>` — in batch mode once on the milestone bead (with the task list in the body), outside it on that task. Reach this state before moving on to verify-implement.
 

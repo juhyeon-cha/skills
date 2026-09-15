@@ -45,14 +45,145 @@ export function patchOperations(command, cwd) {
   return operations;
 }
 
-// Preserve quoted absolute path operands for the conservative legacy shell
-// policy, whose whitespace tokenization cannot preserve spaces in filenames.
-// These are candidates, not a claim that arbitrary shell effects were parsed.
-export function quotedPathCandidates(command, cwd) {
-  return [...command.matchAll(/'([^']*)'|"([^"]*)"/g)]
-    .map((match) => match[1] ?? match[2])
-    .filter((value) => /\s/.test(value) && /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(value))
-    .map((value) => ({ kind: 'update', path: normalizePath(value, cwd) }));
+// Inspect literal output redirects and standard file-command operands only.
+// Script bodies, option values and arbitrary path arguments are not write evidence.
+// Dynamic shell effects belong to the host permission boundary.
+export function shellWriteOperations(command, cwd) {
+  const segments = [[]], redirects = [], nested = [];
+  let word = '', quote = '', active = false, dynamic = false, output = false;
+  const finish = () => {
+    if (active) {
+      const token = dynamic ? null : word;
+      if (output) redirects.push(token);
+      else segments.at(-1).push(token);
+      output = false;
+    }
+    word = ''; active = false; dynamic = false;
+  };
+  for (let i = 0; i < command.length; i++) {
+    const c = command[i];
+    if (quote === "'") {
+      if (c === "'") quote = '';
+      else word += c;
+      active = true;
+      continue;
+    }
+    if (c === '\\') {
+      word += command[++i] ?? ''; active = true; continue;
+    }
+    if (c === '`' || (c === '$' && command[i + 1] === '(')) {
+      const start = i + (c === '`' ? 1 : 2);
+      let end = start, depth = 1, innerQuote = '';
+      for (; end < command.length; end++) {
+        const inner = command[end];
+        if (inner === '\\' && innerQuote !== "'") { end++; continue; }
+        if (c === '`') { if (inner === '`') break; continue; }
+        if (innerQuote) { if (inner === innerQuote) innerQuote = ''; continue; }
+        if (inner === "'" || inner === '"') { innerQuote = inner; continue; }
+        if (inner === '(') depth++;
+        if (inner === ')' && --depth === 0) break;
+      }
+      if (end < command.length) {
+        nested.push(...shellWriteOperations(command.slice(start, end), cwd));
+        i = end;
+      }
+      dynamic = true; active = true;
+      continue;
+    }
+    if (c === '$') dynamic = true;
+    if (quote === '"') {
+      if (c === '"') quote = '';
+      else word += c;
+      active = true;
+      continue;
+    }
+    if (c === '"' || c === "'") { quote = c; active = true; continue; }
+    if (c === '#' && !active) {
+      while (i < command.length && command[i] !== '\n') i++;
+      finish(); segments.push([]); continue;
+    }
+    // A heredoc body is opaque shell data, not a sequence of tool operations.
+    if (c === '<' && command[i + 1] === '<') break;
+    if (c === '>') {
+      if (/^\d+$/.test(word)) { word = ''; active = false; }
+      finish();
+      if (command[i + 1] === '>') i++;
+      if (command[i + 1] === '&') {
+        i++;
+        while (/[\d-]/.test(command[i + 1] ?? '')) i++;
+      } else output = true;
+      continue;
+    }
+    if (';|&\n()'.includes(c)) { finish(); segments.push([]); continue; }
+    if (/\s/.test(c)) { finish(); continue; }
+    if ('*?[]{}'.includes(c) || (c === '~' && !active)) dynamic = true;
+    word += c; active = true;
+  }
+  if (!quote) finish();
+  const targets = redirects.filter(value => value && value !== '/dev/null');
+  const switches = {
+    rm: 'dfirRv', rmdir: 'pv', unlink: '', touch: 'acfh', mkdir: 'pv',
+    tee: 'ai', cp: 'aDfHLPRfilnprsvxT', mv: 'finvT',
+  };
+  const values = {
+    touch: ['-r', '--reference', '-d', '--date', '-t'],
+    mkdir: ['-m', '--mode'],
+    cp: ['-S', '--suffix'], mv: ['-S', '--suffix'],
+  };
+  for (const [executable, ...args] of segments) {
+    const name = executable?.split('/').at(-1);
+    if (name === 'git') {
+      // Literal output options on inspection commands are concrete writes.
+      let gitCwd = cwd;
+      let globalOptions = true;
+      for (let i = 0; i < args.length; i++) {
+        if (globalOptions && args[i]?.startsWith('-C')) {
+          const directory = args[i] === '-C' ? args[++i] : args[i].slice(2);
+          if (typeof directory !== 'string') gitCwd = null;
+          else if (directory) gitCwd = gitCwd || /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(directory)
+            ? normalizePath(directory, gitCwd || cwd) : null;
+          continue;
+        }
+        if (['-c', '--grep', '--author', '--format', '--pretty'].includes(args[i])) { i++; continue; }
+        if (args[i] === '--') break;
+        if (globalOptions && !args[i]?.startsWith('-')) globalOptions = false;
+        const target = args[i] === '--output' ? args[++i] : args[i]?.startsWith('--output=') ? args[i].slice(9) : null;
+        if (target && (gitCwd || /^(?:\/|[A-Za-z]:[\\/]|\\\\)/.test(target)))
+          targets.push(normalizePath(target, gitCwd || cwd));
+      }
+      continue;
+    }
+    if (!Object.hasOwn(switches, name)) continue;
+    // Expansion can supply options as well as filenames. Preserve redirects,
+    // but do not infer operand roles from an incomplete argv.
+    if (args.includes(null)) continue;
+    const operands = [];
+    let literal = false, opaque = false, destination;
+    for (let i = 0; i < args.length; i++) {
+      const arg = args[i];
+      if (arg === '--') { literal = true; continue; }
+      if (!literal && arg.startsWith('-') && arg !== '-') {
+        const option = arg.split('=')[0];
+        const targetOption = ['cp', 'mv'].includes(name) && ['-t', '--target-directory'].includes(option);
+        if (targetOption || (values[name] ?? []).includes(option)) {
+          const value = arg.includes('=') ? arg.slice(arg.indexOf('=') + 1) : args[++i];
+          if (value === undefined || value === '') { opaque = true; break; }
+          if (targetOption) destination = value;
+          continue;
+        }
+        if (arg === '--help' || arg === '--version') { opaque = true; break; }
+        if (/^-[^-]+$/.test(arg) && [...arg.slice(1)].every(flag => switches[name].includes(flag))) continue;
+        // Unknown options may consume the next argument. Do not guess its role.
+        opaque = true; break;
+      }
+      operands.push(arg);
+    }
+    if (opaque) continue;
+    // A copy reads its sources; moving also modifies them.
+    targets.push(...(name === 'cp' ? [destination ?? operands.at(-1)] : [...operands, destination]).filter(Boolean));
+  }
+  return [...new Set([...targets.map(value => normalizePath(value, cwd)), ...nested.map(op => op.path)])]
+    .map(path => ({kind: 'update', path}));
 }
 
 export function gitReadonly(input) {
@@ -64,6 +195,10 @@ export function gitReadonly(input) {
     return false;
   // Git accepts abbreviated long options. Output files and external
   // diff/textconv commands are effects, even on a read subcommand.
+  return gitReadOptionsSafe(args);
+}
+
+export function gitReadOptionsSafe(args) {
   return !args.some((arg) => {
     const option = arg.split('=')[0];
     return option.startsWith('--') && option.length > 2 &&

@@ -4,6 +4,22 @@ import { loadRole } from './runtime/roles.mjs';
 import { roleNames } from './runtime/role-contract.mjs';
 import { records, tokens } from './transcripts/common.mjs';
 import { decodeClaude } from './transcripts/claude.mjs';
+import { auditDelegation } from './runtime/delegation.mjs';
+
+/** Generic observations have first-line evidence, never child usage telemetry. */
+export async function auditGeneric(context, options = {}) {
+  const audit = await auditDelegation(context, options);
+  const calls = audit.calls.map(call => ({
+    id: `${call.sessionId}:${call.callId}`, task: call.task, role: call.role,
+    agentId: call.child ? `${call.sessionId}:${call.child}` : undefined,
+    completed: call.status === 'OBSERVED',
+    reason: call.status === 'OBSERVED' ? undefined : call.reason ?? 'required invocation unfinished',
+    texts: call.status === 'OBSERVED' ? [call.result] : [], messages: [], toolsMeasured: false,
+  }));
+  return {...summarize(calls, audit.errors, options.root), format: 'harness-delegation-v1',
+    provenance: audit.provenance, executionStatus: audit.status,
+    invocations: audit.calls};
+}
 
 export function summarize(calls, errors = [], root) {
   const vocab = Object.fromEntries(roleNames.map((role) => [role, loadRole(role, root).signals]));

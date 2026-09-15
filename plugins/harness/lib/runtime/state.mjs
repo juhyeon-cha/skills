@@ -96,6 +96,7 @@ export async function resolveState({ runtime, cwd, sessionId } = {}, env = proce
     actors: session && path.join(session, 'actors.json'),
     actorRecovery: session && path.join(session, 'actors-recovery.json'),
     cancel: session && path.join(session, 'cancel.json'),
+    continuation: session && path.join(session, 'continuation.json'),
     events: session && path.join(session, 'events.jsonl'),
     legacy: {
       guard: env.HARNESS_GUARD_LOG || path.join(home, '.claude/harness-guard-log.tsv'),
@@ -200,6 +201,18 @@ export async function guardLog(event, rule, env = process.env) {
       .map(tsv)
       .join('\t'),
     { maxLines: Number(env.HARNESS_GUARD_LOG_MAX ?? 20000) },
+  );
+  // Versioned metadata only. No input keys, values, command text, paths or
+  // provider message bodies enter this sidecar. Legacy TSV stays unchanged.
+  if (event.harness_guard_diagnostic) appendState(
+    file + '.diagnostics.jsonl',
+    JSON.stringify({
+      observedAt: new Date().toISOString(),
+      sessionId: /^[A-Za-z0-9_.:/-]{1,160}$/.test(event.session_id ?? '') ? event.session_id : 'UNKNOWN',
+      agentId: /^[A-Za-z0-9_.:/-]{1,160}$/.test(event.agent_id ?? '') ? event.agent_id : 'UNKNOWN',
+      ...event.harness_guard_diagnostic,
+    }),
+    {maxLines: Number(env.HARNESS_GUARD_LOG_MAX ?? 20000)},
   );
   return { file, status: scope ? 'SCOPED' : 'UNVERIFIED' };
 }
@@ -314,6 +327,20 @@ export function recoverActors(scope, rows) {
     atomicJson(scope.actors, restored);
     return validateActors(scope, restored);
   });
+}
+export function enableContinuation(scope) {
+  if (!scope.continuation || scope.dataSource === 'fallback-unverified')
+    throw new Error('continuation requires explicit session and data coordinates');
+  withStateLock(scope.continuation, () => atomicJson(scope.continuation, {
+    runtime: scope.runtime, repoKey: scope.repoKey, sessionId: scope.sessionId,
+  }));
+}
+export function continuationEnabled(scope) {
+  if (!scope.continuation || !fs.existsSync(scope.continuation)) return false;
+  const value = JSON.parse(fs.readFileSync(scope.continuation, 'utf8'));
+  if (value.runtime !== scope.runtime || value.repoKey !== scope.repoKey || value.sessionId !== scope.sessionId)
+    throw new Error('continuation scope mismatch');
+  return true;
 }
 export function cancelSession(scope) {
   if (!scope.cancel) throw new Error('session id required');

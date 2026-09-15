@@ -3,11 +3,10 @@ import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { normalizeHookEvent } from './hook-event.mjs';
-import { normalizePath, ripgrepReadonly } from './operations.mjs';
+import { normalizePath } from './operations.mjs';
 import { workspaceShellCommand, literalShellWords } from '../workspace/workspace-command.mjs';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
 import { guardLog, resolveState } from '../runtime/state.mjs';
-import { powershellTargets, powershellReadonly } from './powershell-operations.mjs';
 import { commonCommand, windowsCommandOperands } from './common-command.mjs';
 import { antigravityIdentity } from '../runtime/antigravity-identity.mjs';
 import { canonicalRole } from '../runtime/role-contract.mjs';
@@ -20,12 +19,6 @@ export const GIT_VALUE_OPTS =
 export const EXEC_WRAPPERS =
   'timeout env nice sudo bash sh zsh if then else elif while until do node node.exe';
 export const LEDGER_TOOLS = 'ledger.sh ledger.mjs bd';
-export const MC_READ_CMDS =
-  'ls cat head tail wc stat file grep rg printenv diff du tree readlink realpath test [ [[ cd pwd echo printf sed jq awk sort find';
-export const MC_WRITE_OPTS =
-  'sed:-[A-Za-z]*[iI][^\\s]*|--i[^\\s]*|-[A-Za-z]*f[^\\s]*|--file[^\\s]* awk:-[A-Za-z]*f[^\\s]*|--file[^\\s]* sort:-[A-Za-z]*o[^\\s]*|--o[^\\s]* find:-(delete|exec|execdir|ok|okdir|fprint|fprint0|fprintf|fls)';
-export const MC_GIT_READ =
-  'status log diff show ls-files rev-parse blame describe cat-file ls-remote grep for-each-ref merge-base ls-tree rev-list shortlog diff-tree name-rev check-ignore var count-objects whatchanged archive';
 export const MC_GIT_READ_OPT =
   'worktree:list config:--get config:--get-regexp config:--list config:-l branch:--show-current branch:--list branch:-a branch:-r branch:-v branch:-vv remote:-v remote:show remote:get-url stash:list stash:show tag:-l tag:--list';
 export const GH_READ_EXEMPT =
@@ -68,15 +61,6 @@ function execWord(segment) {
         !word.includes('='),
     ) ?? '',
   );
-}
-function shellWrapped(segment) {
-  for (const word of tokens(segment)) {
-    if (word.startsWith('-') || /^\d+[smhd]?$/.test(word) || word.includes('=')) continue;
-    const base = basename(word);
-    if (['bash', 'sh', 'zsh'].includes(base)) return true;
-    if (!member(EXEC_WRAPPERS, base)) return false;
-  }
-  return false;
 }
 function subcommands(tool, options, text) {
   const words = text
@@ -124,114 +108,6 @@ function quotedSegments(command) {
     out += c;
   }
   return segments(out);
-}
-function scriptWrites(word, raw) {
-  if (word === 'awk') return /system|\x01|getline/.test(raw);
-  if (word !== 'sed') return false;
-  const words = [];
-  let token = '',
-    quote = '',
-    active = false;
-  for (let i = 0; i < raw.length; i++) {
-    const c = raw[i];
-    if (quote) {
-      if (c === quote) quote = '';
-      else token += c;
-      continue;
-    }
-    if (c === '"' || c === "'") {
-      quote = c;
-      active = true;
-      continue;
-    }
-    if (c === '\\') {
-      token += raw[++i] ?? '';
-      continue;
-    }
-    if (/\s/.test(c)) {
-      if (token || active) words.push(token);
-      token = '';
-      active = false;
-      continue;
-    }
-    token += c;
-  }
-  if (token || active) words.push(token);
-  const start = words.findIndex((word) => basename(word) === 'sed');
-  if (start < 0) return false;
-  const expressions = [];
-  let first;
-  for (let i = start + 1; i < words.length; i++) {
-    const x = words[i];
-    if (x === '--') continue;
-    if (x.startsWith('--expression=')) {
-      expressions.push(x.slice(13));
-      continue;
-    }
-    if (x === '--expression') {
-      expressions.push(words[++i] ?? '');
-      continue;
-    }
-    if (/^--(file|line-length)=/.test(x)) continue;
-    if (['--file', '--line-length'].includes(x)) {
-      i++;
-      continue;
-    }
-    if (/^-[^-]/.test(x)) {
-      if (/^-[A-Za-z]*e$/.test(x)) expressions.push(words[++i] ?? '');
-      else if (/^-[A-Za-z]*e./.test(x)) expressions.push(x.replace(/^-[A-Za-z]*e/, ''));
-      else if (/^-[A-Za-z]*[fl]$/.test(x)) i++;
-      continue;
-    }
-    first ??= x;
-  }
-  if (!expressions.length && first !== undefined) expressions.push(first);
-  return expressions.some((value) => /[wW]/.test(value));
-}
-function allReadonly(command, env = process.env) {
-  let any = false;
-  for (const raw of quotedSegments(command)) {
-    const segment = stripQuotes(raw);
-    if (!segment.trim()) continue;
-    any = true;
-    if (
-      segment
-        .replace(/[0-9]?>&[0-9]/g, '')
-        .replace(/[0-9]?>\/dev\/null/g, '')
-        .includes('>') ||
-      shellWrapped(segment)
-    )
-      return false;
-    const word = execWord(segment);
-    if (!word || ['for', 'done', 'fi', 'esac'].includes(word)) continue;
-    if (member(MC_READ_CMDS, word)) {
-      if (word === 'rg' || word === 'printenv') {
-        const words = literalShellWords(raw);
-        // Only literal direct invocations receive the new read exemption.
-        if (!words || basename(words[0] ?? '') !== word) return false;
-        if (word === 'rg' && !ripgrepReadonly(words.slice(1), command, env)) return false;
-      }
-      const expression = MC_WRITE_OPTS.split(' ')
-        .find((entry) => entry.startsWith(word + ':'))
-        ?.slice(word.length + 1);
-      if (expression && new RegExp('(^|\\s)(' + expression + ')(\\s|$)').test(segment))
-        return false;
-      if (scriptWrites(word, raw)) return false;
-      continue;
-    }
-    if (word === 'git') {
-      const sub = subcommands('git', GIT_VALUE_OPTS, segment)[0];
-      if (member(MC_GIT_READ, sub) || member(MC_GIT_READ_OPT, sub + ':' + nextToken(sub, segment)))
-        continue;
-    }
-    if (word === 'gh') {
-      const first = subcommands('gh', '', segment)[0];
-      const second = subcommands(first, '', segment)[0];
-      if (member(GH_READ_EXEMPT, first) || member(GH_READ_EXEMPT, second)) continue;
-    }
-    return false;
-  }
-  return any;
 }
 
 class Denial extends Error {
@@ -300,84 +176,15 @@ function holdsTrees(ctx, value) {
   );
   return trees.length ? { holder, trees } : null;
 }
-function isHarnessRoot(ctx, value) {
-  return (
-    Boolean(value) &&
-    (fs.existsSync(path.join(norm(ctx, value), '.harness.json')) || Boolean(holdsTrees(ctx, value)))
-  );
-}
 function pathCandidates(ctx) {
   if (ctx.common) return [...ctx.common.paths, ...ctx.common.writes];
-  if (ctx.event.harness_shell_dialect === 'powershell')
-    return ctx.event.harness_operations.map((operation) => operation.path);
-  let command = ctx.command;
-  command = command.replaceAll('${HOME}', ctx.env.HOME || os.homedir()); // EXPAND_HOME
-  command = command.replaceAll('$HOME', ctx.env.HOME || os.homedir()); // EXPAND_HOME
-  // Shell words end at any whitespace, newlines included. Splitting on blanks alone let a
-  // multi-line command fold every later line into one assignment value, and a value carrying
-  // a newline throws out of normalizePath -- the whole judgement became UNREACHED.
-  for (const word of command.split(/\s/)) {
-    if (!word.startsWith('HARNESS_ROOT=')) continue;
-    const root = word.slice(13);
-    if (isHarnessRoot(ctx, root)) command = command.replaceAll('HARNESS_ROOT=' + root + ' ', ''); // ROOT_ASSIGNMENT
-  }
-  // Bash is also a real Windows transport. Keep drive/UNC operands intact;
-  // the POSIX slash scanner alone drops backslash paths without spaces.
-  const literal = ctx.windowsOperands;
-  const candidates = literal
-    ? literal.operands
-        .filter(
-          (operand) =>
-            operand.kind !== 'transport' &&
-            (operand.kind !== 'ledger-root' || !isHarnessRoot(ctx, operand.path)),
-        )
-        .map((operand) => operand.path)
-    : [...ctx.raw.matchAll(/'([^']*)'|"([^"]*)"/g)]
-        .map((match) => match[1] ?? match[2])
-        .filter((value) => /^[A-Za-z]:[\\/]|^\\\\/.test(value));
-  if (literal) {
-    const handled = new Set(literal.operands.map((operand) => operand.index));
-    // Preserve option positions while keeping an already-classified operand
-    // out of the legacy slash scanner (which cannot retain a Windows drive).
-    command = stripQuotes(
-      literal.words
-        .map((word, index) => (handled.has(index) ? '__WINDOWS_OPERAND__' : word))
-        .join(' '),
-    );
-  }
-  for (const segment of segments(command.replaceAll('`', '\n'))) {
-    // CANDIDATE_BACKTICKS
-    const executable = execWord(segment);
-    let previous = '';
-    for (const word of segment.split(/\s/).filter(Boolean)) {
-      const coordinate =
-        (executable === 'bd' && ['-C', '--directory', '--db'].includes(previous)) ||
-        (['ledger.sh', 'ledger.mjs'].includes(executable) && previous === '--root');
-      if (coordinate && isHarnessRoot(ctx, word)) {
-        previous = word;
-        continue;
-      }
-      // A native adapter's own file is transport, never its mutation target.
-      if (['ledger.sh', 'ledger.mjs'].includes(executable) && basename(word) === executable) {
-        previous = word;
-        continue;
-      }
-      candidates.push(
-        ...[...word.matchAll(/(?:^|=)((?:[A-Za-z]:[\\/]|\\\\)[^\s"'`;|&()<>]*)/g)].map(
-          (match) => match[1],
-        ),
-      );
-      candidates.push(...(word.match(/[~/][^\s"'`;|&()<>]*/g) ?? []));
-      if (/^\.\.?\//.test(word)) candidates.push(word);
-      previous = word;
-    }
-  }
-  return candidates;
+  return ctx.event.harness_operations.map(operation => operation.path);
 }
+
 const filePath = (ctx) =>
-  member('Read NotebookRead Glob Grep', ctx.event.tool_name)
-    ? ''
-    : ctx.event.tool_input.file_path || ctx.event.tool_input.notebook_path || '';
+  member('Write Edit NotebookEdit', ctx.event.tool_name)
+    ? ctx.event.tool_input.file_path || ctx.event.tool_input.notebook_path || ''
+    : '';
 const policyRole = (ctx) => ctx.event.harness_policy_role || ctx.event.agent_type;
 const grader = (ctx) => member(GR_ROLES, policyRole(ctx));
 const child = (ctx) => Boolean(ctx.event.agent_id || ctx.event.agent_type);
@@ -424,7 +231,7 @@ function protectedTarget(ctx, value) {
   const found = rootOf(ctx, target);
   if (found) {
     const first = path.relative(found.root, target).split(path.sep)[0];
-    if (['.git', '.harness.json', '.agents', '.claude', '.codex'].includes(first)) return true;
+    if (['.git'].includes(first)) return true;
   }
   const rawData = ctx.stateData || ctx.env.HARNESS_DATA_DIR;
   if (rawData && (typeof rawData !== 'string' || !path.isAbsolute(rawData) || /[\0\r\n]/.test(rawData)))
@@ -436,6 +243,7 @@ function protectedTarget(ctx, value) {
 }
 
 export async function r_main_write(ctx) {
+  if (ctx.event.harness_shell_dialect) return;
   const value = filePath(ctx);
   if (!value) return;
   if (protectedTarget(ctx, value)) deny(ctx, '보호 설정/상태 파일 직접 쓰기 금지 — 승인된 공통 명령을 사용한다');
@@ -459,38 +267,21 @@ export async function r_main_shell(ctx) {
     return; // The exact loaded renderer confines publication to its docs projection.
   }
   for (const candidate of pathCandidates(ctx)) {
-    if (protectedTarget(ctx, candidate) && !allReadonly(ctx.raw, ctx.env))
-      deny(ctx, '보호 설정/상태 경로 쓰기 금지 — 승인된 공통 명령을 사용한다');
-    if (process.platform !== 'win32' && /^[A-Za-z]:[\\/]|^\\\\/.test(candidate)) {
-      if (allReadonly(ctx.raw, ctx.env)) return;
-      throw new Error('Windows filesystem policy is unavailable on this host');
-    }
-    let found = await locate(ctx, candidate);
-    if (!found) {
-      let tail = candidate.replace(/^\//, '');
-      while (tail.includes('/')) {
-        tail = tail.slice(tail.indexOf('/') + 1);
-        found = await locate(ctx, '/' + tail);
-        if (found) break;
-      }
-    }
-    if (!found) {
-      const holder = holdsTrees(ctx, candidate);
-      if (!holder) continue; // HOLDER_CHECK
-      if (allReadonly(ctx.raw, ctx.env)) return;
-      deny(
-        ctx,
-        `클론 루트 자체 금지 — 명령에 ${holder.holder} 가 들어 있다. 하네스 트리들을 **품고 있다**: ${holder.trees.join(' ')}. 클론·워크트리·미커밋 변경이 함께 사라진다.`,
-      );
-    }
-    if (allReadonly(ctx.raw, ctx.env)) return;
-    deny(
-      ctx,
-      `본 체크아웃 경로 금지 — 명령에 ${found.target} 가 들어 있다. 대상 레포 '${found.repo}' 의 본 체크아웃은 직접 건드리지 않는다. 읽기 전용 명령만으로 된 명령은 통과한다. 쓰기는 스토리 워크트리 안에서 한다: ${found.root}/.claude/worktrees/<워크트리 이름>/`,
-    );
+    if (protectedTarget(ctx, candidate))
+      deny(ctx, 'Direct Git-internal/active-state writes are protected; use the common command');
+    const found = await locate(ctx, candidate);
+    const holder = !found && holdsTrees(ctx, candidate);
+    if (found || holder)
+      deny(ctx, `Protected write target: ${found?.target || holder.holder}. Work in a registered linked worktree.`);
   }
 }
 RULES.push({matcher: 'Bash', run: r_main_shell});
+
+export function r_task_create(ctx) {
+  if (ctx.event.harness_tool_contract?.effect === 'task-create' && child(ctx))
+    deny(ctx, '새 사용자 작업 생성은 부모 오케스트레이터만 수행한다');
+}
+RULES.push({matcher: '*', run: r_task_create});
 
 export function r_remote(ctx) {
   if (!child(ctx)) return;
@@ -619,7 +410,7 @@ export async function evaluateGuard(
     result;
   try {
     event = normalizeHookEvent(raw, { env, deferDelegatedRole: true });
-    const roleIndependent = event.harness_shell_readonly ||
+    const roleIndependent = event.harness_tool_contract?.roleIndependent || event.harness_effect_readonly || event.harness_shell_readonly ||
       ['Read', 'NotebookRead', 'Glob', 'Grep'].includes(event.tool_name) ||
       /^collaboration\.?(?:send_message|list_agents|wait_agent)$/.test(event.tool_name);
     if (raw?.harness_runtime === 'antigravity' && !roleIndependent) {
@@ -658,16 +449,7 @@ export async function evaluateGuard(
             ledgerTools: LEDGER_TOOLS.split(' '),
           })
         : null;
-    if (windowsOperands?.ledger && !event.harness_shell) {
-      event.harness_operations = event.harness_operations.filter(
-        (operation) => !/^[A-Za-z]:[\\/]|^\\\\/.test(operation.path),
-      );
-      event.harness_operations.push(
-        ...windowsOperands.operands
-          .filter((operand) => operand.kind === 'target')
-          .map((operand) => ({ kind: 'update', path: operand.path })),
-      );
-    }
+
     const common =
       event.tool_name === 'Bash'
         ? await commonCommand(rawCommand, {
@@ -709,31 +491,9 @@ export async function evaluateGuard(
       policyCommand = policyText(windowsOperands.words);
     if (event.harness_shell && !workspace && !common) {
       const parsed = event.harness_shell;
-      if (parsed.dynamic) throw new Error('dynamic PowerShell command cannot be classified');
+
       policyCommand = parsed.commands.map(policyText).join(';');
-      // Keep command/option permission checks active for native ledger calls,
-      // while excluding the executable and explicit root coordinate from files.
-      const paths = parsed.commands.flatMap((words) => {
-        if (powershellReadonly(words)) return [];
-        const start = ['node', 'node.exe'].includes(basename(words[0]).toLowerCase()) ? 1 : 0;
-        const executable = basename(words[start] ?? '').toLowerCase();
-        if (['ledger.sh', 'ledger.mjs', 'bd'].includes(executable)) {
-          const rest = words
-            .slice(start + 1)
-            .filter(
-              (word, index, all) =>
-                !member(valueOptions(executable), word) &&
-                !member(valueOptions(executable), all[index - 1]),
-            );
-          return powershellTargets([executable, ...rest], event.cwd);
-        }
-        if (!parsed.redirect && allReadonly(policyText(words), env)) return [];
-        return powershellTargets(words, event.cwd);
-      });
-      // Redirection targets are already normalized by the lexer.
-      event.harness_operations = [
-        ...new Set(parsed.redirect ? [...paths, ...parsed.paths] : paths),
-      ].map((path) => ({ kind: 'update', path }));
+
     }
     if (common)
       event.harness_operations = (common.effect === 'projection' ? [] : common.writes).map(
@@ -767,7 +527,8 @@ export async function evaluateGuard(
       await dispatch(ctx);
     }
     rule = '-';
-    result = { code: 0, stdout: '', stderr: '', rule };
+    result = { code: 0, stdout: '', stderr: '', rule,
+      diagnostic: {layer: 'policy', reasonCode: 'ALLOWED'} };
   } catch (error) {
     rule = error instanceof Denial ? error.rule : 'UNREACHED-input';
     result = {
@@ -775,13 +536,30 @@ export async function evaluateGuard(
       stdout: '',
       stderr: `GUARD-DENY: ${error instanceof Denial ? '' : 'UNREACHED — 판정에 도달하지 못했다: '}${error.message}\n`,
       rule,
+      diagnostic: {
+        layer: error instanceof Denial ? 'policy' : error.reasonCode ? 'contract' :
+          ['EPERM', 'EACCES'].includes(error.code) ? 'filesystem' : 'input-or-state',
+        reasonCode: error instanceof Denial ? 'POLICY_DENIED' : error.reasonCode ||
+          (['EPERM', 'EACCES'].includes(error.code) ? error.code : 'INPUT_OR_STATE_UNREACHED'),
+      },
     };
   }
+  event = {...(event ?? {}), harness_guard_diagnostic: {
+    version: 1,
+    ...result.diagnostic,
+    code: result.code,
+    rule,
+    tool: event?.harness_tool_contract?.canonical ||
+      (['Bash', 'exec_command', 'PowerShell', 'Read', 'Write', 'Edit', 'apply_patch'].includes(event?.tool_name) ? event.tool_name : 'OTHER'),
+    effect: event?.harness_tool_contract?.effect || (event?.harness_literal_effects ? 'literal-read-and-output' : 'legacy'),
+  }};
   try {
     await guardLog(event ?? {}, rule, env);
   } catch (error) {
     // GUARD_OBSERVATION
     result.stderr += `STATE UNREACHED: guard observation was not persisted: ${error.message}\n`;
+    result.observation = {status: 'UNREACHED', layer: 'filesystem',
+      reasonCode: ['EPERM', 'EACCES', 'ENOENT'].includes(error.code) ? error.code : 'GUARD_LOG_UNAVAILABLE'};
   }
   return result;
 }

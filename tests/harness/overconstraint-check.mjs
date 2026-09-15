@@ -84,8 +84,8 @@ try {
   fs.writeFileSync(scope.actorRecovery, JSON.stringify(record));
   fs.writeFileSync(scope.actors, '{broken');
   result = await stop();
-  assert.deepEqual(result.outcomes, ['SCOPE_RECOVERED', 'BLOCK']);
-  assert.equal(JSON.parse(result.stdout).decision, 'block');
+  assert.deepEqual(result.outcomes, ['SCOPE_RECOVERED', 'NOTICE']);
+  assert.equal(result.stdout, '');
   assert.deepEqual(JSON.parse(fs.readFileSync(scope.actors)), record);
   for (const changed of [
     {...record, runtime: 'codex'}, {...record, repoKey: 'other'}, {...record, sessionId: 'other'},
