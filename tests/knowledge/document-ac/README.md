@@ -1,6 +1,7 @@
 # Pinned documentation experiment
 
-Use this case when changing `writing-for-humans` or reproducing skills#323.
+Use this case when checking the document-acceptance stage of the code-driven knowledge
+workflow or reproducing skills#323. `writing-for-humans` was the writer used in this case.
 This is development material, not a shipped skill or a general evaluation platform.
 Run commands from the repository root. Python 3 standard library is sufficient.
 
@@ -34,9 +35,9 @@ The author is not the sole judge. Preserve actual child identities and raw retur
 ## Run
 
 ```sh
-python3 tests/toolkit/writing-for-humans/check.py
-python3 tests/toolkit/writing-for-humans/check.py --source-repo /absolute/path/to/sap-harness
-python3 tests/toolkit/writing-for-humans/packets.py /absolute/new/run-directory
+python3 tests/knowledge/document-ac/check.py
+python3 tests/knowledge/document-ac/check.py --source-repo /absolute/path/to/sap-harness
+python3 tests/knowledge/document-ac/packets.py /absolute/new/run-directory
 ```
 
 The optional source check reads the pinned local Git objects; it never fetches or contacts SAP.
@@ -68,3 +69,13 @@ For the final report include commit/input hashes, actual child identities, docum
 answers, per-question judgments, deterministic check results, repair history and limitations.
 All required normal ACs must pass and all intended defect controls must fail. This demonstrates
 this case on the observed surface, not human comprehension, general skill improvement or live SAP.
+
+## Initiative and historical records
+
+For goals, scope and the sequence of experiments, read the
+[initiative index](../../../docs/initiatives/code-driven-knowledge/README.md).
+This directory owns executable evaluation inputs and checks; the initiative owns planning.
+
+The case moved from `tests/toolkit/writing-for-humans/` after the original experiment.
+Files under `observations/` retain their original bytes, including historical command paths.
+Those commands describe past runs; use the current commands above for a new run.

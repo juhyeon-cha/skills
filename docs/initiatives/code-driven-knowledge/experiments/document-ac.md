@@ -4,10 +4,10 @@
 
 ## 만든 것
 
-- [장·중·단기 목표](code-driven-knowledge-roadmap.md)와 연결되는 재실행 사례를 `tests/toolkit/writing-for-humans/`에 두었다. 배포 스킬이나 새 평가 플랫폼은 추가하지 않았다.
-- [소스 발췌](../tests/toolkit/writing-for-humans/sources.json), [질문 10개](../tests/toolkit/writing-for-humans/questions.json), [기대 명제](../tests/toolkit/writing-for-humans/expectations.json)를 작성 전에 정했다. 해시는 작성자 실행 중 기록했다. 기준은 SAP Harness의 `36a31860ae66c0d03b99ec244abe891a642dbdc4`이며 로컬 Git 원본과 발췌·파일 해시를 대조했다.
-- `writing-for-humans`를 읽은 독립 작성자의 초안을 주 에이전트가 축약해 [공통 정책](../tests/toolkit/writing-for-humans/documents/policy.md), [FE](../tests/toolkit/writing-for-humans/documents/frontend.md), [서비스 기획](../tests/toolkit/writing-for-humans/documents/planning.md), [UI/UX](../tests/toolkit/writing-for-humans/documents/uiux.md) 문서로 남겼다. 최종 문서 자체를 독립 검증했다.
-- [구조 검사](../tests/toolkit/writing-for-humans/check.py), [독자 입력 생성](../tests/toolkit/writing-for-humans/packets.py), [재실행 절차](../tests/toolkit/writing-for-humans/README.md), 실제 입력·반환·판정을 보존했다. 개발 검사 러너는 새 셸 진입점을 자동 발견한다.
+- [장·중·단기 목표](../roadmap.md)와 연결되는 재실행 사례를 `tests/knowledge/document-ac/`에 두었다. 배포 스킬이나 새 평가 플랫폼은 추가하지 않았다.
+- [소스 발췌](../../../../tests/knowledge/document-ac/sources.json), [질문 10개](../../../../tests/knowledge/document-ac/questions.json), [기대 명제](../../../../tests/knowledge/document-ac/expectations.json)를 작성 전에 정했다. 해시는 작성자 실행 중 기록했다. 기준은 SAP Harness의 `36a31860ae66c0d03b99ec244abe891a642dbdc4`이며 로컬 Git 원본과 발췌·파일 해시를 대조했다.
+- `writing-for-humans`를 읽은 독립 작성자의 초안을 주 에이전트가 축약해 [공통 정책](../../../../tests/knowledge/document-ac/documents/policy.md), [FE](../../../../tests/knowledge/document-ac/documents/frontend.md), [서비스 기획](../../../../tests/knowledge/document-ac/documents/planning.md), [UI/UX](../../../../tests/knowledge/document-ac/documents/uiux.md) 문서로 남겼다. 최종 문서 자체를 독립 검증했다.
+- [구조 검사](../../../../tests/knowledge/document-ac/check.py), [독자 입력 생성](../../../../tests/knowledge/document-ac/packets.py), [재실행 절차](../../../../tests/knowledge/document-ac/README.md), 실제 입력·반환·판정을 보존했다. 개발 검사 러너는 새 셸 진입점을 자동 발견한다.
 
 ## 실제로 관측한 차이
 
@@ -23,7 +23,7 @@ AC는 수용 기준을 뜻한다. 답변 내용뿐 아니라 모든 필수 명�
 | 작성자에게 누락 AC를 돌려주고 표 행 수정 | 새 독자 D가 500 처리에 정확히 답함. 다른 세 질문은 답은 맞지만 인용 일부 누락 | 문서 누락 해결, 독자 증거 7/10 통과 |
 | 결함 복구와 인용 지침 보완 후 새 독자 E | 필수 답변과 인용을 모두 반환 | 10/10 통과 |
 
-실패 뒤에는 기대 답안을 고치지 않았다. 독자에게 각 주장과 미검증 범위를 뒷받침하는 인용을 모두 반환하도록 지침을 명확히 했다. 네 결함을 소스와 일치하는 공통 정책으로 복구하고, 새 독자 E에게 다시 읽혔다. [실행자·입력 해시](../tests/toolkit/writing-for-humans/observations/execution.json), [독립 판정](../tests/toolkit/writing-for-humans/observations/judgments.md), [수정 이력](../tests/toolkit/writing-for-humans/observations/repair-final/history.json)에 성공과 실패를 함께 보존했다.
+실패 뒤에는 기대 답안을 고치지 않았다. 독자에게 각 주장과 미검증 범위를 뒷받침하는 인용을 모두 반환하도록 지침을 명확히 했다. 네 결함을 소스와 일치하는 공통 정책으로 복구하고, 새 독자 E에게 다시 읽혔다. [실행자·입력 해시](../../../../tests/knowledge/document-ac/observations/execution.json), [독립 판정](../../../../tests/knowledge/document-ac/observations/judgments.md), [수정 이력](../../../../tests/knowledge/document-ac/observations/repair-final/history.json)에 성공과 실패를 함께 보존했다.
 
 독립 판정자는 소스와 인용을 대조했으며, 직무별 안내 3종도 공통 정책과 일치한다고 판단했다. 독립 코드 검토에서는 확정할 결함이 없었다. 이들은 일반 서브 에이전트의 실제 응답이며 네이티브 하네스 역할 실행 영수증이 아니다.
 
@@ -32,9 +32,9 @@ AC는 수용 기준을 뜻한다. 답변 내용뿐 아니라 모든 필수 명�
 저장소 루트에서 다음 명령을 실행한다.
 
 ```sh
-bash tests/toolkit/writing-for-humans-check.sh
-python3 tests/toolkit/writing-for-humans/check.py
-python3 tests/toolkit/writing-for-humans/packets.py /새로운/실행/디렉터리
+bash tests/knowledge/document-ac-check.sh
+python3 tests/knowledge/document-ac/check.py
+python3 tests/knowledge/document-ac/packets.py /새로운/실행/디렉터리
 ```
 
 첫 명령은 정상 입력, 결함, 누락·변조·잘못된 입력, 기존 결과 덮어쓰기 거절을 검사하는 7개 테스트다. 구조 검사 성공은 문장 의미나 독자 이해의 성공을 뜻하지 않는다. 생성 명령은 입력을 준비할 뿐 에이전트를 실행하지 않는다. 새 독자와 판정자를 연결하는 방법은 재실행 절차에 있다. 원본 Git 대조에는 `check.py --source-repo <로컬 SAP Harness 저장소>`를 사용한다.

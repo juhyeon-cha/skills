@@ -57,10 +57,10 @@ PR 병합과 정기 검사를 실행 계기로 연결한다. 개발 전에는 �
 
 ## 범위와 진행 상태
 
-목표 문서와 단기 스토리 등록에 이어, 고정 근거·문서 묶음·독립 풀이·결함 검출·수정 재검증을 구현했다. 관측 결과와 재실행 방법은 [단기 실험 기록](document-ac-evaluation.md)에 있다. 중·장기는 방향과 단계 진입 조건이며 구현·스프린트·일정 확정이 아니다. 단기 구현 저장소는 `skills`, SAP Harness는 읽기 전용 검증 사례다. 실제 SAP 작업, 위키 배포, 원격 코드 반영은 포함하지 않는다.
+목표 문서와 단기 스토리 등록에 이어, 고정 근거·문서 묶음·독립 풀이·결함 검출·수정 재검증을 구현했다. 관측 결과와 재실행 방법은 [단기 실험 기록](experiments/document-ac.md)에 있다. 중·장기는 방향과 단계 진입 조건이며 구현·스프린트·일정 확정이 아니다. 단기 구현 저장소는 `skills`, SAP Harness는 읽기 전용 검증 사례다. 실제 SAP 작업, 위키 배포, 원격 코드 반영은 포함하지 않는다.
 
 ## 참고
 
 - [LLM Wiki: 코드 기준으로 자동 최신화되는 도메인 지식 SSOT 만들기](https://techblog.lycorp.co.jp/ko/llm-wiki-code-driven-knowledge-ssot): 코드·raw·knowledge 구분, PR 갱신, 정기 검증의 참고 구조.
-- [writing-for-humans](../plugins/toolkit/skills/writing-for-humans/SKILL.md): 독자와 목적에 맞춘 작성 책임.
-- [스토리 계획](../plugins/harness/skills/plan-story/SKILL.md), [리뷰](../plugins/harness/skills/verify-code/SKILL.md), [완료 판정](../plugins/harness/skills/verify-implement/SKILL.md): 기존 실행·검증 절차.
+- [writing-for-humans](../../../plugins/toolkit/skills/writing-for-humans/SKILL.md): 독자와 목적에 맞춘 작성 책임.
+- [스토리 계획](../../../plugins/harness/skills/plan-story/SKILL.md), [리뷰](../../../plugins/harness/skills/verify-code/SKILL.md), [완료 판정](../../../plugins/harness/skills/verify-implement/SKILL.md): 기존 실행·검증 절차.
