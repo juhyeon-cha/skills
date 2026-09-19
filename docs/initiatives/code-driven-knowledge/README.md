@@ -7,6 +7,7 @@
 | 알고 싶은 것 | 문서 |
 |---|---|
 | 단기·중기·장기 목표와 완료 조건 | [로드맵](roadmap.md) |
+| 무엇을 재사용하고 CLI·에이전트에 맡길 것인가 | [부품과 책임 경계 조사](research/components-and-boundaries.md) |
 | 문서 AC 평가에서 실제로 확인한 것 | [첫 실험 결과](experiments/document-ac.md) |
 | 평가를 다시 실행하는 방법과 입력·검사 코드 | [문서 평가 사례](../../../tests/knowledge/document-ac/README.md) |
 
