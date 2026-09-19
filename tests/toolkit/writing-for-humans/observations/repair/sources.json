@@ -1,0 +1,73 @@
+{
+  "repository": "https://github.com/juhyeon-cha/sap-harness",
+  "commit": "36a31860ae66c0d03b99ec244abe891a642dbdc4",
+  "files": [
+    {
+      "path": "packages/web/src/components/AiAnalysisTab.tsx",
+      "sha256": "69e34a36aacd08a556779409cc186ad1e7507e9f8d18ae8bafe9da5193f128a6"
+    },
+    {
+      "path": "packages/web/src/chat/model.ts",
+      "sha256": "48deffc51521bd5b30bc556f9bf2071240c7dcb4d295cf0125a3f9b4d1a2419b"
+    }
+  ],
+  "excerpts": [
+    {
+      "id": "submit",
+      "path": "packages/web/src/components/AiAnalysisTab.tsx",
+      "start_line": 546,
+      "symbol": "trySend",
+      "sha256": "b42fb38511839e101ff91a98e8cf809cc6eec84adc4667be96ccadebfbb59a49",
+      "text": "  function trySend() {\n    if (!isAskable(draft) || waiting || activeRequest.current) return;\n    const question = questionWithContext(\n      draft.trim(),\n      exploration.contextView,\n      exploration.contextPath,\n    );\n    const decision = decideSubmit(providers, selectedProvider, unlockedProvidersRef.current);\n    if (decision.kind === 'prompt-password') {\n      pendingQuestionRef.current = question;\n      setPasswordDraft('');\n      setPasswordError(null);\n      setPasswordModalOpen(true);\n      return;\n    }\n    setDraft('');\n    const password =\n      selectedProvider !== null\n        ? (providerPasswordsRef.current.get(selectedProvider) ?? null)\n        : null;\n    void sendTurn(question, selectedProvider, password);\n  }\n\n  // The password modal's own submit — the one place a `provider`+`password` pair is actually\n  // proven against the server, since there is no separate \"verify\" endpoint: this *is* the real\n  // `POST /api/chat` call for the question that was held back. A non-200 (401 for a wrong\n  // password, in practice) shows the server's own refusal text in the modal and changes nothing\n  // else — the question stays pending in `pendingQuestionRef`, and the reader may retry or cancel.\n  // A 200 unlocks the provider for the rest of this conversation and turns the already-fetched\n  // response into a normal resolved turn, exactly like `sendTurn` would have, without a second\n  // network call.\n  async function submitPasswordModal(event: FormEvent) {\n    event.preventDefault();\n    const question = pendingQuestionRef.current;\n    const provider = selectedProvider;\n    if (question === null || provider === null || passwordChecking || activeRequest.current) return;\n    const generation = conversationGeneration.current;\n    setPasswordChecking(true);\n    // One request owns both password validation and visible progress; a refusal reopens the modal.\n    setPasswordModalOpen(false);\n    const response = await sendTurn(question, provider, passwordDraft);\n    if (generation !== conversationGeneration.current || !response) return;\n    setPasswordChecking(false);\n    if (response.status === 401 || response.status === 403) {\n      setTurns((current) => current.filter((turn) => turn.id !== nextTurnId.current - 1));\n      setPasswordModalOpen(true);\n      setPasswordError(turnResultFrom(response).error);\n      return;\n    }\n    if (response.status === 200) {\n      unlockedProvidersRef.current.add(provider);\n      providerPasswordsRef.current.set(provider, passwordDraft);\n    }\n    pendingQuestionRef.current = null;\n    setPasswordDraft('');\n    setPasswordError(null);\n    setDraft('');\n  }\n\n  function cancelPasswordModal() {\n    pendingQuestionRef.current = null;\n    setPasswordModalOpen(false);\n    setPasswordDraft('');\n    setPasswordError(null);\n  }\n"
+    },
+    {
+      "id": "send",
+      "path": "packages/web/src/components/AiAnalysisTab.tsx",
+      "start_line": 448,
+      "symbol": "sendTurn",
+      "sha256": "ca1cc7ce87c07bcb79b128961bee20e3eeae97a7012b3636cad9c8ca5b9e4e42",
+      "text": "  async function sendTurn(\n    question: string,\n    provider: string | null = null,\n    password: string | null = null,\n  ) {\n    const generation = conversationGeneration.current;\n    const id = nextTurnId.current++;\n    const controller = new AbortController();\n    activeRequest.current = controller;\n    let live: LiveExploration | undefined;\n    setTurns((current) => [...current, pendingTurn(id, question)]);\n    const response = await postChat(\n      question,\n      sessionIdRef.current,\n      provider,\n      password,\n      provider === null && localModelsAvailable ? localModel : undefined,\n      undefined,\n      { conversationId: restoredSessionRef.current },\n      {\n        signal: controller.signal,\n        clientRequestId: crypto.randomUUID(),\n        isCurrent: () =>\n          generation === conversationGeneration.current && activeRequest.current === controller,\n        onEvent: (event) => {\n          live = receiveLive(live, event);\n          if (!live) return;\n          const received = live;\n          setTurns((current) =>\n            current.map((turn) => (turn.id === id ? { ...turn, live: received } : turn)),\n          );\n          dispatch({ type: 'progress', exploration: received });\n        },\n      },\n    );\n    if (generation !== conversationGeneration.current) return response;\n    activeRequest.current = null;\n    const completed = readExploration(response.body).exploration;\n    if (completed) dispatch({ type: 'complete', exploration: completed });\n    else if (live) {\n      const interrupted: LiveExploration = { ...live, status: 'interrupted' };\n      dispatch({ type: 'progress', exploration: interrupted });\n      setTurns((current) =>\n        current.map((turn) => (turn.id === id ? { ...turn, live: interrupted } : turn)),\n      );\n    }\n    applyRateLimit(response);\n    const sessionId = readSessionId(response);\n    if (sessionId !== null) {\n      sessionIdRef.current = sessionId;\n      setSessionIdReady(true);\n    }\n    setTurns((current) => resolveTurn(current, id, response));\n    return response;\n  }\n"
+    },
+    {
+      "id": "reset",
+      "path": "packages/web/src/components/AiAnalysisTab.tsx",
+      "start_line": 728,
+      "symbol": "startNewChat",
+      "sha256": "57ee727600d41c917486a93e48c91aa8ba09e692b76aa8ade5682d2f6b862c04",
+      "text": "  function startNewChat() {\n    activeRequest.current?.abort();\n    activeRequest.current = null;\n    conversationGeneration.current++;\n    dispatch({ type: 'reset' });\n    setPasswordChecking(false);\n    setTurns([]);\n    setDraft('');\n    nextTurnId.current = 0;\n    sessionIdRef.current = null;\n    restoredSessionRef.current = undefined;\n    setSessionNotice('');\n    setSessionList([]);\n    setSessionPassword('');\n    setSessionIdReady(false);\n    setReportPanelOpen(false);\n    setReportMarkdown(null);\n    setReportSelection([]);\n    setReportError(null);\n    setReportGenerating(false);\n    // sap-harness#303/#338: a fresh conversation starts with no unlocked provider and no\n    // remembered password either — a new conversation resuming a paid provider's *old* unlock\n    // would be a request the reader never re-authorised for this session. The provider\n    // *selection* itself and the fetched `providers` list survive, same as a radio group survives\n    // a form reset elsewhere on this page. sap-harness#337: the rate-limit line is per-request\n    // state with nothing left to show once the conversation it was measuring is gone.\n    unlockedProvidersRef.current.clear();\n    providerPasswordsRef.current.clear();\n    cancelPasswordModal();\n    setRateLimit(null);\n    resetSplit();\n  }\n"
+    },
+    {
+      "id": "decision",
+      "path": "packages/web/src/chat/model.ts",
+      "start_line": 118,
+      "symbol": "decideSubmit",
+      "sha256": "6fa37b2f98e4a6d9156ec026a25c276f611e0c835f211026069829a509e1cda5",
+      "text": "export function decideSubmit(\n  providers: readonly ProviderInfo[],\n  selectedProvider: string | null,\n  unlockedProviders: ReadonlySet<string>,\n): SubmitDecision {\n  if (selectedProvider === null) return { kind: 'send' };\n  const provider = providers.find((candidate) => candidate.name === selectedProvider);\n  if (provider === undefined || !provider.requiresPassword) return { kind: 'send' };\n  if (unlockedProviders.has(selectedProvider)) return { kind: 'send' };\n  return { kind: 'prompt-password' };\n}\n"
+    },
+    {
+      "id": "transport",
+      "path": "packages/web/src/chat/model.ts",
+      "start_line": 435,
+      "symbol": "postChat",
+      "sha256": "ae52cbd4ee04788d50a8c9a627d487d1e57dcca95fe24e093a69b31d7be0852a",
+      "text": "export async function postChat(\n  question: string,\n  sessionId: string | null,\n  provider?: string | null,\n  password?: string | null,\n  localModel?: 'claude' | 'codex',\n  rowAction?: RowAction,\n  history?: { conversationId?: string; rowOwner?: { turnId: string; slotId: string } },\n  stream?: ChatStreamOptions,\n): Promise<ChatResponse> {\n  const body: Record<string, unknown> = { question };\n  if (stream) body.clientRequestId = stream.clientRequestId;\n  if (history?.conversationId) body.conversationId = history.conversationId;\n  if (history?.rowOwner) body.rowOwner = history.rowOwner;\n  if (sessionId !== null) body.sessionId = sessionId;\n  if (provider !== undefined && provider !== null) body.provider = provider;\n  if (password !== undefined && password !== null) body.password = password;\n  if (localModel !== undefined) body.localModel = localModel;\n  if (rowAction) {\n    if ('confirmationId' in rowAction) body.rowConfirmation = rowAction.confirmationId;\n    else body.rowRead = { tool: rowAction.tool, input: rowAction.input };\n  }\n  const controller = new AbortController();\n  const abort = () => controller.abort();\n  stream?.signal.addEventListener('abort', abort, { once: true });\n  if (stream?.signal.aborted) abort();\n  if (stream && typeof window !== 'undefined')\n    window.addEventListener('pagehide', abort, { once: true });\n  try {\n    const response = await fetch(CHAT_PATH, {\n      method: 'POST',\n      headers: {\n        'content-type': 'application/json',\n        ...(stream ? { Accept: 'text/event-stream', 'X-Graph-Stream-Version': '1' } : {}),\n      },\n      body: JSON.stringify(body),\n      ...(stream ? { signal: controller.signal } : {}),\n    });\n    // HTTP succeeded when SSE opened; only validated terminal events decide the turn outcome.\n    let status = response.status;\n    const responseBody: unknown =\n      stream && response.ok\n        ? await readChatStream(response, {\n            ...stream,\n            signal: controller.signal,\n            onEvent(event) {\n              if (event.kind === 'turn-error') status = 502;\n              else if (event.kind === 'turn-cancelled') status = 499;\n              stream.onEvent(event);\n            },\n          })\n        : await response.json().catch(() => null);\n    return {\n      status,\n      body: responseBody,\n      rateLimit: rateLimitFromHeaders((name) => response.headers.get(name)),\n    };\n  } catch (error) {\n    if (!stream) throw error;\n    return {\n      status: controller.signal.aborted || !stream.isCurrent() ? 499 : 502,\n      body: {\n        error: controller.signal.aborted\n          ? '분석을 중지했습니다.'\n          : '분석 연결이 중단되었습니다. 다시 시도하세요.',\n        streamState:\n          controller.signal.aborted || !stream.isCurrent() ? 'cancelled' : 'disconnected',\n      },\n    };\n  } finally {\n    controller.abort();\n    stream?.signal.removeEventListener('abort', abort);\n    if (stream && typeof window !== 'undefined') window.removeEventListener('pagehide', abort);\n  }\n}\n"
+    },
+    {
+      "id": "askable",
+      "path": "packages/web/src/chat/model.ts",
+      "start_line": 421,
+      "symbol": "isAskable",
+      "sha256": "68afabb612edbd0b32fdb8f2a0f3ad7ecd0350af894540cd8081f79d328a5378",
+      "text": "export function isAskable(draft: string): boolean {\n  return draft.trim().length > 0;\n}\n"
+    },
+    {
+      "id": "route",
+      "path": "packages/web/src/chat/model.ts",
+      "start_line": 44,
+      "symbol": "CHAT_PATH",
+      "sha256": "6b98e33fac39d59c1bcf024f6a7ded75fabc5c2b6e5201c314ad1089119fd329",
+      "text": "export const CHAT_PATH = '/api/chat';\n"
+    }
+  ],
+  "limits": "Static source evidence only. No SAP, browser, or server execution. Source comments may disagree with executable branches; inspect the branches."
+}

@@ -1,0 +1,36 @@
+{
+  "cases": {
+    "normal": {
+      "policy_sha256": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b",
+      "prompt_sha256": "a82a3885374cc36c582b9f5811ea91cfa2ea60e35272df8845e963a5f599f633",
+      "structural_errors": []
+    },
+    "missing-exception": {
+      "policy_sha256": "0b6a55c9e41e68231040ac1d1848f5707aaa2a653e9e46ee6f4bf191e5fdd10c",
+      "prompt_sha256": "f05aec640a20334cb5ee3f1dce41097b9ff86b47b1d9c5fdc01d31e62dbd87d4",
+      "structural_errors": []
+    },
+    "resend": {
+      "policy_sha256": "07a6044dced441c6782a14747a522562481f74def4e5545eca56aa111576e72d",
+      "prompt_sha256": "1da017b61413cf45f92ec057c929ca85475cf21f29b5b16af07e1e8ee368f6e3",
+      "structural_errors": []
+    },
+    "bad-identifier": {
+      "policy_sha256": "da5171e5591303c7a604d2da6b56d52b0205da8a4a3a90bdb3d17702448ebdc3",
+      "prompt_sha256": "7a30f5c9c594e1fd61083d1db78b15784b2c4086c288c76be9c17ec5a939e8ca",
+      "structural_errors": [
+        "IDENTIFIER: policy.md: /api/chats"
+      ]
+    },
+    "broken-link": {
+      "policy_sha256": "e58f8a34b5896e308352ad681fb43e9f188ea6a18208656b32aa04d520dc3dbb",
+      "prompt_sha256": "8628728d65480919c03ba2c33066d7a4e170167016cc3104aba2dd3e6847dae5",
+      "structural_errors": [
+        "LINK: policy.md: ../absent-sources.json",
+        "LINK: policy.md: ../absent-sources.json"
+      ]
+    }
+  },
+  "reader_input": "policy and questions only",
+  "limits": "Fresh context is prompt-level separation, not a security sandbox."
+}

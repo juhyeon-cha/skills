@@ -1,0 +1,26 @@
+{
+  "boundary": "Observed local commands; does not replace independent meaning judgments. Full tests/run-all.sh was not run.",
+  "checks": [
+    {
+      "command": "bash tests/toolkit/writing-for-humans-check.sh",
+      "exit_code": 0,
+      "result": "7 tests passed"
+    },
+    {
+      "command": "python3 tests/toolkit/writing-for-humans/check.py --source-repo /Users/juhyeon/.harness-workspace/sap-harness",
+      "exit_code": 0,
+      "result": "Frozen evidence, exact pinned Git objects/excerpts, question coverage, links and route literals passed"
+    },
+    {
+      "command": "bash scripts/check.sh",
+      "exit_code": 0,
+      "result": "Plugin validate, shellcheck 59 files, manifest/marketplace/README descriptions passed"
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 0,
+      "result": "No whitespace errors"
+    }
+  ],
+  "recording": "Parent observed command outputs, not a signed execution log."
+}

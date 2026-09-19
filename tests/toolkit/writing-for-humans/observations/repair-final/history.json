@@ -1,0 +1,38 @@
+{
+  "repairs": [
+    {
+      "from": "run-1/missing-exception/documents/policy.md",
+      "to": "repair-final/documents/policy.md",
+      "before_sha256": "0b6a55c9e41e68231040ac1d1848f5707aaa2a653e9e46ee6f4bf191e5fdd10c",
+      "after_sha256": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b",
+      "action": "Restore source-grounded canonical policy after observing this defect. The missing-exception intermediate writer repair is preserved separately in repair/."
+    },
+    {
+      "from": "run-1/resend/documents/policy.md",
+      "to": "repair-final/documents/policy.md",
+      "before_sha256": "07a6044dced441c6782a14747a522562481f74def4e5545eca56aa111576e72d",
+      "after_sha256": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b",
+      "action": "Restore source-grounded canonical policy after observing this defect. The missing-exception intermediate writer repair is preserved separately in repair/."
+    },
+    {
+      "from": "run-1/bad-identifier/documents/policy.md",
+      "to": "repair-final/documents/policy.md",
+      "before_sha256": "da5171e5591303c7a604d2da6b56d52b0205da8a4a3a90bdb3d17702448ebdc3",
+      "after_sha256": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b",
+      "action": "Restore source-grounded canonical policy after observing this defect. The missing-exception intermediate writer repair is preserved separately in repair/."
+    },
+    {
+      "from": "run-1/broken-link/documents/policy.md",
+      "to": "repair-final/documents/policy.md",
+      "before_sha256": "e58f8a34b5896e308352ad681fb43e9f188ea6a18208656b32aa04d520dc3dbb",
+      "after_sha256": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b",
+      "action": "Restore source-grounded canonical policy after observing this defect. The missing-exception intermediate writer repair is preserved separately in repair/."
+    }
+  ],
+  "structural_check": {
+    "exit_code": 0,
+    "stdout": "PASS: frozen evidence, question coverage, local links, chat-route literals\nNOT ESTABLISHED: semantic correctness, reader answers, remote links, live behavior\n",
+    "stderr": ""
+  },
+  "prompt_change": "D returned correct answers but lacked required citations for q3/q6/q10. Require a quote array covering every factual clause, including limits; do not change source expectations."
+}

@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "files": {
+    "sources.json": "5e43ee004889d3642278acac39ba6acdef782c85fcd6b10d049dd68087e4f6ae",
+    "questions.json": "9ab26f99ad6dff2b06b7de177e645d54e9ed56e0efecb8368a1fda2ca3c8001f",
+    "expectations.json": "82c5413799472c0018965083a83c731eb2a29b721cfb867a1addb04e07fd4054"
+  },
+  "purpose": "Input contents were written before the independent writer call; their hashes were recorded during that call. Source-derived expected propositions are grading inputs, never reader inputs."
+}
