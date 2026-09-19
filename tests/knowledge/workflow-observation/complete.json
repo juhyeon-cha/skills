@@ -1,0 +1,44 @@
+{
+  "id": "f2546dd1f60fda1bf9f09a2127015d6092f4cc75396d9066363535d6bd4995da",
+  "kind": "completion",
+  "next_bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "retry.py"
+            ],
+            "id": "exhausted",
+            "text": "모든 시도가 연결 오류로 실패하면 마지막 오류를 호출자에게 전달한다."
+          },
+          {
+            "evidence": [
+              "retry.py"
+            ],
+            "id": "permission",
+            "text": "권한 오류(PermissionError)는 재시도하지 않고 호출자에게 전달한다."
+          },
+          {
+            "evidence": [
+              "retry.py"
+            ],
+            "id": "retry-limit",
+            "text": "연결 오류(ConnectionError)가 발생하면 최초 요청 외에 최대 세 번 더 시도한다."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "3f6b71d62db31604041efc6ebf68f518eea90c28b657605aff5285fd690c8424"
+      }
+    ],
+    "id": "0559d7e32d6f316455e5eb2e553ac3e89cfc44994aa86688c6f09090f4332dd4",
+    "kind": "bindings",
+    "snapshot": "c2d7b7879cb8294b7c64535aaf2f53004f1f5925ec17c151cb718e2565b7c5d2",
+    "version": 1
+  },
+  "packet": "56102f71ec0a9fa76facd095ee8a40d6410b5878e6f44669bd2ad9928065d07a",
+  "plan": "1e4172bfdc60c4527dfbad0881a32ca71eb1cdc5f8dc19b59043a1505771e297",
+  "review": "74290de09391624f7111e172b2964f3b48fcdbb779fbac1f19386bccd8f45a06",
+  "status": "applied",
+  "version": 1
+}

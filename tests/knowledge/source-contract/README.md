@@ -103,3 +103,6 @@ The source test wrapper also runs the impact regression cases.
 
 After deriving candidates, follow [document updates](UPDATES.md) to author decisions,
 prepare a reviewable plan, and apply it with stale-document checks and partial retry.
+
+For agent orchestration and independent review tied to the exact plan, read
+[the reviewed workflow](WORKFLOW.md).
