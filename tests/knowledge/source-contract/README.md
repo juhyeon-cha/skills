@@ -54,3 +54,47 @@ The shell test is discovered by `tests/run-all.sh`. Set `KNOWLEDGE_PYTHON` to an
 the dependency installed when using that runner; missing dependencies fail rather than skip.
 For initiative scope and the deferred evaluation work, read the
 [initiative index](../../../docs/initiatives/code-driven-knowledge/README.md).
+
+## Bind claims and find affected documents
+
+When connecting source changes to document review, use `impact.py` and the definitions in
+`impact-schema.json`. Supply a spec containing exact document excerpts and their source paths:
+
+```json
+{"documents":[{"path":"guide.md","claims":[{"id":"retry-rule","text":"Exact existing sentence.","evidence":["src/retry.py"]}]}]}
+```
+
+Paths in this spec have two roots: document paths use `--docs-root`; evidence paths use the
+snapshot's Git repository root. Claim IDs are unique within each document. Both commands
+require a local source repository and verify pinned snapshots against Git before writing.
+
+```sh
+"$PYTHON" tests/knowledge/source-contract/impact.py bind spec.json \
+  --snapshot before.json --repo /absolute/source/repo \
+  --docs-root /absolute/documents --out bindings.json
+"$PYTHON" tests/knowledge/source-contract/impact.py impact bindings.json \
+  --before before.json --after after.json --repo /absolute/source/repo \
+  --docs-root /absolute/documents --out impact.json
+```
+
+`bind` records the exact snapshot ID and hashes of the complete document bytes. An excerpt
+must occur literally in its document, and every evidence path must exist in the snapshot.
+Document paths are relative and symlinks below the supplied document root are rejected.
+`impact` rejects changed or missing documents, a different baseline, malformed bindings, and
+source mismatches. After legitimate edits, review the links and bind again; never carry a
+binding forward merely by replacing its hash or snapshot ID.
+
+Read `candidates` as documents and claims requiring review, with the concrete file changes
+that selected them. Read `unlinked_changes` as changes with no declared dependent claim;
+this always includes additions, since a baseline cannot link a file that did not exist.
+A changed file selects all claims linked to that file, including mode-only changes. A rename
+candidate selects the old path's claims and does not rewrite their links. Shared evidence
+can select multiple documents. Unchanged input yields two empty lists; an empty candidate
+list alone does not mean the change is irrelevant.
+
+Links are supplied by the author or agent. Literal excerpt presence is not semantic truth,
+and the CLI cannot prove the completeness of those links or discover indirect dependencies.
+The output is a deterministic review queue, not approval to edit or publish documents.
+It does not assert current-branch freshness, lock concurrently edited documents, evaluate
+model output, or apply updates. Re-run against stable inputs before consuming an old queue.
+The source test wrapper also runs the impact regression cases.
