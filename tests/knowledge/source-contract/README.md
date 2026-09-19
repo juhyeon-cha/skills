@@ -98,3 +98,8 @@ The output is a deterministic review queue, not approval to edit or publish docu
 It does not assert current-branch freshness, lock concurrently edited documents, evaluate
 model output, or apply updates. Re-run against stable inputs before consuming an old queue.
 The source test wrapper also runs the impact regression cases.
+
+## Prepare and apply updates
+
+After deriving candidates, follow [document updates](UPDATES.md) to author decisions,
+prepare a reviewable plan, and apply it with stale-document checks and partial retry.
