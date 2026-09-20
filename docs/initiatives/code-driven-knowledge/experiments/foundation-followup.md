@@ -4,7 +4,7 @@
 
 skills#333의 로컬 수정은 접수 원문의 리뷰 패킷 결합과 context 재진입 검증을 다룬다. 자동 회귀는 해당 경로의 실행 결과만 입증한다. foundation 재생은 접수 없는 버전 1 패킷에서 과거 실제 리뷰를 그대로 사용하며, 별도의 버전 2 접수 실행에서 과거 응답 거절을 확인한다. 새 패킷에 대한 모델의 의미 검증을 대신하지 않는다.
 
-수정본 `27e1714cbe23d15b6dacf07a0501c98ec78c08bd`에서 실제 관측을 마쳤다. 아래는 오케스트레이터의 증거 대조 결과이며 **독립 최종 판정 전까지 전체 완료는 보류한다.** [원본 묶음](../../../../tests/knowledge/foundation-followup/README.md)의 `observation.json`에 역할 입력·응답·명령·손상 대조·해시·완료 기록을 보존했다. 독립 최종 판정은 skills#339의 acceptance에 기록한다.
+수정본 `27e1714cbe23d15b6dacf07a0501c98ec78c08bd`에서 실제 관측을 마쳤다. **독립 최종 판정은 18개 기준 모두 MET, SIGNAL: MATCH다.** [원본 묶음](../../../../tests/knowledge/foundation-followup/README.md)의 `observation.json`에 역할 입력·응답·명령·손상 대조·해시·완료 기록을 보존했다. [독립 판정 원문](../../../../tests/knowledge/foundation-followup/final-verdict.md)과 [관측 영수증](../../../../tests/knowledge/foundation-followup/final-evaluation.json)을 보존하고 skills#339의 acceptance에 연결한다. 판정 대상은 `7535a8a`이며 이후 변경은 이 판정과 사람용 상태 기록뿐이다.
 
 ## 관측 결과
 
@@ -35,7 +35,7 @@ macOS/Codex, Python 3.14.7, jsonschema 4.26.0, Git 2.55.0, SQLite 3.53.4에서 t
 | S1-05-c | pass | `review-initial`의 source_fidelity=pass, decision_coverage/uncertainty=fail, verdict=revise. |
 | S1-06-a | pass | 설치 61개 해시 일치, 같은 프로젝트의 B/C 명령·응답·적용/중단/인계 기록. |
 | S1-06-b | pass | 같은 설치의 새 classifier와 fresh handoff. 준비된 접수 JSON 수용 검사만으로 대체하지 않음. |
-| S1-06-c | 독립 판정 대기 | 이 표와 원본을 독립 evaluator가 대조한 뒤 원장 acceptance 및 현재 상태에 반영. |
+| S1-06-c | pass | 독립 evaluator가 18행과 원본·현재 소스를 대조하여 MATCH. 판정 원문과 관측 영수증 보존. |
 
 ## 검증과 제한
 
