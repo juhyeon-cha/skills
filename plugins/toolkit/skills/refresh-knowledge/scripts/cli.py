@@ -127,6 +127,16 @@ def compare(before, after):
                  "changes": sorted(changes, key=lambda c: (c.get("before", ""), c.get("after", "")))})
 
 
+def read_json(path):
+    try:
+        return json.loads(path.read_text(encoding='utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError) as error:
+        raise ValueError(
+            f'ARTIFACT_CORRUPT: {path}; preserve this file and restore it from a trusted '
+            'original record before retrying the same run; do not change documents or project state'
+        ) from error
+
+
 def write_new(path, record):
     # Compute and validate before creating output; existing evidence is never overwritten.
     payload = json.dumps(record, ensure_ascii=False, sort_keys=True, indent=2) + "\n"

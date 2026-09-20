@@ -15,7 +15,8 @@ sys.dont_write_bytecode = True
 
 
 def read(path):
-    return json.loads(path.read_text(encoding='utf-8'))
+    from cli import read_json
+    return read_json(path)
 
 
 def dump(value):

@@ -152,6 +152,49 @@ knowledge.main()
         self.command('resume', '--run', run['run'], ok=False)
         self.assertEqual((self.docs / 'guide.md').read_text(), 'Later independent edit.')
 
+    def test_corrupt_artifacts_report_path_and_preserve_state(self):
+        revision = self.commit(2)
+        run, _, review = self.ready(revision, 2)
+        packet = Path(run['packet'])
+        original = packet.read_bytes()
+        for damaged in (b'', b'{', b'\xff'):
+            packet.write_bytes(damaged)
+            result = self.command('review', '--run', run['run'], '--review',
+                                  self.save('review-retry.json', review), ok=False)
+            self.assertIn('ARTIFACT_CORRUPT: ' + str(packet), result.stderr)
+            direct = subprocess.run([sys.executable, str(self.cli_path.parent / 'workflow.py'),
+                                     'finish', '--packet', str(packet), '--review', str(self.root / 'review-retry.json'),
+                                     '--repo', str(self.repo), '--docs-root', str(self.docs),
+                                     '--out', str(self.root / 'unused.json')], capture_output=True, text=True)
+            self.assertEqual(direct.returncode, 1)
+            self.assertIn('ARTIFACT_CORRUPT: ' + str(packet), direct.stderr)
+            self.assertFalse((self.root / 'unused.json').exists())
+            self.assertEqual(packet.read_bytes(), damaged)
+            self.assertEqual(self.command('status', '--run', run['run'])['phase'], 'ready')
+        packet.write_bytes(original)
+        code = '''import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import knowledge, workflow
+def interrupted(path, value):
+    Path(path).write_bytes(b'')
+    raise OSError('simulated interrupted completion write')
+workflow.write_new = interrupted
+sys.argv = ['knowledge', '--project', sys.argv[2], 'resume', '--run', sys.argv[3]]
+sys.exit(knowledge.main())
+'''
+        child = subprocess.run([sys.executable, '-c', code, str(self.cli_path.parent),
+                                str(self.project), run['run']], capture_output=True)
+        self.assertEqual(child.returncode, 1, child.stderr)
+        receipt = self.project / 'runs' / run['run'] / 'complete.json'
+        result = self.command('resume', '--run', run['run'], ok=False)
+        self.assertIn('ARTIFACT_CORRUPT: ' + str(receipt.resolve()), result.stderr)
+        self.assertIn('trusted original record', result.stderr)
+        self.assertEqual(receipt.read_bytes(), b'')
+        self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 2회 시도한다.\n')
+        self.assertEqual(self.command('status')['baseline'], self.baseline)
+        self.assertEqual(self.command('status', '--run', run['run'])['phase'], 'applying')
+
     def test_init_and_unknown_schema_preserve_existing_state(self):
         self.command('init', '--repo', self.repo, '--docs', self.docs, '--repository', 'fixture/service',
                      '--baseline', self.baseline, '--path', 'service.py', '--spec', self.spec,

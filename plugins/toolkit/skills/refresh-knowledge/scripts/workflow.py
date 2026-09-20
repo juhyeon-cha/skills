@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import sys
 
-from cli import Draft202012Validator, ValidationError, identify, load, validate, write_new
+from cli import Draft202012Validator, ValidationError, identify, load, read_json, validate, write_new
 from update import apply_plan, verify_plan
 
 ROOT = Path(__file__).resolve().parent
@@ -55,7 +55,7 @@ def finish(packet, review, repo, docs_root, out):
     if out.is_symlink():
         raise ValueError('OUTPUT: receipt symlink is unsupported')
     existing = out.exists()
-    if existing and json.loads(out.read_text(encoding='utf-8')) != receipt:
+    if existing and read_json(out) != receipt:
         raise ValueError('OUTPUT: existing receipt differs')
     if not out.parent.is_dir():
         raise ValueError('OUTPUT: receipt parent must exist')
@@ -83,7 +83,7 @@ def main():
         command.add_argument('--repo', type=Path, required=True)
         command.add_argument('--out', type=Path, required=True)
     args = parser.parse_args()
-    read = lambda path: json.loads(path.read_text(encoding='utf-8'))
+    read = read_json
     try:
         if args.command == 'packet':
             result = pack(read(args.plan), read(args.bindings), load(args.before, 'snapshot'),
