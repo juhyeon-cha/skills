@@ -5,7 +5,11 @@
   static evidence from runtime observation. For targets and wording-only edits, select authority
   using the document AC contract linked from the skill; a target differing from current code is
   not itself a document defect.
-- Decision coverage: every candidate and unlinked change has a justified disposition. Challenge
+- Decision coverage: for version 2 packets, read the complete `intake.input`, trace declared
+  authority and current/target versions to source text, and check every target acceptance criterion
+  and remaining difference against the proposed documents. A code-correct explanation that omits
+  an intake acceptance criterion requires revision. Missing authority needed to judge is unverified.
+  Version 1 reviews cover only the supplied no-intake scope. Every candidate and unlinked change has a justified disposition. Challenge
   unsupported no-document-change assertions and undeclared dependencies visible in the packet.
 - Reader action: the audience can choose the correct action. Check ambiguity, lost exceptions,
   Markdown/context broken by excerpt deletion, and cross-document contradictions. Style feedback

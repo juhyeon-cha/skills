@@ -21,6 +21,16 @@ def verify_packet(packet, repo):
     shape(packet, 'packet')
     if packet['id'] != identify(packet):
         raise ValueError('PACKET_HASH: packet changed')
+    if packet['version'] == 2:
+        from intake import classify
+        record = packet['intake']
+        if classify(record['input']) != record:
+            raise ValueError('INTAKE: packet record changed')
+        if record['route'] != 'current_documentation' or record['phase'] != 'awaiting_document_update':
+            raise ValueError('INTAKE_ROUTE: packet requires current documentation intake')
+        source = next(s for s in record['input']['sources'] if s['id'] == record['input']['current']['code'])
+        if source['version'] != packet['after']['commit']:
+            raise ValueError('INTAKE_VERSION: packet source differs from intake')
     for snapshot in (packet['before'], packet['after']):
         validate(snapshot)
         if snapshot['kind'] != 'snapshot':
@@ -28,11 +38,13 @@ def verify_packet(packet, repo):
     verify_plan(packet['plan'], packet['bindings'], packet['before'], packet['after'], repo)
 
 
-def pack(plan, bindings, before, after, repo, audience, purpose):
+def pack(plan, bindings, before, after, repo, audience, purpose, intake=None):
     if not audience.strip() or not purpose.strip():
         raise ValueError('CONTEXT: audience and purpose required')
     packet = {'version': 1, 'kind': 'review-packet', 'plan': plan, 'bindings': bindings,
               'before': before, 'after': after, 'audience': audience, 'purpose': purpose}
+    if intake is not None:
+        packet.update(version=2, intake=intake)
     packet['id'] = identify(packet)
     verify_packet(packet, repo)
     return packet

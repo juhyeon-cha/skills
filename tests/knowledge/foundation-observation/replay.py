@@ -73,9 +73,26 @@ def run(output):
                        differences=[{'kind': 'documentation', 'description': 'Guide still describes the previous limit.', 'sources': ['code']}],
                        rationale='The synthetic change intentionally raises the retry limit.')
         receipt = command('intake', '--input', save('intake-code.json', request))
-        first = command('start', '--rev', second, '--intake', receipt['intake'])
-        assert command('start', '--rev', second, '--intake', receipt['intake'])['run'] == first['run']
-        assert command('start', '--rev', third, '--intake', receipt['intake'], expected=1)
+        # The recorded independent reviews are v1 without intake. Keep their exact identity.
+        first = command('start', '--rev', second)
+        assert command('start', '--rev', second)['run'] == first['run']
+        assert command('start', '--rev', third, expected=1)
+        # A separate intake-bound run must reject those same recorded responses.
+        legacy_project = project
+        project = root / 'intake-project'
+        command('init', '--repo', repo, '--docs', docs, '--repository', 'fixture/retry',
+                '--baseline', baseline, '--path', 'service.py', '--spec', spec_path,
+                '--audience', packets['bad']['audience'], '--purpose', packets['bad']['purpose'])
+        new_intake = command('intake', '--input', root / 'intake-code.json')
+        bound = command('start', '--rev', second, '--intake', new_intake['intake'])
+        bound_prepared = command('prepare', '--run', bound['run'], '--decisions',
+                                 save('bound-decisions.json', packets['fixed']['plan']['decisions']))
+        bound_packet = json.loads(Path(bound_prepared['packet']).read_text())
+        assert bound_packet['version'] == 2 and bound_packet['intake']['id'] == new_intake['intake']
+        assert bound_packet['id'] != packets['fixed']['id']
+        assert 'REVIEW_STALE' in command('review', '--run', bound['run'], '--review', HERE / 'review-fixed.json', expected=1)['stderr']
+        assert command('status')['baseline'] == baseline and (docs / 'guide.md').read_text() == original
+        project = legacy_project
         run_id = first['run']
         for key in ['bad', 'fixed']:
             prepared = command('prepare', '--run', run_id, '--decisions', save('decisions-' + key + '.json', packets[key]['plan']['decisions']))
@@ -167,12 +184,12 @@ knowledge.main()
                 '--audience', packets['c']['audience'], '--purpose', 'Reviewed successor after scope change')
         assert command('start', '--rev', revision)['phase'] == 'awaiting_decisions'
         assert (old_project / 'retired.json').exists()
-        (output / 'result.json').write_text(json.dumps({'status': 'pass', 'review_source': 'preserved actual independent responses; no new model invocation',
+        (output / 'result.json').write_text(json.dumps({'status': 'pass', 'review_source': 'preserved v1 independent responses on no-intake runs; no new model invocation', 'intake_validation': 'v2 rejects historical v1 response; no new semantic review claimed',
             'baseline': third, 'document': (docs / 'guide.md').read_text(),
             'installation_hashes': {str(p.relative_to(installed)): hashlib.sha256(p.read_bytes()).hexdigest()
                                     for p in sorted(installed.rglob('*')) if p.is_file() and '__pycache__' not in p.parts},
             'scope': ['two changes', 'real review rejection/repair replay', 'stale review', 'corrupt packet', 'independent edit',
-                      'process exit/reentry', 'all intake origins', 'missing skill', 'terminate/retire/successor']},ensure_ascii=False,indent=2)+'\n')
+                      'process exit/reentry', 'all intake origins', 'intake-bound stale review rejection', 'missing skill', 'terminate/retire/successor']},ensure_ascii=False,indent=2)+'\n')
     print('PASS: installed integrated replay; preserved reviews, not a new agent execution')
 
 

@@ -274,6 +274,102 @@ sys.exit(knowledge.main())
             db.execute('BEGIN IMMEDIATE')
             self.assertIn('locked', self.command('intake', '--input', self.root / 'code-request.json', ok=False).stderr)
 
+    def test_context_corruption_blocks_every_reentry_and_recovers(self):
+        revision = self.commit(2)
+        run, _, review = self.ready(revision, 2)
+        context = Path(run['context'])
+        original = context.read_bytes()
+        commands = [('status',), ('status', '--run', run['run']),
+                    ('start', '--rev', revision), ('resume', '--run', run['run']),
+                    ('prepare', '--run', run['run'], '--decisions', self.root / 'decisions-2.json'),
+                    ('review', '--run', run['run'], '--review', self.root / 'review-2.json')]
+        changed = json.loads(original); changed['purpose'] = 'Untrusted purpose'
+        for kind in ['malformed', 'changed', 'missing', 'symlink']:
+            with self.subTest(kind=kind):
+                held = context.with_suffix('.held')
+                context.rename(held)
+                try:
+                    if kind == 'malformed': context.write_bytes(b'{')
+                    if kind == 'changed': context.write_text(json.dumps(changed))
+                    if kind == 'symlink': context.symlink_to(held)
+                    damaged = context.read_bytes() if context.exists() else None
+                    for command in commands:
+                        result = self.command(*command, ok=False)
+                        self.assertIn('CONTEXT_INVALID', result.stderr)
+                        self.assertIn('terminate', result.stderr)
+                        self.assertEqual(context.read_bytes() if context.exists() else None, damaged)
+                        self.assertEqual(context.is_symlink(), kind == 'symlink')
+                    with closing(sqlite3.connect(self.project / 'project.sqlite3')) as db:
+                        self.assertEqual(json.loads(db.execute('SELECT current FROM project').fetchone()[0])['snapshot']['commit'], self.baseline)
+                        self.assertEqual(json.loads(db.execute('SELECT data FROM runs').fetchone()[0])['phase'], 'ready')
+                    self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 1회 시도한다.\n')
+                finally:
+                    if context.exists() or context.is_symlink(): context.rename(context.with_suffix('.damaged-' + kind))
+                    held.rename(context)
+                self.assertEqual(self.command('status', '--run', run['run'])['phase'], 'ready')
+        self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'completed')
+
+    def test_corrupt_context_allows_termination_and_retirement(self):
+        run, _, _ = self.ready(self.commit(2), 2)
+        context = Path(run['context']); context.write_bytes(b'{')
+        reason = self.root / 'reason.txt'; reason.write_text('Preserve corrupted handoff.')
+        self.assertEqual(self.command('terminate', '--run', run['run'], '--reason-file', reason)['phase'], 'terminated')
+        self.assertEqual(context.read_bytes(), b'{')
+        self.assertEqual(self.command('retire', '--reason-file', reason, '--successor', self.root / 'successor')['phase'], 'retired')
+        self.assertEqual(context.read_bytes(), b'{')
+
+    def test_intake_binds_packet_and_legacy_ready_cannot_apply(self):
+        from test_intake import fixture, source
+        revision = self.commit(2)
+        original_project = self.project
+        value = fixture('current_behavior'); value['sources'][0]['version'] = revision
+        value['sources'].append(source('context', 'user', 'context', 'Explain the limit.'))
+        packets = []; reviews = []
+        for variant in ['original', 'acceptance', 'authority']:
+            if variant == 'acceptance': value['target']['acceptance'].append('State the final failure.')
+            if variant == 'authority': value['sources'][1]['authority'] = 'user_instruction'
+            self.project = self.root / ('project-' + variant)
+            shutil.copytree(original_project, self.project)
+            intake = self.command('intake', '--input', self.save('intake-' + variant + '.json', value))
+            run = self.command('start', '--rev', revision, '--intake', intake['intake'])
+            context = json.loads(Path(run['context']).read_text())
+            decisions = {'impact': context['impact']['id'], 'claims': [{'path': 'guide.md', 'id': 'limit',
+                         'action': 'replace', 'reason': 'Limit changed.', 'text': '호출은 2회 시도한다.', 'evidence': ['service.py']}], 'unlinked': []}
+            prepared = self.command('prepare', '--run', run['run'], '--decisions', self.save('bound-decisions.json', decisions))
+            packet = json.loads(Path(prepared['packet']).read_text())
+            self.assertEqual(packet['version'], 2)
+            self.assertEqual(packet['intake'], context['intake'])
+            if packets:
+                self.assertEqual(packet['plan'], packets[0]['plan'])
+                self.assertNotEqual(packet['id'], packets[-1]['id'])
+                self.assertIn('REVIEW_STALE', self.command('review', '--run', run['run'], '--review', self.save('stale-intake.json', reviews[0]), ok=False).stderr)
+            review = {'packet': packet['id'], 'plan': packet['plan']['id'], 'verdict': 'pass',
+                      'checks': {k: 'pass' for k in ['source_fidelity', 'decision_coverage', 'reader_action', 'uncertainty']}, 'findings': []}
+            packets.append(packet); reviews.append(review)
+            self.command('review', '--run', run['run'], '--review', self.save('bound-review.json', review))
+        # Simulate a real pre-upgrade intake run whose stored ready packet omitted intake.
+        from cli import identify
+        legacy = dict(packet); legacy.pop('intake'); legacy['version'] = 1; legacy['id'] = identify(legacy)
+        review.update(packet=legacy['id'])
+        legacy_path = self.project / 'runs' / run['run'] / legacy['id'] / 'packet.json'
+        legacy_path.parent.mkdir(); legacy_path.write_text(json.dumps(legacy))
+        for phase in ['awaiting_review', 'ready', 'applying']:
+            with closing(sqlite3.connect(self.project / 'project.sqlite3')) as db:
+                saved = json.loads(db.execute('SELECT data FROM runs').fetchone()[0])
+                saved.update(attempt=legacy, review=review, phase=phase)
+                db.execute('UPDATE runs SET data=?', (json.dumps(saved),)); db.commit()
+            if phase == 'awaiting_review':
+                result = self.command('review', '--run', run['run'], '--review', self.save('legacy-review.json', review), ok=False)
+            else:
+                result = self.command('resume', '--run', run['run'], ok=False)
+            self.assertIn('INTAKE_REVIEW_REQUIRED', result.stderr)
+            self.assertEqual(self.command('status')['baseline'], self.baseline)
+            self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 1회 시도한다.\n')
+        # Retire remains usable for a partially applied old contract.
+        Path(run['context']).write_bytes(b'{')
+        reason = self.root / 'old-contract.txt'; reason.write_text('Review contract is inadequate.')
+        self.assertEqual(self.command('retire', '--reason-file', reason, '--successor', self.root / 'new-contract')['phase'], 'retired')
+
     def test_missing_skill_dependency_blocks_before_mutation(self):
         isolated = self.root / 'incomplete-toolkit'
         shutil.copytree(self.installed, isolated)

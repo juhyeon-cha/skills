@@ -1,0 +1,81 @@
+{
+  "call": {
+    "version": 1,
+    "runtime": "codex",
+    "provider": "collaboration",
+    "repository": "/private/tmp/skills-333-foundation",
+    "data": "/Users/juhyeon/.codex/plugins/data/harness-skills",
+    "sessionId": "01a0bd74-e895-7823-b422-950104ac20a5",
+    "parentAgentId": "/root",
+    "callId": "skills-339-final-evaluation",
+    "role": "evaluator",
+    "task": "skills#339",
+    "sourceHash": "78f020fc1df1294c3c744ba9f0b620900620efa3b7b14a1898f8ce4235d9be2e",
+    "commitScope": {
+      "mode": "fixed",
+      "base": "27e1714cbe23d15b6dacf07a0501c98ec78c08bd",
+      "head": "7535a8a2e8fe0cecec87d7eec57b0242a68c3567",
+      "branch": "worktree-skills-333"
+    },
+    "implementerIds": [
+      "/root",
+      "/root/harness_347a547dd87e4e9fac2bc9a5e9d7cad2",
+      "/root/harness_fa6bef2c70634dc1b0c1f131de04f54d",
+      "/root/live_writer_b",
+      "/root/live_writer_c"
+    ],
+    "previousAgentIds": [],
+    "permission": "prompt-only"
+  },
+  "binding": {
+    "call": {
+      "version": 1,
+      "runtime": "codex",
+      "provider": "collaboration",
+      "repository": "/private/tmp/skills-333-foundation",
+      "data": "/Users/juhyeon/.codex/plugins/data/harness-skills",
+      "sessionId": "01a0bd74-e895-7823-b422-950104ac20a5",
+      "parentAgentId": "/root",
+      "callId": "skills-339-final-evaluation",
+      "role": "evaluator",
+      "task": "skills#339",
+      "sourceHash": "78f020fc1df1294c3c744ba9f0b620900620efa3b7b14a1898f8ce4235d9be2e",
+      "commitScope": {
+        "mode": "fixed",
+        "base": "27e1714cbe23d15b6dacf07a0501c98ec78c08bd",
+        "head": "7535a8a2e8fe0cecec87d7eec57b0242a68c3567",
+        "branch": "worktree-skills-333"
+      },
+      "implementerIds": [
+        "/root",
+        "/root/harness_347a547dd87e4e9fac2bc9a5e9d7cad2",
+        "/root/harness_fa6bef2c70634dc1b0c1f131de04f54d",
+        "/root/live_writer_b",
+        "/root/live_writer_c"
+      ],
+      "previousAgentIds": [],
+      "permission": "prompt-only"
+    },
+    "observation": {
+      "source": "parent-tool-return",
+      "tool": "collaboration.spawn_agent",
+      "value": {
+        "task_name": "/root/harness_6a953d9953c247e49ffa8f43366ab629"
+      }
+    }
+  },
+  "response_file": "final-verdict.md",
+  "body_hash_rule": "UTF-8 final response without trailing newline",
+  "bodyHash": "2d461571aca5295fd762d21e2c62bd8ebd23f39dcc34dad6c4e2bd5786c410f3",
+  "complete_result": {
+    "status": "OBSERVED",
+    "signal": "MATCH",
+    "child": "/root/harness_6a953d9953c247e49ffa8f43366ab629",
+    "head": "7535a8a2e8fe0cecec87d7eec57b0242a68c3567",
+    "provenance": "parent-attested-tool-observation",
+    "permission": "prompt-only",
+    "enforcement": "unavailable",
+    "nativeRoleEvidence": "unavailable"
+  },
+  "recording_boundary": "Verdict assessed clean 7535a8a; subsequent edits only preserve this verdict and update human-facing status."
+}
