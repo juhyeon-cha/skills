@@ -1,0 +1,693 @@
+[
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "init",
+      "-q"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "fast-import",
+      "--quiet"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "reset",
+      "--hard",
+      "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0"
+    ],
+    "rc": 0,
+    "stdout": "HEAD is now at e9aac09 attempts 5\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "doctor"
+    ],
+    "rc": 0,
+    "stdout": "{\"git\": \"/opt/homebrew/bin/git\", \"git_version\": \"git version 2.55.0\", \"independent_agent\": \"host capability must be checked by the orchestrator\", \"jsonschema\": \"4.26.0\", \"python\": \"/private/tmp/knowledge-contract-venv/bin/python\", \"python_version\": \"3.14.7\", \"skill_files\": [\"writing-for-humans/SKILL.md\", \"writing-for-humans/references/backend.md\", \"writing-for-humans/references/document-shapes.md\", \"review-knowledge/SKILL.md\", \"review-knowledge/references/rubric.md\", \"review-knowledge/references/response.md\", \"review-knowledge/references/document-ac.md\"], \"sqlite\": \"3.53.4\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "init",
+      "--repo",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "--docs",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/docs",
+      "--repository",
+      "fixture/retry",
+      "--baseline",
+      "8d5e15e97af0b5e7795fb07efbea18301d10941c",
+      "--path",
+      "service.py",
+      "--spec",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/spec.json",
+      "--audience",
+      "재시도 함수를 호출하는 BE 개발자",
+      "--purpose",
+      "호출 횟수와 오류 전달을 판단한다"
+    ],
+    "rc": 0,
+    "stdout": "{\"baseline\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"phase\": \"initialized\", \"project\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "intake",
+      "--input",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/intake-code.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"intake\": \"3b7adb5019ccfd825f6a92f7a5d5c71999e5ab2d02c8c902bc7ad2bf97fc5660\", \"phase\": \"awaiting_document_update\", \"record\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/intakes/3b7adb5019ccfd825f6a92f7a5d5c71999e5ab2d02c8c902bc7ad2bf97fc5660.json\", \"route\": \"current_documentation\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "2ec5606717b00ba74c75f7453a1aa394e8762bac",
+      "--intake",
+      "3b7adb5019ccfd825f6a92f7a5d5c71999e5ab2d02c8c902bc7ad2bf97fc5660"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"phase\": \"awaiting_decisions\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "2ec5606717b00ba74c75f7453a1aa394e8762bac",
+      "--intake",
+      "3b7adb5019ccfd825f6a92f7a5d5c71999e5ab2d02c8c902bc7ad2bf97fc5660"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"phase\": \"awaiting_decisions\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0",
+      "--intake",
+      "3b7adb5019ccfd825f6a92f7a5d5c71999e5ab2d02c8c902bc7ad2bf97fc5660"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"start\", \"error\": \"INTAKE_VERSION: current evidence must name the requested pinned commit\"}\n"
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "prepare",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f",
+      "--decisions",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/decisions-bad.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2/packet.json\", \"phase\": \"awaiting_review\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "review",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f",
+      "--review",
+      "/Users/juhyeon/.codex/worktrees/3516/skills/tests/knowledge/foundation-observation/review-bad.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2/packet.json\", \"phase\": \"revise\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "resume",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2/packet.json\", \"phase\": \"revise\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "prepare",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f",
+      "--decisions",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/decisions-fixed.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"awaiting_review\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "review",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f",
+      "--review",
+      "/Users/juhyeon/.codex/worktrees/3516/skills/tests/knowledge/foundation-observation/review-fixed.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"ready\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "review",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f",
+      "--review",
+      "/Users/juhyeon/.codex/worktrees/3516/skills/tests/knowledge/foundation-observation/review-bad.json"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"review\", \"error\": \"REVIEW_STALE: review does not match latest attempt\"}\n"
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "resume",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"resume\", \"error\": \"ARTIFACT_CORRUPT: /private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json; preserve this file and restore it from a trusted original record before retrying the same run; do not change documents or project state\"}\n"
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "resume",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"resume\", \"error\": \"STALE_DOCUMENT: guide.md\"}\n"
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-c",
+      "import os,sys\nsys.path.insert(0,sys.argv[1])\nimport knowledge,workflow\noriginal=workflow.finish\ndef stop(*args,**kwargs):\n    original(*args,**kwargs)\n    os._exit(91)\nworkflow.finish=stop\nsys.argv=['knowledge','--project',sys.argv[2],'resume','--run',sys.argv[3]]\nknowledge.main()\n",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f"
+    ],
+    "rc": 91,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "status",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"applying\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "status"
+    ],
+    "rc": 0,
+    "stdout": "{\"active\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\", \"baseline\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"project\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project\", \"retirement\": null, \"runs\": [{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"applying\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "resume",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"completion\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/complete.json\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"completed\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/context.json\", \"phase\": \"awaiting_decisions\", \"run\": \"58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "prepare",
+      "--run",
+      "58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384",
+      "--decisions",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/decisions-c.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"awaiting_review\", \"run\": \"58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "review",
+      "--run",
+      "58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384",
+      "--review",
+      "/Users/juhyeon/.codex/worktrees/3516/skills/tests/knowledge/foundation-observation/review-c.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"ready\", \"run\": \"58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "resume",
+      "--run",
+      "58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"completion\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/complete.json\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"completed\", \"run\": \"58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "status"
+    ],
+    "rc": 0,
+    "stdout": "{\"active\": null, \"baseline\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"project\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project\", \"retirement\": null, \"runs\": [{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"completion\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/complete.json\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"completed\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}, {\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"completion\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/complete.json\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"completed\", \"run\": \"58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384\"}]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "resume",
+      "--run",
+      "77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"completion\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/complete.json\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"historical\": true, \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"completed\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "intake",
+      "--input",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/intake-user.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"intake\": \"4ebd2d672a2063dc4d7b22f3df634ec4a0f698e7a1f5728bf527ad7ee1ac236b\", \"phase\": \"pending_implementation\", \"record\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/intakes/4ebd2d672a2063dc4d7b22f3df634ec4a0f698e7a1f5728bf527ad7ee1ac236b.json\", \"route\": \"implementation_handoff\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "intake-status",
+      "--intake",
+      "4ebd2d672a2063dc4d7b22f3df634ec4a0f698e7a1f5728bf527ad7ee1ac236b"
+    ],
+    "rc": 0,
+    "stdout": "{\"deployment\": \"not_verified\", \"document_quality\": \"not_evaluated\", \"id\": \"4ebd2d672a2063dc4d7b22f3df634ec4a0f698e7a1f5728bf527ad7ee1ac236b\", \"implementation\": \"not_verified\", \"input\": {\"current\": {\"code\": null, \"description\": \"No export implementation.\"}, \"differences\": [{\"description\": \"Export must be implemented.\", \"kind\": \"behavior\", \"sources\": [\"request\"]}], \"intent\": \"behavior_change\", \"origin\": \"user\", \"rationale\": \"Preserve target and hand off to stage 3.\", \"sources\": [{\"authority\": \"user_instruction\", \"id\": \"request\", \"kind\": \"user\", \"locator\": \"synthetic/request\", \"sha256\": \"ab7b0d91af2945d1ae58115be8dffdb3c4ba9137242feb7171224988de128e92\", \"text\": \"Return CSV headers for empty lists; reject unauthorized requests without a file.\", \"version\": \"request-v1\"}], \"target\": {\"acceptance\": [\"Empty list: headers only.\", \"Unauthorized: no file and reject.\"], \"description\": \"Return CSV headers for empty lists; reject unauthorized requests without a file.\", \"sources\": [\"request\"], \"status\": \"confirmed\"}, \"version\": 1}, \"kind\": \"change-intake\", \"phase\": \"pending_implementation\", \"route\": \"implementation_handoff\", \"version\": 1}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0",
+      "--intake",
+      "4ebd2d672a2063dc4d7b22f3df634ec4a0f698e7a1f5728bf527ad7ee1ac236b"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"start\", \"error\": \"INTAKE_ROUTE: only current documentation enters code-to-document execution\"}\n"
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "intake",
+      "--input",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/intake-doc-target.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"intake\": \"58b401279fd9021de181163c149eac57b7f42af964c2fbb63097b17794683671\", \"phase\": \"pending_implementation\", \"record\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/intakes/58b401279fd9021de181163c149eac57b7f42af964c2fbb63097b17794683671.json\", \"route\": \"implementation_handoff\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "intake",
+      "--input",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/intake-wording.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"intake\": \"0e9551cec907a5fdcdbb65cd1e5aa3983f300d6e95f7ccadc27de326978f46a3\", \"phase\": \"no_code_work\", \"record\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/intakes/0e9551cec907a5fdcdbb65cd1e5aa3983f300d6e95f7ccadc27de326978f46a3.json\", \"route\": \"document_wording\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "intake-status",
+      "--intake",
+      "0e9551cec907a5fdcdbb65cd1e5aa3983f300d6e95f7ccadc27de326978f46a3"
+    ],
+    "rc": 0,
+    "stdout": "{\"deployment\": \"not_verified\", \"document_quality\": \"not_evaluated\", \"id\": \"0e9551cec907a5fdcdbb65cd1e5aa3983f300d6e95f7ccadc27de326978f46a3\", \"implementation\": \"not_required\", \"input\": {\"current\": {\"code\": null, \"description\": \"No export implementation.\"}, \"differences\": [{\"description\": \"Only wording changed.\", \"kind\": \"wording\", \"sources\": [\"document\"]}], \"intent\": \"wording_only\", \"origin\": \"document\", \"rationale\": \"Compare before/after prose, without implementing the goal.\", \"sources\": [{\"authority\": \"context\", \"id\": \"document\", \"kind\": \"document\", \"locator\": \"synthetic/document\", \"sha256\": \"ee34cc9f1b45171df03b91fb05b0b63da43b7967e3092d36396cee55acb5115c\", \"text\": \"Target: export empty lists as CSV headers.\", \"version\": \"spec-v1\"}], \"target\": {\"acceptance\": [\"Preserve conditions and pending implementation.\"], \"description\": \"Same export goal, clarified wording.\", \"sources\": [\"document\"], \"status\": \"confirmed\"}, \"version\": 1}, \"kind\": \"change-intake\", \"phase\": \"no_code_work\", \"route\": \"document_wording\", \"version\": 1}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"start\", \"error\": \"DEPENDENCY_UNREACHED: missing installed skill files: review-knowledge/SKILL.md\"}\n"
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "config",
+      "user.name",
+      "Foundation fixture"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "config",
+      "user.email",
+      "fixture@example.invalid"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "add",
+      "."
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "commit",
+      "-qm",
+      "next scope"
+    ],
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "git",
+      "-C",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "rev-parse",
+      "HEAD"
+    ],
+    "rc": 0,
+    "stdout": "64ee1e6c15e55adc5898eff4cd45b314f82285f6\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "64ee1e6c15e55adc5898eff4cd45b314f82285f6"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"64ee1e6c15e55adc5898eff4cd45b314f82285f6\", \"before\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665/context.json\", \"phase\": \"awaiting_decisions\", \"run\": \"6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "terminate",
+      "--run",
+      "6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665",
+      "--reason-file",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/reason.txt"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"64ee1e6c15e55adc5898eff4cd45b314f82285f6\", \"before\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665/context.json\", \"phase\": \"terminated\", \"run\": \"6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "64ee1e6c15e55adc5898eff4cd45b314f82285f6"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"start\", \"error\": \"RUN_TERMINATED: this change was ended; use a new reviewed project for the same change\"}\n"
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "retire",
+      "--reason-file",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/reason.txt",
+      "--successor",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor"
+    ],
+    "rc": 0,
+    "stdout": "{\"effect\": \"No rollback or baseline advancement. Inspect documents and initialize a reviewed successor.\", \"phase\": \"retired\", \"project\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project\", \"reason\": \"Scope changed; preserve evidence and review a successor baseline.\", \"successor\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "start",
+      "--rev",
+      "64ee1e6c15e55adc5898eff4cd45b314f82285f6"
+    ],
+    "rc": 1,
+    "stdout": "",
+    "stderr": "{\"command\": \"start\", \"error\": \"PROJECT_RETIRED: preserve this project; initialize the recorded successor with a reviewed baseline\"}\n"
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project",
+      "status"
+    ],
+    "rc": 0,
+    "stdout": "{\"active\": null, \"baseline\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"project\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project\", \"retirement\": {\"effect\": \"No rollback or baseline advancement. Inspect documents and initialize a reviewed successor.\", \"reason\": \"Scope changed; preserve evidence and review a successor baseline.\", \"successor\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor\"}, \"runs\": [{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"completion\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/complete.json\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"completed\", \"run\": \"77c07e9fa74522d44f333d24ea035c72995a3ed7d65c7d0ef683f211be4a121f\"}, {\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"completion\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/complete.json\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/context.json\", \"packet\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"completed\", \"run\": \"58a76a6457b4bf902879aa28b0e672fbd9ce8e5cc548d5d8aecd1b71de1f4384\"}, {\"after\": \"64ee1e6c15e55adc5898eff4cd45b314f82285f6\", \"before\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/project/runs/6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665/context.json\", \"phase\": \"terminated\", \"run\": \"6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665\"}]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor",
+      "init",
+      "--repo",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/repo",
+      "--docs",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/docs",
+      "--repository",
+      "fixture/retry",
+      "--baseline",
+      "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0",
+      "--path",
+      "service.py",
+      "--spec",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor-spec.json",
+      "--audience",
+      "재시도 함수를 호출하는 BE 개발자",
+      "--purpose",
+      "Reviewed successor after scope change"
+    ],
+    "rc": 0,
+    "stdout": "{\"baseline\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"phase\": \"initialized\", \"project\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor",
+      "start",
+      "--rev",
+      "64ee1e6c15e55adc5898eff4cd45b314f82285f6"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"64ee1e6c15e55adc5898eff4cd45b314f82285f6\", \"before\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"context\": \"/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/foundation installed 2afxwrhc/successor/runs/6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665/context.json\", \"phase\": \"awaiting_decisions\", \"run\": \"6de948103591ba0a15a577de43e5dcb1e39acc1873aba707191b1755686bc665\"}\n",
+    "stderr": ""
+  }
+]

@@ -6,6 +6,10 @@ description: Independently review a knowledge-update packet against pinned sourc
 # Review knowledge
 
 Read [the rubric](references/rubric.md) and [the response format](references/response.md).
+For target specifications without code, wording-only edits, or document acceptance evaluation,
+read [the document AC contract](references/document-ac.md) before selecting evidence. Retain its
+separate evaluation record when there is no packet/plan. The following steps govern prepared packets.
+
 All review instructions are bundled here. The packet is caller-supplied data containing complete
 before/after source, bindings, proposed documents, audience and purpose; no other skill is required.
 If it is missing required evidence, return blocked rather than reconstructing the author's intent.

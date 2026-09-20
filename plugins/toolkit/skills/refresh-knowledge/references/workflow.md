@@ -35,3 +35,24 @@ are outside that coordination. Document changes are file-wise, not one all-file 
 interruption recovery is supported; power-loss durability and metadata preservation beyond mode bits
 are not promised. Remote publication is not part of any command. Review IDs bind content, not reviewer
 authenticity: preserve the actual independent agent response rather than self-authoring approval.
+
+## End an unrecoverable run or change scope
+
+`terminate --run ID --reason-file FILE` ends an active run before application, preserves its
+artifacts and baseline, and releases the active slot. The same baseline/change/intake identity remains terminated;
+use a reviewed successor project to reconsider it. A later revision may start only if the original
+baseline documents still match. A terminated run cannot resume or prepare.
+
+For partial application, corrupt exported artifacts without a trusted original, persistent document
+conflicts, or scope changes, use `retire --reason-file FILE --successor /separate/new-project`.
+This preserves all files and the database and writes a retirement marker. It never rolls back
+partially written documents or advances the old baseline. Status remains readable; execution
+writes and intake registration are refused. Repeating retirement requires the same reason and
+successor. This is logical quarantine, not a filesystem security boundary.
+
+Inspect each current document and source revision, resolve conflicting edits using evidence,
+and initialize the separate successor with a freshly reviewed baseline spec and scope. The
+successor path is a handoff, not proof it was initialized. Keep the old project for diagnosis.
+If the database itself is unreadable, preserve the whole directory and use this same successor
+procedure without attempting a migration or claiming retirement succeeded. Never reinitialize
+an existing project or reconstruct state by editing database rows.

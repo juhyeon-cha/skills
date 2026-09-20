@@ -1,0 +1,47 @@
+{
+  "provider": "collaboration",
+  "model": "unobserved",
+  "separation": "fresh context; prompt-only, not access-enforced",
+  "normal": {
+    "actor": "/root/reader_normal",
+    "input": "reader-normal-prompt.txt",
+    "response": "reader-normal-response.md"
+  },
+  "variant": {
+    "actor": "/root/reader_variant",
+    "input": "reader-variant-prompt.txt",
+    "response": "reader-variant-response.md"
+  },
+  "judge": {
+    "actor": "/root/document_judge",
+    "response": "judgment.md",
+    "input_files": [
+      "sources.json",
+      "expectations.json",
+      "frozen.json",
+      "reader-normal-prompt.txt",
+      "reader-variant-prompt.txt",
+      "reader-normal-response.md",
+      "reader-variant-response.md",
+      "../../../../plugins/toolkit/skills/review-knowledge/references/document-ac.md"
+    ]
+  },
+  "failed_attempts": [
+    {
+      "actor": "/root/evaluation",
+      "operation": "write and spawn reader",
+      "outcome": "not-executed",
+      "reason": "GUARD-DENY: UNREACHED — child role is unidentified"
+    },
+    {
+      "actor": "/root/document_judge",
+      "operation": "hash recomputation",
+      "outcome": "not-executed",
+      "reason": "GUARD-DENY: UNREACHED — child role is unidentified"
+    }
+  ],
+  "parent_format_check": {
+    "command": "python3 tests/knowledge/foundation-evaluation/check.py",
+    "result": "pass: bytes/IDs/authority links only"
+  }
+}

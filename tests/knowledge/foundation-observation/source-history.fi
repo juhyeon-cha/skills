@@ -1,0 +1,59 @@
+blob
+mark :1
+data 170
+def request(send):
+    for attempt in range(3):
+        try:
+            return send()
+        except ConnectionError:
+            if attempt == 2:
+                raise
+
+reset refs/heads/master
+commit refs/heads/master
+mark :2
+author Foundation fixture <fixture@example.invalid> 1789874312 +0900
+committer Foundation fixture <fixture@example.invalid> 1789874312 +0900
+data 11
+attempts 3
+M 100644 :1 service.py
+
+blob
+mark :3
+data 170
+def request(send):
+    for attempt in range(4):
+        try:
+            return send()
+        except ConnectionError:
+            if attempt == 3:
+                raise
+
+commit refs/heads/master
+mark :4
+author Foundation fixture <fixture@example.invalid> 1789874312 +0900
+committer Foundation fixture <fixture@example.invalid> 1789874312 +0900
+data 11
+attempts 4
+from :2
+M 100644 :3 service.py
+
+blob
+mark :5
+data 170
+def request(send):
+    for attempt in range(5):
+        try:
+            return send()
+        except ConnectionError:
+            if attempt == 4:
+                raise
+
+commit refs/heads/master
+mark :6
+author Foundation fixture <fixture@example.invalid> 1789874543 +0900
+committer Foundation fixture <fixture@example.invalid> 1789874543 +0900
+data 11
+attempts 5
+from :4
+M 100644 :5 service.py

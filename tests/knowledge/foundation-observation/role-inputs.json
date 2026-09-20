@@ -1,0 +1,18 @@
+{
+  "provider": "collaboration",
+  "actor": "/root/installed_review",
+  "initial_context": "fork_turns:none",
+  "model": "unobserved",
+  "inputs": [
+    "Harness root: /Users/juhyeon/.codex/worktrees/3516/skills\nIndependently review knowledge packet using actual installed /private/tmp/foundation-live-20260920/toolkit/skills/review-knowledge/SKILL.md, references/rubric.md and references/response.md. Read these files and /private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2/packet.json. Return exact review JSON and report file-read limits. No writes or external calls. Full packet alone defines scope. If read is blocked report it rather than claim successful review.",
+    "독립 리뷰 반려를 기록한 뒤 수정안을 준비했습니다. 같은 설치본 스킬 기준으로 /private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json 전체를 읽고 새 exact review JSON을 반환하세요. 이전 판정은 새 packet에 재사용하지 마세요. 한계도 기록.",
+    "동일 설치 환경에서 B 완료 직후 os._exit(91)로 중단하여 applying/이전 baseline 보존을 확인했고 resume 완료 후 다음 C 수정안을 준비했습니다. 독립 리뷰 대상 /private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json 전체를 읽고 설치본 스킬 기준 exact JSON 반환. 실행 결과 자체는 리뷰 범위 밖이고 패킷만 판정."
+  ],
+  "responses": [
+    "review-bad.json",
+    "review-fixed.json",
+    "review-c.json"
+  ],
+  "read_observation": "지정된 설치본 SKILL.md, references/rubric.md, references/response.md와 전체 packet.json을 잘림이나 접근 제한 없이 읽었습니다.",
+  "boundary": "Static review only; execution and deployment not verified by reviewer."
+}

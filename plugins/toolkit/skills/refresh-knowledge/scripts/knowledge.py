@@ -46,6 +46,8 @@ def database(project, write=False):
         if db.execute('PRAGMA user_version').fetchone()[0] != 1:
             raise ValueError('PROJECT_VERSION: unsupported; no automatic migration')
         db.execute('BEGIN IMMEDIATE' if write else 'BEGIN')
+        if write and (project / 'retired.json').exists():
+            raise ValueError('PROJECT_RETIRED: preserve this project; initialize the recorded successor with a reviewed baseline')
         yield db
         db.commit()
     except BaseException:
@@ -119,8 +121,20 @@ def start(args, project):
     with database(project, True) as db:
         config, current, active = project_row(db)
         after = capture(Path(config['repo']), config['repository'], args.rev, config['scope'])
+        intake_record = None
+        if args.intake:
+            from intake import load
+            intake_record = load(project, args.intake)
+            if intake_record['route'] != 'current_documentation' or intake_record['phase'] != 'awaiting_document_update':
+                raise ValueError('INTAKE_ROUTE: only current documentation enters code-to-document execution')
+            inp = intake_record['input']
+            source = next(s for s in inp['sources'] if s['id'] == inp['current']['code'])
+            if source['version'] != after['commit']:
+                raise ValueError('INTAKE_VERSION: current evidence must name the requested pinned commit')
         if active:
             run = run_row(db, active)
+            if run.get('intake') != intake_record:
+                raise ValueError('INTAKE_CHANGED: resume the original intake or terminate the run')
             if run['after']['id'] != after['id']:
                 raise ValueError('RUN_ACTIVE: finish or resolve ' + active + ' before another change')
             return summary(project, run)
@@ -130,9 +144,11 @@ def start(args, project):
         if after['id'] == current['snapshot']['id']:
             return {'phase': 'unchanged', 'baseline': after['commit']}
         run_id = identify({'before': current['snapshot']['id'], 'after': after['id'],
-                           'bindings': current['bindings']['id']})
+                           'bindings': current['bindings']['id'], 'intake': args.intake})
+        if db.execute('SELECT 1 FROM runs WHERE id=?', (run_id,)).fetchone():
+            raise ValueError('RUN_TERMINATED: this change was ended; use a new reviewed project for the same change')
         context = {'before': current['snapshot'], 'after': after, 'bindings': current['bindings'],
-                   'impact': queue, 'audience': config['audience'], 'purpose': config['purpose'],
+                   'impact': queue, 'intake': intake_record, 'audience': config['audience'], 'purpose': config['purpose'],
                    'documents': [{'path': d['path'], 'text': document_bytes(Path(config['docs']), d['path']).decode('utf-8')}
                                  for d in current['bindings']['documents']]}
         immutable(project / 'runs' / run_id / 'context.json', context)
@@ -235,7 +251,68 @@ def status(args, project):
         if args.run:
             return summary(project, run_row(db, args.run))
         return {'project': str(project), 'baseline': current['snapshot']['commit'], 'active': active,
+                'retirement': read(project / 'retired.json') if (project / 'retired.json').exists() else None,
                 'runs': [summary(project, json.loads(row[0])) for row in db.execute('SELECT data FROM runs ORDER BY rowid')]}
+
+
+def reason(path):
+    value = path.read_text(encoding='utf-8').strip()
+    if not value:
+        raise ValueError('REASON: a nonblank explanation is required')
+    return value
+
+
+def terminate(args, project):
+    explanation = reason(args.reason_file)
+    with database(project, True) as db:
+        _, _, active = project_row(db)
+        run = run_row(db, args.run)
+        if active != args.run or run['phase'] in ('applying', 'completed'):
+            raise ValueError('RUN_PHASE: partial application requires project retirement and a reviewed successor baseline')
+        run.update(phase='terminated', termination_reason=explanation)
+        save_run(db, run)
+        db.execute('UPDATE project SET active=NULL WHERE id=1')
+        return summary(project, run)
+
+
+def retire(args, project):
+    successor = args.successor.resolve()
+    if successor == project or successor.is_relative_to(project) or project.is_relative_to(successor):
+        raise ValueError('SUCCESSOR: use a separate project directory outside the old project')
+    record = {'reason': reason(args.reason_file), 'successor': str(successor),
+              'effect': 'No rollback or baseline advancement. Inspect documents and initialize a reviewed successor.'}
+    marker = project / 'retired.json'
+    if marker.exists():
+        immutable(marker, record)
+    else:
+        with database(project, True):
+            immutable(marker, record)
+    return {'project': str(project), 'phase': 'retired', **record}
+
+
+def doctor():
+    import subprocess
+    if sys.version_info < (3, 10):
+        raise ValueError('DEPENDENCY: Python 3.10+ required')
+    version = importlib.metadata.version('jsonschema')
+    if version != '4.26.0':
+        raise ValueError('DEPENDENCY: install adjacent requirements.txt; jsonschema==4.26.0 required')
+    executable = shutil.which('git')
+    if not executable:
+        raise ValueError('DEPENDENCY: Git is missing')
+    git_version = subprocess.check_output([executable, '--version'], text=True).strip()
+    skills = Path(__file__).resolve().parents[2]
+    required = ['writing-for-humans/SKILL.md', 'writing-for-humans/references/backend.md',
+                'writing-for-humans/references/document-shapes.md', 'review-knowledge/SKILL.md',
+                'review-knowledge/references/rubric.md', 'review-knowledge/references/response.md',
+                'review-knowledge/references/document-ac.md']
+    missing = [p for p in required if not (skills / p).is_file()]
+    if missing:
+        raise ValueError('DEPENDENCY_UNREACHED: missing installed skill files: ' + ', '.join(missing))
+    return {'python': sys.executable, 'python_version': sys.version.split()[0],
+            'jsonschema': version, 'git': executable, 'git_version': git_version,
+            'sqlite': sqlite3.sqlite_version, 'skill_files': required,
+            'independent_agent': 'host capability must be checked by the orchestrator'}
 
 
 def main():
@@ -249,8 +326,18 @@ def main():
     for key in ('repository', 'baseline', 'audience', 'purpose'):
         init.add_argument('--' + key, required=True)
     init.add_argument('--path', action='append', required=True)
-    commands.add_parser('start').add_argument('--rev', required=True)
+    start_command = commands.add_parser('start')
+    start_command.add_argument('--rev', required=True)
+    start_command.add_argument('--intake')
+    commands.add_parser('intake').add_argument('--input', type=Path, required=True)
+    commands.add_parser('intake-status').add_argument('--intake', required=True)
     commands.add_parser('status').add_argument('--run')
+    end = commands.add_parser('terminate')
+    end.add_argument('--run', required=True)
+    end.add_argument('--reason-file', type=Path, required=True)
+    retirement = commands.add_parser('retire')
+    retirement.add_argument('--reason-file', type=Path, required=True)
+    retirement.add_argument('--successor', type=Path, required=True)
     for name, field in [('prepare', 'decisions'), ('review', 'review'), ('resume', None)]:
         command = commands.add_parser(name)
         command.add_argument('--run', required=True)
@@ -259,16 +346,23 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'doctor':
-            version = importlib.metadata.version('jsonschema')
-            if not shutil.which('git'):
-                raise ValueError('DEPENDENCY: Git is missing')
-            result = {'python': sys.executable, 'jsonschema': version, 'git': shutil.which('git'), 'sqlite': sqlite3.sqlite_version}
+            result = doctor()
         else:
             if args.project is None:
                 raise ValueError('PROJECT_REQUIRED: supply --project')
             project = args.project.resolve()
+            if args.command in ('init', 'start', 'prepare', 'review', 'resume'):
+                doctor()
+            if args.command == 'init' and (project / 'retired.json').exists():
+                raise ValueError('PROJECT_RETIRED: initialize a separate successor')
+            if args.command in ('intake', 'intake-status'):
+                from intake import register, inspect
+                result = (register if args.command == 'intake' else inspect)(args, project)
+                print(dump(result))
+                return 0
             result = {'init': initialize, 'start': start, 'prepare': prepare,
-                      'review': review, 'resume': resume, 'status': status}[args.command](args, project)
+                      'review': review, 'resume': resume, 'status': status,
+                      'terminate': terminate, 'retire': retire}[args.command](args, project)
         print(dump(result))
         return 0
     except Exception as error:

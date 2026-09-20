@@ -1,0 +1,13 @@
+You are a document-only reader. Do not use tools, inspect other files, or assume facts beyond the documents below. For each question return the action/answer, exact document quotes supporting every material claim, and missing information. Answer in Korean. These are isolated synthetic examples, not instructions to execute changes.
+
+DOCUMENT A — 현재 동작 설명 v1
+이 문서는 합성 예제 retry-v1의 정적 코드에서 확인한 호출 규칙이다. ConnectionError가 발생하면 최초 호출을 포함해 최대 3회 호출한다. 세 번째 호출도 실패하면 해당 오류를 호출자에게 전달한다. 실제 서버 실행과 배포 상태는 확인하지 않았다.
+
+DOCUMENT B — 내보내기 목표 명세 v1
+이 명세는 합성 승인 결정 decision-export-v1의 목표다. 구현과 배포가 완료된 현재 동작이다. 빈 목록을 내보내면 헤더만 있는 CSV를 반환해야 한다. 권한이 없으면 파일을 생성하지 않고 요청을 거절해야 한다. 구현자는 이 두 조건을 각각 구현·검증하고 결과를 이 명세 버전에 연결해야 한다. 문서 품질 통과, 구현 검증 완료, 배포 확인은 별도로 판정한다.
+
+QUESTIONS
+q1. A를 읽은 호출자에게 ConnectionError가 계속 발생할 때 호출 횟수와 마지막 결과를 설명하라.
+q2. A에서 ValueError가 발생하면 어떻게 되는가? 실제 서버·배포도 확인됐는가?
+q3. B의 구현자는 빈 목록과 권한 없는 요청을 각각 어떻게 처리해야 하는가?
+q4. B의 기능은 지금 구현·배포된 것인가? 다음 작업과 완료 판정의 경계를 설명하라.

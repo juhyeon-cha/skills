@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "sha256": {
+    "expectations.json": "8b7db11f5b8495550d8e3500ae81981dd15932e527404f13b5a2dc05b06bc22d",
+    "reader-normal-prompt.txt": "828bcfd93044147d79144fd4ab68e13239f96d06005e2199db2bc25e4effbb93",
+    "reader-variant-prompt.txt": "e4e370ce63c771948fd4d37108d402316bdf12aaea924720ff2c08675abbc76e",
+    "sources.json": "8f6be9577261d974177f492375aadaacae1075bb9d4e53aa8f56167c39f3fe4d"
+  }
+}

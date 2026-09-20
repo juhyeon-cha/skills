@@ -1,0 +1,15 @@
+{
+  "packet": "240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2",
+  "plan": "110f8f530ee0757da5787cfb1b5c12cfd150e85f9a28e7ddb460996df2a01dba",
+  "verdict": "revise",
+  "checks": {
+    "source_fidelity": "fail",
+    "decision_coverage": "fail",
+    "reader_action": "fail",
+    "uncertainty": "pass"
+  },
+  "findings": [
+    "guide.md의 retry 주장(service.py 근거): '최초 호출 포함 총 4회 시도한다'는 무조건 4회 호출하는 것으로 읽힌다. 실제 소스는 성공하면 즉시 반환하고 ConnectionError에만 재시도하므로 '연결 오류가 계속되면 최초 호출 포함 최대 4회 시도한다'는 조건과 상한을 보존해야 한다.",
+    "guide.md의 retry 주장(service.py 근거): 대체 결정의 '시도 횟수가 바뀌었다'는 이유는 기존 오류 전달 설명의 삭제를 정당화하지 않는다. ConnectionError 외 오류는 즉시 전파되고 네 번째 ConnectionError도 호출자에게 전파되는 동작이 유지된다. 이 설명이 빠져 독자가 문서의 목적인 오류 전달 방식을 판단할 수 없으므로 복원해야 한다."
+  ]
+}

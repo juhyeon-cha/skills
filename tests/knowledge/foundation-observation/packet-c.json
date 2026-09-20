@@ -1,0 +1,118 @@
+{
+  "after": {
+    "commit": "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "service.py",
+        "sha256": "7755ef148152e6e1c9692a706ce0e0f78068c54547ffd568dce8b2e899c0882a",
+        "text": "def request(send):\n    for attempt in range(5):\n        try:\n            return send()\n        except ConnectionError:\n            if attempt == 4:\n                raise\n"
+      }
+    ],
+    "id": "b139468cac865edba46ae74551ba7181dafe73843499e672a56dea1678f3e8c8",
+    "kind": "snapshot",
+    "repository": "fixture/retry",
+    "scope": [
+      "service.py"
+    ],
+    "version": 1
+  },
+  "audience": "재시도 함수를 호출하는 BE 개발자",
+  "before": {
+    "commit": "2ec5606717b00ba74c75f7453a1aa394e8762bac",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "service.py",
+        "sha256": "f52c627b614d74c66e1df806613f17e26974588ce59b70b61de82ebcdcfeb8e7",
+        "text": "def request(send):\n    for attempt in range(4):\n        try:\n            return send()\n        except ConnectionError:\n            if attempt == 3:\n                raise\n"
+      }
+    ],
+    "id": "014204b988af936e84d62fcd39f809c0450ab3d4a5a239febaf5b2fef4d326aa",
+    "kind": "snapshot",
+    "repository": "fixture/retry",
+    "scope": [
+      "service.py"
+    ],
+    "version": 1
+  },
+  "bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "service.py"
+            ],
+            "id": "retry",
+            "text": "연결 오류가 계속되면 최초 호출 포함 최대 4회 시도한다. 성공하면 즉시 반환한다. 연결 오류 외 오류는 재시도 없이 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "7a4fc769d2c789c396867a1006134a7ddd444f600fe5a12b19a19cca0de1621e"
+      }
+    ],
+    "id": "80e2bbb512a32db595ea39722f53f7a13f89f8cc0f4fb82ce10cb21b1440dad2",
+    "kind": "bindings",
+    "snapshot": "014204b988af936e84d62fcd39f809c0450ab3d4a5a239febaf5b2fef4d326aa",
+    "version": 1
+  },
+  "id": "ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920",
+  "kind": "review-packet",
+  "plan": {
+    "after": "b139468cac865edba46ae74551ba7181dafe73843499e672a56dea1678f3e8c8",
+    "before": "014204b988af936e84d62fcd39f809c0450ab3d4a5a239febaf5b2fef4d326aa",
+    "bindings": "80e2bbb512a32db595ea39722f53f7a13f89f8cc0f4fb82ce10cb21b1440dad2",
+    "decisions": {
+      "claims": [
+        {
+          "action": "replace",
+          "evidence": [
+            "service.py"
+          ],
+          "id": "retry",
+          "path": "guide.md",
+          "reason": "시도 상한만 4회에서 5회로 변경하고 오류 전달 조건을 보존한다.",
+          "text": "연결 오류가 계속되면 최초 호출 포함 최대 5회 시도한다. 성공하면 즉시 반환한다. 연결 오류 외 오류는 재시도 없이 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다."
+        }
+      ],
+      "impact": "bdb9d7a5fbb5302e19eb995c7220046468d92fbbe4b9cdcc0d838ea440ddd89e",
+      "unlinked": []
+    },
+    "documents": [
+      {
+        "after_sha256": "8af78ab2e82c59b04b0f4be3454a28886b5d7a4b3da3479d0c6491ecb5e3e0d4",
+        "after_text": "연결 오류가 계속되면 최초 호출 포함 최대 5회 시도한다. 성공하면 즉시 반환한다. 연결 오류 외 오류는 재시도 없이 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다.\n",
+        "before_sha256": "7a4fc769d2c789c396867a1006134a7ddd444f600fe5a12b19a19cca0de1621e",
+        "before_text": "연결 오류가 계속되면 최초 호출 포함 최대 4회 시도한다. 성공하면 즉시 반환한다. 연결 오류 외 오류는 재시도 없이 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다.\n",
+        "path": "guide.md"
+      }
+    ],
+    "id": "b7cec3607f6d40160c70b33bfc1464b48a9823f14ceda29c235fb93d2d1a4c8f",
+    "kind": "update-plan",
+    "next_bindings": {
+      "documents": [
+        {
+          "claims": [
+            {
+              "evidence": [
+                "service.py"
+              ],
+              "id": "retry",
+              "text": "연결 오류가 계속되면 최초 호출 포함 최대 5회 시도한다. 성공하면 즉시 반환한다. 연결 오류 외 오류는 재시도 없이 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다."
+            }
+          ],
+          "path": "guide.md",
+          "sha256": "8af78ab2e82c59b04b0f4be3454a28886b5d7a4b3da3479d0c6491ecb5e3e0d4"
+        }
+      ],
+      "id": "15b55c3dd430c0647f62e3547d125f51ff207cb2c8bdc804dc50a8883fecc0d1",
+      "kind": "bindings",
+      "snapshot": "b139468cac865edba46ae74551ba7181dafe73843499e672a56dea1678f3e8c8",
+      "version": 1
+    },
+    "version": 1
+  },
+  "purpose": "호출 횟수와 오류 전달을 판단한다",
+  "version": 1
+}

@@ -1,0 +1,118 @@
+{
+  "after": {
+    "commit": "2ec5606717b00ba74c75f7453a1aa394e8762bac",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "service.py",
+        "sha256": "f52c627b614d74c66e1df806613f17e26974588ce59b70b61de82ebcdcfeb8e7",
+        "text": "def request(send):\n    for attempt in range(4):\n        try:\n            return send()\n        except ConnectionError:\n            if attempt == 3:\n                raise\n"
+      }
+    ],
+    "id": "014204b988af936e84d62fcd39f809c0450ab3d4a5a239febaf5b2fef4d326aa",
+    "kind": "snapshot",
+    "repository": "fixture/retry",
+    "scope": [
+      "service.py"
+    ],
+    "version": 1
+  },
+  "audience": "재시도 함수를 호출하는 BE 개발자",
+  "before": {
+    "commit": "8d5e15e97af0b5e7795fb07efbea18301d10941c",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "service.py",
+        "sha256": "e82a1a1ac0306ee2479ed922d9b920bfac6e57f8ef6b6b48902b91f86d280daa",
+        "text": "def request(send):\n    for attempt in range(3):\n        try:\n            return send()\n        except ConnectionError:\n            if attempt == 2:\n                raise\n"
+      }
+    ],
+    "id": "f35c8465493c45883425b973057936f5a0a4554f03fcfeccedc2fe43e5111000",
+    "kind": "snapshot",
+    "repository": "fixture/retry",
+    "scope": [
+      "service.py"
+    ],
+    "version": 1
+  },
+  "bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "service.py"
+            ],
+            "id": "retry",
+            "text": "연결 오류에만 최초 호출 포함 총 3회 시도한다. 권한 오류는 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "a37c59a31213a7b49fb019c0c087dc5924439720a482769ae32b266dda24fbf7"
+      }
+    ],
+    "id": "26e646833ed2e9abc2f460dd5294e04ff331aae50e44f5b84c82e7432cdc1f9e",
+    "kind": "bindings",
+    "snapshot": "f35c8465493c45883425b973057936f5a0a4554f03fcfeccedc2fe43e5111000",
+    "version": 1
+  },
+  "id": "240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2",
+  "kind": "review-packet",
+  "plan": {
+    "after": "014204b988af936e84d62fcd39f809c0450ab3d4a5a239febaf5b2fef4d326aa",
+    "before": "f35c8465493c45883425b973057936f5a0a4554f03fcfeccedc2fe43e5111000",
+    "bindings": "26e646833ed2e9abc2f460dd5294e04ff331aae50e44f5b84c82e7432cdc1f9e",
+    "decisions": {
+      "claims": [
+        {
+          "action": "replace",
+          "evidence": [
+            "service.py"
+          ],
+          "id": "retry",
+          "path": "guide.md",
+          "reason": "시도 횟수가 바뀌었다.",
+          "text": "최초 호출 포함 총 4회 시도한다."
+        }
+      ],
+      "impact": "53bf2d866d3a85924ee45d0eaecffdf56659a2345207454e9f083fc50129c0ae",
+      "unlinked": []
+    },
+    "documents": [
+      {
+        "after_sha256": "c14934d687503d6b7a69939899c71aa97ca45e4f362ad722b2454be511aeb383",
+        "after_text": "최초 호출 포함 총 4회 시도한다.\n",
+        "before_sha256": "a37c59a31213a7b49fb019c0c087dc5924439720a482769ae32b266dda24fbf7",
+        "before_text": "연결 오류에만 최초 호출 포함 총 3회 시도한다. 권한 오류는 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다.\n",
+        "path": "guide.md"
+      }
+    ],
+    "id": "110f8f530ee0757da5787cfb1b5c12cfd150e85f9a28e7ddb460996df2a01dba",
+    "kind": "update-plan",
+    "next_bindings": {
+      "documents": [
+        {
+          "claims": [
+            {
+              "evidence": [
+                "service.py"
+              ],
+              "id": "retry",
+              "text": "최초 호출 포함 총 4회 시도한다."
+            }
+          ],
+          "path": "guide.md",
+          "sha256": "c14934d687503d6b7a69939899c71aa97ca45e4f362ad722b2454be511aeb383"
+        }
+      ],
+      "id": "f5a82abd821f1ce8e3891c2edb03d2e23f88ed7d578b7b0551dc6549972aed5c",
+      "kind": "bindings",
+      "snapshot": "014204b988af936e84d62fcd39f809c0450ab3d4a5a239febaf5b2fef4d326aa",
+      "version": 1
+    },
+    "version": 1
+  },
+  "purpose": "호출 횟수와 오류 전달을 판단한다",
+  "version": 1
+}

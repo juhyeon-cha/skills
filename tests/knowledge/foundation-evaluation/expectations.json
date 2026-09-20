@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "criteria": [
+    {
+      "id": "CUR-1",
+      "question": "q1",
+      "required": [
+        "ConnectionError에서 최초 포함 최대 3회 호출",
+        "세 번째 실패는 호출자에게 전달"
+      ],
+      "authority": "retry-v1"
+    },
+    {
+      "id": "CUR-2",
+      "question": "q2",
+      "required": [
+        "ValueError는 재시도 없이 즉시 전달",
+        "실제 서버와 배포는 미검증"
+      ],
+      "authority": "retry-v1"
+    },
+    {
+      "id": "TGT-1",
+      "question": "q3",
+      "required": [
+        "빈 목록은 헤더만 있는 CSV",
+        "권한이 없으면 파일 생성 없이 거절"
+      ],
+      "authority": "decision-export-v1"
+    },
+    {
+      "id": "TGT-2",
+      "question": "q4",
+      "required": [
+        "코드 없음·구현 대기",
+        "구현자는 두 수용 기준을 구현·검증 후 결과 연결",
+        "문서 품질과 구현·배포는 별도"
+      ],
+      "authority": "decision-export-v1"
+    },
+    {
+      "id": "WRD-1",
+      "question": "q5",
+      "required": [
+        "의미·3회·ConnectionError 조건·ValueError 예외 동일",
+        "코드 변경 불필요"
+      ],
+      "authority": "retry-v1"
+    }
+  ],
+  "negative_controls": {
+    "omitted_exception": "CUR-2",
+    "false_completion": "TGT-2"
+  },
+  "exclusions": {
+    "production": "synthetic local fixture",
+    "human_usability": "agent reader only",
+    "stage3": "handoff only"
+  }
+}
