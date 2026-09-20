@@ -49,3 +49,5 @@ KNOWLEDGE_PYTHON=python bash tests/knowledge/measurement-check.sh
 - `document-ac`: 독자 2명과 판정자 1명의 실제 호출로 정상본 5개 AC 통과, 결함본의 예외 누락·거짓 완료 주장 검출을 확인했다.
 - `workflow`: 첫 변경의 거절·수정·독립 통과, 적용 중 종료와 재개, 다음 기준선 계승을 확인했다. 두 번째 변경의 작성까지 수행한 뒤 최종 리뷰어의 참조 문서 읽기가 `child role is unidentified`로 차단됐다. 전체 결과는 `not-executed`다.
 - 회귀 검사는 합성 응답으로 두 변경의 끝까지 진행, 적용 후 재진입, 잘못된 판정, 식별자·출처 불일치와 오래된 응답, 파일 변조, 동시 실행과 중복 출력 거부를 검사한다. 실제 역할 호출과 구분한다.
+
+후속 [1단계 최종 관측](../foundation-verification/README.md)은 공개 CLI로 별도 실행한 새 관측이다. 이 실행기의 위 `not-executed` 기록을 덮어쓰거나 `pass`로 바꾸지 않는다. 후속 관측에서 새 컨텍스트 child 인계는 확인했지만, 새 최상위 데스크톱 작업과 앱 재시작은 미검증이다.
