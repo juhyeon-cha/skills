@@ -9,9 +9,9 @@ import sys
 import tempfile
 import unittest
 
+from runtime import ROOT
 from cli import identify
 
-ROOT = Path(__file__).resolve().parent
 
 
 class ContractTests(unittest.TestCase):

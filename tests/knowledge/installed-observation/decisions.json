@@ -1,0 +1,30 @@
+{
+  "impact": "4e2e8003c56b4e0d6deb409836b88893dc546443f3709103750691bcc7424147",
+  "claims": [
+    {
+      "path": "guide.md",
+      "id": "retry-limit",
+      "action": "replace",
+      "reason": "retry.py의 루프가 range(3)에서 range(4)로, 마지막 시도 판정이 attempt == 2에서 attempt == 3으로 바뀌어 재시도 예산이 최초 요청 외 2회에서 3회로 늘었다. 호출자가 전체 소요 시간을 가늠할 수 있도록 총 시도 횟수를 함께 적는다.",
+      "text": "연결 오류(ConnectionError)가 발생하면 최초 요청 외에 최대 세 번 더 시도한다(총 4회).",
+      "evidence": ["retry.py"]
+    },
+    {
+      "path": "guide.md",
+      "id": "permission",
+      "action": "keep",
+      "reason": "after 스냅샷의 retry.py도 except 절이 ConnectionError 하나뿐이므로 PermissionError는 잡히지 않고 그대로 호출자에게 전파된다. 파일 단위 증거 때문에 후보로 올라왔을 뿐 동작은 그대로다.",
+      "text": "권한 오류(PermissionError)는 재시도하지 않고 호출자에게 전달한다.",
+      "evidence": ["retry.py"]
+    },
+    {
+      "path": "guide.md",
+      "id": "exhausted",
+      "action": "keep",
+      "reason": "마지막 시도 번호만 2에서 3으로 옮겨졌을 뿐, 마지막 시도에서 raise로 원래 ConnectionError를 다시 올리는 구조는 그대로다. 소진 시 동작 설명은 유효하다.",
+      "text": "모든 시도가 연결 오류로 실패하면 마지막 오류를 호출자에게 전달한다.",
+      "evidence": ["retry.py"]
+    }
+  ],
+  "unlinked": []
+}

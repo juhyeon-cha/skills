@@ -12,7 +12,7 @@ try:
     from jsonschema import Draft202012Validator
     from jsonschema.exceptions import ValidationError
 except ImportError:
-    sys.exit("DEPENDENCY_UNREACHED: install source-contract/requirements.txt")
+    sys.exit("DEPENDENCY_UNREACHED: install the adjacent requirements.txt in a user-owned environment")
 
 ROOT = Path(__file__).resolve().parent
 

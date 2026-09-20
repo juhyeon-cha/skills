@@ -1,12 +1,12 @@
 # 원본 근거와 변경분 계약 v1
 
-다음 단계의 지식 갱신이 대화 기억이나 작업 디렉터리의 우연한 상태에 의존하지 않도록, 고정 Git 커밋에서 원본을 수집하고 파일 변경분을 비교하는 개발용 CLI를 구현했다. Promptfoo와 LLM 응답 평가 고도화는 전체 흐름 구현 이후로 미뤘다.
+다음 단계의 지식 갱신이 대화 기억이나 작업 디렉터리의 우연한 상태에 의존하지 않도록, 고정 Git 커밋에서 원본을 수집하고 파일 변경분을 비교하는 패키지 내부 CLI를 구현했다. Promptfoo와 LLM 응답 평가 고도화는 전체 흐름 구현 이후로 미뤘다.
 
-이번 범위는 **원본 수집·파일 변경 비교·자료 검증**이다. 문서 작성과 지식 반영, 의미 영향 판단은 아직 연결하지 않았다. 배포 스킬을 추가하지 않고 [개발용 CLI](../../../../tests/knowledge/source-contract/README.md)로 계약을 검증한다.
+이번 범위는 **원본 수집·파일 변경 비교·자료 검증**이다. 작성·리뷰·반영 연결은 [에이전트 실행 계약](agent-workflow.md)에서 다룬다. 이 문서는 [패키지 내부 CLI](../../../../plugins/toolkit/skills/refresh-knowledge/references/source-contract.md)로 계약을 검증한다.
 
 ## 계약과 책임
 
-[JSON Schema](../../../../tests/knowledge/source-contract/schema.json)가 자료 형태의 원본이다. 검증에는 `jsonschema==4.26.0`을 사용한다. 별도 가상환경에 설치하며 의존성이 없으면 검사를 생략하지 않고 실패한다.
+[JSON Schema](../../../../plugins/toolkit/skills/refresh-knowledge/scripts/schema.json)가 자료 형태의 원본이다. 검증에는 `jsonschema==4.26.0`을 사용한다. 별도 가상환경에 설치하며 의존성이 없으면 검사를 생략하지 않고 실패한다.
 
 | 자료 | 포함하는 것 | 확인하는 것 |
 |---|---|---|

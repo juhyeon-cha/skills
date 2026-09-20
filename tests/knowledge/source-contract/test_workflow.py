@@ -12,7 +12,7 @@ from unittest.mock import patch
 import test_update as fixtures
 import workflow
 
-ROOT = Path(__file__).resolve().parent
+ROOT = fixtures.ROOT
 
 
 class WorkflowTests(unittest.TestCase):
@@ -112,7 +112,7 @@ class WorkflowTests(unittest.TestCase):
 
 class RecordedWorkflowTests(unittest.TestCase):
     def test_observed_agent_decisions_review_and_completion_replay(self):
-        observed = ROOT.parent / 'workflow-observation'
+        observed = Path(__file__).resolve().parent.parent / 'workflow-observation'
         read = lambda name: json.loads((observed / name).read_text(encoding='utf-8'))
         packet, decisions, review = read('packet.json'), read('decisions.json'), read('review.json')
         with tempfile.TemporaryDirectory() as directory:
