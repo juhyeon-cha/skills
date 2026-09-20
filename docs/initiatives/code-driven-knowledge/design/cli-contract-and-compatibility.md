@@ -16,7 +16,7 @@ DB 마이그레이션, 자동 재시도, 새 목표 상태, 이벤트 처리, �
 |---|---|---|
 | `cli_contract` | 명령 입출력과 오류의 호환 계열 | 이번에 1을 부여한다. 기존 필드·코드의 제거, 타입/의미 변경은 호환 변경으로 간주하지 않는다. 추가 필드는 허용하며 소비자는 알 수 없는 필드를 무시한다. |
 | `toolkit_version` | 배포된 플러그인의 버전 | 기존 `.claude-plugin/plugin.json`에서 읽는다. 이번 작업에서 릴리스 번호를 바꾸지 않는다. |
-| `implementation_id` | 같은 배포 버전 안에서도 실제 CLI 소스 묶음을 식별하는 내용 해시 | scripts 아래 정렬된 상대 파일명과 `.py`·`requirements.txt` 바이트를 길이 구분해 SHA-256으로 계산한다. 경로·mtime·pycache는 제외한다. 인증 서명이나 전체 스킬 패키지 무결성 증명은 아니다. |
+| `implementation_id` | 같은 배포 버전 안에서도 실제 CLI 소스 묶음을 식별하는 내용 해시 | scripts 아래 정렬된 상대 파일명과 `.py`·`.json`·`requirements.txt` 바이트를 길이 구분해 SHA-256으로 계산한다. `.json`은 실행 중 읽는 검증 schema를 포함한다. 설치 절대 경로·mtime·pycache는 제외한다. 인증 서명이나 전체 스킬 패키지 무결성 증명은 아니다. |
 | DB·산출물 버전 | 저장 자료를 해석하는 형식 | SQLite user_version=1과 intake/packet 등의 기존 버전은 각각 유지한다. CLI 버전으로 자료 버전을 대체하거나 자동 마이그레이션하지 않는다. |
 
 `--version`은 프로젝트 없이 stdout JSON/rc0로 `toolkit_version`, `implementation_id`, `_meta.cli_contract`를 반환한다. Python 표준 라이브러리로만 실행하고 Git 실행·jsonschema import·프로젝트 I/O를 하지 않는다. manifest 누락/손상은 오류이며 추정 버전을 반환하지 않는다. 런타임 의존성 검사는 `doctor`가 맡는다.

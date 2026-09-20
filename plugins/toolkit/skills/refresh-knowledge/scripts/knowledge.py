@@ -1,20 +1,18 @@
 #!/usr/bin/env python3
 """Project-scoped knowledge updates: one durable run ID across agent handoffs."""
-import argparse
 from contextlib import closing
 import importlib.metadata
 from pathlib import Path
 import shutil
-import sqlite3
 import sys
 
 sys.dont_write_bytecode = True
 
-from project_store import dump
-from project_service import initialize, start, prepare, review, resume, status, terminate, retire
+from cli_contract import Parser, UsageError, encode, failure, version
 
 
 def doctor():
+    import sqlite3
     import subprocess
     if sys.version_info < (3, 10):
         raise ValueError('DEPENDENCY: Python 3.10+ required')
@@ -48,9 +46,10 @@ def doctor():
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = Parser(description=__doc__)
+    parser.add_argument("--version", action="store_true")
     parser.add_argument('--project', type=Path)
-    commands = parser.add_subparsers(dest='command', required=True)
+    commands = parser.add_subparsers(dest='command')
     commands.add_parser('doctor')
     init = commands.add_parser('init')
     for key in ('repo', 'docs', 'spec'):
@@ -77,14 +76,27 @@ def main():
         command.add_argument('--run', required=True)
         if field:
             command.add_argument('--' + field, type=Path, required=True)
-    args = parser.parse_args()
+    command = None
     try:
+        args = parser.parse_args()
+        command = args.command
+        if args.version:
+            if command is not None or args.project is not None:
+                raise UsageError('--version must be used alone')
+            print(encode(version()))
+            return 0
+        if command is None:
+            raise UsageError('a command is required')
         if args.command == 'doctor':
             result = doctor()
         else:
             if args.project is None:
                 raise ValueError('PROJECT_REQUIRED: supply --project')
             project = args.project.resolve()
+            # Import inside the boundary so absent dependencies produce the public error contract.
+            from jsonschema import Draft202012Validator
+            from jsonschema.exceptions import ValidationError
+            from project_service import initialize, start, prepare, review, resume, status, terminate, retire
             if args.command in ('init', 'start', 'prepare', 'review', 'resume'):
                 doctor()
             if args.command == 'init' and (project / 'retired.json').exists():
@@ -92,16 +104,16 @@ def main():
             if args.command in ('intake', 'intake-status'):
                 from intake import register, inspect
                 result = (register if args.command == 'intake' else inspect)(args, project)
-                print(dump(result))
+                print(encode(result))
                 return 0
             result = {'init': initialize, 'start': start, 'prepare': prepare,
                       'review': review, 'resume': resume, 'status': status,
                       'terminate': terminate, 'retire': retire}[args.command](args, project)
-        print(dump(result))
+        print(encode(result))
         return 0
     except Exception as error:
-        print(dump({'error': str(error), 'command': args.command}), file=sys.stderr)
-        return 1
+        print(failure(error, command), file=sys.stderr)
+        return 2 if isinstance(error, UsageError) else 1
 
 
 if __name__ == '__main__':

@@ -1,0 +1,22 @@
+{
+  "source_commit": "a1d5e15be20a9e1fa838809b09ae3b445dafc55f",
+  "run": "426372b50e72fb574c78264fac31c53a72ec837ac5f07838b8a62c3d6b99725f",
+  "before": "8d5e15e97af0b5e7795fb07efbea18301d10941c",
+  "after": "2ec5606717b00ba74c75f7453a1aa394e8762bac",
+  "original_config": {
+    "repo": "/private/tmp/knowledge341-legacy-g_ke56sz/repo",
+    "docs": "/private/tmp/knowledge341-legacy-g_ke56sz/docs"
+  },
+  "relocation": [
+    "project.config.repo",
+    "project.config.docs"
+  ],
+  "sha256": {
+    "database.json": "23bf15ffa1cebe62c7e9ac9d7f0ad5d7ff45616dc2afc75284127c2a61dd98e7",
+    "docs/guide.md": "7a4fc769d2c789c396867a1006134a7ddd444f600fe5a12b19a19cca0de1621e",
+    "runs/426372b50e72fb574c78264fac31c53a72ec837ac5f07838b8a62c3d6b99725f/complete.json": "fb4b821f870eadcec741b407205dceac5079fe14d6170ea0a37fb9b005af2e30",
+    "runs/426372b50e72fb574c78264fac31c53a72ec837ac5f07838b8a62c3d6b99725f/context.json": "64da5f612ef25f94612c6803394a9c58cf8a0dd6f986be28343f0c9bf6342613",
+    "runs/426372b50e72fb574c78264fac31c53a72ec837ac5f07838b8a62c3d6b99725f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json": "eeb69b47062b1e27e4cd6cf339bfed167fa3c7adc47a67a86c172509914b0f53",
+    "runs/426372b50e72fb574c78264fac31c53a72ec837ac5f07838b8a62c3d6b99725f/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/review-4ab844ec5a9fb61d75b2e5920ef6587893afee1e3d0fe1bcd66a09984b46981f.json": "31e0b6f281372ecc188e3be8d2233a7eabc10671c3107467c68e8eda81ec4280"
+  }
+}
