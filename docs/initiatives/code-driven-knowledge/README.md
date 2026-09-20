@@ -1,6 +1,6 @@
 # 문서·코드·결정의 일관성 관리
 
-사용자 지시·문서·코드 어디에서 시작하든 현재 상태와 목표를 구분하고 필요한 문서·코드 변경과 검증을 여러 스킬로 연결한다. 이 디렉터리는 전체 목표와 설계 판단, 실험 결과를 축적하는 시작점이다. 현재 PR #328은 1단계 초안이며 전체는 5단계로 진행한다.
+사용자 지시·문서·코드 어디에서 시작하든 현재 상태와 목표를 구분하고 필요한 문서·코드 변경과 검증을 여러 스킬로 연결한다. 이 디렉터리는 전체 목표와 설계 판단, 실험 결과를 축적하는 시작점이다. 1단계는 지원 범위 내 완료했으며 전체는 5단계로 진행한다.
 
 ## 읽는 순서
 
@@ -8,8 +8,8 @@
 |---|---|
 | 5단계 목표·순서·현재 위치 | [로드맵](roadmap.md) |
 | 단계별 세부 조건 | [1. 변경 의도·실행 기반](stages/01-foundation.md) · [2. 지식·명세 구성](stages/02-bootstrap.md) · [3. 양방향 반영](stages/03-maintenance.md) · [4. 자동 연결](stages/04-automation.md) · [5. 여러 저장소·고도화](stages/05-feedback.md) |
-| 1단계 보완 결과와 미충족 항목 | [조건별 판정](experiments/foundation.md), [접수·현재/목표 계약](contracts/change-intake.md) |
-| 현재 PR에서 실제 검증한 기능 | [1단계 초안 K1–K5](acceptance.md) |
+| 1단계 최종 판정과 검증 범위 | [최종 검증](experiments/foundation-verification.md), [접수·현재/목표 계약](contracts/change-intake.md) |
+| PR #328에서 검증한 초안 기능 | [1단계 초안 K1–K5](acceptance.md) |
 | 로드맵을 구현하고 문서 품질을 검증할 방법 | [방법론](methodology.md), [실행 방법과 AC 예시](execution-method.md) |
 | 무엇을 재사용하고 CLI·에이전트에 맡길 것인가 | [부품과 책임 경계 조사](research/components-and-boundaries.md) |
 | 문서 AC 평가에서 실제로 확인한 것 | [첫 실험 결과](experiments/document-ac.md) |
@@ -40,7 +40,7 @@ Promptfoo와 LLM 응답 평가 고도화는 전체 흐름 구현 이후로 미�
 
 ## 자료를 쌓는 기준
 
-- 전체 순서와 상태는 `roadmap.md`, 단계별 상세 조건은 `stages/`에서 관리한다. `acceptance.md`는 현재 PR의 기능 검증 기록이다.
+- 전체 순서와 상태는 `roadmap.md`, 단계별 상세 조건은 `stages/`에서 관리한다. `acceptance.md`는 PR #328의 초안 기능 검증 기록이다.
 - 설계가 구체화되면 책임과 입력·출력 계약을 이 디렉터리에 기록하고 이 목록에서 연결한다. 아직 결정하지 않은 내용을 확정된 설계로 쓰지 않는다.
 - 실험 결과는 `experiments/`에 사례별로 남긴다. 결론·실패·한계와 다음 판단을 기록하고 실행 자료를 연결한다.
 - 재실행 코드와 고정 입력·관측 원본은 `tests/knowledge/`에 둔다. 과거 관측을 새 결과로 덮어쓰지 않는다.

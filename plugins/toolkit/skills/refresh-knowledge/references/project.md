@@ -46,7 +46,10 @@ Subsequent commands share only `--project`; paths below are returned in their JS
 ```
 
 `start` returns the source/document context path; `prepare` returns the exact review packet path.
-`status` without `--run` lists runs and the current baseline. Commands return JSON on stdout and
+Both forms of `status` return `project` and `settings`: the persisted absolute `repo` and `docs`
+roots, repository label, source scope, audience and purpose. Use these with the returned context
+and completion paths to inspect results after a handoff; reading database internals is unnecessary.
+`status` without `--run` also lists runs and the current baseline. Commands return JSON on stdout and
 nonzero status with a JSON error on failure. A busy writer fails immediately; retry after that
 command exits. Use the [state rules](workflow.md) to distinguish work needed from completion.
 

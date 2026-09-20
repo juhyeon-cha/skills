@@ -248,9 +248,10 @@ def resume(args, project):
 def status(args, project):
     with database(project) as db:
         config, current, active = project_row(db)
+        location = {'project': str(project), 'settings': config}
         if args.run:
-            return summary(project, run_row(db, args.run))
-        return {'project': str(project), 'baseline': current['snapshot']['commit'], 'active': active,
+            return {**location, **summary(project, run_row(db, args.run))}
+        return {**location, 'baseline': current['snapshot']['commit'], 'active': active,
                 'retirement': read(project / 'retired.json') if (project / 'retired.json').exists() else None,
                 'runs': [summary(project, json.loads(row[0])) for row in db.execute('SELECT data FROM runs ORDER BY rowid')]}
 
