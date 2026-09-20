@@ -69,13 +69,13 @@ def classify(value):
 
 
 def register(args, project):
-    from knowledge import immutable, read
+    from project_store import immutable, read
     if (project / 'retired.json').exists():
         raise ValueError('PROJECT_RETIRED: use a reviewed successor')
     result = classify(read(args.input))
     path = project / 'intakes' / (result['id'] + '.json')
     if (project / 'project.sqlite3').exists():
-        from knowledge import database
+        from project_store import database
         with database(project, True):
             immutable(path, result)
     else:
@@ -84,7 +84,7 @@ def register(args, project):
 
 
 def load(project, identity):
-    from knowledge import read
+    from project_store import read
     if not re.fullmatch('[a-f0-9]{64}', identity):
         raise ValueError('INTAKE: invalid ID')
     path = project / 'intakes' / (identity + '.json')

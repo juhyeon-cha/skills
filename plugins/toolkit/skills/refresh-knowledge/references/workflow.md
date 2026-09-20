@@ -46,7 +46,7 @@ baseline documents still match. A terminated run cannot resume or prepare.
 For partial application, corrupt exported artifacts without a trusted original, persistent document
 conflicts, or scope changes, use `retire --reason-file FILE --successor /separate/new-project`.
 This preserves all files and the database and writes a retirement marker. It never rolls back
-partially written documents or advances the old baseline. Status validates exported context and reports corruption when present; execution
+partially written documents or advances the old baseline. Use the [status inspection modes](project.md) to check exported handoff files; execution
 writes and intake registration are refused. Repeating retirement requires the same reason and
 successor. This is logical quarantine, not a filesystem security boundary.
 
@@ -68,7 +68,7 @@ Prepare a fresh packet and review before application; retire an already-applying
 reviewed successor. This is a packet contract change, not a database migration. Historical v1
 review replay establishes only its original no-intake review scope.
 
-Before status, repeated start, prepare, review or resume exposes or changes a run, the exported
+Before `status --run`, repeated start, prepare, review or resume exposes or changes a run, the exported
 context must equal the immutable fields stored in the database. Missing, malformed, changed and
 symlink context files fail with their path and recovery guidance. Preserve damaged artifacts;
 restore only a trusted original before retrying. The CLI never recreates a missing context during

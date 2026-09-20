@@ -135,6 +135,119 @@ knowledge.main()
             self.assertEqual(actual, packet['plan']['documents'][0]['after_text'])
         self.assertEqual(self.command('status')['settings'], settings)
 
+    def test_current_review_handoff_and_prepare_clear_previous_review(self):
+        run, packet, review = self.ready(self.commit(2), 2)
+        review['verdict'] = 'revise'
+        for finding in ['Explain caller action.', 'Explain the failure condition.']:
+            review['findings'] = [finding]
+            self.command('review', '--run', run['run'], '--review', self.save('revision.json', review))
+            status = self.command('status', '--run', run['run'])
+            self.assertEqual(status['next_action'], 'prepare')
+            self.assertEqual(json.loads(Path(status['review']['path']).read_text()), review)
+            self.assertEqual(Path(status['review']['path']).name, 'review-' + status['review']['id'] + '.json')
+        self.assertEqual(len(list(Path(run['packet']).parent.glob('review-*.json'))), 3)
+        self.command('prepare', '--run', run['run'], '--decisions', self.root / 'decisions-2.json')
+        handed = self.command('status', '--run', run['run'])
+        self.assertNotIn('review', handed)
+        self.assertEqual(handed['next_action'], 'review')
+        self.assertEqual(handed['packet'], run['packet'])
+
+    def test_handoff_refuses_damaged_current_review_without_repairing_it(self):
+        run, _, _ = self.ready(self.commit(2), 2)
+        review = Path(self.command('status', '--run', run['run'])['review']['path'])
+        held = review.with_suffix('.held')
+        for kind in ('malformed', 'changed', 'missing', 'symlink'):
+            with self.subTest(kind=kind):
+                review.rename(held)
+                try:
+                    if kind == 'malformed': review.write_bytes(b'{')
+                    if kind == 'changed': review.write_text('{}')
+                    if kind == 'symlink': review.symlink_to(held)
+                    original = review.read_bytes() if review.exists() else None
+                    self.assertIn('REVIEW_INVALID', self.command('status', '--run', run['run'], ok=False).stderr)
+                    self.assertEqual(self.command('status')['runs'][0]['review_integrity'], 'unchecked')
+                    inspected = self.command('status', '--deep')['runs'][0]
+                    self.assertEqual(inspected['review_integrity'], 'invalid')
+                    self.assertEqual(inspected['context_integrity'], 'verified')
+                    self.assertEqual(review.read_bytes() if review.exists() else None, original)
+                    self.assertEqual(review.is_symlink(), kind == 'symlink')
+                finally:
+                    if review.exists() or review.is_symlink(): review.rename(review.with_suffix('.damaged-' + kind))
+                    held.rename(review)
+        self.assertEqual(self.command('status', '--run', run['run'])['review_integrity'], 'verified')
+
+    def test_command_scoped_git_capture_and_full_snapshot_comparison(self):
+        revision = self.commit(2)
+        run, _, _ = self.ready(revision, 2)
+        code = r'''import copy,json,sys
+sys.path.insert(0, sys.argv[1])
+import knowledge,impact
+from source_verification import command_sources,verify_source
+from pathlib import Path
+coordinates=sys.argv[:]
+packet=json.loads(Path(coordinates[5]).read_text())
+original=impact.capture
+calls=[]
+def capture(*args):
+    calls.append(args[2])
+    return original(*args)
+impact.capture=capture
+for argv in [ ['review','--review',coordinates[4]], ['resume'] ]:
+    knowledge.sys.argv=['knowledge','--project',coordinates[2],*argv,'--run',coordinates[3]]
+    assert knowledge.main()==0
+    assert calls==[packet['before']['commit'],packet['after']['commit']], calls
+    calls.clear()
+packet=json.loads(Path(coordinates[5]).read_text())
+with command_sources():
+    verify_source(Path(coordinates[6]), packet['before'], capture)
+    damaged=copy.deepcopy(packet['before'])
+    damaged['files'][0]['text']='tampered while retaining ID'
+    try:
+        verify_source(Path(coordinates[6]), damaged, capture)
+    except ValueError as error:
+        assert 'SOURCE_MISMATCH' in str(error)
+    else:
+        raise AssertionError('cache trusted changed content')
+assert len(calls)==1
+'''
+        result = subprocess.run([sys.executable, '-c', code, str(self.cli_path.parent), str(self.project),
+                                 run['run'], str(self.root / 'review-2.json'), run['packet'], str(self.repo)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.command('status')['baseline'], revision)
+
+    def test_listing_projects_state_without_loading_historical_bodies(self):
+        first, _, _ = self.ready(self.commit(2), 2)
+        self.command('resume', '--run', first['run'])
+        second, _, _ = self.ready(self.commit(3), 3)
+        Path(first['context']).write_bytes(b'{')
+        code = r'''import sys
+sys.path.insert(0, sys.argv[1])
+import knowledge,project_store
+original=project_store.json.loads
+def loads(value,*args,**kwargs):
+    assert '"files"' not in value and '"documents"' not in value, 'deserialized historical body'
+    return original(value,*args,**kwargs)
+project_store.json.loads=loads
+def forbidden(*args,**kwargs):
+    raise AssertionError('listing loaded full run or context')
+project_store.run_row=forbidden
+import project_service
+project_service.run_row=forbidden
+project_store.read=forbidden
+sys.argv=['knowledge','--project',sys.argv[2],'status']
+assert knowledge.main()==0
+'''
+        child = subprocess.run([sys.executable, '-c', code, str(self.cli_path.parent), str(self.project)],
+                               capture_output=True, text=True)
+        self.assertEqual(child.returncode, 0, child.stderr)
+        self.assertEqual([r['context_integrity'] for r in json.loads(child.stdout)['runs']], ['unchecked', 'unchecked'])
+        deep = self.command('status', '--deep')['runs']
+        self.assertEqual([r['context_integrity'] for r in deep], ['invalid', 'verified'])
+        self.assertEqual(Path(first['context']).read_bytes(), b'{')
+        self.assertEqual(self.command('status', '--run', second['run'])['phase'], 'ready')
+        self.command('status', '--run', first['run'], ok=False)
+
     def test_active_run_and_database_lock_block_competing_writes(self):
         second = self.commit(2)
         run = self.command('start', '--rev', second)
@@ -279,7 +392,7 @@ sys.exit(knowledge.main())
         run, _, review = self.ready(revision, 2)
         context = Path(run['context'])
         original = context.read_bytes()
-        commands = [('status',), ('status', '--run', run['run']),
+        commands = [('status', '--run', run['run']),
                     ('start', '--rev', revision), ('resume', '--run', run['run']),
                     ('prepare', '--run', run['run'], '--decisions', self.root / 'decisions-2.json'),
                     ('review', '--run', run['run'], '--review', self.root / 'review-2.json')]
@@ -293,6 +406,11 @@ sys.exit(knowledge.main())
                     if kind == 'changed': context.write_text(json.dumps(changed))
                     if kind == 'symlink': context.symlink_to(held)
                     damaged = context.read_bytes() if context.exists() else None
+                    listing = self.command('status')['runs'][0]
+                    self.assertEqual(listing['context_integrity'], 'unchecked')
+                    inspected = self.command('status', '--deep')['runs'][0]
+                    self.assertEqual(inspected['context_integrity'], 'invalid')
+                    self.assertIn('CONTEXT_INVALID', inspected['context_error'])
                     for command in commands:
                         result = self.command(*command, ok=False)
                         self.assertIn('CONTEXT_INVALID', result.stderr)

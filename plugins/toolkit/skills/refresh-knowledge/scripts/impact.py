@@ -69,9 +69,9 @@ def verify_bindings(record, before, docs_root):
 
 def impact(record, before, after, docs_root, repo):
     # Rebuild both pinned sources before deriving any candidates.
+    from source_verification import verify_source
     for snap in (before, after):
-        if capture(repo, snap['repository'], snap['commit'], snap['scope']) != snap:
-            raise ValueError('SOURCE_MISMATCH: pinned Git tree differs')
+        verify_source(repo, snap, capture)
     verify_bindings(record, before, docs_root)
     change = compare(before, after)
     candidates, linked = [], set()
