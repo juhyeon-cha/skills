@@ -9,6 +9,7 @@
 | 5단계 목표·순서·현재 위치 | [로드맵](roadmap.md) |
 | 단계별 세부 조건 | [1. 변경 의도·실행 기반](stages/01-foundation.md) · [2. 지식·명세 구성](stages/02-bootstrap.md) · [3. 양방향 반영](stages/03-maintenance.md) · [4. 자동 연결](stages/04-automation.md) · [5. 여러 저장소·고도화](stages/05-feedback.md) |
 | 현재 PR에서 실제 검증한 기능 | [1단계 초안 K1–K5](acceptance.md) |
+| 로드맵을 구현하고 문서 품질을 검증할 방법 | [방법론](methodology.md), [실행 방법과 AC 예시](execution-method.md) |
 | 무엇을 재사용하고 CLI·에이전트에 맡길 것인가 | [부품과 책임 경계 조사](research/components-and-boundaries.md) |
 | 문서 AC 평가에서 실제로 확인한 것 | [첫 실험 결과](experiments/document-ac.md) |
 | 평가를 다시 실행하는 방법과 입력·검사 코드 | [문서 평가 사례](../../../tests/knowledge/document-ac/README.md) |
