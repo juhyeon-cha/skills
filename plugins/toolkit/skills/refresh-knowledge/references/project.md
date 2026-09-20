@@ -65,9 +65,9 @@ next operation (`resolve_review` means resolving evidence or a policy decision f
 Preparing a packet clears the current review even if the packet ID is unchanged. Old review files
 remain evidence but are not returned as the current review.
 
-Commands return JSON on stdout and
-nonzero status with a JSON error on failure. A busy writer fails immediately; retry after that
-command exits. Use the [state rules](workflow.md) to distinguish work needed from completion.
+For programmatic invocation, version identification, exit codes and failure handling, read the
+[public CLI contract](cli-contract.md). A busy writer fails immediately; inspect current state
+after that command exits before choosing the next operation. Use the [state rules](workflow.md) to distinguish work needed from completion.
 
 ## Supported observation boundary
 
