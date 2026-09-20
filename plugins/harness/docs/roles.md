@@ -13,6 +13,15 @@ The same independent reviewer can follow up on its findings. The parent can run
 tests that need permissions unavailable to the reviewing child and supply their
 actual results. A standalone report does not authorize ledger close.
 
+Ordinary children carry no harness role policy. The guard still applies common
+workspace, runtime-state, remote-write and ledger-coordinate protections; host
+permissions and user authorization govern execution beyond those recognized
+effects. An opaque Python command is not proof of a write or a role claim.
+Reserve child path components beginning with `harness_` for managed delegation:
+`begin` generates that namespace. A managed child or its descendant must resolve
+its inventory; missing, corrupt or terminal evidence cannot become an ordinary
+child. Explicit role claims retain their role validation.
+
 The remaining sections govern delegated role execution. Local verification selected
 by verify-code requires no delegation inventory or role receipt.
 
@@ -46,8 +55,9 @@ Doctor's native `check` retains its separate static/loaded/live judgments.
 Ordinary file reads, recognized read-only shell commands and internal collaboration
 reporting do not require role registration, a delegation inventory or metadata
 lookup. A passing read is permission to inspect, not role or completion evidence.
-For writes and commands outside that read subset, use the active SessionStart `data` and `sessionId` in the
-call, and the assigned canonical worktree as `repository`. Codex can deliver a
+For managed writes and commands outside that read subset, use the active
+SessionStart `data` and `sessionId` in the call, and the assigned canonical
+worktree as `repository`. Codex can deliver a
 thread UUID as `agent_id` and the built-in `default` profile as `agent_type`.
 For that shape, the guard uses the local CLI's App Server `initialize` →
 `initialized` → metadata-only `thread/read` protocol. It requires the exact UUID,
@@ -57,7 +67,11 @@ thread, request a model turn, or correlate children by timing. Missing metadata,
 an unavailable CLI, timeout or schema mismatch denies the tool. The CLI must read
 the same local Codex state as the active session; remote-only state is unavailable.
 The legacy canonical-path hook shape without `agent_type` remains supported.
-The guard resolves the active dispatch in that session's inventory, checks
+An ordinary canonical child path requires no inventory or state coordinates.
+UUID/default hooks use the metadata path to distinguish ordinary children from
+the reserved managed namespace; metadata failure remains UNREACHED, rather than
+guessing that a possibly managed child is ordinary.
+For managed children, the guard resolves the active dispatch in that session's inventory, checks
 role source, repository identity and any binding, and applies its assigned policy
 without filling in native identity. Persisted dispatch permits the
 first tool before bind returns; bind is still mandatory for result consumption.
