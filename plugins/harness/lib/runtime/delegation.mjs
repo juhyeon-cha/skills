@@ -482,21 +482,25 @@ export async function beginDelegation(call, { root, env = process.env } = {}) {
   });
 }
 
-/** Resolve a generic hook child against the parent's session inventory.
+/** Return null for an ordinary child, or resolve a managed child's policy.
  * Dispatch is persisted before spawn, so a first tool need not race binding.
  * This selects guard policy only; it is never native role/lifecycle evidence. */
 export async function delegationHookRole(raw, { root, env = process.env, readThread = readCodexThread } = {}) {
+  if (raw.agent_type === 'default' && !codexThreadId(raw.agent_id))
+    throw new Error('Codex generic hook requires a thread UUID');
+  const child = raw.agent_type === 'default'
+    ? codexChildPath(raw, await readThread(raw.agent_id, { env }))
+    : agent(raw.agent_id);
+  if (child === '/root') throw new Error('child identity required');
+  // begin owns this namespace. Missing or terminal managed records must never
+  // downgrade to ordinary delegation, including descendants of managed calls.
+  if (!child.split('/').some(part => part.startsWith('harness_'))) return null;
   text(raw.session_id, 'hook session');
   const scope = await resolveState({ cwd: raw.cwd, sessionId: raw.session_id }, env);
   if (scope.runtime !== 'codex' || scope.dataSource === 'fallback-unverified')
     throw new Error('generic hook requires explicit Codex state coordinates');
   scope.directory = path.join(scope.session, 'delegation');
   if (!fs.existsSync(scope.directory)) throw new Error('child role is unidentified');
-  if (raw.agent_type === 'default' && !codexThreadId(raw.agent_id))
-    throw new Error('Codex generic hook requires a thread UUID');
-  const child = raw.agent_type === 'default'
-    ? codexChildPath(raw, await readThread(raw.agent_id, { env }))
-    : agent(raw.agent_id);
   return withStateLock(path.join(scope.directory, 'inventory'), () => {
     const matches = [];
     for (const name of fs

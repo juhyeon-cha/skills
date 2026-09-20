@@ -27,6 +27,12 @@ boundary or a complete shell interpreter. Host permissions enforce access for
 opaque scripts and dynamic commands. User approval rules apply regardless of
 whether the hook recognizes an action.
 
+For ordinary versus managed child classification, consult
+[Runtime role contract](roles.md#standalone-investigation-and-review). Absence of
+a harness role does not prohibit ordinary execution. Classification retains the
+child identity, so child-scoped rules below still apply; a passing hook neither
+grants host permissions nor establishes user approval.
+
 | Rule | Scope | Enforcement |
 |---|---|---|
 | `r_main_write` | File tools and patches | Protect the main checkout, Git internals and active state. Repository settings in a registered worktree are editable within the authorized task. |

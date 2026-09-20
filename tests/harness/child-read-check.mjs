@@ -58,8 +58,9 @@ try {
     {tool_name: 'exec_command', tool_input: {cmd: 'git diff > /tmp/changed'}},
     {tool_name: 'exec_command', tool_input: {cmd: 'git diff --ext-diff'}},
     {tool_name: 'exec_command', tool_input: {cmd: 'rg --pre=exec x'}},
-    {tool_name: 'unrecognized_tool', tool_input: {}},
     {agent_type: 'unknown'}, {agent_id: 5}, {tool_input: null},
-  ]) assert.equal((await guard(changes)).code, 2, JSON.stringify(changes));
-  console.log('PASS child reads: role-free reads/reporting; unknown effects and mutations still require identity');
+  ]) assert.equal((await guard({agent_id: '/root/harness_missing', ...changes})).code, 2, JSON.stringify(changes));
+  assert.equal((await guard({tool_name: 'unrecognized_tool', tool_input: {}})).code, 0,
+    'opaque tools remain host-managed');
+  console.log('PASS child reads: role-free reads/reporting; managed mutations still require identity');
 } finally {fs.rmSync(temp, {recursive: true, force: true});}
