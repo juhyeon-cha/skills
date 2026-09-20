@@ -117,6 +117,24 @@ knowledge.main()
         self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'completed')
         self.assertEqual(self.command('status')['baseline'], revision)
 
+    def test_handoff_locates_verified_documents_using_public_status(self):
+        revision = self.commit(2)
+        run, packet, _ = self.ready(revision, 2)
+        settings = self.command('status')['settings']
+        self.assertEqual(settings['repo'], str(self.repo.resolve()))
+        self.assertEqual(settings['docs'], str(self.docs.resolve()))
+        self.assertEqual(settings['audience'], 'API 사용자')
+        self.assertEqual(settings['purpose'], '호출 횟수를 판단한다')
+        handed = self.command('status', '--run', run['run'])
+        self.assertEqual(handed['settings'], settings)
+        self.assertEqual(handed['project'], str(self.project.resolve()))
+        completed = self.command('resume', '--run', handed['run'])
+        receipt = json.loads(Path(completed['completion']).read_text())
+        for document in receipt['next_bindings']['documents']:
+            actual = (Path(handed['settings']['docs']) / document['path']).read_text()
+            self.assertEqual(actual, packet['plan']['documents'][0]['after_text'])
+        self.assertEqual(self.command('status')['settings'], settings)
+
     def test_active_run_and_database_lock_block_competing_writes(self):
         second = self.commit(2)
         run = self.command('start', '--rev', second)
