@@ -503,6 +503,44 @@ sys.exit(knowledge.main())
         finally:
             self.cli_path = original
 
+    def test_sqlite_json_dependency_blocks_before_project_creation(self):
+        self.assertEqual(self.command('doctor')['sqlite_json'], 'verified')
+        for function in ('json', 'json_set', 'json_extract'):
+            for command in ('doctor', 'init'):
+                with self.subTest(function=function, command=command):
+                    project = self.root / f'unsupported-{function}-{command}'
+                    script = '''
+import runpy, sqlite3, sys
+from unittest.mock import patch
+cli, denied, *args = sys.argv[1:]
+sys.path.insert(0, str(__import__('pathlib').Path(cli).parent))
+connect = sqlite3.connect
+def without_function(*args, **kwargs):
+    db = connect(*args, **kwargs)
+    db.set_authorizer(lambda action, first, second, *rest:
+        sqlite3.SQLITE_DENY if action == sqlite3.SQLITE_FUNCTION and second == denied
+        else sqlite3.SQLITE_OK)
+    return db
+sys.argv = [cli, *args]
+with patch.object(sqlite3, 'connect', without_function):
+    runpy.run_path(cli, run_name='__main__')
+'''
+                    args = ['--project', str(project), command]
+                    if command == 'init':
+                        args += ['--repo', str(self.repo), '--docs', str(self.docs),
+                                 '--repository', 'fixture/service', '--baseline', self.baseline,
+                                 '--path', 'service.py', '--spec', str(self.spec),
+                                 '--audience', 'reader', '--purpose', 'test']
+                    result = subprocess.run([sys.executable, '-c', script, str(self.cli_path), function, *args],
+                                            cwd=self.root, capture_output=True, text=True)
+                    self.assertEqual(result.returncode, 1, result.stderr)
+                    self.assertEqual(result.stdout, '')
+                    error = json.loads(result.stderr)
+                    self.assertEqual(error['command'], command)
+                    self.assertIn('DEPENDENCY: SQLite JSON functions', error['error'])
+                    self.assertIn('json, json_set, json_extract', error['error'])
+                    self.assertFalse(project.exists())
+
     def test_skill_local_references_and_package_registration(self):
         import re
         manifest = json.loads((self.installed / '.claude-plugin/plugin.json').read_text())

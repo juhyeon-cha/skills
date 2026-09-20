@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Project-scoped knowledge updates: one durable run ID across agent handoffs."""
 import argparse
+from contextlib import closing
 import importlib.metadata
 from pathlib import Path
 import shutil
@@ -24,6 +25,14 @@ def doctor():
     if not executable:
         raise ValueError('DEPENDENCY: Git is missing')
     git_version = subprocess.check_output([executable, '--version'], text=True).strip()
+    try:
+        with closing(sqlite3.connect(':memory:')) as db:
+            result = db.execute("SELECT json_extract(json_set(json('{}'), '$.probe', 1), '$.probe')").fetchone()
+            if result != (1,):
+                raise ValueError('unexpected SQLite JSON result')
+    except (sqlite3.Error, ValueError) as error:
+        raise ValueError('DEPENDENCY: SQLite JSON functions json, json_set, json_extract required; '
+                         'use Python with a SQLite build supporting these functions') from error
     skills = Path(__file__).resolve().parents[2]
     required = ['writing-for-humans/SKILL.md', 'writing-for-humans/references/backend.md',
                 'writing-for-humans/references/document-shapes.md', 'review-knowledge/SKILL.md',
@@ -34,7 +43,7 @@ def doctor():
         raise ValueError('DEPENDENCY_UNREACHED: missing installed skill files: ' + ', '.join(missing))
     return {'python': sys.executable, 'python_version': sys.version.split()[0],
             'jsonschema': version, 'git': executable, 'git_version': git_version,
-            'sqlite': sqlite3.sqlite_version, 'skill_files': required,
+            'sqlite': sqlite3.sqlite_version, 'sqlite_json': 'verified', 'skill_files': required,
             'independent_agent': 'host capability must be checked by the orchestrator'}
 
 
