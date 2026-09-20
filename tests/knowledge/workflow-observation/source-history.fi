@@ -1,0 +1,46 @@
+blob
+mark :1
+data 181
+def request_with_retry(send):
+    for attempt in range(3):
+        try:
+            return send()
+        except ConnectionError:
+            if attempt == 2:
+                raise
+
+reset refs/heads/master
+commit refs/heads/master
+mark :2
+author Workflow Fixture <fixture@example.invalid> 1789858609 +0900
+committer Workflow Fixture <fixture@example.invalid> 1789858609 +0900
+data 9
+baseline
+M 100644 :1 retry.py
+
+blob
+mark :3
+data 49
+def version_label():
+    return "retry-tools-v2"
+
+blob
+mark :4
+data 181
+def request_with_retry(send):
+    for attempt in range(4):
+        try:
+            return send()
+        except ConnectionError:
+            if attempt == 3:
+                raise
+
+commit refs/heads/master
+mark :5
+author Workflow Fixture <fixture@example.invalid> 1789858609 +0900
+committer Workflow Fixture <fixture@example.invalid> 1789858609 +0900
+data 44
+increase retry budget and add version label
+from :2
+M 100644 :3 diagnostics.py
+M 100644 :4 retry.py

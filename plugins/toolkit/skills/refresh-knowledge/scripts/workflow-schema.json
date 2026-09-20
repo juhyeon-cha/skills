@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "packet": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "review-packet"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "plan": {
+          "type": "object"
+        },
+        "bindings": {
+          "type": "object"
+        },
+        "before": {
+          "type": "object"
+        },
+        "after": {
+          "type": "object"
+        },
+        "audience": {
+          "type": "string",
+          "minLength": 1
+        },
+        "purpose": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "version",
+        "kind",
+        "id",
+        "plan",
+        "bindings",
+        "before",
+        "after",
+        "audience",
+        "purpose"
+      ],
+      "additionalProperties": false
+    },
+    "review": {
+      "type": "object",
+      "properties": {
+        "packet": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "plan": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "verdict": {
+          "enum": [
+            "pass",
+            "revise",
+            "blocked"
+          ]
+        },
+        "checks": {
+          "type": "object",
+          "properties": {
+            "source_fidelity": {
+              "enum": [
+                "pass",
+                "fail",
+                "unverified"
+              ]
+            },
+            "decision_coverage": {
+              "enum": [
+                "pass",
+                "fail",
+                "unverified"
+              ]
+            },
+            "reader_action": {
+              "enum": [
+                "pass",
+                "fail",
+                "unverified"
+              ]
+            },
+            "uncertainty": {
+              "enum": [
+                "pass",
+                "fail",
+                "unverified"
+              ]
+            }
+          },
+          "required": [
+            "source_fidelity",
+            "decision_coverage",
+            "reader_action",
+            "uncertainty"
+          ],
+          "additionalProperties": false
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "required": [
+        "packet",
+        "plan",
+        "verdict",
+        "checks",
+        "findings"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

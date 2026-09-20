@@ -1,0 +1,183 @@
+{
+  "after": {
+    "commit": "65a2fda2a1ff5459a6532d9a0afb43b2a871a65b",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "diagnostics.py",
+        "sha256": "38095798c3fe8a0d1010ed96521dde948d051dd38b67c8d5175075165cd20ea8",
+        "text": "def version_label():\n    return \"retry-tools-v2\"\n"
+      },
+      {
+        "mode": "100644",
+        "path": "retry.py",
+        "sha256": "47448a0f02a803341a39f8d0fac27621deb31df99268861abadc6f3c3a2377ee",
+        "text": "def request_with_retry(send):\n    for attempt in range(4):\n        try:\n            return send()\n        except ConnectionError:\n            if attempt == 3:\n                raise\n"
+      }
+    ],
+    "id": "c2d7b7879cb8294b7c64535aaf2f53004f1f5925ec17c151cb718e2565b7c5d2",
+    "kind": "snapshot",
+    "repository": "fixture/retry",
+    "scope": [
+      "diagnostics.py",
+      "retry.py"
+    ],
+    "version": 1
+  },
+  "audience": "request_with_retry를 호출하는 BE 개발자",
+  "before": {
+    "commit": "8948eb97410559694598e57ab20ac7398cbb0c16",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "retry.py",
+        "sha256": "9c82ec4d580756d8dc089a48d55cce1d4a3780357eb6e356361cff93007fa243",
+        "text": "def request_with_retry(send):\n    for attempt in range(3):\n        try:\n            return send()\n        except ConnectionError:\n            if attempt == 2:\n                raise\n"
+      }
+    ],
+    "id": "b14b2cb5c6af151e14ab2caac953ab95ec7da7dd34f1d9a6807dc6c02287df76",
+    "kind": "snapshot",
+    "repository": "fixture/retry",
+    "scope": [
+      "diagnostics.py",
+      "retry.py"
+    ],
+    "version": 1
+  },
+  "bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "retry.py"
+            ],
+            "id": "exhausted",
+            "text": "모든 시도가 연결 오류로 실패하면 마지막 오류를 호출자에게 전달한다."
+          },
+          {
+            "evidence": [
+              "retry.py"
+            ],
+            "id": "permission",
+            "text": "권한 오류(PermissionError)는 재시도하지 않고 호출자에게 전달한다."
+          },
+          {
+            "evidence": [
+              "retry.py"
+            ],
+            "id": "retry-limit",
+            "text": "연결 오류(ConnectionError)가 발생하면 최초 요청 외에 최대 두 번 더 시도한다."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "4eb7e842c5243d8640dc151f4dd4828d729407d41ffb1bd1ab94c4d848ecf978"
+      }
+    ],
+    "id": "ca46b07117d219566b6bf152336095eaac51648db601d79ae331bc6ea858612f",
+    "kind": "bindings",
+    "snapshot": "b14b2cb5c6af151e14ab2caac953ab95ec7da7dd34f1d9a6807dc6c02287df76",
+    "version": 1
+  },
+  "id": "56102f71ec0a9fa76facd095ee8a40d6410b5878e6f44669bd2ad9928065d07a",
+  "kind": "review-packet",
+  "plan": {
+    "after": "c2d7b7879cb8294b7c64535aaf2f53004f1f5925ec17c151cb718e2565b7c5d2",
+    "before": "b14b2cb5c6af151e14ab2caac953ab95ec7da7dd34f1d9a6807dc6c02287df76",
+    "bindings": "ca46b07117d219566b6bf152336095eaac51648db601d79ae331bc6ea858612f",
+    "decisions": {
+      "claims": [
+        {
+          "action": "keep",
+          "evidence": [
+            "retry.py"
+          ],
+          "id": "exhausted",
+          "path": "guide.md",
+          "reason": "마지막 시도의 판정이 attempt == 2에서 attempt == 3으로 함께 변경됐다. 마지막 연결 오류를 raise로 다시 전달하는 동작은 유지된다.",
+          "text": "모든 시도가 연결 오류로 실패하면 마지막 오류를 호출자에게 전달한다."
+        },
+        {
+          "action": "keep",
+          "evidence": [
+            "retry.py"
+          ],
+          "id": "permission",
+          "path": "guide.md",
+          "reason": "변경 전후 모두 ConnectionError만 처리하므로 PermissionError는 재시도 없이 호출자에게 전파된다.",
+          "text": "권한 오류(PermissionError)는 재시도하지 않고 호출자에게 전달한다."
+        },
+        {
+          "action": "replace",
+          "evidence": [
+            "retry.py"
+          ],
+          "id": "retry-limit",
+          "path": "guide.md",
+          "reason": "반복 범위가 range(3)에서 range(4)로 바뀌어 최초 요청을 포함한 최대 시도 횟수가 3회에서 4회로 늘었다.",
+          "text": "연결 오류(ConnectionError)가 발생하면 최초 요청 외에 최대 세 번 더 시도한다."
+        }
+      ],
+      "impact": "048a6cd4e5aa20ab19dfda7e980f7a7da143c9418014498c8c6afbd55516cd05",
+      "unlinked": [
+        {
+          "action": "no-document-change",
+          "change": {
+            "after": "diagnostics.py",
+            "type": "added"
+          },
+          "reason": "추가된 version_label은 고정 문자열을 반환한다. 제공된 request_with_retry는 이를 호출하지 않으며, 재시도 횟수와 예외 전파를 설명하는 guide.md에 추가할 동작 변경이 없다."
+        }
+      ]
+    },
+    "documents": [
+      {
+        "after_sha256": "3f6b71d62db31604041efc6ebf68f518eea90c28b657605aff5285fd690c8424",
+        "after_text": "# 요청 재시도\n\n연결 오류(ConnectionError)가 발생하면 최초 요청 외에 최대 세 번 더 시도한다.\n권한 오류(PermissionError)는 재시도하지 않고 호출자에게 전달한다.\n모든 시도가 연결 오류로 실패하면 마지막 오류를 호출자에게 전달한다.\n",
+        "before_sha256": "4eb7e842c5243d8640dc151f4dd4828d729407d41ffb1bd1ab94c4d848ecf978",
+        "before_text": "# 요청 재시도\n\n연결 오류(ConnectionError)가 발생하면 최초 요청 외에 최대 두 번 더 시도한다.\n권한 오류(PermissionError)는 재시도하지 않고 호출자에게 전달한다.\n모든 시도가 연결 오류로 실패하면 마지막 오류를 호출자에게 전달한다.\n",
+        "path": "guide.md"
+      }
+    ],
+    "id": "1e4172bfdc60c4527dfbad0881a32ca71eb1cdc5f8dc19b59043a1505771e297",
+    "kind": "update-plan",
+    "next_bindings": {
+      "documents": [
+        {
+          "claims": [
+            {
+              "evidence": [
+                "retry.py"
+              ],
+              "id": "exhausted",
+              "text": "모든 시도가 연결 오류로 실패하면 마지막 오류를 호출자에게 전달한다."
+            },
+            {
+              "evidence": [
+                "retry.py"
+              ],
+              "id": "permission",
+              "text": "권한 오류(PermissionError)는 재시도하지 않고 호출자에게 전달한다."
+            },
+            {
+              "evidence": [
+                "retry.py"
+              ],
+              "id": "retry-limit",
+              "text": "연결 오류(ConnectionError)가 발생하면 최초 요청 외에 최대 세 번 더 시도한다."
+            }
+          ],
+          "path": "guide.md",
+          "sha256": "3f6b71d62db31604041efc6ebf68f518eea90c28b657605aff5285fd690c8424"
+        }
+      ],
+      "id": "0559d7e32d6f316455e5eb2e553ac3e89cfc44994aa86688c6f09090f4332dd4",
+      "kind": "bindings",
+      "snapshot": "c2d7b7879cb8294b7c64535aaf2f53004f1f5925ec17c151cb718e2565b7c5d2",
+      "version": 1
+    },
+    "version": 1
+  },
+  "purpose": "재시도 횟수와 호출자에게 전달되는 예외를 판단한다",
+  "version": 1
+}

@@ -15,7 +15,7 @@ juhyeon-cha 의 Claude Code 스킬 플러그인 마켓플레이스. 플러그인
 설명은 각 플러그인의 `plugins/<이름>/.claude-plugin/plugin.json` 이 원본이다.
 
 - `harness` — 애자일 계층(스프린트→레일→스토리→마일스톤→태스크)으로 멀티 레포 개발을 자율 진행하는 에이전트 하네스 — 원장은 어댑터(github·beads·notion), 보완 스킬 triage(백로그 정리)·status(현황)
-- `toolkit` — 여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기, 성과 기록을 쌓아 대시보드로 뽑기, 사고 기록을 회고 문서로 만들기, PR 본문 쓰기, 발견한 것을 GitHub 이슈로 등재하기, 열린 이슈를 골라 닫기, 독자와 목적에 맞는 업무 문서 쓰기
+- `toolkit` — 여러 스킬을 담는 도구 상자. 보고·공유용 HTML 자료 한 장 만들기, 소스에서 API 스펙을 뽑아 카탈로그 화면 만들기, 두 스냅샷의 API 계약 변경 화면 만들기, 성과 기록을 쌓아 대시보드로 뽑기, 사고 기록을 회고 문서로 만들기, PR 본문 쓰기, 발견한 것을 GitHub 이슈로 등재하기, 열린 이슈를 골라 닫기, 독자와 목적에 맞는 업무 문서 쓰기, 고정 코드 근거로 문서를 갱신하고 독립 리뷰 후 반영하기
 
 ## harness 사용법
 
@@ -74,10 +74,16 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
 | `/toolkit:api-contract-diff` | 스냅샷 JSON 둘(전·후)을 받아 추가·삭제된 엔드포인트와 필드를 색으로 구분한 HTML 로 만든다 | "API 뭐가 바뀌었는지 정리해줘" |
 | `/toolkit:brag` | 한 일을 [문제 - 해결 - 결과] 항목으로 `~/.brag/` 에 쌓고, 분기 성과 대시보드 HTML 로 뽑는다 | "이번 분기 한 일 정리해줘" |
 | `/toolkit:postmortem` | 사고 기록 하나를 타임라인 · [원인 - 조치 - 예방] 카드 · 액션 아이템의 회고 HTML 로 만든다 | "장애 회고 써줘" |
+| `/toolkit:refresh-knowledge` | 고정 코드 변경으로 기존 문서를 갱신하고 실행 ID로 상태 확인·재개한다 | "코드 변경을 문서에 반영해줘" |
+| `/toolkit:review-knowledge` | 원본과 수정안을 독립 검토하고 연결된 판정 기록을 돌려준다 | "지식 수정안 리뷰해줘" |
 | `/toolkit:writing-for-humans` | FE·BE·UI/UX·PO·기획 등 독자와 목적에 맞게 업무 문서를 작성·재구성·축약한다 | "개발팀에 전달할 기획서 써줘", "PO가 판단할 수 있게 줄여줘" |
 | `/toolkit:writing-pull-request` | PR 본문을 쓴다 — 필수 4절(What / Why / Verification / What the green run does not establish)과 조건부 3절 | "PR 본문 써줘" |
 | `/toolkit:plan-issue` | 발견한 결함이나 미결 결정을 GitHub 이슈로 등재한다 — 이슈가 되는 것과 안 되는 것, 본문 골격, 라벨 규칙 | "이슈 등록해줘" |
 | `/toolkit:issue-resolution` | 열린 GitHub 이슈 중 막히지 않은 하나를 골라 고치고, 되돌려 증명하고, 닫는다 | "이슈 해결해줘" |
+
+## 개발 목표
+
+[코드 기반 지식 자동화 목표](docs/initiatives/code-driven-knowledge/README.md)는 문서 AC와 독립 리뷰 검증에서 시작해 근거 기반 갱신, 개발 흐름 자동 연결로 확장하는 단기·중기·장기 방향을 정리한다.
 
 ## 플러그인 추가
 

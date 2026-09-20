@@ -1,0 +1,56 @@
+{
+  "surface": "Codex collaboration",
+  "fork_turns": "none",
+  "tools_requested": false,
+  "recording": "Parent copied actual returned reader JSON from tool messages; not a native role receipt or authenticated transcript.",
+  "readers": [
+    {
+      "id": "/root/m0_reader_a",
+      "answers": {
+        "q1": {
+          "answer": "아니요. 암호를 제출할 때 보관한 질문을 실제 분석 요청으로 보내므로 별도로 다시 전송할 필요가 없습니다.",
+          "quote": "암호를 제출하면 보관한 질문을 실제 분석 요청으로 보냅니다. 별도 암호 검사 뒤 질문을 한 번 더 보내는 절차가 아닙니다."
+        },
+        "q2": {
+          "answer": "질문 초안이 남으므로 다시 작성할 필요가 없습니다. 다시 열린 암호 입력창에서 암호를 재입력하거나 취소할 수 있습니다.",
+          "quote": "해당 요청이 401·403으로 거절되면 오류를 표시하며 암호 입력창을 다시 엽니다. 재입력 또는 취소할 수 있고 질문 초안은 남습니다."
+        },
+        "q3": {
+          "answer": "질문 초안은 유지되며 원래 질문 초안으로 돌아갑니다.",
+          "quote": "암호 입력창을 취소하면 입력창과 임시 암호를 닫고 비웁니다. 원래 질문 초안으로 돌아갑니다."
+        }
+      }
+    },
+    {
+      "id": "/root/m0_reader_b",
+      "answers": {
+        "q1": {
+          "answer": "예. 암호 확인이 성공하면 보관한 질문을 별도의 분석 요청으로 다시 전송해야 합니다.",
+          "quote": "확인이 성공하면 보관한 질문을 별도의 분석 요청으로 한 번 더 보내야 합니다."
+        },
+        "q2": {
+          "answer": "아니요. 질문 초안은 남습니다. 다시 열린 암호 입력창에서 암호를 재입력하거나 취소할 수 있습니다.",
+          "quote": "해당 요청이 401·403으로 거절되면 오류를 표시하며 암호 입력창을 다시 엽니다. 재입력 또는 취소할 수 있고 질문 초안은 남습니다."
+        },
+        "q3": {
+          "answer": "질문 초안은 유지되며 원래 질문 초안으로 돌아갑니다.",
+          "quote": "암호 입력창을 취소하면 입력창과 임시 암호를 닫고 비웁니다. 원래 질문 초안으로 돌아갑니다."
+        }
+      }
+    }
+  ],
+  "judge": {
+    "id": "/root/m0_judge",
+    "a": {
+      "q1": "MATCH",
+      "q2": "MATCH",
+      "q3": "MATCH"
+    },
+    "b": {
+      "q1": "FAIL",
+      "q2": "MATCH",
+      "q3": "MATCH"
+    },
+    "finding": "Both read faithfully; B q1 contradicts source. No UI/runtime/statistical guarantee."
+  }
+}

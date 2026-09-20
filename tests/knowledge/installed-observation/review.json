@@ -1,0 +1,3 @@
+{"packet":"f8695804d251f20e7d29e87cfd6cb2925aa3d3c2f134589d3ceeed2f7434b346","plan":"1cbc831febdf75f2df99f0ce74b916f516f4e45d7a7c6b387c9767c645c62d38","verdict":"pass",
+ "checks":{"source_fidelity":"pass","decision_coverage":"pass","reader_action":"pass","uncertainty":"pass"},
+ "findings":[]}

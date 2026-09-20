@@ -1,0 +1,115 @@
+{
+  "source_commit": "36a31860ae66c0d03b99ec244abe891a642dbdc4",
+  "criteria": [
+    {
+      "id": "q1",
+      "required": [
+        "질문을 보관한다",
+        "암호 입력창을 연다",
+        "분석 요청은 아직 보내지 않는다"
+      ],
+      "sources": [
+        "submit",
+        "decision"
+      ]
+    },
+    {
+      "id": "q2",
+      "required": [
+        "질문 초안을 보존한다",
+        "오류를 표시하고 암호 입력창을 다시 연다",
+        "재입력 또는 취소할 수 있다"
+      ],
+      "sources": [
+        "submit"
+      ]
+    },
+    {
+      "id": "q3",
+      "required": [
+        "추가 질문 요청을 보내지 않는다",
+        "현재 대화에서 해당 제공자 확인 상태와 암호를 기억한다",
+        "같은 제공자 다음 질문에는 암호 입력창을 다시 열지 않는다"
+      ],
+      "sources": [
+        "submit",
+        "decision"
+      ]
+    },
+    {
+      "id": "q4",
+      "required": [
+        "질문 초안은 보존한다",
+        "대기 질문 참조와 임시 암호를 비우고 입력창을 닫는다"
+      ],
+      "sources": [
+        "submit"
+      ]
+    },
+    {
+      "id": "q5",
+      "required": [
+        "입력창을 다시 열지 않는다",
+        "질문 초안을 비운다",
+        "제공자 확인 상태를 새로 추가하지 않는다"
+      ],
+      "sources": [
+        "submit"
+      ]
+    },
+    {
+      "id": "q6",
+      "required": [
+        "최종 상태를 502로 해석한다",
+        "제공자 확인 상태를 새로 추가하지 않는다",
+        "같은 대화가 유지됐다면 질문 초안을 비운다"
+      ],
+      "sources": [
+        "transport",
+        "submit"
+      ]
+    },
+    {
+      "id": "q7",
+      "required": [
+        "새 대화는 질문 초안과 제공자 확인 상태 및 기억한 암호를 초기화한다",
+        "진행 요청에 취소를 요청한다",
+        "대화 세대가 다른 늦은 응답은 새 대화 상태에 적용하지 않는다"
+      ],
+      "sources": [
+        "reset",
+        "send",
+        "submit"
+      ]
+    },
+    {
+      "id": "q8",
+      "required": [
+        "클라이언트 암호 모달 없이 전송한다",
+        "서버 인증 성공을 보장하지 않는다"
+      ],
+      "sources": [
+        "decision"
+      ]
+    },
+    {
+      "id": "q9",
+      "required": [
+        "추가 전송하지 않는다"
+      ],
+      "sources": [
+        "askable",
+        "submit"
+      ]
+    },
+    {
+      "id": "q10",
+      "required": [
+        "결정 배경은 근거에 없어 알 수 없다",
+        "정적 소스 확인이며 브라우저 실측을 주장할 수 없다"
+      ],
+      "sources": []
+    }
+  ],
+  "grading": "Semantic equivalence is allowed. Every required proposition must be supported by document citations. Missing or contradicted propositions fail; lack of observation is UNREACHED, never PASS. Read executable branches over stale comments."
+}

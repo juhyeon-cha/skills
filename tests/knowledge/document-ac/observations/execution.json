@@ -1,0 +1,83 @@
+{
+  "recording": "Parent-transcribed actual child JSON returns. Not authenticated native-role receipts.",
+  "writer": "/root/doc_writer_initial",
+  "readers": {
+    "a": {
+      "agent": "/root/reader_a",
+      "document": "run-1/normal",
+      "fork_turns": "none",
+      "transport": "One initial literal cat of opaque /tmp/doc323-reader-a.txt, then no tools",
+      "prompt_sha256": "a82a3885374cc36c582b9f5811ea91cfa2ea60e35272df8845e963a5f599f633",
+      "policy_sha256": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b",
+      "return_sha256": "bc98aede9d5bcbbdb67d3bb7a2f74e200ecc2c5884c400c68ed60e2a95b25241"
+    },
+    "b": {
+      "agent": "/root/reader_b",
+      "document": "run-1/missing-exception",
+      "fork_turns": "none",
+      "transport": "One initial literal cat of opaque /tmp/doc323-reader-b.txt, then no tools",
+      "prompt_sha256": "f05aec640a20334cb5ee3f1dce41097b9ff86b47b1d9c5fdc01d31e62dbd87d4",
+      "policy_sha256": "0b6a55c9e41e68231040ac1d1848f5707aaa2a653e9e46ee6f4bf191e5fdd10c",
+      "return_sha256": "655d1cccc6fcca123a8b7e49273eada40e34aed8414cdc0f5886634100544e18"
+    },
+    "c": {
+      "agent": "/root/reader_c",
+      "document": "run-1/resend",
+      "fork_turns": "none",
+      "transport": "One initial literal cat of opaque /tmp/doc323-reader-c.txt, then no tools",
+      "prompt_sha256": "1da017b61413cf45f92ec057c929ca85475cf21f29b5b16af07e1e8ee368f6e3",
+      "policy_sha256": "07a6044dced441c6782a14747a522562481f74def4e5545eca56aa111576e72d",
+      "return_sha256": "ca681e941f67da02da0db38162455e92fa98743079aebd2fd365694f565ae3aa"
+    },
+    "d": {
+      "agent": "/root/reader_d",
+      "document": "repair",
+      "fork_turns": "none",
+      "transport": "One initial literal cat of opaque /tmp/doc323-reader-d.txt, then no tools",
+      "prompt_sha256": "cf589716e2a8a05e5065a26d156a4584efaf00841c5ab78cc9e406f1287f732c",
+      "policy_sha256": "2f3fc5af9cf432ab2a9137c8cb455d055fff27cb3f5f296156a46e7719340492",
+      "return_sha256": "d3de0b5ba58db65d31f7ca903ce055c5e43491ff6f0aa7ab56bba40fb444c42b"
+    },
+    "e": {
+      "agent": "/root/reader_e",
+      "document": "repair-final",
+      "fork_turns": "none",
+      "transport": "One literal cat of /tmp/doc323-reader-e.txt, then no tools",
+      "prompt_sha256": "f35090fdd1ad668c5c24a6905fa228b6dc27952537c7b5b33dfe2e5f85562344",
+      "policy_sha256": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b",
+      "return_sha256": "6552e19fa76adb6a2616aa9290e45a4eaae6e556de7388107578160c9f4c77ad"
+    }
+  },
+  "limitations": [
+    "Single observations, no human testing or measured population reliability",
+    "Reader c first spawn failed due thread capacity; later fresh spawn returned",
+    "Reader a/b archival writes and repair writer file write denied by unidentified-role guard; parent saved returns/applied returned row, never claimed child write success",
+    "Judge/reviewer initial compound reads partially or entirely denied; unavailable attempts do not count as verification Separate literal cat reads then succeeded; judge and reviewer completed their original read scope."
+  ],
+  "model": {
+    "requested": "inherit parent model and reasoning settings; no override",
+    "observed_model_id": "UNAVAILABLE: collaboration return does not identify the executed model",
+    "usage": "UNKNOWN"
+  },
+  "judge": {
+    "agent": "/root/doc_judge",
+    "method": "Source, expected propositions, exact documents and actual returns; literal file reads; no implementation authorship",
+    "result": "judgments.md"
+  },
+  "code_reviewer": {
+    "agent": "/root/implementation_review",
+    "result": "code-review.md"
+  },
+  "writer_skill": {
+    "path": "plugins/toolkit/skills/writing-for-humans/SKILL.md",
+    "toolkit_version": "2.1.0",
+    "sha256": "d708b83250caa6f8ca9ae2fd18a8c55b399c4c9a6b0fc9bbaf3908cbdd583620",
+    "change": "none"
+  },
+  "documents_sha256": {
+    "planning.md": "414d275417571bd9dbc1a8ac27276c69590e96ec645545c499953ef2552c19ad",
+    "uiux.md": "fa512f43d4a9c2e85819561678be721cf6ccfed0b392a1df71a069ccf77a70d5",
+    "frontend.md": "e8ebf918c9fe7952919f10163e7f007e773b571634f781ebec2ef62c0a1f0410",
+    "policy.md": "79ecb8c9cf26302a79b04175f83897922ac4f075e96a7465954e6c012446166b"
+  }
+}
