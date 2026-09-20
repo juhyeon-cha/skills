@@ -45,7 +45,7 @@ An unresolved mandatory item keeps this bundle pending; repairable omissions ret
 
 ## 3. Evaluate independently
 
-Use toolkit:review-knowledge's [document AC contract](../../review-knowledge/references/document-ac.md)
+Invoke toolkit:review-knowledge and read its `references/document-ac.md` document AC contract
 for format checks, independent content review, a fresh document-only reader and independent
 judgment. Supply the frozen criteria and original authority to the appropriate roles; keep answer
 keys out of the reader input. Preserve exact role inputs, hashes, identities, raw responses and
