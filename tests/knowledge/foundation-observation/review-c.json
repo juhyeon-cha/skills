@@ -1,0 +1,12 @@
+{
+  "packet": "ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920",
+  "plan": "b7cec3607f6d40160c70b33bfc1464b48a9823f14ceda29c235fb93d2d1a4c8f",
+  "verdict": "pass",
+  "checks": {
+    "source_fidelity": "pass",
+    "decision_coverage": "pass",
+    "reader_action": "pass",
+    "uncertainty": "pass"
+  },
+  "findings": []
+}

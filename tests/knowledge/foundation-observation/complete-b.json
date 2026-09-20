@@ -1,0 +1,30 @@
+{
+  "id": "f5cd6b8d06fb3985231abf3d30f541e8efaf5ad8884f022b479b4a31662ae6c3",
+  "kind": "completion",
+  "next_bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "service.py"
+            ],
+            "id": "retry",
+            "text": "연결 오류가 계속되면 최초 호출 포함 최대 4회 시도한다. 성공하면 즉시 반환한다. 연결 오류 외 오류는 재시도 없이 즉시 전달하고 마지막 연결 오류도 호출자에게 전달한다."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "7a4fc769d2c789c396867a1006134a7ddd444f600fe5a12b19a19cca0de1621e"
+      }
+    ],
+    "id": "80e2bbb512a32db595ea39722f53f7a13f89f8cc0f4fb82ce10cb21b1440dad2",
+    "kind": "bindings",
+    "snapshot": "014204b988af936e84d62fcd39f809c0450ab3d4a5a239febaf5b2fef4d326aa",
+    "version": 1
+  },
+  "packet": "d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078",
+  "plan": "d60a6601185b2d9148713bef45b71536c8f12df252127f881803e86d7f58556d",
+  "review": "4ab844ec5a9fb61d75b2e5920ef6587893afee1e3d0fe1bcd66a09984b46981f",
+  "status": "applied",
+  "version": 1
+}

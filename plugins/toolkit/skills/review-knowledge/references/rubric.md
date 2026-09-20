@@ -1,8 +1,10 @@
 # Review rubric
 
-- Source fidelity: retained/replaced claims follow the after source and removals are justified.
+- Source fidelity: for current-behavior claims, retained/replaced claims follow the after source and removals are justified.
   Preserve conditions/exceptions; renaming alone does not imply changed behavior. Distinguish
-  static evidence from runtime observation.
+  static evidence from runtime observation. For targets and wording-only edits, select authority
+  using the document AC contract linked from the skill; a target differing from current code is
+  not itself a document defect.
 - Decision coverage: every candidate and unlinked change has a justified disposition. Challenge
   unsupported no-document-change assertions and undeclared dependencies visible in the packet.
 - Reader action: the audience can choose the correct action. Check ambiguity, lost exceptions,

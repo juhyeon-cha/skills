@@ -12,7 +12,10 @@ PYTHON=/absolute/user-owned/knowledge-venv/bin/python
 "$PYTHON" "$SKILL_DIR/scripts/knowledge.py" doctor
 ```
 
-`doctor` reports the actual Python, jsonschema, Git and SQLite versions/paths, or fails. It does
+`doctor` checks Python 3.10+, the pinned jsonschema version, runnable Git, SQLite, and bundled
+writing/review files before mutation. It reports actual versions/paths or fails. Host-level skill
+resolution and independent-agent availability must be verified by the orchestrator; file presence
+does not prove those capabilities. It does
 not install dependencies silently. Artifacts and the project database belong outside the installed
 skill. Use an exclusive document workspace: SQLite serializes this project's commands, but cannot
 coordinate a different project or arbitrary editor targeting the same documents.
@@ -46,3 +49,13 @@ Subsequent commands share only `--project`; paths below are returned in their JS
 `status` without `--run` lists runs and the current baseline. Commands return JSON on stdout and
 nonzero status with a JSON error on failure. A busy writer fails immediately; retry after that
 command exits. Use the [state rules](workflow.md) to distinguish work needed from completion.
+
+## Supported observation boundary
+
+The integrated observation is macOS with Codex orchestration, local Git/SQLite, Python 3.14 and
+jsonschema 4.26.0. Other hosts are not certified by that observation. A host must support local
+Python/Git commands, toolkit skill reads, and an independent reviewer; otherwise stop before
+application and report the unavailable capability. Source inputs remain pinned UTF-8 regular Git
+files. Use a user-owned virtual environment and an exclusive document workspace. No model API,
+remote publication, dependency download, database migration, or automatic skill installation is
+performed by this CLI.

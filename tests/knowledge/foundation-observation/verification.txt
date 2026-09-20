@@ -1,0 +1,51 @@
+KNOWLEDGE_PYTHON=/private/tmp/knowledge-contract-venv/bin/python bash tests/knowledge/source-contract-check.sh
+exit=0
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 4.258s
+
+OK
+......
+----------------------------------------------------------------------
+Ran 6 tests in 4.454s
+
+OK
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 11.653s
+
+OK
+......
+----------------------------------------------------------------------
+Ran 6 tests in 6.646s
+
+OK
+...........
+----------------------------------------------------------------------
+Ran 11 tests in 12.100s
+
+OK
+....
+----------------------------------------------------------------------
+Ran 4 tests in 0.011s
+
+OK
+
+bash scripts/check.sh
+exit=0
+✓ (a) claude plugin validate --strict 통과 — . plugins/harness plugins/toolkit
+✓ (b) shellcheck 통과 — plugins/·tests/ 아래 *.sh 61개 · severity=warning 이상 0건 (규칙 면제 SC2317)
+✓ (c) harness 설명 3중 일치 — plugin.json == marketplace.json, README.md 에 있음
+✓ (c) toolkit 설명 3중 일치 — plugin.json == marketplace.json, README.md 에 있음
+✓ skills 게이트 통과 — validate · shellcheck · 설명 3중 일치
+
+bash tests/knowledge/document-ac-check.sh
+exit=0; 7 tests passed.
+
+python3 tests/knowledge/foundation-evaluation/check.py
+exit=0; frozen bytes, IDs and authority links only.
+
+git diff --check
+exit=0
+
+Full tests/run-all.sh not executed; relevant toolkit/knowledge boundary only.

@@ -1,0 +1,10 @@
+{
+  "retry-v1": {
+    "kind": "static_code",
+    "text": "def request(send):\n    for attempt in range(3):\n        try:\n            return send()\n        except ConnectionError:\n            if attempt == 2:\n                raise\n"
+  },
+  "decision-export-v1": {
+    "kind": "synthetic_approved_decision",
+    "text": "새 내보내기 기능은 빈 목록을 헤더만 있는 CSV로 반환해야 한다. 권한이 없으면 파일을 만들지 말고 거절해야 한다. 아직 구현 코드는 없다. 구현자는 두 조건을 구현하고 검증 결과를 연결해야 한다."
+  }
+}

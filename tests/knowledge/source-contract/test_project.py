@@ -1,5 +1,6 @@
 """Exercise only the copied plugin's public CLI from unrelated project directories."""
 import json
+from contextlib import closing
 import os
 from pathlib import Path
 import shutil
@@ -111,6 +112,8 @@ knowledge.main()
         self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 2회 시도한다.\n')
         self.assertEqual(self.command('status')['baseline'], self.baseline)
         self.assertEqual(self.command('status', '--run', run['run'])['phase'], 'applying')
+        reason = self.root / 'stop.txt'; reason.write_text('Stop partial application.')
+        self.assertIn('RUN_PHASE', self.command('terminate', '--run', run['run'], '--reason-file', reason, ok=False).stderr)
         self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'completed')
         self.assertEqual(self.command('status')['baseline'], revision)
 
@@ -119,7 +122,7 @@ knowledge.main()
         run = self.command('start', '--rev', second)
         third = self.commit(3)
         self.assertIn('RUN_ACTIVE', self.command('start', '--rev', third, ok=False).stderr)
-        with sqlite3.connect(self.project / 'project.sqlite3') as db:
+        with closing(sqlite3.connect(self.project / 'project.sqlite3')) as db:
             db.execute('BEGIN IMMEDIATE')
             self.assertIn('locked', self.command('start', '--rev', second, ok=False).stderr)
         self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'awaiting_decisions')
@@ -200,9 +203,73 @@ sys.exit(knowledge.main())
                      '--baseline', self.baseline, '--path', 'service.py', '--spec', self.spec,
                      '--audience', 'reader', '--purpose', 'purpose', ok=False)
         self.assertEqual(self.command('status')['baseline'], self.baseline)
-        with sqlite3.connect(self.project / 'project.sqlite3') as db:
+        with closing(sqlite3.connect(self.project / 'project.sqlite3')) as db:
             db.execute('PRAGMA user_version=2')
         self.assertIn('PROJECT_VERSION', self.command('status', ok=False).stderr)
+
+    def test_terminate_retire_and_successor_preserve_evidence(self):
+        second = self.commit(2)
+        run = self.command('start', '--rev', second)
+        explanation = self.root / 'reason.txt'
+        explanation.write_text('Scope changed; preserve old evidence.')
+        context = Path(run['context']).read_bytes()
+        self.assertEqual(self.command('terminate', '--run', run['run'], '--reason-file', explanation)['phase'], 'terminated')
+        self.assertEqual(Path(run['context']).read_bytes(), context)
+        self.assertIsNone(self.command('status')['active'])
+        self.assertEqual(self.command('status')['baseline'], self.baseline)
+        self.assertIn('RUN_TERMINATED', self.command('start', '--rev', second, ok=False).stderr)
+        third = self.commit(3)
+        run, _, _ = self.ready(third, 3)
+        Path(run['packet']).write_bytes(b'{')
+        self.command('resume', '--run', run['run'], ok=False)
+        successor = self.root / 'successor'
+        result = self.command('retire', '--reason-file', explanation, '--successor', successor)
+        self.assertEqual(result['phase'], 'retired')
+        self.assertEqual(Path(run['packet']).read_bytes(), b'{')
+        self.assertIn('PROJECT_RETIRED', self.command('start', '--rev', third, ok=False).stderr)
+        self.assertEqual(self.command('status')['baseline'], self.baseline)
+        self.project = successor
+        self.command('init', '--repo', self.repo, '--docs', self.docs, '--repository', 'fixture/service',
+                     '--baseline', self.baseline, '--path', 'service.py', '--spec', self.spec,
+                     '--audience', 'reader', '--purpose', 'reviewed successor')
+        self.assertEqual(self.command('start', '--rev', third)['phase'], 'awaiting_decisions')
+
+    def test_public_intake_handoff_and_code_route(self):
+        from test_intake import fixture
+        value = fixture()
+        record = self.command('intake', '--input', self.save('request.json', value))
+        self.assertEqual(record['phase'], 'pending_implementation')
+        self.assertEqual(self.command('intake-status', '--intake', record['intake'])['input']['current']['code'], None)
+        second = self.commit(2)
+        self.assertIn('INTAKE_ROUTE', self.command('start', '--rev', second, '--intake', record['intake'], ok=False).stderr)
+        value = fixture('current_behavior')
+        value['sources'][0]['version'] = second
+        record = self.command('intake', '--input', self.save('code-request.json', value))
+        run = self.command('start', '--rev', second, '--intake', record['intake'])
+        self.assertEqual(json.loads(Path(run['context']).read_text())['intake']['id'], record['intake'])
+        self.assertEqual(self.command('start', '--rev', second, '--intake', record['intake'])['run'], run['run'])
+        self.assertIn('INTAKE_CHANGED', self.command('start', '--rev', second, ok=False).stderr)
+        value['target']['status'] = 'withdrawn'
+        withdrawn = self.command('intake', '--input', self.save('withdrawn.json', value))
+        self.assertIn('INTAKE_ROUTE', self.command('start', '--rev', second, '--intake', withdrawn['intake'], ok=False).stderr)
+        with closing(sqlite3.connect(self.project / 'project.sqlite3')) as db:
+            db.execute('BEGIN IMMEDIATE')
+            self.assertIn('locked', self.command('intake', '--input', self.root / 'code-request.json', ok=False).stderr)
+
+    def test_missing_skill_dependency_blocks_before_mutation(self):
+        isolated = self.root / 'incomplete-toolkit'
+        shutil.copytree(self.installed, isolated)
+        # Move, rather than destroy, a required fixture dependency.
+        required = isolated / 'skills/review-knowledge/SKILL.md'
+        required.rename(required.with_suffix('.missing'))
+        original = self.cli_path
+        self.cli_path = isolated / 'skills/refresh-knowledge/scripts/knowledge.py'
+        try:
+            self.assertIn('DEPENDENCY_UNREACHED', self.command('doctor', ok=False).stderr)
+            self.assertIn('DEPENDENCY_UNREACHED', self.command('start', '--rev', self.commit(2), ok=False).stderr)
+            self.assertEqual(self.command('status')['runs'], [])
+        finally:
+            self.cli_path = original
 
     def test_skill_local_references_and_package_registration(self):
         import re

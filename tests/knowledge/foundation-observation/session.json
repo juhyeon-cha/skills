@@ -1,0 +1,10 @@
+{
+  "root": "/private/tmp/foundation-live-20260920",
+  "python": "/private/tmp/knowledge-contract-venv/bin/python",
+  "cli": "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+  "a": "8d5e15e97af0b5e7795fb07efbea18301d10941c",
+  "b": "2ec5606717b00ba74c75f7453a1aa394e8762bac",
+  "run": "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d",
+  "c": "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0",
+  "run_c": "e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a"
+}

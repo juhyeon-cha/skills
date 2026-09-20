@@ -1,0 +1,271 @@
+[
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "doctor"
+    ],
+    "rc": 0,
+    "stdout": "{\"git\": \"/opt/homebrew/bin/git\", \"git_version\": \"git version 2.55.0\", \"independent_agent\": \"host capability must be checked by the orchestrator\", \"jsonschema\": \"4.26.0\", \"python\": \"/private/tmp/knowledge-contract-venv/bin/python\", \"python_version\": \"3.14.7\", \"skill_files\": [\"writing-for-humans/SKILL.md\", \"writing-for-humans/references/backend.md\", \"writing-for-humans/references/document-shapes.md\", \"review-knowledge/SKILL.md\", \"review-knowledge/references/rubric.md\", \"review-knowledge/references/response.md\"], \"sqlite\": \"3.53.4\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "init",
+      "--repo",
+      "/private/tmp/foundation-live-20260920/repo",
+      "--docs",
+      "/private/tmp/foundation-live-20260920/docs",
+      "--repository",
+      "fixture/retry",
+      "--baseline",
+      "8d5e15e97af0b5e7795fb07efbea18301d10941c",
+      "--path",
+      "service.py",
+      "--spec",
+      "/private/tmp/foundation-live-20260920/spec.json",
+      "--audience",
+      "재시도 함수를 호출하는 BE 개발자",
+      "--purpose",
+      "호출 횟수와 오류 전달을 판단한다"
+    ],
+    "rc": 0,
+    "stdout": "{\"baseline\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"phase\": \"initialized\", \"project\": \"/private/tmp/foundation-live-20260920/project\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "start",
+      "--rev",
+      "2ec5606717b00ba74c75f7453a1aa394e8762bac"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"phase\": \"awaiting_decisions\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "prepare",
+      "--run",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d",
+      "--decisions",
+      "/private/tmp/foundation-live-20260920/decisions-bad.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2/packet.json\", \"phase\": \"awaiting_review\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "review",
+      "--run",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d",
+      "--review",
+      "/Users/juhyeon/.codex/worktrees/3516/skills/tests/knowledge/foundation-observation/review-bad.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2/packet.json\", \"phase\": \"revise\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "resume",
+      "--run",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/240c37c8cf01cf46721cb9cf4639ae0585266da0e77a0aed47ce088f0d2ea9d2/packet.json\", \"phase\": \"revise\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "prepare",
+      "--run",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d",
+      "--decisions",
+      "/private/tmp/foundation-live-20260920/decisions-fixed.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"awaiting_review\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "review",
+      "--run",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d",
+      "--review",
+      "/Users/juhyeon/.codex/worktrees/3516/skills/tests/knowledge/foundation-observation/review-fixed.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"ready\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-c",
+      "import os,sys\nsys.path.insert(0,sys.argv[1])\nimport knowledge,workflow\noriginal=workflow.finish\ndef interrupted(*a,**kw):\n    original(*a,**kw)\n    os._exit(91)\nworkflow.finish=interrupted\nsys.argv=['knowledge','--project',sys.argv[2],'resume','--run',sys.argv[3]]\nknowledge.main()\n",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts",
+      "/private/tmp/foundation-live-20260920/project",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d"
+    ],
+    "rc": 91,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "status",
+      "--run",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"applying\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "status"
+    ],
+    "rc": 0,
+    "stdout": "{\"active\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\", \"baseline\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"project\": \"/private/tmp/foundation-live-20260920/project\", \"retirement\": null, \"runs\": [{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"applying\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "resume",
+      "--run",
+      "5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"completion\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/complete.json\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"completed\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "status"
+    ],
+    "rc": 0,
+    "stdout": "{\"active\": null, \"baseline\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"project\": \"/private/tmp/foundation-live-20260920/project\", \"retirement\": null, \"runs\": [{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"completion\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/complete.json\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"completed\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "start",
+      "--rev",
+      "e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/context.json\", \"phase\": \"awaiting_decisions\", \"run\": \"e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "prepare",
+      "--run",
+      "e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a",
+      "--decisions",
+      "/private/tmp/foundation-live-20260920/decisions-c.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"awaiting_review\", \"run\": \"e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "review",
+      "--run",
+      "e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a",
+      "--review",
+      "/Users/juhyeon/.codex/worktrees/3516/skills/tests/knowledge/foundation-observation/review-c.json"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"ready\", \"run\": \"e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "resume",
+      "--run",
+      "e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a"
+    ],
+    "rc": 0,
+    "stdout": "{\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"completion\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/complete.json\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"completed\", \"run\": \"e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a\"}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/private/tmp/foundation-live-20260920/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/foundation-live-20260920/project",
+      "status"
+    ],
+    "rc": 0,
+    "stdout": "{\"active\": null, \"baseline\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"project\": \"/private/tmp/foundation-live-20260920/project\", \"retirement\": null, \"runs\": [{\"after\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"before\": \"8d5e15e97af0b5e7795fb07efbea18301d10941c\", \"completion\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/complete.json\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d/d609373baa7d2e9af961cc86928df49149e8ef4662ec75e66f3131ad023ae078/packet.json\", \"phase\": \"completed\", \"run\": \"5aa1bc6cb9e6825aca5fe068338800dc2f38e3099fada9a2f2e286e19e15629d\"}, {\"after\": \"e9aac096b0d8b01ef3f2aae55f9bf0006fd527e0\", \"before\": \"2ec5606717b00ba74c75f7453a1aa394e8762bac\", \"completion\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/complete.json\", \"context\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/context.json\", \"packet\": \"/private/tmp/foundation-live-20260920/project/runs/e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a/ec83479a0463f53dc352ea2c8d36898b7f2a6d3653038ac8d4f24af941cd0920/packet.json\", \"phase\": \"completed\", \"run\": \"e9f434226d650ab13ead857854dbceae8d7c6db7ac74fb31fe490700a31a124a\"}]}\n",
+    "stderr": ""
+  }
+]

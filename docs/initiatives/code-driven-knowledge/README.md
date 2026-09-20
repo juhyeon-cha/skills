@@ -8,6 +8,7 @@
 |---|---|
 | 5단계 목표·순서·현재 위치 | [로드맵](roadmap.md) |
 | 단계별 세부 조건 | [1. 변경 의도·실행 기반](stages/01-foundation.md) · [2. 지식·명세 구성](stages/02-bootstrap.md) · [3. 양방향 반영](stages/03-maintenance.md) · [4. 자동 연결](stages/04-automation.md) · [5. 여러 저장소·고도화](stages/05-feedback.md) |
+| 1단계 보완 결과와 미충족 항목 | [조건별 판정](experiments/foundation.md), [접수·현재/목표 계약](contracts/change-intake.md) |
 | 현재 PR에서 실제 검증한 기능 | [1단계 초안 K1–K5](acceptance.md) |
 | 로드맵을 구현하고 문서 품질을 검증할 방법 | [방법론](methodology.md), [실행 방법과 AC 예시](execution-method.md) |
 | 무엇을 재사용하고 CLI·에이전트에 맡길 것인가 | [부품과 책임 경계 조사](research/components-and-boundaries.md) |
@@ -23,7 +24,7 @@
 
 ## 1단계 초안의 역할별 구현 상태
 
-아래 구현은 코드→기존 문서 흐름이다. 사용자 지시·문서에서 목표를 구성하고 코드를 구현하는 반대 방향은 아직 구현·검증되지 않았다.
+아래 구현은 코드→기존 문서 흐름이다. 사용자 지시·문서의 접수·목표 인계는 [보완 계약](contracts/change-intake.md)에 추가했다. 목표의 실제 코드 구현은 아직 구현·검증되지 않았다.
 
 | 역할 | 책임 | 현재 상태 |
 |---|---|---|

@@ -1,6 +1,6 @@
 ---
 name: refresh-knowledge
-description: Update existing evidence-linked documents from code changes, with persistent project settings, independent review, and resumable runs. Use for first-time setup or repeated updates of a documented repository; excludes creating a new knowledge base or publishing remotely.
+description: Classify user, document, or code changes and update existing evidence-linked documents with independent review and resumable runs. Use for change intake, setup, or repeated document updates; behavior targets stop at implementation handoff. Excludes new knowledge bases and remote publication.
 ---
 
 # Refresh knowledge
@@ -9,6 +9,15 @@ Use the installed [CLI](scripts/knowledge.py) with one project directory and run
 [setup and project commands](references/project.md) for first use, then [source and decision
 contracts](references/source-contract.md) when preparing evidence or decisions. Required files
 are bundled in this skill. Do not depend on a developer checkout or write into the plugin cache.
+
+## Classify the change
+
+Read [change intake](references/intake.md) for user instructions, document changes, or when
+recording code-change intent. Preserve authority, current/target versions and remaining differences
+before routing. Wording changes close without code work only after semantic comparison; behavior
+targets stop at implementation handoff. Run doctor and confirm the host can actually invoke the
+writing skill and an independent reviewer before code-to-document execution. Missing capability
+is not-executed; preserve evidence and use the recovery route if it cannot be restored.
 
 ## Establish or continue the project
 
