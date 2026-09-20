@@ -73,6 +73,34 @@ def save_run(db, run):
     db.execute('UPDATE runs SET data=? WHERE id=?', (dump(run), run['id']))
 
 
+CONTEXT_FIELDS = ('before', 'after', 'bindings', 'impact', 'intake', 'audience', 'purpose', 'documents')
+
+
+def verify_context(project, run):
+    path = project / 'runs' / run['id'] / 'context.json'
+    try:
+        if path.is_symlink():
+            raise ValueError('symlink')
+        expected = {key: run[key] for key in CONTEXT_FIELDS if key in run}
+        if read(path) != expected:
+            raise ValueError('content differs from stored run')
+    except (ValueError, OSError) as error:
+        raise ValueError('CONTEXT_INVALID: ' + str(path) + ': ' + str(error) +
+                         '; preserve the artifact and restore a trusted original, or terminate before apply; '
+                         'for partial application retire to a reviewed successor') from error
+
+
+def verify_attempt(run, repo):
+    from workflow import verify_packet
+    packet = run['attempt']
+    if run.get('intake') is not None and (not packet or packet.get('version') != 2
+                                          or packet.get('intake') != run['intake']):
+        raise ValueError('INTAKE_REVIEW_REQUIRED: prepare and independently review a new intake-bound packet; '
+                         'if already applying, retire to a reviewed successor')
+    if packet:
+        verify_packet(packet, repo)
+
+
 def summary(project, run):
     result = {'run': run['id'], 'phase': run['phase'],
               'before': run['before']['commit'], 'after': run['after']['commit'],
@@ -133,6 +161,7 @@ def start(args, project):
                 raise ValueError('INTAKE_VERSION: current evidence must name the requested pinned commit')
         if active:
             run = run_row(db, active)
+            verify_context(project, run)
             if run.get('intake') != intake_record:
                 raise ValueError('INTAKE_CHANGED: resume the original intake or terminate the run')
             if run['after']['id'] != after['id']:
@@ -165,11 +194,12 @@ def prepare(args, project):
     with database(project, True) as db:
         config, _, active = project_row(db)
         run = run_row(db, args.run)
+        verify_context(project, run)
         if active != args.run or run['phase'] not in ('awaiting_decisions', 'awaiting_review', 'revise', 'blocked', 'ready'):
             raise ValueError('RUN_PHASE: cannot prepare in ' + run['phase'])
         decisions = read(args.decisions)
         plan = prepare_plan(decisions, run['bindings'], run['before'], run['after'], Path(config['docs']), Path(config['repo']))
-        packet = pack(plan, run['bindings'], run['before'], run['after'], Path(config['repo']), config['audience'], config['purpose'])
+        packet = pack(plan, run['bindings'], run['before'], run['after'], Path(config['repo']), config['audience'], config['purpose'], intake=run.get('intake'))
         immutable(project / 'runs' / args.run / packet['id'] / 'packet.json', packet)
         run.update(phase='awaiting_review', attempt=packet, review=None)
         save_run(db, run)
@@ -179,8 +209,10 @@ def prepare(args, project):
 def review(args, project):
     from workflow import shape
     with database(project, True) as db:
-        _, _, active = project_row(db)
+        config, _, active = project_row(db)
         run = run_row(db, args.run)
+        verify_context(project, run)
+        verify_attempt(run, Path(config['repo']))
         if active != args.run or run['phase'] not in ('awaiting_review', 'revise', 'blocked', 'ready'):
             raise ValueError('RUN_PHASE: cannot review in ' + run['phase'])
         result = read(args.review)
@@ -220,22 +252,26 @@ def resume(args, project):
     with database(project, True) as db:
         config, current, active = project_row(db)
         run = run_row(db, args.run)
+        verify_context(project, run)
         if run['phase'] == 'completed':
             return completed_summary(project, run, config, current)
         if active != args.run:
             raise ValueError('RUN_NOT_ACTIVE: ' + args.run)
         if run['phase'] not in ('ready', 'applying'):
             return summary(project, run)
+        verify_attempt(run, Path(config['repo']))
         immutable(project / 'runs' / args.run / run['attempt']['id'] / 'packet.json', run['attempt'])
         run['phase'] = 'applying'
         save_run(db, run)
     with database(project, True) as db:
         config, current, active = project_row(db)
         run = run_row(db, args.run)
+        verify_context(project, run)
         if run['phase'] == 'completed':
             return completed_summary(project, run, config, current)
         if active != args.run or current['snapshot']['id'] != run['before']['id']:
             raise ValueError('BASELINE_CHANGED: refusing out-of-order apply')
+        verify_attempt(run, Path(config['repo']))
         receipt = finish(run['attempt'], run['review'], Path(config['repo']), Path(config['docs']),
                          project / 'runs' / args.run / 'complete.json')
         run.update(phase='completed', completion=receipt)
@@ -250,10 +286,15 @@ def status(args, project):
         config, current, active = project_row(db)
         location = {'project': str(project), 'settings': config}
         if args.run:
-            return {**location, **summary(project, run_row(db, args.run))}
+            run = run_row(db, args.run)
+            verify_context(project, run)
+            return {**location, **summary(project, run)}
+        runs = [json.loads(row[0]) for row in db.execute('SELECT data FROM runs ORDER BY rowid')]
+        for run in runs:
+            verify_context(project, run)
         return {**location, 'baseline': current['snapshot']['commit'], 'active': active,
                 'retirement': read(project / 'retired.json') if (project / 'retired.json').exists() else None,
-                'runs': [summary(project, json.loads(row[0])) for row in db.execute('SELECT data FROM runs ORDER BY rowid')]}
+                'runs': [summary(project, run) for run in runs]}
 
 
 def reason(path):

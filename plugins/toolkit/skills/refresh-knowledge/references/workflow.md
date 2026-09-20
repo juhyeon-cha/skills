@@ -46,7 +46,7 @@ baseline documents still match. A terminated run cannot resume or prepare.
 For partial application, corrupt exported artifacts without a trusted original, persistent document
 conflicts, or scope changes, use `retire --reason-file FILE --successor /separate/new-project`.
 This preserves all files and the database and writes a retirement marker. It never rolls back
-partially written documents or advances the old baseline. Status remains readable; execution
+partially written documents or advances the old baseline. Status validates exported context and reports corruption when present; execution
 writes and intake registration are refused. Repeating retirement requires the same reason and
 successor. This is logical quarantine, not a filesystem security boundary.
 
@@ -56,3 +56,21 @@ successor path is a handoff, not proof it was initialized. Keep the old project 
 If the database itself is unreadable, preserve the whole directory and use this same successor
 procedure without attempting a migration or claiming retirement succeeded. Never reinitialize
 an existing project or reconstruct state by editing database rows.
+
+## Intake-bound review and handoff integrity
+
+Packets without intake retain version 1 and their original content identities. Version 2 requires
+an entire validated immutable intake record, including source text, declared authority, versions,
+acceptance criteria and remaining differences. Its content hash binds that record with the plan.
+A changed intake therefore needs a new independent response even when the document plan is identical.
+Review and resume refuse an intake run whose stored packet omits or differs from its intake.
+Prepare a fresh packet and review before application; retire an already-applying legacy run to a
+reviewed successor. This is a packet contract change, not a database migration. Historical v1
+review replay establishes only its original no-intake review scope.
+
+Before status, repeated start, prepare, review or resume exposes or changes a run, the exported
+context must equal the immutable fields stored in the database. Missing, malformed, changed and
+symlink context files fail with their path and recovery guidance. Preserve damaged artifacts;
+restore only a trusted original before retrying. The CLI never recreates a missing context during
+reentry. Terminate before application or retire after partial application remains available even
+when context is corrupt. Keep the old directory and inspect documents before initializing a successor.
