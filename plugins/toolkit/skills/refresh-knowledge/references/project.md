@@ -49,7 +49,23 @@ Subsequent commands share only `--project`; paths below are returned in their JS
 Both forms of `status` return `project` and `settings`: the persisted absolute `repo` and `docs`
 roots, repository label, source scope, audience and purpose. Use these with the returned context
 and completion paths to inspect results after a handoff; reading database internals is unnecessary.
-`status` without `--run` also lists runs and the current baseline. Commands return JSON on stdout and
+`status` without `--run` lists recorded phases and the current baseline without loading historical
+source/document/packet bodies into Python or opening their context/review files. Each returned
+`context_integrity` and, when a review exists, `review_integrity` is `unchecked`; a recorded
+completed phase does not certify the exported artifacts. SQLite still reads the v1 JSON records.
+Use `status --deep` to inspect every context and current review: each run reports `verified` or
+`invalid` plus the corresponding error, without repairing artifacts or aborting on another run's
+damage. This checks exported handoff files, not live Git or document correctness.
+
+Before continuing one run, use `status --run RUN_ID`. It strictly checks its context and current
+review, failing on malformed, changed, missing or symlink files. `review.id` and `review.path`
+identify the currently registered review, including its findings; `next_action` names the phase's
+next operation (`resolve_review` means resolving evidence or a policy decision first;
+`review_new_baseline` means a reviewed successor for a terminated change).
+Preparing a packet clears the current review even if the packet ID is unchanged. Old review files
+remain evidence but are not returned as the current review.
+
+Commands return JSON on stdout and
 nonzero status with a JSON error on failure. A busy writer fails immediately; retry after that
 command exits. Use the [state rules](workflow.md) to distinguish work needed from completion.
 
