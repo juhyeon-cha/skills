@@ -61,7 +61,7 @@ wrappers for `tests/run-all.sh`. For Windows launch diagnostics, run
 investigating a launch failure; this diagnostic is outside the regression jobs.
 A passing fixture establishes its tested boundary, not provider runtime loading.
 
-For artifact/config/state compatibility, run `bash tests/harness/migration-contract-check.sh`. It uses temporary plugin copies and a fake ledger boundary to exercise reentry, rollback and retained legacy data; it does not load the released legacy runtime. Target-owned followup work is ordered in [sap-harness migration](sap-harness-migration.md); measurements remain in skills#267.
+For artifact/config/state compatibility, run `bash tests/harness/migration-contract-check.sh`. It uses temporary plugin copies and a fake ledger boundary to exercise reentry, rollback and retained legacy data. Its pinned pre-transition artifact fixture loads the actual baseline inspector, role and installer modules to test matching old/new artifacts and receipts; this is offline compatibility evidence, not live provider execution. Target-owned followup work is ordered in [sap-harness migration](sap-harness-migration.md); measurements remain in skills#267.
 
 Same four columns as the shipped table in [guardrails.md](../plugins/harness/docs/guardrails.md) section 3. These never ship: each one hits plugin code with a fixture, so the verdict can only change before a release.
 

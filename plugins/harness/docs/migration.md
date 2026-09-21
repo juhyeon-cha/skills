@@ -25,10 +25,22 @@ separately. Without the previous immutable artifact and its original matching
 registration receipt, rollback verification remains incomplete; a development
 copy with the same version string cannot substitute for that pair.
 
+## Role source and evidence compatibility
+
+A role receipt or call hash belongs to the artifact that produced it. Artifacts
+with canonical `agents/` and artifacts with canonical `roles/` plus `native/`
+have different source identities even when their rendered native bytes agree.
+Validate old receipts and completed calls with the matching immutable old code;
+use new registrations and calls for the new source. Preserve historical call,
+dispatch, binding and outcome records byte for byte. Rewriting their hashes or
+paths would manufacture compatibility rather than establish it. The new reader
+rejects mismatched source evidence; switching back can validate retained old
+evidence with its original code, but does not certify a new runtime session.
+
 ## Roll back without discarding work
 
 1. Stop new delegations and identify active preparation workers and descendants. Wait for completion or use the documented recovery contract; never remove a lock based only on age. Preserve the worktree, dirty files, ledger claims and observed results. Rollback does not close tasks or release claims.
-2. Select the previous artifact and its matching owned role projections/receipt together. Verify hashes and registration before starting a fresh session. Preserve modified/foreign projections for conflict resolution; remove an active duplicate registration only through the runtime's supported procedure. A receipt from another root/version/hash or an expired doctor challenge is not reusable load evidence.
+2. Select the previous artifact and its matching owned role projections/receipt together. For owned staging, run that artifact's `scripts/parity-install.mjs stage` with the previous source and the retained destination receipt. Current inspection requires `roles/` and `native/` and rejects earlier layouts; use the previous immutable installer and validators for that layout. Verify hashes and registration before starting a fresh session. Preserve modified/foreign projections for conflict resolution; remove an active duplicate registration only through the runtime's supported procedure. A receipt from another root/version/hash or an expired doctor challenge is not reusable load evidence.
 3. If repository preparation was migrated, restore the corresponding prior config/hook revision as a reviewed repository change. Preserve unrelated local modifications. Avoid running the new common preparation while the restored independent legacy hook is active. The new reader deliberately reports that combination as unverified. Confirm the previous runtime's own readiness behavior rather than translating new ready receipts into old markers.
 4. Keep new scoped state and untouched legacy files side by side. The released legacy runtime is not assumed to understand new `v1` state or scoped cancellation; its legacy files remain available, without automatic promotion of new observations into old formats. Returning to a compatible new artifact can reuse schema-compatible observations, but a new session still requires explicit actor binding and ordinary result validation. Never delete repository credential files, vault data or credential symlinks as an automatic rollback step.
 5. Re-run static diagnostics, workspace inspection and the applicable runtime checks. Report any unavailable loaded/live evidence as UNREACHED. Changing the artifact does not upgrade or downgrade `.harness.json` or the ledger automatically.

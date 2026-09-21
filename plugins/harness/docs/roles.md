@@ -119,9 +119,69 @@ PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handl
 or close. Preserve the task and failed evidence. For native unavailability, apply
 the execution-path selection above; otherwise use develop's human-wait procedure.
 
+## Edit and inspect role settings
+
+Edit plugin source in an assigned worktree. `roles/<role>.md` owns shared
+instructions and SIGNAL vocabularies. Each runtime owns its native declarations:
+`native/claude/<role>.md`, `native/codex/<role>.toml`, or
+`native/antigravity/<role>.md`. There is no cross-provider settings schema.
+The assembler inserts the shared body at the single instruction marker and
+preserves provider-specific fields. It validates role identity and assembly
+boundaries; the provider validates supported settings and values.
+
+For a Codex-only declaration, the following is an example template, not a
+shipped default or evidence that permissions are enforced:
+
+```toml
+name = "harness-reviewer"
+description = "Supervisor that reviews the code quality of a task's changes. Does not compare against completion criteria."
+sandbox_mode = "read-only"
+# HARNESS_ROLE_INSTRUCTIONS
+```
+
+Keep the Codex marker on its own top-level line, with no existing
+`developer_instructions` assignment. Claude and Antigravity use
+`<!-- HARNESS_ROLE_INSTRUCTIONS -->` on its own line after frontmatter.
+Build Claude `agents/<role>.md` with `distribution.mjs generate` and check the
+artifact with `distribution.mjs check`; those files are generated discovery
+artifacts. For deployment and re-registration after either source changes,
+follow [installation.md](installation.md). Generic collaboration reads the
+canonical role body and uses its dispatch options; native templates, including
+sandbox settings, do not configure that path.
+
+Before diagnosing declared role configuration, run the read-only command:
+
+```sh
+node <plugin-root>/scripts/roles.mjs explain <input.json>
+```
+
+For example, `input.json` can contain:
+
+```json
+{"runtime":"codex","role":"reviewer","execution":"generic"}
+```
+
+The result has `canonical.file` and `canonical.sha256`, `native.source` and
+`native.rendered`, plus `native.artifact` (the Claude discovery path, otherwise
+null). This example returns `requested: null`, `selectedDispatchOptions: {}`,
+`native.applicableToSelectedPath: false`, `native.loading: "unverified"`,
+`observed: {"model":"unknown","reasoningEffort":"unknown"}` and
+`enforcement: "unavailable"`. With `execution: "native"`, applicability is true,
+selected dispatch options are null and enforcement is `"unverified"`.
+Native execution supports all three runtimes; generic supports Codex only.
+
+Optional `modelOptions` uses the Model selection contract below; optional
+`installedRoot` is an absolute path used when rendering root references.
+`requestProvenance: "caller-supplied-not-dispatched"` applies even to an explicit
+request. Requests do not override `native.rendered`; generic
+`selectedDispatchOptions` describes the selection that a dispatch would use.
+Explain neither dispatches nor registers, writes receipts or detects the loaded
+model. A rendered template is declared configuration only. Use registration
+verification and current-session observations for those separate questions.
+
 ## Register (native)
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It validates and references the generated Claude files without rewriting them; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator inserts the role body, resolves its plugin-root pointers and applies Model selection below. Claude-only frontmatter is not passed as Codex configuration.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It validates and references the generated Claude files without rewriting them; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator assembles the selected native template with the role body and resolves its plugin-root pointers. Native declarations and generic Model selection below remain separate.
 
 Run `verify <registration.json>` before use. Missing files, changed sources, altered generated files and duplicate native names in that directory fail. Also check the runtime's discovered roles for duplicate identifiers from other scopes; the directory check cannot enumerate a runtime's effective configuration. Generated files are projections: after an update, review and remove the old generated files, then regenerate from the new install and replace the receipt. Keep the old install and receipt together for rollback. Never maintain generated role prose by hand.
 
