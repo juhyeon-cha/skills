@@ -17,15 +17,15 @@ was originally named `scenarios.json`). The mapping below preserves every case.
 | normal-code | Actual code author/reviewer receipts, first completed document run |
 | normal-goal | Actual implementer commit, mandatory check, independent implementation reviewer, author/document reviewer and second completion |
 | duplicate | `post-complete-submit-0.json`; `test_code_duplicate_new_request_and_unchanged_effect`; concurrent duplicate regression |
-| old-input | Initial code-order checks passed, but goal `2`→`1` failed independent acceptance at `59cee02`. Corrective goal ordering/atomic-intake/terminal-history regression in `acceptance-fixes.json`; final independent judgment pending. |
+| old-input | Initial code-order checks passed, but goal `2`→`1` failed independent acceptance at `59cee02`. Corrective goal ordering/atomic-intake/terminal-history regression in `acceptance-fixes.json`; Final independent judgment: MET (see the outcome below). |
 | new-request | `post-complete-submit-2.json`, distinct execution and unchanged artifacts |
-| feedback | Initial actual timer terminated unchanged but lost its originating cause (independent acceptance failure). Corrective receipt-bound poll link before checks, no duplicate work, unrelated-source regression in `acceptance-fixes.json`; final independent judgment pending. |
+| feedback | Initial actual timer terminated unchanged but lost its originating cause (independent acceptance failure). Corrective receipt-bound poll link before checks, no duplicate work, unrelated-source regression in `acceptance-fixes.json`; Final independent judgment: MET (see the outcome below). |
 | lost-response | `test_lost_response_reconciles_real_completed_command`, real public apply with injected lost response |
 | failure-classes | Bounded transport/model, unknown outcome, malformed result and permission/service regression cases |
 | policy-wait | Actual blocked document review, evidence resolution, same execution retry; independent reader rollback policy decision |
 | authority | Authority and guard negative-control regression; reader's explicit local-only authority |
 | periodic-gap | `quiet-pending-watch.json`: real timer detects the independently committed source without a supplied code event |
-| periodic-drift | Initial single-tick drift evidence was insufficient and baseline drift was unchecked. Corrective four-tick real watch observes external public-CLI baseline change, document drift, missing source and approved pending goal; `acceptance-fixes.json` preserves outputs and hashes. Final independent judgment pending. |
+| periodic-drift | Initial single-tick drift evidence was insufficient and baseline drift was unchecked. Corrective four-tick real watch observes external public-CLI baseline change, document drift, missing source and approved pending goal; `acceptance-fixes.json` preserves outputs and hashes. Final independent judgment: MET (see the outcome below). |
 | quiet | `quiet-stable-watch.json`, `final-quiet-watch.json`, exact artifact comparisons in `verification` |
 | stop-resume | Actual `stop-resume.json` and reader commands; a pending actual model call was preserved across stop/resume |
 | ownership | `test_ownership_external_edit_and_concurrent_duplicate`: competing state and concurrent processes; third-party bytes preserved |
@@ -76,8 +76,7 @@ supersession failures: replacement of a still-pending implementer and repeated t
 after a successful public terminate lost its response. `review-fixes.json` preserves the
 reviewer's reproduction output and subsequent regression/negative-control outputs. These
 are local fixtures with synthetic host receipts and real public CLI effects, not new live
-model observations. The original `evidence.json` remains unchanged. Final independent
-review and acceptance remain pending; this addendum is implementation evidence only.
+model observations. The original `evidence.json` remains unchanged. The later independent outcome is recorded below; this addendum remains implementation evidence.
 
 ## Acceptance corrections after `59cee02`
 
@@ -85,7 +84,7 @@ Independent acceptance reported VIOLATION: goal versions could regress by arriva
 poll feedback lacked its originating execution/cause, and repeated drift evidence was incomplete.
 `acceptance-fixes.json` retains that judgment, failing old-source outputs, corrective fixture
 commands/effects and regression results. This is implementation evidence awaiting independent
-re-evaluation, not an all-pass result. Every original case remains mapped above; unaffected cases
+re-evaluation at that point; the later independent outcome is recorded below. Every original case remains mapped above; unaffected cases
 retain their previously observed boundary, while old-input, feedback and periodic-drift explicitly
 record the initial failure or missing evidence and the corrective observation.
 
@@ -108,3 +107,14 @@ The original poll input, eight receipts, five completed executions and document/
 artifact hashes remained unchanged. Only the causal observation was added; no new
 model call or implementation verification is claimed. All five ticks emitted no
 notifications. This supplements, rather than rewrites, the earlier failed cause-link evidence.
+
+## Independent outcome
+
+At `566d46e83019d1dde4c2808871d4a5e7911aa7c9`, a separate full reviewer returned
+LGTM (`s4-review-3`) and an independent evaluator returned MATCH (`s4-evaluation-2`).
+All 15 original cases were MET within the documented local boundary. The evaluator
+compared original hashes, actual actor/receipt links, repeated timer outputs and
+artifact preservation directly. The parent retained the complete responses and
+validated OBSERVED results in the managed invocation inventory; [task #374](https://github.com/juhyeon-cha/skills/issues/374)
+holds the acceptance and review summaries. This outcome does not replace the
+initial failures, synthetic-fixture labels, or unverified service boundaries above.
