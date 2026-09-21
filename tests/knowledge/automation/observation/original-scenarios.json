@@ -1,0 +1,133 @@
+{
+  "source_head": "efe8c962ab5c0835c2a32f1de8a0e563a11928a6",
+  "requirements_sha256": "ae372f358e3fffba67adb1909d83e15453f009c891e0db7f5bac9afcb231abe9",
+  "environment": "isolated local single-repository macOS/Codex test; no real GitHub event receiver or production scheduling",
+  "purpose": "Original S4 acceptance scenario expectations fixed before implementation. These are verification cases, not a dependent milestone plan. Exact supported adapters will follow independently judged M0.",
+  "cases": [
+    {
+      "id": "normal-code",
+      "criteria": [
+        "S4-01",
+        "S4-06"
+      ],
+      "input": "Deliver a new authorized code revision through a supported local trigger.",
+      "expected": "Pinned input leads through actual author and independent review to matching docs/baseline/receipt; no repeated human draft approval; actual calls and duration recorded."
+    },
+    {
+      "id": "normal-goal",
+      "criteria": [
+        "S4-01",
+        "S4-04"
+      ],
+      "input": "Deliver an authorized behavior goal from local request/document trigger.",
+      "expected": "Preserve current versus target; implementation and mandatory checks/review tied to exact goal; doc application and implementation verification separately recorded; failed implementation never means complete."
+    },
+    {
+      "id": "duplicate",
+      "criteria": [
+        "S4-02"
+      ],
+      "input": "Redeliver the same event before and after completion, including concurrent deliveries.",
+      "expected": "One owned execution/effect; stable cause/request links; duplicate must not repeat model/implementation/doc effects; actual artifacts compared."
+    },
+    {
+      "id": "old-input",
+      "criteria": [
+        "S4-02"
+      ],
+      "input": "Deliver v1 after v2 and a delayed v1 successful result after v2 becomes authoritative.",
+      "expected": "Older event/result retained as history; no current baseline or newer goal regression."
+    },
+    {
+      "id": "new-request",
+      "criteria": [
+        "S4-02"
+      ],
+      "input": "Submit same contents with a distinct new user request ID.",
+      "expected": "New request distinguishable from transport replay; unchanged effects reused only after identity/current-state checks."
+    },
+    {
+      "id": "feedback",
+      "criteria": [
+        "S4-02"
+      ],
+      "input": "Feed document-generated implementation and its code-generated documentation events back to the intake.",
+      "expected": "Causation remains linked; finite runs/effects, no feedback loop; genuine unrelated new input still processed."
+    },
+    {
+      "id": "lost-response",
+      "criteria": [
+        "S4-03"
+      ],
+      "input": "Drop response after actual local document apply committed.",
+      "expected": "Unknown outcome reconciled via public status and actual bytes/baseline/receipt before retry; no false failure/success or duplicate effects."
+    },
+    {
+      "id": "failure-classes",
+      "criteria": [
+        "S4-03",
+        "S4-06"
+      ],
+      "input": "Inject model outage/malformed result, transport/network failure, expired permission and service failure at side-effect boundaries.",
+      "expected": "Evidence-based classification; bounded retry or explicit wait/stop with resume point; actual model evidence separated from injected transport fixture; no completed unperformed step."
+    },
+    {
+      "id": "policy-wait",
+      "criteria": [
+        "S4-04"
+      ],
+      "input": "Give an unresolved policy choice then a recorded decision.",
+      "expected": "Question includes conflicting evidence, impact and options; same execution resumes after decision; ordinary repairs avoid human policy wait."
+    },
+    {
+      "id": "authority",
+      "criteria": [
+        "S4-04"
+      ],
+      "input": "Event config asks for unauthorized implementation or remote write.",
+      "expected": "Config cannot supply missing user authority; zero unapproved remote effects. Local-only test is reported as such, not remote service success."
+    },
+    {
+      "id": "periodic-gap",
+      "criteria": [
+        "S4-05"
+      ],
+      "input": "Commit source change without delivering its event, then allow actual periodic check to run.",
+      "expected": "Missed change discovered and routed automatically; actual repeated timer/poll execution evidence, not hand-invoked one-shot CLI."
+    },
+    {
+      "id": "periodic-drift",
+      "criteria": [
+        "S4-05"
+      ],
+      "input": "Introduce baseline/doc drift, lose a tracked source, retain an approved unimplemented target.",
+      "expected": "Distinct findings identify each cause; approved target preserved as pending, not rewritten into current state; unresolved source/policy is explicit."
+    },
+    {
+      "id": "quiet",
+      "criteria": [
+        "S4-05",
+        "S4-06"
+      ],
+      "input": "Allow repeated checks without changes or changed actionable status.",
+      "expected": "No rewrite, model call or repeated notification; actual artifact hashes/counts show quiet behavior."
+    },
+    {
+      "id": "stop-resume",
+      "criteria": [
+        "S4-06"
+      ],
+      "input": "Operator stops a run during a bounded operation and resumes it.",
+      "expected": "No new work while stopped; in-flight/unknown state recorded truthfully; resume reconciles same run and preserves evidence."
+    },
+    {
+      "id": "ownership",
+      "criteria": [
+        "S4-02",
+        "S4-03"
+      ],
+      "input": "Concurrent attempts target same document root; outside editor changes a reviewed target.",
+      "expected": "Declared local ownership boundary honored; competing/third bytes fail safely and are preserved; project SQLite alone not claimed as universal lock."
+    }
+  ]
+}
