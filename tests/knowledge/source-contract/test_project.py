@@ -60,7 +60,7 @@ class InstalledProjectTests(unittest.TestCase):
             return json.loads(result.stdout)
         return result
 
-    def ready(self, revision, count):
+    def ready(self, revision, count, register=True):
         run = self.command('start', '--rev', revision)
         context = json.loads(Path(run['context']).read_text())
         decisions = {'impact': context['impact']['id'], 'claims': [{'path': 'guide.md', 'id': 'limit',
@@ -70,9 +70,63 @@ class InstalledProjectTests(unittest.TestCase):
         packet = json.loads(Path(result['packet']).read_text())
         review = {'packet': packet['id'], 'plan': packet['plan']['id'], 'verdict': 'pass',
                   'checks': {k: 'pass' for k in ['source_fidelity', 'decision_coverage', 'reader_action', 'uncertainty']}, 'findings': []}
-        result = self.command('review', '--run', run['run'], '--review', self.save(f'review-{count}.json', review))
-        self.assertEqual(result['phase'], 'ready')
+        review_file = self.save(f'review-{count}.json', review)
+        if register:
+            result = self.command('review', '--run', run['run'], '--review', review_file)
+            self.assertEqual(result['phase'], 'ready')
         return result, packet, review
+
+    def without_authoring_skills(self):
+        isolated = self.root / 'runtime-only-toolkit'
+        shutil.copytree(self.installed, isolated)
+        for name in ('writing-for-humans', 'review-knowledge'):
+            skill = isolated / 'skills' / name
+            skill.rename(skill.with_name(name + '.held'))
+        self.cli_path = isolated / 'skills/refresh-knowledge/scripts/knowledge.py'
+
+    def test_review_and_resume_without_authoring_skills_preserve_checks(self):
+        revision = self.commit(2)
+        run, _, review = self.ready(revision, 2, register=False)
+        self.without_authoring_skills()
+        self.assertIn('DEPENDENCY_UNREACHED', self.command('doctor', ok=False).stderr)
+        self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'awaiting_review')
+        stale = dict(review, packet='0' * 64)
+        self.assertIn('REVIEW_STALE', self.command('review', '--run', run['run'], '--review',
+                      self.save('stale.json', stale), ok=False).stderr)
+        failed = dict(review, verdict='revise', findings=['Clarify caller action.'])
+        self.assertEqual(self.command('review', '--run', run['run'], '--review',
+                         self.save('failed.json', failed))['phase'], 'revise')
+        self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'revise')
+        self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 1회 시도한다.\n')
+        self.assertEqual(self.command('status')['baseline'], self.baseline)
+        self.assertEqual(self.command('review', '--run', run['run'], '--review',
+                         self.root / 'review-2.json')['phase'], 'ready')
+        original = (self.docs / 'guide.md').read_bytes()
+        (self.docs / 'guide.md').write_text('Independent edit.')
+        self.command('resume', '--run', run['run'], ok=False)
+        self.assertEqual((self.docs / 'guide.md').read_text(), 'Independent edit.')
+        self.assertEqual(self.command('status')['baseline'], self.baseline)
+        (self.docs / 'guide.md').write_bytes(original)
+        self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'completed')
+        self.assertEqual(self.command('resume', '--run', run['run'])['phase'], 'completed')
+        self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 2회 시도한다.\n')
+        self.assertEqual(self.command('status')['baseline'], revision)
+
+    def test_missing_runtime_blocks_review_and_resume_before_mutation(self):
+        run, _, _ = self.ready(self.commit(2), 2)
+        self.without_authoring_skills()
+        before = {p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*') if p.is_file()}
+        env = dict(os.environ, PATH=str(self.root / 'no-executables'))
+        for args in [('review', '--review', self.root / 'review-2.json'), ('resume',)]:
+            result = subprocess.run([sys.executable, str(self.cli_path), '--project', str(self.project),
+                                     *map(str, args), '--run', run['run']], cwd=self.root,
+                                    env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertEqual(json.loads(result.stderr)['code'], 'DEPENDENCY')
+            self.assertIn('Git is missing', result.stderr)
+            self.assertEqual(result.stdout, '')
+        self.assertEqual({p.relative_to(self.project): p.read_bytes() for p in self.project.rglob('*') if p.is_file()}, before)
+        self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 1회 시도한다.\n')
 
     def test_two_distinct_changes_advance_baseline_and_repeat(self):
         second = self.commit(2)
@@ -109,6 +163,7 @@ knowledge.main()
 '''
         child = subprocess.run([sys.executable, '-c', code, str(self.cli_path.parent), str(self.project), run['run']], capture_output=True)
         self.assertEqual(child.returncode, 91, child.stderr)
+        self.without_authoring_skills()
         self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 2회 시도한다.\n')
         self.assertEqual(self.command('status')['baseline'], self.baseline)
         self.assertEqual(self.command('status', '--run', run['run'])['phase'], 'applying')

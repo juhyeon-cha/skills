@@ -2,6 +2,10 @@
 
 Read this contract when invoking `scripts/knowledge.py` programmatically or interpreting its failures. Independent `cli.py`, `impact.py`, `update.py` and `workflow.py` commands retain their own contracts.
 
+Use `knowledge.py` for project-managed documents. Direct application through the lower-level CLIs does not advance the project baseline or run state; do not mix it with the project workflow on the same documents.
+
+`doctor`, `init`, `start` and `prepare` check the runtime and bundled authoring/review skill files. `review` and `resume` check only the runtime prerequisites: Python, jsonschema, Git and SQLite JSON functions. They still validate the registered review and application inputs.
+
 ## Responses and versions
 
 Success writes one JSON object to stdout, empty stderr, exit 0. Existing fields remain at the top level; `_meta.cli_contract` is 1. Consumers ignore unknown additive fields. Removing fields/codes or changing their type or meaning requires a new compatibility contract. Metadata is output-only: it is not persisted or included in artifact hashes. Output without `_meta` predates this contract.
