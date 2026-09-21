@@ -24,7 +24,7 @@ a description and source IDs. Use new records to preserve changed requests and e
 |---|---|---|
 | current_behavior | current_documentation / awaiting_document_update | Require current code authority and only documentation differences; start with `--rev COMMIT --intake ID` |
 | wording_only | document_wording / no_code_work | Compare before/after commitments and exceptions, perform the authorized prose edit and record document AC results; no code task |
-| behavior_change | implementation_handoff / pending_implementation | Require user instruction or approved decision; hand the preserved target, differences and acceptance to a separate implementation workflow |
+| behavior_change | implementation_handoff / pending_implementation | Require user instruction or approved decision; hand the preserved target, differences and acceptance to the repository implementation workflow; continue with [implementation continuation](implementation.md) |
 
 For every intent, proposed yields awaiting_decision, deferred yields deferred, withdrawn yields
 withdrawn. These are not executable code-to-document routes. Do not request approval again for

@@ -39,7 +39,9 @@ The impact ID and candidate IDs are machine-generated; copy them exactly. The
 ```
 
 Every candidate requires exactly one decision, even when kept. Every unlinked change requires
-one justified `no-document-change` disposition. New claims/documents are not supported; unresolved
-impact cannot be deferred by pretending it is irrelevant. Inspect [editing rules](updates.md)
+one justified `no-document-change` disposition. `prepare` supports only existing claims; for new
+claims/documents or indirect impact, read [impact and structural changes](maintenance.md) to
+select a reviewed successor or resolve the missing evidence. An unresolved addition cannot be
+classified as `no-document-change`. Inspect [editing rules](updates.md)
 for keep/replace/remove, renamed evidence and ambiguous excerpts. Claims about deployment or
 policy intent need additional evidence; source structure and hashes do not prove semantic truth.

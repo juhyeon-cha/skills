@@ -2,6 +2,8 @@
 
 `prepare` validates decisions and current documents, then stores an immutable packet containing
 before/after text, original bindings, source snapshots and next bindings. It does not edit documents.
+For new claims/documents, consolidation or an index used as current evidence, read
+[impact and structural changes](maintenance.md) before preparing the packet.
 
 - `keep` preserves the exact excerpt but supplies valid after-snapshot evidence. A renamed path
   can be updated here without changing prose.

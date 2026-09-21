@@ -1,6 +1,6 @@
 ---
 name: refresh-knowledge
-description: Bootstrap evidence-linked documents from code or goals, classify changes, and update documents with independent review and resumable runs. Use for initial knowledge/specification creation, change intake, or repeated document updates; behavior targets stop at implementation handoff. Excludes remote publication.
+description: Bootstrap evidence-linked documents from code or goals, classify changes, and update documents with independent review and resumable runs. Use for initial knowledge/specification creation, change intake, continuing implementation handoffs, or repeated document updates. Excludes remote publication.
 ---
 
 # Refresh knowledge
@@ -17,8 +17,12 @@ are bundled in this skill. Do not depend on a developer checkout or write into t
 
 Read [change intake](references/intake.md) for user instructions, document changes, or when
 recording code-change intent. Preserve authority, current/target versions and remaining differences
-before routing. Wording changes close without code work only after semantic comparison; behavior
-targets stop at implementation handoff. Run doctor and confirm the host can actually invoke the
+before routing. Wording changes close without code work only after semantic comparison. When
+continuing an implementation handoff, verifying a returned result, or deferring, withdrawing or
+rolling back a goal, read [implementation continuation](references/implementation.md). For
+additions, deletions, moves or renames, shared-policy or indirect effects, document consolidation
+or index changes, read [impact and structural changes](references/maintenance.md) before choosing
+the update boundary. Run doctor and confirm the host can actually invoke the
 writing skill and an independent reviewer before code-to-document execution. Missing capability
 is not-executed; preserve evidence and use the recovery route if it cannot be restored.
 
