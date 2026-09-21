@@ -22,6 +22,21 @@ try {
   put(manifest, JSON.stringify(changed));
   put(path.join(newer, 'hooks/session-context.md'), read(path.join(newer, 'hooks/session-context.md')) + '\nFixture updated context.\n');
   generateDistribution(newer);
+  for (const runtime of ['claude', 'antigravity']) {
+    const nested = path.join(scratch, `native-options-${runtime}`);
+    fs.cpSync(source, nested, {recursive: true});
+    const template = path.join(nested, 'native', runtime, 'reviewer.md');
+    const optionsText = 'provider_options:\n  nested_value: true\n  list: [one, two]\n';
+    put(template, read(template).replace('\n---\n', `\n${optionsText}---\n`));
+    generateDistribution(nested);
+    const options = {source: nested, destination: path.join(scratch, `nested-install-${runtime}`), surface: `${runtime}-cli`};
+    const staged = installDistribution(options);
+    assert.equal(diagnoseInstallation(options).static, 'PASS');
+    assert(read(staged.receipt.components.roles.find(file => path.basename(file) === 'reviewer.md')).includes(optionsText));
+    const duplicate = path.join(path.dirname(staged.receipt.components.roles[0]), 'quoted-duplicate.md');
+    put(duplicate, '---\n"na\\u006de": "' + (runtime === 'claude' ? 'reviewer' : 'harness-reviewer') + '"\nprovider_options:\n  nested: true\n---\n');
+    assert.match(diagnoseInstallation(options).reasons.join(' '), /duplicate/);
+  }
   const markerSource = path.join(scratch, 'marker-source');
   fs.cpSync(source, markerSource, {recursive:true});
   put(path.join(markerSource, '.in_use/12345'), '{"pid":');

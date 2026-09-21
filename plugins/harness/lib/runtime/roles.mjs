@@ -57,11 +57,35 @@ export function projectRole(runtime, role, root, installedRoot = root, options =
   return { ...definition, identifier, text };
 }
 
+// All role inputs and the one shipped native output set belong to the artifact.
+// Reject extra entries as well as missing ones; counts alone cannot prove identity.
+export function inspectRoleArtifacts(root) {
+  const exact = (relative, expected, directories = false) => {
+    const entries = fs.readdirSync(path.join(root, relative), {withFileTypes: true});
+    if (JSON.stringify(entries.map(entry => entry.name).sort()) !== JSON.stringify([...expected].sort()) ||
+        entries.some(entry => directories ? !entry.isDirectory() : !entry.isFile()))
+      throw new Error(`unexpected role artifact set: ${relative}`);
+  };
+  const runtimes = ['claude', 'codex', 'antigravity'];
+  exact('roles', roleNames.map(role => `${role}.md`));
+  exact('agents', roleNames.map(role => `${role}.md`));
+  exact('native', runtimes, true);
+  for (const runtime of runtimes) {
+    exact(`native/${runtime}`, roleNames.map(role => `${role}.${runtime === 'codex' ? 'toml' : 'md'}`));
+    for (const role of roleNames) {
+      const entry = projectRole(runtime, role, root);
+      if (runtime === 'claude' && fs.readFileSync(path.join(root, 'agents', `${role}.md`), 'utf8') !== entry.text)
+        throw new Error(`generated Claude role drift: ${role}`);
+    }
+  }
+}
+
 // Explicit destination is a native Codex agents directory, never inferred user state.
 // Claude's existing plugin agents directory is referenced, not generated again.
 export function registerRoles(runtime, destination, root = plugin) {
   root = fs.realpathSync(root);
   roleIdentifier(runtime, roleNames[0]);
+  inspectRoleArtifacts(root);
   if (runtime === 'codex') {
     if (!path.isAbsolute(destination ?? ''))
       throw new Error('absolute agents destination required');
@@ -102,6 +126,7 @@ export function verifyRegistration(registration) {
     registration.roles.length !== roleNames.length
   )
     throw new Error('registration missing');
+  inspectRoleArtifacts(registration.root);
   const seen = new Set();
   for (const entry of registration.roles) {
     const expected = projectRole(registration.runtime, entry.role, registration.root);

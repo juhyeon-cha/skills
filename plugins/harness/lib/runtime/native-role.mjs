@@ -92,6 +92,19 @@ export function nativeAgentName(text) {
   return required(name, 'native agent name');
 }
 
+// Native Markdown can carry nested provider-specific options. Read only the
+// top-level identity; validating the remaining YAML belongs to that provider.
+export function nativeMarkdownName(text) {
+  const header = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(text)?.[1];
+  if (header === undefined) throw new Error('native frontmatter missing');
+  const values = [...header.matchAll(/^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[A-Za-z_][A-Za-z0-9_-]*)[ \t]*:[ \t]*(.*)$/gm)]
+    .filter(match => (match[1].startsWith('"') ? JSON.parse(match[1]) : match[1].startsWith("'") ? match[1].slice(1, -1).replaceAll("''", "'") : match[1]) === 'name');
+  if (values.length !== 1) throw new Error('native role name missing/duplicate');
+  const scalar = /^("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[a-z0-9]+(?:-[a-z0-9]+)*)(?:[ \t]+#.*|[ \t]*)$/.exec(values[0][2])?.[1];
+  if (!scalar) throw new Error('unsupported native role name');
+  return scalar.startsWith('"') ? JSON.parse(scalar) : scalar.startsWith("'") ? scalar.slice(1, -1).replaceAll("''", "'") : scalar;
+}
+
 export function assembleNativeRole(runtime, definition, root, installedRoot = root) {
   const identifier = roleIdentifier(runtime, definition.role);
   const source = path.join(root, 'native', runtime, `${definition.role}.${runtime === 'codex' ? 'toml' : 'md'}`);
@@ -121,8 +134,7 @@ export function assembleNativeRole(runtime, definition, root, installedRoot = ro
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(template);
   if (!frontmatter || frontmatter[0].includes(marker) || !template.slice(frontmatter[0].length).split(/\r?\n/).includes(marker))
     throw new Error('native instruction slot must follow frontmatter');
-  const names = [...frontmatter[1].matchAll(/^name: (.+)$/gm)];
-  if (names.length !== 1 || names[0][1] !== (runtime === 'claude' ? definition.role : identifier)) throw new Error('native role name mismatch');
+  if (nativeMarkdownName(template) !== (runtime === 'claude' ? definition.role : identifier)) throw new Error('native role name mismatch');
   if (!/^description: .+/m.test(frontmatter[1])) throw new Error('native description missing');
   return template.replace(marker, () => body);
 }
