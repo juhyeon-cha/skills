@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { roleNames, roleIdentifier } from './role-contract.mjs';
 import { roleSignals, roleChain } from './role-contract.mjs';
-import { roleSpawnOptions } from './role-models.mjs';
+import { assembleNativeRole, nativeAgentName } from './native-role.mjs';
+export { nativeAgentName } from './native-role.mjs';
 import { requiredRoleTools, roleCapabilities } from './role-capabilities.mjs';
 
 const plugin = fileURLToPath(new URL('../../', import.meta.url));
@@ -14,110 +15,18 @@ const required = (value, label) => {
   return value;
 };
 
-// Read top-level statements without treating names inside strings or containers
-// as assignments. The runtime validates unrelated TOML values and tables.
-function nativeStatements(text) {
-  const statements = [];
-  const containers = [];
-  let statement = '';
-  let quote = '';
-  let multiline = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (quote) {
-      statement += c;
-      if (quote === '"' && c === '\\') {
-        if (++i >= text.length) throw new Error('unfinished native TOML escape');
-        statement += text[i];
-        continue;
-      }
-      if (!multiline && /[\r\n]/.test(c)) throw new Error('unfinished native TOML string');
-      if (c !== quote) continue;
-      if (!multiline) { quote = ''; continue; }
-      let n = 1;
-      while (text[i + n] === quote) n++;
-      if (n < 3) continue;
-      if (n > 5) throw new Error('ambiguous native TOML string delimiter');
-      statement += quote.repeat(n - 1);
-      i += n - 1;
-      quote = '';
-      multiline = false;
-      continue;
-    }
-    if (c === '#') {
-      while (i + 1 < text.length && text[i + 1] !== '\n') i++;
-      continue;
-    }
-    if (c === '"' || c === "'") {
-      quote = c;
-      multiline = text.slice(i, i + 3) === c.repeat(3);
-      statement += multiline ? c.repeat(3) : c;
-      if (multiline) i += 2;
-      continue;
-    }
-    if (c === '[' || c === '{') containers.push(c === '[' ? ']' : '}');
-    if ((c === ']' || c === '}') && containers.pop() !== c)
-      throw new Error('unbalanced native TOML container');
-    if (c === '\n' && !containers.length) {
-      if (statement.trim()) statements.push(statement.trim());
-      statement = '';
-    } else statement += c;
-  }
-  if (quote || containers.length) throw new Error('unfinished native TOML value');
-  if (statement.trim()) statements.push(statement.trim());
-  return statements;
-}
-
-export function nativeAgentName(text) {
-  const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}))*"';
-  const literal = "'[^'\\x00-\\x1f]*'";
-  const string = `(?:${basic}|${literal})`;
-  const keyPart = `(?:[A-Za-z0-9_-]+|${string})`;
-  const assignment = new RegExp(`^(${keyPart})((?:\\s*\\.\\s*${keyPart})*)\\s*=\\s*([\\s\\S]*)$`);
-  const nameValue = new RegExp(`^${string}$`);
-  const decode = (value) => {
-    if (!value.startsWith('"')) return value.startsWith("'") ? value.slice(1, -1) : value;
-    // Consume each escape atomically so a literal backslash followed by U is
-    // not confused with a TOML Unicode escape. JSON handles the shared escapes.
-    const json = value.replace(/\\(?:["\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})/g, (escape) => {
-      if (!escape.startsWith('\\U')) return escape;
-      const code = Number.parseInt(escape.slice(2), 16);
-      if (code >= 0xd800 && code <= 0xdfff) throw new Error('invalid TOML Unicode scalar');
-      return JSON.stringify(String.fromCodePoint(code)).slice(1, -1);
-    });
-    return JSON.parse(json);
-  };
-  let name;
-  for (const line of nativeStatements(text)) {
-    if (line.startsWith('[')) break;
-    const match = assignment.exec(line);
-    if (!match) throw new Error('unreadable top-level native TOML key');
-    if (match[2]) continue; // Dotted paths are nested fields, not the scalar name.
-    const key = decode(match[1]);
-    if (key !== 'name') continue;
-    if (name !== undefined) throw new Error('duplicate native agent name');
-    if (!nameValue.test(match[3])) throw new Error('native agent name requires a single-line string');
-    name = decode(match[3]);
-  }
-  return required(name, 'native agent name');
-}
-
 /**
  * Load a canonical role document and validate its identity and SIGNAL contract.
  * @param {string} role Canonical role name accepted by roleIdentifier.
- * @param {string} [root] Plugin directory containing agents/.
+ * @param {string} [root] Plugin directory containing roles/.
  * @returns {{role: string, source: string, sha256: string,
- *   description: string, body: string, signals: string[]}}
+ *   body: string, signals: string[]}}
  * @throws {Error} If the role is unknown or its document is unreadable or invalid.
  */
 export function loadRole(role, root = plugin) {
   roleIdentifier('claude', role);
-  const source = path.join(root, 'agents', `${role}.md`);
+  const source = path.join(root, 'roles', `${role}.md`);
   const bytes = fs.readFileSync(source, 'utf8');
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/.exec(bytes);
-  if (!match) throw new Error('role frontmatter missing');
-  const field = (key) => new RegExp(`^${key}: (.+)$`, 'm').exec(match[1])?.[1].trim();
-  if (field('name') !== role) throw new Error('role name mismatch');
   const signals = roleSignals(bytes);
   if (!signals.length || new Set(signals).size !== signals.length)
     throw new Error('role SIGNAL contract missing/duplicate');
@@ -125,8 +34,7 @@ export function loadRole(role, root = plugin) {
     role,
     source,
     sha256: hash(bytes),
-    description: required(field('description'), 'description'),
-    body: match[2],
+    body: bytes,
     signals,
   };
 }
@@ -136,19 +44,11 @@ export function projectRole(runtime, role, root, installedRoot = root, options =
     throw new Error('projection options require Antigravity; use native runtime model selection');
   const definition = loadRole(role, root);
   const identifier = roleIdentifier(runtime, role);
-  // Codex custom-agent TOML has no plugin variable substitution contract.
-  // Resolve only the install-root pointer; all policy text comes from the source.
-  const instructions = definition.body.replaceAll('${CLAUDE_PLUGIN_ROOT}', installedRoot);
-  const model = roleSpawnOptions(role);
-  const modelConfig = model.model
-    ? `model = ${JSON.stringify(model.model)}\nmodel_reasoning_effort = ${JSON.stringify(model.reasoning_effort)}\n`
-    : '';
-  const text =
-    runtime === 'codex'
-      ? `name = ${JSON.stringify(identifier)}\ndescription = ${JSON.stringify(definition.description)}\n${modelConfig}developer_instructions = ${JSON.stringify(instructions)}\n`
-      : runtime === 'antigravity'
-        ? `---\nname: ${identifier}\ndescription: ${JSON.stringify(definition.description)}\nsubagent: true\nmainAgent: false\nmodel: ${roleCapabilities(runtime, role, {availableTools: requiredRoleTools(runtime, role), ...options}).model.model}\ntools: ${JSON.stringify(requiredRoleTools(runtime, role))}\ncommandExecutionPolicy: sandbox\n---\n\n${instructions}`
-        : fs.readFileSync(definition.source, 'utf8');
+  let text = assembleNativeRole(runtime, definition, root, installedRoot);
+  if (runtime === 'antigravity' && Object.keys(options).length) {
+    const model = roleCapabilities(runtime, role, {availableTools: requiredRoleTools(runtime, role), ...options}).model.model;
+    text = text.replace(/^model: .+$/m, () => `model: ${model}`);
+  }
   return { ...definition, identifier, text };
 }
 

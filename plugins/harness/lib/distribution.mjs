@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadRole } from './runtime/roles.mjs';
+import { loadRole, projectRole } from './runtime/roles.mjs';
 import { roleNames } from './runtime/role-contract.mjs';
 
 export const pluginRoot = fs.realpathSync(fileURLToPath(new URL('../', import.meta.url)));
@@ -122,6 +122,7 @@ export function projections(root = pluginRoot) {
   for (const id of ['context', 'guard', 'workspace', 'stop', 'role-start', 'role-stop'])
     if (!seen.has(id)) throw new Error(`required hook missing: ${id}`);
   return {
+    ...Object.fromEntries(roleNames.map(role => [`agents/${role}.md`, projectRole('claude', role, root).text])),
     '.codex-plugin/plugin.json': encoded({
       ...manifest,
       hooks: './hooks/codex.json',
