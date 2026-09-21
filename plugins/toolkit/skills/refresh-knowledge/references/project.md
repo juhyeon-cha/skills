@@ -62,6 +62,8 @@ review, failing on malformed, changed, missing or symlink files. `review.id` and
 identify the currently registered review, including its findings; `next_action` names the phase's
 next operation (`resolve_review` means resolving evidence or a policy decision first;
 `review_new_baseline` means a reviewed successor for a terminated change).
+For a terminated run, `status --run RUN_ID` also returns the preserved `termination_reason`.
+The termination command returns the same field; the lightweight run listing remains unchanged.
 Preparing a packet clears the current review even if the packet ID is unchanged. Old review files
 remain evidence but are not returned as the current review.
 

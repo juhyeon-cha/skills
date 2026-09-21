@@ -68,3 +68,13 @@ database migration or deployment is established. Ownership covers cooperating
 automation states on the same canonical document root, not arbitrary editors or
 nested/network roots. The original source/runtime evidence remains under
 `/private/tmp/stage4-work/s4-current/`; this file is not a managed final verdict.
+
+## Subsequent independent review fixes
+
+Independent review of `0ed49e7f82d2061e6b3c2cc2c700b8b9fe9e2f81` found two additional
+supersession failures: replacement of a still-pending implementer and repeated termination
+after a successful public terminate lost its response. `review-fixes.json` preserves the
+reviewer's reproduction output and subsequent regression/negative-control outputs. These
+are local fixtures with synthetic host receipts and real public CLI effects, not new live
+model observations. The original `evidence.json` remains unchanged. Final independent
+review and acceptance remain pending; this addendum is implementation evidence only.

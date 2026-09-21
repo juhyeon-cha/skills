@@ -149,6 +149,88 @@ class AutomationTests(unittest.TestCase):
         self.assertEqual(self.auto('next')['phase'], 'completed')
         self.assertEqual(artifacts, {p: p.read_bytes() for p in self.project.rglob('*') if p.is_file()})
 
+    def test_superseded_implementer_waits_for_valid_host_result(self):
+        goal = {'id': 'goal', 'version': 'v1', 'text': 'Use three attempts.', 'acceptance': ['Three attempts']}
+        old = self.event(self.baseline, 'v1', kind='goal', goal=goal)['execution']
+        pending = self.auto('next')['pending']
+        newer = self.event(self.baseline, 'v2', kind='goal', goal=dict(goal, version='v2'))['execution']
+        self.assertEqual(self.auto('next')['pending']['id'], pending['id'])
+        self.auto('fail', '--input', self.save('unknown.json', {'task_id': pending['id'],
+            'class': 'transport', 'evidence': 'Synthetic host outcome unknown', 'outcome': 'unknown'}))
+        self.auto('resume', '--execution', old)
+        self.assertEqual(self.auto('next')['pending']['id'], pending['id'])
+        revision = self.commit(3)
+        for key, value in [('prompt_sha256', 'wrong'), ('raw_response', '{}'),
+                           ('finished_at', 'not-a-time'), ('response', {})]:
+            malformed = dict(self.receipt(pending, {'revision': revision}), **{key: value})
+            self.auto('accept', '--input', self.save('invalid.json', malformed), ok=False)
+            self.assertEqual(self.auto('next')['pending']['id'], pending['id'])
+        self.accept(pending, {'revision': 'HEAD'}, ok=False)
+        self.assertEqual(self.auto('next')['pending']['id'], pending['id'])
+        self.assertEqual(self.accept(pending, {'revision': revision})['phase'], 'late_result_preserved')
+        state = self.auto('status')
+        self.assertEqual(state['executions'][old]['phase'], 'superseded')
+        self.assertEqual(state['executions'][old]['receipts'][0]['response']['revision'], revision)
+        self.assertEqual(state['executions'][old]['document_status'], 'not_started')
+        self.assertEqual(state['executions'][old]['implementation_status'], 'pending')
+        self.assertEqual(self.knowledge('status')['baseline'], self.baseline)
+        self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 1회 시도한다.\n')
+        successor = self.auto('next')['pending']
+        self.assertEqual((successor['execution'], successor['role']), (newer, 'implementer'))
+
+    def test_superseded_implementer_releases_after_confirmed_nonexecution(self):
+        goal = {'id': 'goal', 'version': 'v1', 'text': 'Use three attempts.', 'acceptance': ['Three attempts']}
+        old = self.event(self.baseline, 'v1', kind='goal', goal=goal)['execution']
+        pending = self.auto('next')['pending']
+        newer = self.event(self.baseline, 'v2', kind='goal', goal=dict(goal, version='v2'))['execution']
+        self.assertEqual(self.auto('next')['pending']['id'], pending['id'])
+        self.auto('fail', '--input', self.save('not-executed.json', {'task_id': pending['id'],
+            'class': 'transport', 'evidence': 'Synthetic host confirmed dispatch did not execute',
+            'outcome': 'not_executed'}))
+        self.assertEqual(self.auto('next')['pending']['execution'], newer)
+        self.assertEqual(self.auto('status')['executions'][old]['phase'], 'superseded')
+
+    def test_lost_terminate_response_reconciles_public_reason_without_repetition(self):
+        old = self.event(self.commit(2))['execution']
+        self.auto('next')
+        old_run = self.auto('status')['executions'][old]['run']
+        newer = self.event(self.commit(3), 'newer')['execution']
+        original = automation.invoke
+        def lose(project, *args):
+            evidence = original(project, *args)
+            if args[0] == 'terminate':
+                self.assertEqual(evidence['exit_code'], 0, evidence)
+                raise OSError('Injected response loss after actual termination')
+            return evidence
+        from unittest.mock import patch
+        with automation.Store(self.state).locked() as store, patch.object(automation, 'invoke', lose):
+            with self.assertRaisesRegex(OSError, 'actual termination'):
+                store.next()
+        status = self.knowledge('status', '--run', old_run)
+        self.assertEqual(status['phase'], 'terminated')
+        self.assertEqual(self.knowledge('status')['baseline'], self.baseline)
+        artifacts = {p: p.read_bytes() for p in (self.project / 'runs' / old_run).rglob('*') if p.is_file()}
+        self.auto('resume', '--execution', old)
+        self.assertEqual(self.auto('next')['pending']['execution'], newer)
+        self.assertEqual(status['termination_reason'], 'A newer accepted input superseded this run before application.')
+        history = self.auto('status')['history']
+        self.assertEqual(len([h for h in history if h['kind'] == 'command_intent' and h['argv'][0] == 'terminate']), 1)
+        self.assertEqual(artifacts, {p: p.read_bytes() for p in (self.project / 'runs' / old_run).rglob('*') if p.is_file()})
+        self.author(3); self.review(); self.assertEqual(self.auto('next')['phase'], 'completed')
+
+    def test_supersession_preserves_different_public_termination_reason(self):
+        old = self.event(self.commit(2))['execution']
+        pending = self.auto('next')['pending']
+        run = self.auto('status')['executions'][old]['run']
+        reason = self.root / 'operator-reason.txt'; reason.write_text('Operator investigation')
+        ended = self.knowledge('terminate', '--run', run, '--reason-file', reason)
+        self.assertEqual(ended['termination_reason'], 'Operator investigation')
+        self.event(self.commit(3), 'newer')
+        self.assertIn('TERMINATION_CONFLICT', self.auto('next', ok=False)['error'])
+        self.assertEqual(self.auto('status')['pending']['id'], pending['id'])
+        self.assertEqual(self.knowledge('status', '--run', run)['termination_reason'], 'Operator investigation')
+        self.assertEqual(self.knowledge('status')['baseline'], self.baseline)
+
     def test_policy_stop_resume_and_independence(self):
         execution = self.event(self.commit(2))['execution']
         pending = self.auto('next')['pending']

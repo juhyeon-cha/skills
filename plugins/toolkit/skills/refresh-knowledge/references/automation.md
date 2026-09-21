@@ -83,8 +83,11 @@ A goal event uses `kind: "goal"` and adds:
 
 Keep current `revision` distinct from the target goal. Goal text, version and acceptance are hashed
 together. A successor of the same goal ID supersedes pending older work; preserve the earlier
-request and results as history. Same-content requests may reuse an implementation only when its
-verified revision is still the current baseline and equals the new request's source. Preserve the
+request and results as history. An outstanding implementer remains the only pending task until
+its validated host receipt arrives or the host confirms `not_executed` through `fail`. An unknown
+outcome keeps this barrier even after a successor request or `resume`. A validated obsolete result
+is retained without implementation verification or document application. Same-content requests may
+reuse an implementation only when its verified revision is still the current baseline and equals the new request's source. Preserve the
 cause ID through goal → verified code → document events; repeated current effects then terminate
 without repeating implementation or authoring. A cause ID alone never suppresses unrelated work.
 
@@ -141,7 +144,10 @@ document application or deployment. A result older than the current baseline nev
 ## Recover, decide and stop
 
 Read `status` and the linked project `status --run` after a lost command response. `next` reconciles
-the same public run, including `applying`/`completed`, before another effect. Completion requires
+the same public run, including `applying`/`completed`, before another effect. If supersession's
+`terminate` succeeded but its response was lost, `next` checks the public run's retained
+`termination_reason` before finalizing supersession; it does not terminate the run twice. A different
+termination reason requires investigation and remains an error. Completion requires
 the project's actual document, receipt and baseline checks. Preserve conflicting artifacts.
 
 Report a failed host call using `fail --input` with `task_id`, `class` (model, transport, permission,

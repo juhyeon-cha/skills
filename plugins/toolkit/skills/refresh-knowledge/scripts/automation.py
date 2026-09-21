@@ -279,15 +279,26 @@ class Store:
         return bool(frontier and rev != frontier and ancestor(self.state['settings']['repo'], rev, frontier))
 
     def end_stale(self, e):
+        pending = self.state['pending']
+        if pending and pending['execution'] == e['id'] and pending['role'] == 'implementer':
+            # A newer goal cannot cancel a host call that may still be writing.
+            return False
         if e['run']:
             status = self.call('status', '--run', e['run'])
             if status['phase'] in ('applying', 'completed'):
                 return False
-            reason = self.root / 'artifacts' / (e['id'] + '-superseded.txt')
-            reason.parent.mkdir(exist_ok=True)
-            if not reason.exists():
-                reason.write_text('A newer accepted input superseded this run before application.\n')
-            self.call('terminate', '--run', e['run'], '--reason-file', reason)
+            explanation = 'A newer accepted input superseded this run before application.'
+            if status['phase'] == 'terminated':
+                if status.get('termination_reason') != explanation:
+                    raise ValueError('TERMINATION_CONFLICT: public run has a different termination reason')
+            else:
+                reason = self.root / 'artifacts' / (e['id'] + '-superseded.txt')
+                reason.parent.mkdir(exist_ok=True)
+                if not reason.exists():
+                    reason.write_text(explanation + '\n')
+                if reason.is_symlink() or reason.read_text().strip() != explanation:
+                    raise ValueError('TERMINATION_CONFLICT: preserved termination reason differs')
+                self.call('terminate', '--run', e['run'], '--reason-file', reason)
         e['phase'] = 'superseded'
         if self.state['pending'] and self.state['pending']['execution'] == e['id']:
             self.state['pending'] = None
@@ -479,7 +490,7 @@ class Store:
         if self.state['stopped']:
             raise ValueError('STOPPED: resume before accepting; preserve the receipt')
         e = self.state['executions'][pending['execution']]
-        if self.obsolete(e) and self.end_stale(e):
+        if pending['role'] != 'implementer' and self.obsolete(e) and self.end_stale(e):
             freeze(self.root / 'late' / (digest(receipt) + '.json'), receipt)
             return {'phase': 'late_result_preserved', 'task_id': task_id}
         for key in ('actor', 'host_tool', 'call_id', 'started_at', 'finished_at', 'raw_response'):
@@ -521,6 +532,9 @@ class Store:
         self.state['pending'] = None
         self.log('model_result', execution=e['id'], role=role, task_id=task_id,
                  actor=receipt['actor'], elapsed_seconds=(end - start).total_seconds())
+        if self.obsolete(e) and self.end_stale(e):
+            freeze(self.root / 'late' / (digest(receipt) + '.json'), receipt)
+            return {'phase': 'late_result_preserved', 'task_id': task_id}
         return {'phase': 'accepted', 'execution': e['id'], 'role': role}
 
     def fail(self, report):
