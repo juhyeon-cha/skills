@@ -175,6 +175,10 @@ class AutomationTests(unittest.TestCase):
         self.assertEqual(state['executions'][old]['implementation_status'], 'pending')
         self.assertEqual(self.knowledge('status')['baseline'], self.baseline)
         self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 1회 시도한다.\n')
+        self.auto('tick')
+        observed = self.auto('status')
+        self.assertEqual(observed['poll_links']['poll:' + revision], [{'execution': old, 'cause_id': 'v1'}])
+        self.assertEqual(len(observed['executions']), 2)
         successor = self.auto('next')['pending']
         self.assertEqual((successor['execution'], successor['role']), (newer, 'implementer'))
 
@@ -330,6 +334,114 @@ class AutomationTests(unittest.TestCase):
         self.event(revision, 'feedback-goal', kind='goal', goal=goal, cause_id='goal')
         self.assertEqual(self.auto('next')['phase'], 'completed')
         self.assertEqual(len([h for h in self.auto('status')['history'] if h['kind'] == 'model_result']), 4)
+
+    def test_goal_versions_never_regress_and_ambiguous_intake_is_atomic(self):
+        goal = {'id': 'goal', 'version': '2', 'text': 'Use three attempts.', 'acceptance': ['Three attempts']}
+        newer = self.event(self.baseline, 'newer', kind='goal', goal=goal)['execution']
+        older = self.event(self.baseline, 'older', kind='goal', goal=dict(goal, version='1'))['execution']
+        self.assertEqual(self.auto('status')['executions'][older]['phase'], 'stale')
+        self.assertEqual(self.auto('next')['pending']['execution'], newer)
+        for version, content in [('2', 'Conflicting content'), ('v3', goal['text']), ('release-next', goal['text'])]:
+            before = self.auto('status')
+            event = {'event_id': 'ambiguous', 'request_id': 'ambiguous', 'cause_id': 'ambiguous',
+                     'kind': 'goal', 'revision': self.baseline, 'goal': dict(goal, version=version, text=content)}
+            self.assertIn('GOAL_VERSION', self.auto('submit', '--input', self.save('ambiguous.json', event), ok=False)['error'])
+            self.assertEqual(self.auto('status'), before)
+        same = self.event(self.baseline, 'same-content', kind='goal', goal=goal)['execution']
+        self.assertNotEqual(same, newer)
+        self.assertNotIn('superseded_by', self.auto('status')['executions'][newer])
+        # Terminal goals still establish the version high-water mark.
+        pending = self.auto('next')['pending']
+        self.accept(pending, {'revision': self.commit(3)})
+        pending = self.auto('next')['pending']
+        self.accept(pending, {'verdict': 'pass', 'revision': self.git('rev-parse', 'HEAD'),
+                             'goal_hash': self.auto('status')['executions'][newer]['input']['goal_hash'], 'findings': []})
+        self.author(3); self.review(); self.auto('next')
+        late = self.event(self.git('rev-parse', 'HEAD'), 'late-after-completion', kind='goal', goal=dict(goal, version='1'))['execution']
+        self.assertEqual(self.auto('status')['executions'][late]['phase'], 'stale')
+        self.assertEqual(self.auto('status')['executions'][newer]['phase'], 'completed')
+
+    def test_poll_links_accepted_implementation_before_checks_without_duplicate_work(self):
+        goal = {'id': 'goal', 'version': '1', 'text': 'Use three attempts.', 'acceptance': ['Three attempts']}
+        execution = self.event(self.baseline, 'goal', cause_id='origin-cause', kind='goal', goal=goal)['execution']
+        pending = self.auto('next')['pending']
+        revision = self.commit(3)
+        self.auto('tick')
+        self.assertEqual(len(self.auto('status')['executions']), 1)
+        self.accept(pending, {'revision': revision})
+        self.auto('tick')
+        state = self.auto('status')
+        self.assertEqual(state['poll_links']['poll:' + revision], [{'execution': execution, 'cause_id': 'origin-cause'}])
+        self.assertEqual(len(state['executions']), 1)
+        self.assertEqual(state['executions'][execution]['implementation_status'], 'pending')
+        self.assertEqual(state['executions'][execution]['document_status'], 'not_started')
+        self.assertEqual(self.knowledge('status')['baseline'], self.baseline)
+        reviewer = self.auto('next')['pending']
+        self.assertEqual(reviewer['role'], 'implementation_reviewer')
+        self.auto('tick')
+        self.assertEqual(self.auto('next')['pending']['id'], reviewer['id'])
+        self.accept(reviewer, {'verdict': 'pass', 'revision': revision,
+                              'goal_hash': state['executions'][execution]['input']['goal_hash'], 'findings': []})
+        self.author(3); self.review(); self.auto('next'); self.auto('tick')
+        self.assertEqual(len(self.auto('status')['executions']), 1)
+        self.assertEqual(len([h for h in self.auto('status')['history'] if h['kind'] == 'implementation_feedback']), 1)
+        unrelated = self.commit(4)
+        self.auto('tick')
+        state = self.auto('status')
+        self.assertNotIn('poll:' + unrelated, state['poll_links'])
+        other = next(e for e in state['executions'].values() if e['id'] != execution)
+        self.assertEqual(other['input']['cause_id'], 'poll:' + unrelated)
+        self.author(4); self.review(); self.auto('next')
+        self.assertEqual(self.knowledge('status')['baseline'], unrelated)
+
+    def test_real_watch_distinguishes_external_baseline_document_source_drift(self):
+        # A direct public CLI caller is an external writer outside automation ownership.
+        # Its reviewed effect changes the baseline without modifying either database directly.
+        revision = self.commit(2)
+        run = self.knowledge('start', '--rev', revision)['run']
+        context = json.loads(Path(self.knowledge('status', '--run', run)['context']).read_text())
+        decisions = {'impact': context['impact']['id'], 'claims': [{'path': 'guide.md', 'id': 'limit',
+            'action': 'replace', 'reason': 'External fixture source change', 'text': '호출은 2회 시도한다.',
+            'evidence': ['service.py']}], 'unlinked': []}
+        prepared = self.knowledge('prepare', '--run', run, '--decisions', self.save('external-decisions.json', decisions))
+        packet = json.loads(Path(prepared['packet']).read_text())
+        review = {'packet': packet['id'], 'plan': packet['plan']['id'], 'verdict': 'pass',
+                  'checks': {k: 'pass' for k in ('source_fidelity', 'decision_coverage', 'reader_action', 'uncertainty')}, 'findings': []}
+        self.knowledge('review', '--run', run, '--review', self.save('external-review.json', review))
+        self.knowledge('resume', '--run', run)
+        goal = {'id': 'goal', 'version': '1', 'text': 'Use three attempts.', 'acceptance': ['Three attempts']}
+        execution = self.event(revision, 'goal', kind='goal', goal=goal)['execution']
+        pending = self.auto('next')['pending']
+        (self.docs / 'guide.md').write_text('Preserved external document bytes\n')
+        (self.repo / 'service.py').rename(self.repo / 'lost.py')
+        self.git('add', '-A'); self.git('commit', '-qm', 'external source loss')
+        import hashlib
+        def hashes():
+            return {str(p.relative_to(self.root)): hashlib.sha256(p.read_bytes()).hexdigest()
+                    for root in (self.project, self.docs) for p in root.rglob('*') if p.is_file()}
+        before, state = hashes(), self.auto('status')
+        proc = subprocess.run([sys.executable, str(SCRIPTS / 'automation.py'), '--state', str(self.state),
+                               'watch', '--ticks', '4', '--interval', '.02'], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        ticks = [json.loads(line) for line in proc.stdout.splitlines()]
+        self.assertEqual(len(ticks), 4)
+        self.assertTrue({'baseline_drift', 'document_drift', 'source_missing', 'pending_goal'} <=
+                        {f['kind'] for f in ticks[0]['notifications']})
+        self.assertTrue(all(t['notifications'] == [] and not t['changed'] for t in ticks[1:]))
+        after = self.auto('status')
+        self.assertEqual(hashes(), before)
+        self.assertEqual(after['executions'], state['executions'])
+        self.assertEqual(after['pending']['id'], pending['id'])
+        self.assertEqual(after['executions'][execution]['input']['goal'], goal)
+        self.assertEqual(len([h for h in after['history'] if h['kind'] in ('task', 'model_result')]),
+                         len([h for h in state['history'] if h['kind'] in ('task', 'model_result')]))
+        self.assertEqual(self.knowledge('status')['baseline'], revision)
+        self.watch_evidence = {'before_hashes': before, 'after_hashes': hashes(),
+                              'before_goal': state['executions'][execution]['input']['goal'],
+                              'after_goal': after['executions'][execution]['input']['goal'],
+                              'before_pending_id': state['pending']['id'], 'after_pending_id': after['pending']['id'],
+                              'before_counts': {kind: sum(h['kind'] == kind for h in state['history']) for kind in ('task', 'model_result')},
+                              'after_counts': {kind: sum(h['kind'] == kind for h in after['history']) for kind in ('task', 'model_result')}}
 
     def test_authority_config_cannot_grant_remote_or_implementation(self):
         bad = {'event_id': 'bad', 'request_id': 'bad', 'cause_id': 'bad', 'kind': 'code',

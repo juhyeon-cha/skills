@@ -17,15 +17,15 @@ was originally named `scenarios.json`). The mapping below preserves every case.
 | normal-code | Actual code author/reviewer receipts, first completed document run |
 | normal-goal | Actual implementer commit, mandatory check, independent implementation reviewer, author/document reviewer and second completion |
 | duplicate | `post-complete-submit-0.json`; `test_code_duplicate_new_request_and_unchanged_effect`; concurrent duplicate regression |
-| old-input | `test_out_of_order_and_late_response_preserve_newer_source`; `test_verified_goal_older_than_new_frontier_is_retained_without_apply` |
+| old-input | Initial code-order checks passed, but goal `2`→`1` failed independent acceptance at `59cee02`. Corrective goal ordering/atomic-intake/terminal-history regression in `acceptance-fixes.json`; final independent judgment pending. |
 | new-request | `post-complete-submit-2.json`, distinct execution and unchanged artifacts |
-| feedback | Actual timer-created code execution and explicit same-cause code request terminate unchanged; goal feedback regression |
+| feedback | Initial actual timer terminated unchanged but lost its originating cause (independent acceptance failure). Corrective receipt-bound poll link before checks, no duplicate work, unrelated-source regression in `acceptance-fixes.json`; final independent judgment pending. |
 | lost-response | `test_lost_response_reconciles_real_completed_command`, real public apply with injected lost response |
 | failure-classes | Bounded transport/model, unknown outcome, malformed result and permission/service regression cases |
 | policy-wait | Actual blocked document review, evidence resolution, same execution retry; independent reader rollback policy decision |
 | authority | Authority and guard negative-control regression; reader's explicit local-only authority |
 | periodic-gap | `quiet-pending-watch.json`: real timer detects the independently committed source without a supplied code event |
-| periodic-drift | `test_drift_source_loss_and_pending_goal_are_distinct`; actual timer preserves pending goal |
+| periodic-drift | Initial single-tick drift evidence was insufficient and baseline drift was unchecked. Corrective four-tick real watch observes external public-CLI baseline change, document drift, missing source and approved pending goal; `acceptance-fixes.json` preserves outputs and hashes. Final independent judgment pending. |
 | quiet | `quiet-stable-watch.json`, `final-quiet-watch.json`, exact artifact comparisons in `verification` |
 | stop-resume | Actual `stop-resume.json` and reader commands; a pending actual model call was preserved across stop/resume |
 | ownership | `test_ownership_external_edit_and_concurrent_duplicate`: competing state and concurrent processes; third-party bytes preserved |
@@ -78,3 +78,23 @@ reviewer's reproduction output and subsequent regression/negative-control output
 are local fixtures with synthetic host receipts and real public CLI effects, not new live
 model observations. The original `evidence.json` remains unchanged. Final independent
 review and acceptance remain pending; this addendum is implementation evidence only.
+
+## Acceptance corrections after `59cee02`
+
+Independent acceptance reported VIOLATION: goal versions could regress by arrival order,
+poll feedback lacked its originating execution/cause, and repeated drift evidence was incomplete.
+`acceptance-fixes.json` retains that judgment, failing old-source outputs, corrective fixture
+commands/effects and regression results. This is implementation evidence awaiting independent
+re-evaluation, not an all-pass result. Every original case remains mapped above; unaffected cases
+retain their previously observed boundary, while old-input, feedback and periodic-drift explicitly
+record the initial failure or missing evidence and the corrective observation.
+
+The drift experiment uses an external direct public CLI caller (`start`, `prepare`, `review`,
+`resume`) to move the baseline, then external document editing and a tracked-source rename. This
+models an external writer outside automation ownership; it performs no database editing/migration.
+Four actual timer ticks distinguish baseline/document/source/pending-goal findings. The subsequent
+three ticks have no repeated alerts and preserve project/document hashes, the approved goal,
+pending task and task/model counts. Receipts and direct review JSON in this experiment are synthetic.
+Repeated automation status output is explicitly projected with its raw-output hash; the original
+raw command capture remains at the path recorded in the evidence. Original actual-model receipts,
+interrupted dispatch and earlier failed observations in `evidence.json` remain unchanged.

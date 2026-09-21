@@ -82,8 +82,14 @@ A goal event uses `kind: "goal"` and adds:
 ```
 
 Keep current `revision` distinct from the target goal. Goal text, version and acceptance are hashed
-together. A successor of the same goal ID supersedes pending older work; preserve the earlier
-request and results as history. An outstanding implementer remains the only pending task until
+together. For one goal ID, versions declare a monotonically increasing sequence: canonical
+nonnegative decimal integers (`0`, `1`, `2`, ...) or that same sequence prefixed with `v`
+(`v0`, `v1`, ...). Compare numerically within one family, including completed or failed history.
+A lower version is retained as `stale`; a higher version supersedes pending older work. The same
+version and content may carry a new request. Same-version conflicting content, incomparable opaque
+versions, or switching families fail intake without changing the current goal. An opaque version
+can be used initially and repeated identically, but needs an explicit ordered naming contract before
+a successor can be accepted. Preserve the earlier request and results as history. An outstanding implementer remains the only pending task until
 its validated host receipt arrives or the host confirms `not_executed` through `fail`. An unknown
 outcome keeps this barrier even after a successor request or `resume`. A validated obsolete result
 is retained without implementation verification or document application. Same-content requests may
@@ -182,7 +188,14 @@ or rolling back source/document changes is not part of stop.
 
 Run a real foreground timer with `watch --ticks 12 --interval 5`. Each tick inspects the configured
 ref and queues missed revisions, identifies document/baseline drift, missing tracked source files
-and pending goals. The live host loop above drains queued work. Watch alone does not execute models
+and pending goals. An exact commit in an accepted implementer receipt links the poll event to its
+originating execution and cause in `poll_links` and `implementation_feedback` history. This link is
+available before checks/review and never promotes implementation or document status. It creates no
+second document execution, including for failed or superseded implementation results. Multiple exact
+origins are retained without choosing an invented cause. While a writer's result is outstanding,
+source discovery is reported as `implementation_source_pending`; later ticks reconcile its receipt
+or queue genuinely unrelated commits after the writer barrier clears. Commit ancestry or a shared
+cause label alone never proves that an implementation produced an observed commit. The live host loop above drains queued work. Watch alone does not execute models
 or claim implementation completion. `tick` is a one-shot diagnostic, not evidence of scheduling.
 Unchanged findings emit no repeated notification; unchanged sources start no model or document work.
 Watch records tick evidence even while quiet. Stop ends the next tick and leaves requests intact.

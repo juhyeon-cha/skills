@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -35,6 +36,16 @@ def now():
 def digest(value):
     return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False,
                                      separators=(',', ':')).encode()).hexdigest()
+
+
+def goal_order(before, after):
+    """Only the documented integer families declare chronological ordering."""
+    if before == after:
+        return 0
+    left, right = re.fullmatch(r'(v?)(0|[1-9][0-9]*)', before), re.fullmatch(r'(v?)(0|[1-9][0-9]*)', after)
+    if not left or not right or left[1] != right[1]:
+        raise ValueError('GOAL_VERSION_ORDER: incomparable versions; preserve the current goal and use a declared integer sequence')
+    return (int(right[2]) > int(left[2])) - (int(right[2]) < int(left[2]))
 
 
 def read(path):
@@ -188,6 +199,12 @@ class Store:
             if not self.state['authority'].get('checks'):
                 raise ValueError('AUTHORITY: goal needs host-approved mandatory check argv')
             event['goal_hash'] = digest(goal)
+            predecessors = [old for old in self.state['executions'].values()
+                            if old['input']['kind'] == 'goal' and old['input']['goal']['id'] == goal['id']]
+            for old in predecessors:
+                order = goal_order(old['input']['goal']['version'], goal['version'])
+                if order == 0 and old['input']['goal_hash'] != event['goal_hash']:
+                    raise ValueError('GOAL_VERSION_COLLISION: same goal version has different content')
         signature = digest({k: v for k, v in event.items() if k != 'event_id'})
         same = next((e for e in self.state['executions'].values() if e['input']['request_id'] == event['request_id']), None)
         if same:
@@ -215,6 +232,8 @@ class Store:
                 else:
                     self.state['frontier'] = rev
             else:
+                if any(goal_order(old['input']['goal']['version'], event['goal']['version']) < 0 for old in predecessors):
+                    e['phase'] = 'stale'
                 reusable = next((old for old in reversed(list(self.state['executions'].values()))
                                  if old['input']['kind'] == 'goal'
                                  and old['input']['goal_hash'] == event['goal_hash']
@@ -227,7 +246,8 @@ class Store:
                              reused_implementation=reusable['id'])
                 for old in self.state['executions'].values():
                     if (old['input']['kind'] == 'goal' and old['input']['goal']['id'] == event['goal']['id']
-                            and old['input']['goal_hash'] != event['goal_hash'] and old['phase'] not in TERMINAL):
+                            and goal_order(old['input']['goal']['version'], event['goal']['version']) > 0
+                            and e['phase'] != 'stale' and old['phase'] not in TERMINAL):
                         old['superseded_by'] = execution
             self.state['executions'][execution] = e
         self.state['events'][event['event_id']] = {'hash': original, 'execution': execution, 'received_at': now()}
@@ -595,10 +615,28 @@ class Store:
             status = self.call('status')
             revision = git(self.state['settings']['repo'], 'rev-parse', '--verify', self.state['ref'] + '^{commit}')
             known = any(e['input']['revision'] == revision for e in self.state['executions'].values())
-            if revision != status['baseline'] and not known:
-                self.submit({'event_id': 'poll:' + revision, 'request_id': 'poll:' + revision,
-                             'cause_id': 'poll:' + revision, 'kind': 'code', 'revision': revision})
-                findings.append({'kind': 'missed_event', 'revision': revision})
+            origins = [e for e in self.state['executions'].values() if e['input']['kind'] == 'goal'
+                       and any(r['response'].get('revision') == revision
+                               for r in e['receipts'] if r['task_id'] in {
+                                   h['task'] for h in self.state['history']
+                                   if h['kind'] == 'task' and h['role'] == 'implementer' and h['execution'] == e['id']})]
+            poll_id = 'poll:' + revision
+            if origins:
+                # Link the observation to accepted implementation evidence, even before checks.
+                # Retain all exact matches rather than guessing one cause when effects coincide.
+                links = [{'execution': e['id'], 'cause_id': e['input']['cause_id']} for e in origins]
+                if self.state.get('poll_links', {}).get(poll_id) != links:
+                    self.state.setdefault('poll_links', {})[poll_id] = links
+                    self.log('implementation_feedback', event_id=poll_id, revision=revision, origins=links)
+            elif revision != status['baseline'] and not known:
+                pending = self.state['pending']
+                if pending and pending['role'] == 'implementer':
+                    findings.append({'kind': 'implementation_source_pending', 'revision': revision,
+                                     'execution': pending['execution']})
+                else:
+                    self.submit({'event_id': poll_id, 'request_id': poll_id,
+                                 'cause_id': poll_id, 'kind': 'code', 'revision': revision})
+                    findings.append({'kind': 'missed_event', 'revision': revision})
             baseline = self.state['expected_baseline']
             completed = [e for e in self.state['executions'].values() if e['phase'] == 'completed']
             if completed:
