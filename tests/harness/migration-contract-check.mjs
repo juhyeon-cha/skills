@@ -8,6 +8,7 @@ import {loadConfig} from '../../plugins/harness/lib/config.mjs';
 import {inspectDistribution} from '../../plugins/harness/lib/distribution.mjs';
 import {registerRoles, verifyRegistration} from '../../plugins/harness/lib/runtime/roles.mjs';
 import {createChallenge, diagnose} from '../../plugins/harness/lib/runtime/doctor.mjs';
+import {previousRoleArtifact} from './fixtures/previous-role-artifact.mjs';
 
 assert.notEqual(process.platform, 'win32', 'UNREACHED: migration fixture uses existing POSIX adapters');
 assert.ok(!process.argv[2] || process.argv[2] === '--missing-artifact', 'unknown fixture argument');
@@ -30,17 +31,18 @@ const json = r => JSON.parse(ok(r));
 const write = (file, value) => { fs.mkdirSync(path.dirname(file), {recursive: true}); fs.writeFileSync(file, value); };
 const bytes = file => fs.readFileSync(file, 'utf8');
 try {
-  fs.cpSync(source, previous, {recursive: true}); fs.cpSync(source, candidate, {recursive: true});
+  const prior = await previousRoleArtifact(previous);
+  fs.cpSync(source, candidate, {recursive: true});
   if (process.argv[2]) fs.unlinkSync(path.join(candidate, 'agents/evaluator.md'));
   const initial = inspectDistribution(candidate);
-  check(initial.hash === inspectDistribution(previous).hash, 'fixture starts from exact source artifacts');
-  // These are candidate snapshots of the current APIs, not the released legacy runtime.
-  fs.appendFileSync(path.join(candidate, 'docs/workspace.md'), '\nFixture candidate artifact difference.\n');
-  const next = inspectDistribution(candidate), old = inspectDistribution(previous);
+  check(initial.hash === inspectDistribution(source).hash && prior.artifact.hash !== initial.hash,
+    'candidate is exact current source; previous is pinned genuine pre-split artifact');
+  const next = inspectDistribution(candidate), old = prior.artifact;
   check(next.version === old.version && next.hash !== old.hash, 'same plugin version cannot stand for equal artifacts');
-  const oldRoles = registerRoles('codex', path.join(temp, 'old-agents'), previous);
+  const oldRoles = prior.roles.registerRoles('codex', path.join(temp, 'old-agents'), previous);
   const nextRoles = registerRoles('codex', path.join(temp, 'new-agents'), candidate);
-  check(verifyRegistration(oldRoles) && verifyRegistration(nextRoles), 'each immutable root has matching role projections');
+  check(prior.roles.verifyRegistration(oldRoles) && verifyRegistration(nextRoles), 'each immutable root has matching code and role projections');
+  assert.throws(() => verifyRegistration(oldRoles), /ENOENT|artifact set/); reached++;
   const mixed = {...oldRoles, root: candidate};
   assert.throws(() => verifyRegistration(mixed), /drift/); reached++;
   const oldRoleFile = oldRoles.roles[0].file, oldRoleBytes = bytes(oldRoleFile);
@@ -51,13 +53,24 @@ try {
   assert.throws(() => registerRoles('codex', foreign, candidate), /already differs/); reached++;
   check(bytes(foreignFile) === 'name = "foreign"\n', 'foreign modified generated filename is preserved');
   const challenge = path.join(temp, 'challenge');
-  createChallenge(challenge, 'codex', previous, oldRoles, previous);
+  prior.doctor.createChallenge(challenge, 'codex', previous, oldRoles, previous);
   const mismatch = diagnose(previous, challenge, 'session', candidate);
   check(mismatch.static === 'UNREACHED' && mismatch.live === 'UNREACHED', 'same-version old install cannot certify candidate source');
   const missing = diagnose(candidate, undefined, undefined, candidate);
   check(missing.static === 'PASS' && missing.loaded === 'UNREACHED' && missing.live === 'UNREACHED', 'static artifact never certifies current-session activation');
   assert.throws(() => verifyRegistration({...nextRoles, version: 99}), /registration missing/); reached++;
-  check(verifyRegistration(oldRoles).root === previous, 'rollback retains original root and matching receipt');
+  check(prior.roles.verifyRegistration(oldRoles).root === previous, 'rollback retains original root and matching receipt');
+  const call = prior.roles.roleCall(oldRoles, {role: 'reviewer', task: 'fixture-old', sessionId: 'old-session',
+    parentAgentId: 'parent', implementerIds: ['author'], previousAgentIds: [], message: 'fixture'});
+  const callFile = path.join(temp, 'previous-native-call.json');
+  write(callFile, JSON.stringify(call));
+  const originalCall = bytes(callFile);
+  const outcome = {agentId: 'child', state: 'completed', events: ['SubagentStart', 'PreToolUse', 'SubagentStop'].map(hook_event_name => ({
+    hook_event_name, session_id: call.sessionId, agent_type: call.identifier, agent_id: 'child', last_assistant_message: 'SIGNAL: LGTM',
+  }))};
+  check(prior.roles.roleResult(oldRoles, call, outcome).status === 'REACHED' &&
+    (await import('../../plugins/harness/lib/runtime/roles.mjs')).roleResult(nextRoles, call, outcome).status === 'UNREACHED' &&
+    bytes(callFile) === originalCall, 'native previous call remains valid only with matching old source and stays byte-identical');
 
   fs.mkdirSync(repo); fs.mkdirSync(env.HOME);
   const git = (...args) => ok(run(['git', '-c', 'user.name=fixture', '-c', 'user.email=fixture@example.invalid', '-c', 'commit.gpgsign=false', ...args]));
@@ -128,6 +141,6 @@ else {fs.appendFileSync(process.env.MIGRATION_SENTINEL,'unexpected\\n');process.
   check(restored.session === scope.session && olderState.readActors(restored).actors[0] === 'actor-original', 'same state-schema candidate rollback retains scoped observations');
   check(bytes(actors) === 'legacy actor\n' && bytes(guard) === 'legacy guard\n' && bytes(scope.legacy.cancel) === 'legacy cancel', 'legacy rollback files stay byte-identical');
   check(bytes(configFile) === legacyBytes && !fs.existsSync(sentinel), 'state operations leave config unchanged; only fixture show/wire reached');
-  check(reached === 32, 'all migration phases reached');
-  console.log(`Migration contract: ${reached} assertions; host=${process.platform}; actual legacy runtime load, live workflow and native Windows UNREACHED`);
+  check(reached === 34, 'all migration phases reached');
+  console.log(`Migration contract: ${reached} assertions; host=${process.platform}; pinned previous artifact/code exercised offline; provider activation, live workflow and native Windows UNREACHED`);
 } finally { fs.rmSync(temp, {recursive: true, force: true}); }
