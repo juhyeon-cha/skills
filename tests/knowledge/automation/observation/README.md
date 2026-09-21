@@ -98,3 +98,13 @@ pending task and task/model counts. Receipts and direct review JSON in this expe
 Repeated automation status output is explicitly projected with its raw-output hash; the original
 raw command capture remains at the path recorded in the evidence. Original actual-model receipts,
 interrupted dispatch and earlier failed observations in `evidence.json` remain unchanged.
+
+## Actual receipt feedback after acceptance repair
+
+Read `final-feedback.json` to verify the final repair against the existing actual
+model history at `159ccfd0dd7c405340eb8540640df00fb463a302`. Five watch ticks linked
+the exact implementation commit to `live-goal-cause-1` and its goal execution.
+The original poll input, eight receipts, five completed executions and document/project
+artifact hashes remained unchanged. Only the causal observation was added; no new
+model call or implementation verification is claimed. All five ticks emitted no
+notifications. This supplements, rather than rewrites, the earlier failed cause-link evidence.
