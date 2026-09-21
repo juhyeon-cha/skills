@@ -61,3 +61,22 @@ was verified, the document run's completed boundary, and remaining differences f
 A target stated correctly in a document does not prove implemented behavior, and neither result
 proves deployment. Historical intake remains immutable `pending_implementation` / `not_verified`;
 this procedure adds no command to promote it to implemented or deployed.
+
+## When a goal is deferred, withdrawn or rolled back
+
+Read the latest authoritative decision and preserve the earlier goal, intake and results.
+Record changed goal status through a new [intake](intake.md) and keep its relation to the
+previous version in the caller-owned bundle. Inspect both current code and documents before
+deciding the remaining effects; an older successful result does not revive a withdrawn goal.
+
+Before document application, follow [recovery](workflow.md) to terminate the affected active run while
+retaining its last completed baseline. After application or implementation, withdrawal alone
+does not undo those changes. Treat an authorized rollback as a new change against the actual
+current source and documents, verify its criteria and obtain the affected independent reviews.
+Use the existing update route or a reviewed successor for changed structure or conflicts.
+
+Keep deferred and withdrawn goals in historical/target records; describe any effects still
+implemented as current behavior until a verified change removes them. A goal status alone is
+not evidence that the current code changed.
+Record which effects were preserved, which were reversed and which remain pending; do not
+report rollback completion from the withdrawal intake or an unchanged historical receipt.

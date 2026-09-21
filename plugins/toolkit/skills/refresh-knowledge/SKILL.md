@@ -18,8 +18,11 @@ are bundled in this skill. Do not depend on a developer checkout or write into t
 Read [change intake](references/intake.md) for user instructions, document changes, or when
 recording code-change intent. Preserve authority, current/target versions and remaining differences
 before routing. Wording changes close without code work only after semantic comparison. When
-continuing an implementation handoff or verifying a returned implementation result, read
-[implementation continuation](references/implementation.md). Run doctor and confirm the host can actually invoke the
+continuing an implementation handoff, verifying a returned result, or deferring, withdrawing or
+rolling back a goal, read [implementation continuation](references/implementation.md). For
+additions, deletions, moves or renames, shared-policy or indirect effects, document consolidation
+or index changes, read [impact and structural changes](references/maintenance.md) before choosing
+the update boundary. Run doctor and confirm the host can actually invoke the
 writing skill and an independent reviewer before code-to-document execution. Missing capability
 is not-executed; preserve evidence and use the recovery route if it cannot be restored.
 
