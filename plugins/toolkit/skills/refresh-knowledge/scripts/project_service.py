@@ -39,6 +39,8 @@ def summary(project, run):
         result['review'] = review_artifact(project, run)
     if run.get('completion'):
         result['completion'] = str(project / 'runs' / run['id'] / 'complete.json')
+    if 'termination_reason' in run:
+        result['termination_reason'] = run['termination_reason']
     return result
 
 

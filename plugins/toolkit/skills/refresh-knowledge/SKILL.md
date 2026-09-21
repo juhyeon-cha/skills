@@ -5,6 +5,10 @@ description: Bootstrap evidence-linked documents from code or goals, classify ch
 
 # Refresh knowledge
 
+For local event requests, repeated foreground polling, host model receipts, operator stop/resume,
+or automation failure recovery, read [local automation](references/automation.md). It owns the
+host loop around the project CLI; keep its execution evidence separate from document completion.
+
 For initial knowledge or specification creation without an existing reviewed document baseline,
 read [bootstrap](references/bootstrap.md) and follow that procedure before entering the update flow.
 

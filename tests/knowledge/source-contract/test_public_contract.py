@@ -102,6 +102,11 @@ runpy.run_path(sys.argv[0], run_name='__main__')
             exec(compile("raise ValueError('RUN_PHASE: invalid')",str(self.scripts/'project_service.py'),'exec'))
         except ValueError as error: self.assertEqual(contract.error_code(error),'RUN_PHASE')
         for path in self.scripts.glob('*.py'):
+            # automation.py is a separate host-loop CLI with its own JSON transport;
+            # knowledge.py never imports it or exposes its domain errors.
+            if path.name == 'automation.py':
+                self.assertNotIn(path.name, contract.OWNERS)
+                continue
             for node in ast.walk(ast.parse(path.read_text())):
                 if isinstance(node,ast.Raise) and isinstance(node.exc,ast.Call) and getattr(node.exc.func,'id',None)=='ValueError' and node.exc.args:
                     value=node.exc.args[0]
