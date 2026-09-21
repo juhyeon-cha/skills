@@ -11,7 +11,7 @@ sys.dont_write_bytecode = True
 from cli_contract import Parser, UsageError, encode, failure, version
 
 
-def doctor():
+def runtime_environment():
     import sqlite3
     import subprocess
     if sys.version_info < (3, 10):
@@ -31,6 +31,13 @@ def doctor():
     except (sqlite3.Error, ValueError) as error:
         raise ValueError('DEPENDENCY: SQLite JSON functions json, json_set, json_extract required; '
                          'use Python with a SQLite build supporting these functions') from error
+    return {'python': sys.executable, 'python_version': sys.version.split()[0],
+            'jsonschema': version, 'git': executable, 'git_version': git_version,
+            'sqlite': sqlite3.sqlite_version, 'sqlite_json': 'verified'}
+
+
+def doctor():
+    environment = runtime_environment()
     skills = Path(__file__).resolve().parents[2]
     required = ['writing-for-humans/SKILL.md', 'writing-for-humans/references/backend.md',
                 'writing-for-humans/references/document-shapes.md', 'review-knowledge/SKILL.md',
@@ -39,9 +46,7 @@ def doctor():
     missing = [p for p in required if not (skills / p).is_file()]
     if missing:
         raise ValueError('DEPENDENCY_UNREACHED: missing installed skill files: ' + ', '.join(missing))
-    return {'python': sys.executable, 'python_version': sys.version.split()[0],
-            'jsonschema': version, 'git': executable, 'git_version': git_version,
-            'sqlite': sqlite3.sqlite_version, 'sqlite_json': 'verified', 'skill_files': required,
+    return {**environment, 'skill_files': required,
             'independent_agent': 'host capability must be checked by the orchestrator'}
 
 
@@ -97,8 +102,10 @@ def main():
             from jsonschema import Draft202012Validator
             from jsonschema.exceptions import ValidationError
             from project_service import initialize, start, prepare, review, resume, status, terminate, retire
-            if args.command in ('init', 'start', 'prepare', 'review', 'resume'):
+            if args.command in ('init', 'start', 'prepare'):
                 doctor()
+            elif args.command in ('review', 'resume'):
+                runtime_environment()
             if args.command == 'init' and (project / 'retired.json').exists():
                 raise ValueError('PROJECT_RETIRED: initialize a separate successor')
             if args.command in ('intake', 'intake-status'):

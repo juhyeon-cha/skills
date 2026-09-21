@@ -1,9 +1,12 @@
 ---
 name: refresh-knowledge
-description: Classify user, document, or code changes and update existing evidence-linked documents with independent review and resumable runs. Use for change intake, setup, or repeated document updates; behavior targets stop at implementation handoff. Excludes new knowledge bases and remote publication.
+description: Bootstrap evidence-linked documents from code or goals, classify changes, and update documents with independent review and resumable runs. Use for initial knowledge/specification creation, change intake, or repeated document updates; behavior targets stop at implementation handoff. Excludes remote publication.
 ---
 
 # Refresh knowledge
+
+For initial knowledge or specification creation without an existing reviewed document baseline,
+read [bootstrap](references/bootstrap.md) and follow that procedure before entering the update flow.
 
 Use the installed [CLI](scripts/knowledge.py) with one project directory and run ID. Read
 [setup and project commands](references/project.md) for first use, then [source and decision
