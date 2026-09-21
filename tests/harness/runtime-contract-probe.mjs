@@ -9,7 +9,7 @@ import {createHash} from 'node:crypto';
 import {execFileSync} from 'node:child_process';
 import {inspectRuntimeContract, roleSignals} from '../../plugins/harness/lib/runtime/role-contract.mjs';
 
-const source = fileURLToPath(new URL('../../plugins/harness/agents/reviewer.md', import.meta.url));
+const source = fileURLToPath(new URL('../../plugins/harness/roles/reviewer.md', import.meta.url));
 const digest = file => ({path: file, sha256: createHash('sha256').update(fs.readFileSync(file)).digest('hex')});
 const [action, arg, arg2, version] = process.argv.slice(2);
 try {
@@ -26,7 +26,7 @@ try {
     const hooks = {hooks: Object.fromEntries(['SessionStart', 'PreToolUse', 'PostToolUse', 'SubagentStart', 'SubagentStop'].map(event => [event, [{hooks: [{type: 'command', command, timeout: 10}]}]]))};
     const config = path.join(base, 'settings.json');
     fs.writeFileSync(config, JSON.stringify(hooks, null, 2));
-    const roleBody = fs.readFileSync(source, 'utf8').replace(/^---[\s\S]*?---\s*/, '');
+    const roleBody = fs.readFileSync(source, 'utf8');
     const canary = '\nThis invocation is a runtime capability canary, not a task review. Run pwd once and return SIGNAL: LGTM followed by PROBE_ROLE_RETURN. Do not access ledger or edit files.\n';
     if (arg === 'codex') {
       fs.writeFileSync(path.join(home, 'config.toml'), '');

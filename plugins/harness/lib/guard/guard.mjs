@@ -195,9 +195,9 @@ const rootForm = (tool) =>
       ? 'node ledger.mjs --root <하네스루트>'
       : 'HARNESS_ROOT=<하네스루트> ledger.sh';
 const graderCan = (ctx) =>
-  `${policyRole(ctx).split(':').at(-1)} 가 할 수 있는 것: 검증용 명령 실행은 허용된다 — 게이트·테스트 재실행, git status·git diff·git show, ledger.mjs show·list. 지적·판정은 파일이 아니라 응답에 쓴다. ${policyRole(ctx) === 'harness:reviewer' ? 'SIGNAL: CHANGES_REQUESTED(또는 LGTM) 뒤에 MUST FIX·NIT 를 파일:라인과 함께 적어라.' : 'SIGNAL: MATCH·VIOLATION·DEVIATION 뒤에 acceptance 항목별 인용→근거→MET/NOT_MET 을 적어라.'} 기록은 오케스트레이터가 남긴다 (agents/${policyRole(ctx).split(':').at(-1)}.md).`;
+  `${policyRole(ctx).split(':').at(-1)} 가 할 수 있는 것: 검증용 명령 실행은 허용된다 — 게이트·테스트 재실행, git status·git diff·git show, ledger.mjs show·list. 지적·판정은 파일이 아니라 응답에 쓴다. ${policyRole(ctx) === 'harness:reviewer' ? 'SIGNAL: CHANGES_REQUESTED(또는 LGTM) 뒤에 MUST FIX·NIT 를 파일:라인과 함께 적어라.' : 'SIGNAL: MATCH·VIOLATION·DEVIATION 뒤에 acceptance 항목별 인용→근거→MET/NOT_MET 을 적어라.'} 기록은 오케스트레이터가 남긴다 (roles/${policyRole(ctx).split(':').at(-1)}.md).`;
 const remoteReason =
-  "원격 반영 금지 — 원격 반영은 오케스트레이터·사람의 몫이다. 예외 둘도 오케스트레이터의 것이다. 액터가 다르기 때문에 사용자 지시 전언으로 풀리지 않는다. 세션 블록 'Remote reflection only on explicit user instruction', harness:develop '사이클 종결': Subagents are out of scope — up to the local commit. SIGNAL: IMPLEMENTATION_COMPLETE 를 내고 커밋 해시를 보고하라 (agents/implementer.md). 원격 반영이 아닌데 막혔으면 오탐이니 사람에게 확인받아라. 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 원격 반영이다; git subtree split 으로 로컬까지만 한다.";
+  "원격 반영 금지 — 원격 반영은 오케스트레이터·사람의 몫이다. 예외 둘도 오케스트레이터의 것이다. 액터가 다르기 때문에 사용자 지시 전언으로 풀리지 않는다. 세션 블록 'Remote reflection only on explicit user instruction', harness:develop '사이클 종결': Subagents are out of scope — up to the local commit. SIGNAL: IMPLEMENTATION_COMPLETE 를 내고 커밋 해시를 보고하라 (roles/implementer.md). 원격 반영이 아닌데 막혔으면 오탐이니 사람에게 확인받아라. 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 원격 반영이다; git subtree split 으로 로컬까지만 한다.";
 function rejectAlias(ctx, tool) {
   if (toolAliased(tool, ctx.command))
     deny(
@@ -359,7 +359,7 @@ export function r_impl_bd(ctx) {
     if (isLedgerRead(sub) || member(IMPL_BD_WRITE_ALLOW, sub)) continue;
     deny(
       ctx,
-      `implementer 의 ${tool} 쓰기 금지 — '${tool} ${sub}' 는 허용 목록 밖이다. 허용된 쓰기는 '${IMPL_BD_WRITE_ALLOW}' 뿐이고, 원장 지정을 붙여도 그 밖의 쓰기는 금지 — r_bd_root 와 다르다. 읽기 면제: ${BD_READ_EXEMPT} ${LEDGER_READ_EXEMPT}. 원장 구조는 오케스트레이터의 몫이다. 필요하면 SIGNAL: DECISION_NEEDED 로 보고하라. '${rootForm(tool)} note <태스크ID>' 로 사실을 남긴다. update --append-notes 도 막힌다 (agents/implementer.md).`,
+      `implementer 의 ${tool} 쓰기 금지 — '${tool} ${sub}' 는 허용 목록 밖이다. 허용된 쓰기는 '${IMPL_BD_WRITE_ALLOW}' 뿐이고, 원장 지정을 붙여도 그 밖의 쓰기는 금지 — r_bd_root 와 다르다. 읽기 면제: ${BD_READ_EXEMPT} ${LEDGER_READ_EXEMPT}. 원장 구조는 오케스트레이터의 몫이다. 필요하면 SIGNAL: DECISION_NEEDED 로 보고하라. '${rootForm(tool)} note <태스크ID>' 로 사실을 남긴다. update --append-notes 도 막힌다 (roles/implementer.md).`,
     );
   }
 }

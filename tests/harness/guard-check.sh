@@ -35,7 +35,7 @@
 #      통과하지는 않는다). 즉 코드가 아니라 환경 사유로 게이트가 깨질 수 있다는 뜻이다
 #   ⑫ A1/A2 — 채점자(agent_type 이 harness:reviewer·harness:evaluator)의 파일 수정(Write·Edit·
 #      NotebookEdit)·커밋(`commit` 토큰)·bd 쓰기가 차단되고, 검증용 명령(게이트 재실행·git status·
-#      bd 읽기)과 implementer·오케스트레이터는 통과한다. 역할 목록은 `agents/*.md` 에서 파생한다 —
+#      bd 읽기)과 implementer·오케스트레이터는 통과한다. 역할 목록은 `roles/*.md` 에서 파생한다 —
 #      agent_type 은 `harness:<이름>` 형식(M0 실측)이고 접두 없는 값은 이 하네스의 역할이 아니다
 #   ⑬ A5 — implementer 의 bd 쓰기가 `note` 하나로 좁혀진다. note 와 읽기는 통과하고 나머지
 #      쓰기는 `-C` 를 붙여도 차단된다. 허용 목록은 훅 소스에서 파생해 `bd --help` 의 하위 명령
@@ -185,7 +185,7 @@ step "FX_CLONE 이 본 체크아웃 밖이다 (같은 사유)" outside_main "$FX
 # 경로 실재만으로는 부족하다 — 그 파일이 토큰을 실제로 담지 않으면 명령 문자열에 판정 재료가
 # 없어 픽스처가 공허하게 통과하므로, **낱말이 그 파일에 실제로 있다**까지 여기서 단언한다.
 QUOTE_FX=(
-  "ledger note|agents/implementer.md"
+  "ledger note|roles/implementer.md"
   "--root|skills/develop/SKILL.md"
   "gh pr create|skills/develop/SKILL.md"
   "ledger close|skills/develop/SKILL.md"
@@ -1475,8 +1475,8 @@ echo "  GR_ROLES: $GR_ROLES_SRC"
 # 채점자의 표지는 역할 정의 자신의 문장이다 — reviewer.md·evaluator.md 의 "File edits and
 # commits are forbidden". 손으로 고르지 않고 이 문장에서 파생한다.
 # **파생한 이름에 접두 `harness:` 를 붙인다** — 플러그인 에이전트의 agent_type 은 그 형식이다(M0 실측).
-GR_AGENTS=$(ls agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
-GR_DECLARED=$(grep -lF 'File edits and commits are forbidden' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+GR_AGENTS=$(ls roles/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+GR_DECLARED=$(grep -lF 'File edits and commits are forbidden' roles/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
 echo "  역할 정의 $(printf '%s\n' "$GR_AGENTS" | grep -c .)종 · 그중 'File edits and commits are forbidden' 을 선언한 것: $(printf '%s' "$GR_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 채점자 집합을 파생했다 (비어 있지 않다)" [ -n "$GR_DECLARED" ]
 step "파생이 전부를 긁어 오지 않는다 (역할 정의 수 > 채점자 수)" \
@@ -1566,7 +1566,7 @@ step "reviewer: 검증용 명령이 허용됨을 밝힌다" has_text '검증용 
 step "reviewer: 할 수 있는 것을 역할 이름으로 연다" has_text 'reviewer 가 할 수 있는 것' "$GUARD_OUT"
 step "reviewer: 대신 낼 신호를 지시한다"       has_text 'SIGNAL: CHANGES_REQUESTED' "$GUARD_OUT"
 step "reviewer: 산출물 형태를 지시한다"        has_text 'MUST FIX' "$GUARD_OUT"
-step "reviewer: 근거 문서를 인용한다"          has_text 'agents/reviewer.md' "$GUARD_OUT"
+step "reviewer: 근거 문서를 인용한다"          has_text 'roles/reviewer.md' "$GUARD_OUT"
 step "reviewer: 문제의 도구 이름이 실린다"     has_text 'Write 도구' "$GUARD_OUT"
 step "reviewer: evaluator 용 문구가 섞이지 않는다" lacks_text 'SIGNAL: MATCH' "$GUARD_OUT"
 
@@ -1576,7 +1576,7 @@ step "evaluator: 할 수 있는 것을 역할 이름으로 연다" has_text 'eva
 step "evaluator: 대신 낼 신호를 지시한다"      has_text "SIGNAL: MATCH" "$GUARD_OUT"
 step "evaluator: 산출물 형태를 지시한다"       has_text 'MET/NOT_MET' "$GUARD_OUT"
 step "evaluator: 기록이 오케스트레이터의 몫임을 밝힌다" has_text '오케스트레이터가 남긴다' "$GUARD_OUT"
-step "evaluator: 근거 문서를 인용한다"         has_text 'agents/evaluator.md' "$GUARD_OUT"
+step "evaluator: 근거 문서를 인용한다"         has_text 'roles/evaluator.md' "$GUARD_OUT"
 step "evaluator: reviewer 용 문구가 섞이지 않는다" lacks_text 'MUST FIX' "$GUARD_OUT"
 step "evaluator: 문제의 도구 이름이 실린다"    has_text 'Edit 도구' "$GUARD_OUT"
 
@@ -1961,7 +1961,7 @@ step "역할 목록을 훅 소스에서 파생했다 (비어 있지 않다)" [ -
 echo "  IMPL_ROLES: $IMPL_ROLES_SRC"
 # 표지는 역할 정의 자신의 문장이다 — implementer.md "**Ledger writes other than `ledger.sh note`**".
 # 손으로 고르지 않고 이 문장에서 파생한다. 접두 `harness:` 는 ⑫ 와 같은 이유로 붙인다.
-IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger state`, `ledger summary` and `ledger note`' agents/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
+IMPL_DECLARED=$(grep -lF 'Ledger writes other than `ledger state`, `ledger summary` and `ledger note`' roles/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||; s|^|harness:|' | sort)
 echo "  'Ledger writes other than ledger.sh note' 를 금지한 역할 정의: $(printf '%s' "$IMPL_DECLARED" | tr '\n' ' ')"
 step "역할 정의에서 대상 집합을 파생했다 (비어 있지 않다)" [ -n "$IMPL_DECLARED" ]
 step "훅의 IMPL_ROLES 가 역할 정의에서 파생한 집합과 일치한다 (역방향 단언)" \
@@ -2155,7 +2155,7 @@ step "이유(원장 구조의 소유)를 밝힌다"         has_text '오케스�
 step "막혔을 때의 대안을 지시한다"             has_text 'SIGNAL: DECISION_NEEDED' "$GUARD_OUT"
 step "열려 있는 통로(note)를 함께 알린다"      has_text 'note <태스크ID>' "$GUARD_OUT"
 step "note 의 우회 형태도 막힘을 밝힌다"       has_text '--append-notes' "$GUARD_OUT"
-step "근거 문서를 인용한다"                    has_text 'agents/implementer.md' "$GUARD_OUT"
+step "근거 문서를 인용한다"                    has_text 'roles/implementer.md' "$GUARD_OUT"
 step "채점자용 문구가 섞이지 않는다"           lacks_text '채점자' "$GUARD_OUT"
 
 # ── 막지 못하는 것. rc=0 을 **단언으로 박아 둔다** — harness-uhy.5.2 note "한계" 와 1:1.

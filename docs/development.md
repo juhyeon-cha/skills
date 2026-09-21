@@ -2,7 +2,7 @@
 
 > Rules for evolving the harness consistently. **This document does not ship** — only a session in the `skills` clone can act on it. What a cycle carries into any target repo (proving a gate is alive, shell traps, where a document goes) is the plugin's own [engineering.md](../plugins/harness/docs/engineering.md). Structure: [architecture.md](../plugins/harness/docs/architecture.md). Operation: [operations.md](../plugins/harness/docs/operations.md). What the harness is for, end to end: [usecases.md](usecases.md).
 >
-> **Where the code is.** The core (skills · agents · hooks · checks · scripts · lib) and the plugin's `docs/` are the plugin `harness@skills`, source `${CLAUDE_PLUGIN_ROOT}` (`plugins/harness` in the skills repo). **Every change to a harness rule, check, or document is therefore a story on the `skills` repo** — a development session in that clone, `EnterWorktree`, PR. What is left outside the plugin is each target repo's own `.harness.json` and the ledger — neither a tree anyone commits a harness change into. Paths written as `hooks/…` · `checks/…` · `lib/…` · `scripts/…` are plugin-relative unless the sentence says otherwise; `tests/…` · `docs/…` are repo-relative.
+> **Where the code is.** The core (skills · roles · native · agents · hooks · checks · scripts · lib) and the plugin's `docs/` are the plugin `harness@skills`, source `${CLAUDE_PLUGIN_ROOT}` (`plugins/harness` in the skills repo). **Every change to a harness rule, check, or document is therefore a story on the `skills` repo** — a development session in that clone, `EnterWorktree`, PR. What is left outside the plugin is each target repo's own `.harness.json` and the ledger — neither a tree anyone commits a harness change into. Paths written as `hooks/…` · `checks/…` · `lib/…` · `scripts/…` are plugin-relative unless the sentence says otherwise; `tests/…` · `docs/…` are repo-relative.
 
 ## What belongs in the plugin, and what belongs in this repo
 
@@ -90,14 +90,14 @@ The as-built rule list and each rule's limits are [guardrails.md](../plugins/har
 
 ## Skills and role definitions
 
-- A skill carries delegation, signal handling, and order only. Role discipline (path check, full-text gate judgment, the forbidden list) is owned by the plugin's `agents/` definitions — never the same rule in two places.
+- A skill carries delegation, signal handling, and order only. Role discipline (path check, full-text gate judgment, the forbidden list) is owned by the plugin's `roles/` definitions — never the same rule in two places.
 - No absolute path is **baked** into a core file. The harness root is what `lib/harness-root.sh` prints, or `HARNESS_ROOT`.
 - **The harness root travels in the delegation message.** The worktree is `<repo clone>/.claude/worktrees/<worktree name>/`, and a subagent that is handed no root cannot call `ledger.sh` at all — `HARNESS_ROOT=<harness root>` is the only thing that points it at this harness. A new role or skill that forgets that slot breaks silently.
 - Skills and agents reference each other and the plugin's own files through `${CLAUDE_PLUGIN_ROOT}` — the runtime substitutes it with the install path in skill and agent bodies.
 
 ## Plugin boundary
 
-- **Core** (shared by every project): the plugin — `skills/` · `agents/` · `hooks/` · `checks/` · `scripts/` · `lib/` · `docs/` · `.claude-plugin/plugin.json`. Nothing in it names a project, a path under a home directory, or a person.
+- **Core** (shared by every project): the plugin — `skills/` · `roles/` · `native/` · `agents/` · `hooks/` · `checks/` · `scripts/` · `lib/` · `docs/` · `.claude-plugin/plugin.json`. Nothing in it names a project, a path under a home directory, or a person.
 - **Per-repo context** (committed by the target repo, never by the plugin): `.harness.json` at the repo root — the gate command, the default branch, the bootstrap command, and the ledger coordinates. That file is the harness-root discriminator, so cloning the repo is what attaches the harness. The rail and sprint registries are **not** files the core knows — they are the adapter's `rails`·`sprints` answers, backed by whatever the backend keeps. Projections are outside git and belong to neither side.
 - **What the plugin cannot carry, a person does.** `permissions.deny` and `permissions.allow` are settings, not plugin components — a tree that needs them puts them in its own `.claude/settings.json`. The plugin itself is enabled by neither — it is installed at **user scope**, so nothing in a project registers it. **The harness plants no git hook anywhere.**
 

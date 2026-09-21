@@ -47,7 +47,12 @@ export function projectRole(runtime, role, root, installedRoot = root, options =
   let text = assembleNativeRole(runtime, definition, root, installedRoot);
   if (runtime === 'antigravity' && Object.keys(options).length) {
     const model = roleCapabilities(runtime, role, {availableTools: requiredRoleTools(runtime, role), ...options}).model.model;
-    text = text.replace(/^model: .+$/m, () => `model: ${model}`);
+    if (options.modelOptions?.model !== undefined) {
+      const end = text.indexOf('\n---', 4);
+      const header = text.slice(0, end);
+      if (!/^model: .+$/m.test(header)) throw new Error('native model field missing');
+      text = header.replace(/^model: .+$/m, () => `model: ${model}`) + text.slice(end);
+    }
   }
   return { ...definition, identifier, text };
 }
@@ -72,7 +77,9 @@ export function registerRoles(runtime, destination, root = plugin) {
   const roles = roleNames.map((role) => {
     const entry = projectRole(runtime, role, root);
     const file =
-      runtime === 'claude' ? entry.source : path.join(destination, `${entry.identifier}.toml`);
+      runtime === 'claude' ? path.join(root, 'agents', `${role}.md`) : path.join(destination, `${entry.identifier}.toml`);
+    if (runtime === 'claude' && fs.readFileSync(file, 'utf8') !== entry.text)
+      throw new Error('generated Claude role drift');
     if (runtime === 'codex' && !fs.existsSync(file))
       fs.writeFileSync(file, entry.text, { flag: 'wx' });
     return {
@@ -108,8 +115,8 @@ export function verifyRegistration(registration) {
       fs.readFileSync(entry.file, 'utf8') !== expected.text
     )
       throw new Error('role registration drift');
-    if (registration.runtime === 'claude' && entry.file !== expected.source)
-      throw new Error('Claude must reference original role');
+    if (registration.runtime === 'claude' && entry.file !== path.join(registration.root, 'agents', `${entry.role}.md`))
+      throw new Error('Claude must reference generated role');
     if (registration.runtime === 'codex') {
       const duplicates = fs
         .readdirSync(path.dirname(entry.file))

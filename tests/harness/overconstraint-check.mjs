@@ -33,10 +33,20 @@ try {
       runtime === 'codex' ? original.replace(marker, `[nested]\n${marker}`) : original.replace(marker, '').replace('name:', `${marker}\nname:`)];
     if (runtime === 'codex') invalid.push(original.replace(marker, `developer_instructions = "extra"\n${marker}`),
       original.replace(marker, `"developer_\\u0069nstructions" = "extra"\n${marker}`),
-      original.replace(marker, `instructions = """\n${marker}\n"""`));
+      original.replace(marker, `harness_instruction_slot = true\ninstructions = """\n${marker}\n"""`));
     for (const text of invalid) {
       fs.writeFileSync(file, text);
       assert.throws(() => projectRole(runtime, 'reviewer', fixture));
+    }
+    fs.writeFileSync(file, original.replaceAll('\n', '\r\n'));
+    assert.ok(projectRole(runtime, 'reviewer', fixture).text.includes('SIGNAL:'));
+    const extra = runtime === 'codex' ? 'experimental_value = [1, 2]\n' : 'custom_native_field: preserved\n';
+    fs.writeFileSync(file, original.replace(runtime === 'codex' ? marker : 'name:', runtime === 'codex' ? extra + marker : extra + 'name:'));
+    assert.ok(projectRole(runtime, 'reviewer', fixture).text.includes(extra));
+    if (runtime === 'antigravity') {
+      fs.writeFileSync(file, original.replace('model: inherit', 'model: pro'));
+      assert.match(projectRole(runtime, 'reviewer', fixture, fixture, {availableTools: ['view_file', 'run_command', 'send_message']}).text, /model: pro/);
+      assert.match(projectRole(runtime, 'reviewer', fixture, fixture, {modelOptions: {model: 'flash'}}).text, /model: flash/);
     }
     fs.writeFileSync(file, original);
   }

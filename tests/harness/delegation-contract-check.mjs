@@ -501,7 +501,7 @@ try {
   const drift = make({ commitScope: finalScope });
   run('begin', drift, 0, copiedCli);
   run('bind', binding(drift), 0, copiedCli);
-  const roleFile = path.join(removed, 'plugins/harness/agents/implementer.md');
+  const roleFile = path.join(removed, 'plugins/harness/roles/implementer.md');
   const roleBytes = fs.readFileSync(roleFile);
   fs.appendFileSync(roleFile, '\nSource drift fixture.\n');
   run('complete', completion(drift, implementedHead), 1, copiedCli);

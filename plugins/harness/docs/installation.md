@@ -40,7 +40,7 @@ Review the plugin's exact hook definitions in Codex `/hooks` and trust them befo
 |---|---|---|---|
 | Repository `.harness.json` | Same repository file | Same repository file | Same repository file |
 | `skills/*/SKILL.md` | Original skill directories | Original skill directories | Flat `skills/*.md` with resolved plugin-root references |
-| `agents/*.md` | Original role Markdown | Generated `harness-*.toml` with `developer_instructions` | Generated agent Markdown with tool/model frontmatter |
+| `roles/*.md` + `native/<runtime>/` | Generated `agents/*.md` | Generated `harness-*.toml` with `developer_instructions` | Generated agent Markdown with tool/model frontmatter |
 | Hook handlers | `hooks/hooks.json` | Manifest selects `hooks/codex.json` | Generated root `hooks.json`: PreInvocation, PreToolUse, Stop |
 
 Provider settings remain provider-owned: staging preserves model selection,

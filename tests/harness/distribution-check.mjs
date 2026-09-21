@@ -72,12 +72,14 @@ try {
     } finally { fs[method] = original; }
   }
   fs.rmSync(markers, {recursive: true}); samePayload();
-  for (const relative of ['ordinary.txt', '.hidden', 'lib/.in_use/12345', 'lib/distribution.mjs', 'agents/reviewer.md', 'hooks/session-context.md', '.claude-plugin/plugin.json']) {
+  for (const relative of ['ordinary.txt', '.hidden', 'lib/.in_use/12345', 'lib/distribution.mjs', 'roles/reviewer.md', 'hooks/session-context.md', '.claude-plugin/plugin.json']) {
     const file = path.join(copy, relative);
     const before = fs.existsSync(file) ? fs.readFileSync(file) : null;
     fs.mkdirSync(path.dirname(file), {recursive: true}); fs.appendFileSync(file, '\n');
+    if (relative.startsWith('roles/')) generateDistribution(copy);
     check(inspectDistribution(copy).hash !== baseline.hash, `payload change detected: ${relative}`);
     if (before === null) fs.unlinkSync(file); else fs.writeFileSync(file, before);
+    if (relative.startsWith('roles/')) generateDistribution(copy);
   }
   const claude = readJson(path.join(copy, '.claude-plugin/plugin.json'));
   const codex = readJson(path.join(copy, '.codex-plugin/plugin.json'));

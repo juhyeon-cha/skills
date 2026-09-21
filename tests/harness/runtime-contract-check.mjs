@@ -17,7 +17,7 @@ if (process.argv[2]) {
 } else {
   const make = runtime => ({
     runtime, version: 'fixture-version', origin: 'fixture', sessionId: 'parent', role: 'harness-reviewer',
-    signals: roleSignals(fs.readFileSync(new URL('../../plugins/harness/agents/reviewer.md', import.meta.url), 'utf8')),
+    signals: roleSignals(fs.readFileSync(new URL('../../plugins/harness/roles/reviewer.md', import.meta.url), 'utf8')),
     source: {path: 'fixture/source', sha256: 'a'.repeat(64)}, config: {path: 'fixture/config', sha256: 'b'.repeat(64)},
     events: [
       {hook_event_name: 'SessionStart', session_id: 'parent'},

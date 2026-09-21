@@ -1,6 +1,6 @@
 # Runtime role contract
 
-Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `agents/*.md`; the skill still owns result handling and RETRY checkpoints and explicit user budgets.
+Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `roles/*.md`; the skill still owns result handling and RETRY checkpoints and explicit user budgets.
 
 ## Standalone investigation and review
 
@@ -121,7 +121,7 @@ the execution-path selection above; otherwise use develop's human-wait procedure
 
 ## Register (native)
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It references their original files; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator inserts the role body, resolves its plugin-root pointers and applies Model selection below. Claude-only frontmatter is not passed as Codex configuration.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It validates and references the generated Claude files without rewriting them; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator inserts the role body, resolves its plugin-root pointers and applies Model selection below. Claude-only frontmatter is not passed as Codex configuration.
 
 Run `verify <registration.json>` before use. Missing files, changed sources, altered generated files and duplicate native names in that directory fail. Also check the runtime's discovered roles for duplicate identifiers from other scopes; the directory check cannot enumerate a runtime's effective configuration. Generated files are projections: after an update, review and remove the old generated files, then regenerate from the new install and replace the receipt. Keep the old install and receipt together for rollback. Never maintain generated role prose by hand.
 

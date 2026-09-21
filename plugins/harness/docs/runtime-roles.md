@@ -1,8 +1,9 @@
 # Runtime role execution
 
-Canonical role instructions remain in `agents/`. Claude references those plugin
-agents, Codex projects them as native TOML, and Antigravity projects Markdown
-with `subagent: true`, `mainAgent: false`, supported tools and `model: inherit`.
+Canonical role instructions live in `roles/`; runtime settings live in
+`native/claude/`, `native/codex/` and `native/antigravity/`. Claude discovers
+generated `agents/` Markdown. Codex assembles native TOML and Antigravity
+assembles Markdown with its declared tools, model and execution settings.
 The [official CLI discovery documentation](https://antigravity.google/docs/cli/subagents/)
 and [official subagent schema](https://antigravity.google/docs/subagents) are the
 primary contracts. The CLI's observed tool result parser is intentionally narrow:

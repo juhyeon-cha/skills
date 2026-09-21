@@ -1,6 +1,6 @@
 # Harness session context
 
-The always-on block the harness plugin injects at SessionStart. A rule that is not here is held by the skill that uses it — the table at the bottom.
+Injected at SessionStart. Task-specific rules live in the owner skills listed below.
 
 ## 절대 금지
 
@@ -34,7 +34,7 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
 `harness:plan-sprint` (sprint composition) → `harness:plan-story` (breakdown · acceptance) → `harness:develop` (implementation cycle — owner of the operating rules) → `harness:verify-code` (review) → `harness:verify-implement` (judgment · close) → `harness:retrospective` (retrospective) + `harness:setup` (first-time setup) · `harness:triage` (backlog triage) · `harness:status` (status, read-only).
 
 Role definitions (3): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
-Their single bodies are `agents/*.md`; runtime registration, native identifiers,
+Their single bodies are `roles/*.md`; runtime registration, native identifiers,
 invocation and result evidence follow `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`.
 An unavailable capability or unidentified role is UNREACHED, never success.
 

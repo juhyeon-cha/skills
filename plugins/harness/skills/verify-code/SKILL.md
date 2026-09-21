@@ -7,7 +7,7 @@ description: Code-quality review procedure for a task's changes — reviewer del
 
 Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` and resolve the plugin and harness roots.
 
-The reviewer role definition (`${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`) holds the review discipline. This procedure holds delegation and signal handling only.
+The reviewer role definition (`${CLAUDE_PLUGIN_ROOT}/roles/reviewer.md`) holds the review discipline. This procedure holds delegation and signal handling only.
 
 Standalone user-requested reviews use `docs/roles.md` "Standalone investigation
 and review" and end with findings. The managed task procedure below is for
@@ -40,7 +40,7 @@ repeat the selected path using its retry procedure.
 
 ## 1. Delegate
 
-Delegate to reviewer. The message carries ① first line: harness root absolute path + worktree absolute path + the commit range under review + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every task in that milestone awaiting verification, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ claims in the implementer's report that reviewer must fact-check. That is the whole message — the discipline for receiving a list (one SIGNAL · attributing each finding to a task · relationships between changes across tasks) is held by `${CLAUDE_PLUGIN_ROOT}/agents/reviewer.md`, so leave it out of the delegation message.
+Delegate to reviewer. The message carries ① first line: harness root absolute path + worktree absolute path + the commit range under review + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every task in that milestone awaiting verification, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ claims in the implementer's report that reviewer must fact-check. That is the whole message — the discipline for receiving a list (one SIGNAL · attributing each finding to a task · relationships between changes across tasks) is held by `${CLAUDE_PLUGIN_ROOT}/roles/reviewer.md`, so leave it out of the delegation message.
 
 ## 2. Signal handling
 

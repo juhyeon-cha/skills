@@ -57,24 +57,24 @@ function nativeStatements(text) {
   return statements;
 }
 
-  const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}))*"';
-  const literal = "'[^'\\x00-\\x1f]*'";
-  const string = `(?:${basic}|${literal})`;
-  const keyPart = `(?:[A-Za-z0-9_-]+|${string})`;
-  const assignment = new RegExp(`^(${keyPart})((?:\\s*\\.\\s*${keyPart})*)\\s*=\\s*([\\s\\S]*)$`);
-  const nameValue = new RegExp(`^${string}$`);
-  const decode = (value) => {
-    if (!value.startsWith('"')) return value.startsWith("'") ? value.slice(1, -1) : value;
-    // Consume each escape atomically so a literal backslash followed by U is
-    // not confused with a TOML Unicode escape. JSON handles the shared escapes.
-    const json = value.replace(/\\(?:["\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})/g, (escape) => {
-      if (!escape.startsWith('\\U')) return escape;
-      const code = Number.parseInt(escape.slice(2), 16);
-      if (code >= 0xd800 && code <= 0xdfff) throw new Error('invalid TOML Unicode scalar');
-      return JSON.stringify(String.fromCodePoint(code)).slice(1, -1);
-    });
-    return JSON.parse(json);
-  };
+const basic = '"(?:[^"\\\\\\x00-\\x1f]|\\\\(?:["\\\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8}))*"';
+const literal = "'[^'\\x00-\\x1f]*'";
+const string = `(?:${basic}|${literal})`;
+const keyPart = `(?:[A-Za-z0-9_-]+|${string})`;
+const assignment = new RegExp(`^(${keyPart})((?:\\s*\\.\\s*${keyPart})*)\\s*=\\s*([\\s\\S]*)$`);
+const nameValue = new RegExp(`^${string}$`);
+const decode = (value) => {
+  if (!value.startsWith('"')) return value.startsWith("'") ? value.slice(1, -1) : value;
+  // Consume each escape atomically so a literal backslash followed by U is
+  // not confused with a TOML Unicode escape. JSON handles the shared escapes.
+  const json = value.replace(/\\(?:["\\btnfr]|u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})/g, (escape) => {
+    if (!escape.startsWith('\\U')) return escape;
+    const code = Number.parseInt(escape.slice(2), 16);
+    if (code >= 0xd800 && code <= 0xdfff) throw new Error('invalid TOML Unicode scalar');
+    return JSON.stringify(String.fromCodePoint(code)).slice(1, -1);
+  });
+  return JSON.parse(json);
+};
 
 export function nativeAgentName(text) {
   let name;
@@ -100,19 +100,26 @@ export function assembleNativeRole(runtime, definition, root, installedRoot = ro
   if (template.split(marker).length !== 2) throw new Error('native instruction slot missing/duplicate');
   const body = runtime === 'claude' ? definition.body : definition.body.replaceAll('${CLAUDE_PLUGIN_ROOT}', () => installedRoot);
   if (runtime === 'codex') {
-    if (!template.split('\n').includes(marker)) throw new Error('native instruction slot must occupy its own line');
-    const probe = template.replace(marker, () => 'harness_instruction_slot = true');
+    if (!template.split(/\r?\n/).includes(marker)) throw new Error('native instruction slot must occupy its own line');
+    const hasInstructions = line => {
+      const match = assignment.exec(line);
+      return match && decode(match[1]) === 'developer_instructions';
+    };
+    // Inspect the original first: the probe cannot reuse an unrelated statement.
+    const original = nativeStatements(template);
+    const topLevelEnd = original.findIndex(line => line.startsWith('['));
+    if (original.slice(0, topLevelEnd < 0 ? original.length : topLevelEnd).some(hasInstructions))
+      throw new Error('native developer_instructions already assigned');
+    const probe = template.replace(marker, () => 'developer_instructions = ""');
     const statements = nativeStatements(probe);
-    const slot = statements.indexOf('harness_instruction_slot = true');
+    const slot = statements.indexOf('developer_instructions = ""');
     if (slot < 0 || statements.slice(0, slot).some(line => line.startsWith('[')))
       throw new Error('native instruction slot must be top-level');
-    if (statements.some(line => { const match = assignment.exec(line); return match && decode(match[1]) === 'developer_instructions'; }))
-      throw new Error('native developer_instructions already assigned');
     if (nativeAgentName(probe) !== identifier) throw new Error('native role name mismatch');
     return template.replace(marker, () => `developer_instructions = ${JSON.stringify(body)}`);
   }
   const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(template);
-  if (!frontmatter || frontmatter[0].includes(marker) || !template.slice(frontmatter[0].length).split('\n').includes(marker))
+  if (!frontmatter || frontmatter[0].includes(marker) || !template.slice(frontmatter[0].length).split(/\r?\n/).includes(marker))
     throw new Error('native instruction slot must follow frontmatter');
   const names = [...frontmatter[1].matchAll(/^name: (.+)$/gm)];
   if (names.length !== 1 || names[0][1] !== (runtime === 'claude' ? definition.role : identifier)) throw new Error('native role name mismatch');
