@@ -4,7 +4,7 @@ import os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { normalizeHookEvent } from './hook-event.mjs';
 import { normalizePath } from './operations.mjs';
-import { workspaceShellCommand, literalShellWords } from '../workspace/workspace-command.mjs';
+import { workspaceShellCommand } from '../workspace/workspace-command.mjs';
 import { inspectWorkspace } from '../workspace/workspace.mjs';
 import { guardLog, resolveState } from '../runtime/state.mjs';
 import { commonCommand, windowsCommandOperands } from './common-command.mjs';
@@ -197,7 +197,7 @@ const rootForm = (tool) =>
 const graderCan = (ctx) =>
   `${policyRole(ctx).split(':').at(-1)} 가 할 수 있는 것: 검증용 명령 실행은 허용된다 — 게이트·테스트 재실행, git status·git diff·git show, ledger.mjs show·list. 지적·판정은 파일이 아니라 응답에 쓴다. ${policyRole(ctx) === 'harness:reviewer' ? 'SIGNAL: CHANGES_REQUESTED(또는 LGTM) 뒤에 MUST FIX·NIT 를 파일:라인과 함께 적어라.' : 'SIGNAL: MATCH·VIOLATION·DEVIATION 뒤에 acceptance 항목별 인용→근거→MET/NOT_MET 을 적어라.'} 기록은 오케스트레이터가 남긴다 (roles/${policyRole(ctx).split(':').at(-1)}.md).`;
 const remoteReason =
-  "원격 반영 금지 — 원격 반영은 오케스트레이터·사람의 몫이다. 예외 둘도 오케스트레이터의 것이다. 액터가 다르기 때문에 사용자 지시 전언으로 풀리지 않는다. 세션 블록 'Remote reflection only on explicit user instruction', harness:develop '사이클 종결': Subagents are out of scope — up to the local commit. SIGNAL: IMPLEMENTATION_COMPLETE 를 내고 커밋 해시를 보고하라 (roles/implementer.md). 원격 반영이 아닌데 막혔으면 오탐이니 사람에게 확인받아라. 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 원격 반영이다; git subtree split 으로 로컬까지만 한다.";
+  "원격 반영 금지 — 원격 반영은 오케스트레이터·사람의 몫이다. 예외 둘도 오케스트레이터의 것이다. 액터가 다르기 때문에 사용자 지시 전언으로 풀리지 않는다. 세션 블록 'Remote reflection only on explicit user instruction', harness:develop '사이클 종결': Subagents are out of scope — up to the local commit. 작업 결과와 커밋 해시를 부모에게 보고하라. 원격 반영이 아닌데 막혔으면 오탐이니 사람에게 확인받아라. 낱말 인용(git log --grep push)과 로컬 명령(git stash push)은 걸리지 않는다. git subtree push 는 원격 반영이다; git subtree split 으로 로컬까지만 한다.";
 function rejectAlias(ctx, tool) {
   if (toolAliased(tool, ctx.command))
     deny(
@@ -399,7 +399,6 @@ export async function evaluateGuard(
   raw,
   {
     env = process.env,
-    readThread,
     resolveAntigravityIdentity = antigravityIdentity,
     pluginRoot = env.CLAUDE_PLUGIN_ROOT ||
       path.resolve(fileURLToPath(new URL('../../', import.meta.url))),
@@ -409,37 +408,20 @@ export async function evaluateGuard(
     rule = 'UNREACHED-input',
     result;
   try {
-    event = normalizeHookEvent(raw, { env, deferDelegatedRole: true });
+    event = normalizeHookEvent(raw, { env });
     const roleIndependent = event.harness_tool_contract?.roleIndependent || event.harness_effect_readonly || event.harness_shell_readonly ||
       ['Read', 'NotebookRead', 'Glob', 'Grep'].includes(event.tool_name) ||
       /^collaboration\.?(?:send_message|list_agents|wait_agent)$/.test(event.tool_name);
     if (raw?.harness_runtime === 'antigravity' && !roleIndependent) {
-      const identity = await resolveAntigravityIdentity(raw, {env, pluginRoot});
+      // Enrollment may refine known native restrictions, but is not a prerequisite.
+      let identity;
+      try { identity = await resolveAntigravityIdentity(raw, {env, pluginRoot}); } catch {}
       if (identity?.kind === 'parent') raw = {...raw, agent_id: '', agent_type: ''};
       else if (identity?.kind === 'child' && canonicalRole(identity.role))
         raw = {...raw, agent_type: canonicalRole(identity.role)};
-      else throw new Error('Antigravity role identity UNREACHED');
       event = normalizeHookEvent(raw, {env});
-      if (event.tool_name === 'Bash') {
-        const commands = quotedSegments(event.tool_input.command).filter(part => part.trim());
-        const parsed = commands.map(command => literalShellWords(command, {
-          dialect: event.harness_shell_dialect, cwd: event.cwd,
-        }));
-        // Inspect literal argv, including quoted paths and wrapper operands.
-        // Literal segments preserve existing composed commands. Dynamic child
-        // commands cannot establish that enrollment is absent.
-        if (hasToken(event.tool_input.command, 'parent-register') ||
-            (identity.kind !== 'parent' && parsed.some(words => !words ||
-              words.some(word => basename(word) === 'antigravity-role.mjs') ||
-              (words.some(word => ['bash', 'sh', 'zsh'].includes(basename(word))) &&
-                words.some(word => /^-[A-Za-z]*c/.test(word) || word === '--command')))))
-          throw new Error('parent registration is operator-only; agent tool enrollment forbidden');
-      }
-    }
-    if (raw?.agent_id && (!raw.agent_type || raw.agent_type === 'default') && !roleIndependent) {
-      const { delegationHookRole } = await import('../runtime/delegation.mjs');
-      const delegatedRole = await delegationHookRole(raw, { root: pluginRoot, env, readThread });
-      event = normalizeHookEvent(raw, { env, delegatedRole });
+      if (event.tool_name === 'Bash' && hasToken(event.tool_input.command, 'parent-register'))
+        throw new Error('parent registration is operator-only; agent tool enrollment forbidden');
     }
     const rawCommand = event.tool_input.command ?? '';
     const windowsOperands =

@@ -25,8 +25,8 @@ try {
   const guard = (e, overrides = {}) => run('/bin/bash', [path.join(root, 'hooks/guard.sh')], {cwd: wt, env: {...env, ...overrides}, input: JSON.stringify(e)});
   const skill = event('Skill', {skill: 'harness:status'});
   check(guard(skill).status === 0, 'model-initiated Skill invocation is allowed');
-  check(guard({...skill, tool_name: 'UnregisteredSkill'}).status === 2, 'unregistered tools remain denied');
-  check(guard({...skill, agent_id: 'child', agent_type: 'unknown'}).status === 2, 'Skill does not bypass role identity');
+  check(guard({...skill, tool_name: 'UnregisteredSkill'}).status === 0, 'opaque tools remain host-managed');
+  check(guard({...skill, agent_id: 'child', agent_type: 'unknown'}).status === 0, 'ordinary Skill needs no role registration');
   check(guard(event('Write', {file_path: path.join(repo, 'blocked')})).status === 2, 'file operations after Skill keep their guard');
   const patch = text => `*** Begin Patch\n${text}\n*** End Patch`;
   const multi = patch('*** Add File: 한글 새 파일\n+one\n*** Update File: old\n*** Move to: moved file\n@@\n-old\n+new\n*** Delete File: obsolete');
@@ -49,9 +49,13 @@ try {
     check(isReadonlySearch(command), 'literal search identified');
     check(guard(event('Bash', {command})).status === 0, 'literal search allowed');
   }
-  for (const command of [`rg x '${repo}/x' > '${repo}/out'`, `rg --pre='rm' '${repo}/x'`, `rg "$(touch '${repo}/x')" '${repo}/x'`, `rg x '${repo}/x'; touch '${repo}/x'`, `rg --search-zip '${repo}/x'`, `rg --hostname-bin=touch '${repo}/x'`]) {
+  for (const command of [`rg x '${repo}/x' > '${repo}/out'`, `rg "$(touch '${repo}/x')" '${repo}/x'`, `rg x '${repo}/x'; touch '${repo}/x'`]) {
     check(!isReadonlySearch(command), 'execution/redirect is not readonly');
     check(guard(event('Bash', {command})).status === 2, `write or indirect command remains conservative: ${command}`);
+  }
+  for (const command of [`rg --pre='rm' '${repo}/x'`, `rg --search-zip '${repo}/x'`, `rg --hostname-bin=touch '${repo}/x'`]) {
+    check(!isReadonlySearch(command), 'opaque subprocess option is not classified readonly');
+    check(guard(event('Bash', {command})).status === 0, 'opaque effects remain under host permissions');
   }
   // Execute only disposable preprocessing canaries: prove that shell expansion
   // can turn apparently harmless options into rg's executable --pre option.
@@ -73,7 +77,7 @@ try {
   });
   for (const {command, guarded} of observations) {
     check(!isReadonlySearch(command), `expanded option is not readonly: ${command}`);
-    check(guarded.status === 2, `expanded executable option denies: ${command}`);
+    check(guarded.status === 0, `expanded effects remain host-managed: ${command}`);
   }
   for (const syntax of ['{a,b}', '*', '?', '[ab]', '~', '$HOME', '$(pwd)', '`pwd`', '<(pwd)', '>(cat)', '$((1+1))']) {
     check(!isReadonlySearch(`rg ${syntax} file`), `unquoted expansion excluded: ${syntax}`);
@@ -85,7 +89,10 @@ try {
   }
   check(normalizeHookEvent(event('exec_command', {cmd: 'pwd'})).tool_name === 'Bash', 'exec_command maps to Bash');
   for (const extra of [{agent_type: false}, {agent_id: 0}, {cwd: '.'}]) check(guard(event('Bash', {command: 'pwd'}, extra)).status === 2, 'malformed identity/cwd fails closed');
-  for (const e of [event('apply_patch', {command: 'unknown'}), event('apply_patch', {command: patch('')}), event('apply_patch', {command: patch('*** Unknown File: x')}), event('Write', {}), event('Bash', {}), event('Bash', {command: 'git commit -m unknown'}, {agent_id: 'child'}), event('Bash', {command: 'pwd'}, {agent_type: 'unknown'}), {...event('Bash', {command: 'pwd'}), cwd: ''}]) check(guard(e).status === 2, 'unknown/missing input fails closed');
+  for (const e of [event('apply_patch', {command: 'unknown'}), event('apply_patch', {command: patch('')}), event('apply_patch', {command: patch('*** Unknown File: x')}), event('Write', {}), event('Bash', {}), {...event('Bash', {command: 'pwd'}), cwd: ''}]) check(guard(e).status === 2, 'unknown/missing input fails closed');
+  for (const e of [event('Bash', {command: 'git commit -m local'}, {agent_id: 'child'}), event('Bash', {command: 'pwd'}, {agent_type: 'unknown'})])
+    check(guard(e).status === 0, 'ordinary local commands need no role identity');
+  check(guard(event('Bash', {command: 'git push origin HEAD'}, {agent_id: 'child'})).status === 2, 'ordinary child remote writes remain denied');
   check(normalizePath('..\\한글 file', 'C:\\work\\story') === 'C:\\work\\한글 file', 'drive lexical path');
   check(normalizePath('..\\한글 file', '\\\\server\\share\\story') === '\\\\server\\share\\한글 file', 'UNC lexical path');
   check(patchOperations(patch('*** Add File: C:\\work\\한글 file\n+x'), 'C:\\work')[0].path === 'C:\\work\\한글 file', 'Windows patch path');

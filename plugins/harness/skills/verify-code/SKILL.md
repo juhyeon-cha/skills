@@ -1,76 +1,54 @@
 ---
 name: verify-code
-description: Code-quality review procedure for a task's changes — reviewer delegation and the re-review loop. Use on a "이 커밋 리뷰해" request, and right after implementation lands in a develop cycle. Acceptance judgment is verify-implement.
+description: Review a task's code quality and select verification by risk. Use on a "이 커밋 리뷰해" request and while verifying implementation. Acceptance and task closure use verify-implement.
 ---
 
 # Code review
 
-Before executing command notation in this procedure, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` and resolve the plugin and harness roots.
-
-The reviewer role definition (`${CLAUDE_PLUGIN_ROOT}/roles/reviewer.md`) holds the review discipline. This procedure holds delegation and signal handling only.
-
-Standalone user-requested reviews use `docs/roles.md` "Standalone investigation
-and review" and end with findings. The managed task procedure below is for
-reviews whose result feeds task completion.
+Before executing command notation, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md`.
+The reviewer responsibility guidance is `${CLAUDE_PLUGIN_ROOT}/roles/reviewer.md`.
+Ordinary delegation and optional native auditing are owned by `docs/roles.md`.
 
 ## Verification path
 
-Select verification by the changed behavior and the repository's requirements.
+Select checks by the changed behavior, impact and explicit project/user rules.
+Use local inspection and relevant tests when they can assess the change reliably.
+Use an independent reviewer when a fresh assessment would reduce a concrete risk,
+such as permission changes, data-loss risk, migration or uncertain interactions.
+One independent assessment can cover both quality and acceptance. Separate review
+and evaluation only when explicitly required or when their distinct perspectives
+address a concrete gap; explain that reason in the result.
 
-- **Local verification**: behavior-neutral edits and small, localized fixes with
-  clear acceptance, a reviewable diff and a regression test where behavior changes.
-  The implementing agent inspects the resulting diff, runs the relevant checks
-  and required repository gate, and compares the result with acceptance. Continue
-  through verify-implement's local path; no child or role receipt is required.
-- **Combined independent verification**: changes outside the local criteria whose
-  impact is understood. One evaluator checks quality and acceptance together.
-- **Separate independent verification**: permission/enforcement changes, data-loss
-  or migration risk, incompatible public contracts, broad dependency/runtime
-  changes or uncertain impact. Use a reviewer and then an evaluator.
+A required independent reviewer must not be an implementation author. If a chosen
+optional mechanism is unavailable, choose another adequate path. Preserve an
+explicit independence or permission requirement rather than silently weakening it.
 
-Explicit user or repository requirements take precedence. Record the selected
-path and its risk grounds with the verification result. When scope changes,
-reassess the path before completion.
+## Review and correction
 
-For independent paths, apply `${CLAUDE_PLUGIN_ROOT}/docs/roles.md` before delegation
-and result handling. Combined verification calls verify-implement directly with
-`combined verification`; the evaluator uses the reviewer checklist as well as
-acceptance. Separate verification follows the steps below. Corrective iterations
-repeat the selected path using its retry procedure.
+Inspect a fixed commit range or an identified working diff and its affected
+callers. Run the required repository gate and relevant checks, reusing unchanged
+results under develop's "상태 주장의 근거". For delegation, provide responsibility,
+requirements, scope and applicable rules using develop's environment snapshot.
+Use the actual returned findings and inspected scope; a SIGNAL, receipt, execution
+inventory or audit result is not a default prerequisite for accepting the review.
 
-## 1. Delegate
-
-Delegate to reviewer. The message carries ① first line: harness root absolute path + worktree absolute path + the commit range under review + **the task ID list** — in batch mode (`develop` section 3 holds the condition) every task in that milestone awaiting verification, outside it one ② what the `develop` skill's "위임 메시지의 환경 스냅샷" requires (the values to carry + the verbatim-quotation discipline) ③ claims in the implementer's report that reviewer must fact-check. That is the whole message — the discipline for receiving a list (one SIGNAL · attributing each finding to a task · relationships between changes across tasks) is held by `${CLAUDE_PLUGIN_ROOT}/roles/reviewer.md`, so leave it out of the delegation message.
-
-## 2. Signal handling
-
-- `LGTM` → upsert the receipt and NIT list with `ledger summary <unit ID> review --file <file>` and move on to verify-implement. In batch mode use the milestone and identify the tasks; outside batch mode use the task. The summary leaves `VERIFY_PENDING` standing. Promoting a NIT into a task goes through the convention gate in `plan-story` section 4.
-- `CHANGES_REQUESTED` → upsert the findings with `ledger summary <unit ID> review --file <file>` → **read and raise the counter before re-delegating** → delegate the fix to implementer → reviewer re-reviews (**whether the earlier findings are resolved, and nothing else**). When the implementer signal returned from the fix delegation is something other than `IMPLEMENTATION_COMPLETE` (`IMPLEMENTATION_BLOCKED` · `DECISION_NEEDED` · outside the list), handle it through the branches in `develop` 3-4 instead of re-review.
-  - **Reuse the independent reviewer for a bounded fix review**, following `docs/roles.md` for a new invocation and result. Use a fresh reviewer when the previous context is unavailable, the scope materially changes, or the reviewer contributed implementation changes.
-  - Carry the corrected head and earlier finding references on a follow-up. A fresh reviewer needs the full context below:
-    1. **The earlier findings verbatim** — leave them unsummarised. What was asked for is the control the re-review compares against
-    2. **The commit range** — where the fix starts and where it ends
-    3. **The implementer's resolution claims** — which finding they say they resolved and how. Those claims are what the re-review checks
-  - The procedure for reading and raising the counter, the limits, and the unit in batch mode are held by "재시도 카운터" below. This stage's name is `verify-code`, and the line it leaves is `RETRY: verify-code <n+1>/<상한>`.
-- `DECISION_NEEDED` or a value that is not in the list → safe exit: record the situation and report to the user.
+Fix actionable findings within scope and inspect the correction. Reuse a reviewer
+for a bounded follow-up when its context remains useful; use a fresh reviewer
+when the scope changes materially or the reviewer contributed implementation.
+A follow-up covers the fix and affected behavior, including any new regressions.
 
 ## 재시도 카운터
 
-The re-review / re-fix limit **counts only once it is recorded with `ledger state`.** Kept in memory it returns to 0 across session compaction and loop restarts.
-
-- The stored format is `RETRY: <stage> <count>/<checkpoint>`. Use the initial checkpoints below for a new unit and retain any recorded extension when resuming.
-- **The unit is the target of one verify pass** — the milestone in batch mode (`develop` section 3), the task outside it. Write `ledger state <unit ID> "RETRY: <단계> <n>/<상한>"` on that unit's bead and read it from that bead. One batch re-review is one count, whatever the number of tasks (`harness-2a5.4`).
-- **Immediately before re-delegating**, read the last `RETRY:` line for that stage from the notes of `ledger show <unit ID>` to get `n`. Absent, it is 0.
-- At the recorded checkpoint, compare the remaining failure with the previous attempt. If new evidence identifies a distinct correction, record that evidence and the next bounded attempt, advance the stored checkpoint, and continue. If the failure repeats without progress, a user decision is needed, or an explicit user budget is exhausted, record the reason and use human wait.
-- Initial checkpoints: `verify-code` **2**, `verify-implement` **1**. These trigger a progress review, not automatic human escalation. An extension advances the checkpoint by one attempt and preserves the cumulative count. Explicit user limits override these defaults and are never extended without approval. Implementation gate retries use the same progress rule, recorded in the implementation summary.
-- **`SCOPE_EXCESS` sits outside the counter.** It is a decision request about scope rather than a rework demand. What gets counted is rework caused by unmet acceptance.
-- The counter ends when the unit (task or milestone) closes.
+Optional `RETRY: <stage> <count>/<checkpoint>` records help resume long work.
+Their absence or a checkpoint is not a stop condition. Continue while an attempt
+produces new evidence or a distinct correction; reassess when the same failure
+repeats without progress. Explicit user budgets remain binding. When recording
+retries, keep the cumulative count on the reviewed task or milestone and retain
+prior failure evidence. No record write is required before the next useful fix.
 
 ## Completion criteria
 
-For local verification, completion is the inspected result and acceptance evidence
-recorded through verify-implement.
-
-For separate verification, the state where the orchestrator has upserted the LGTM receipt and the NIT list with `ledger summary <unit ID> review --file <file>` — in batch mode once on the milestone bead (with the task list in the body), outside it on that task. Reach this state before moving on to verify-implement.
-
-For combined verification, completion is the validated evaluator MATCH and both grounds recorded by verify-implement.
+Finish with actionable findings or the grounds for finding none, the inspected
+commit/diff, checks and limitations. A standalone review ends there. For task
+completion, apply verify-implement to the same evidence; a combined quality and
+acceptance assessment does not require a second grader or duplicate tests.

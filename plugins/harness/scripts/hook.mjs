@@ -66,11 +66,15 @@ try {
   } catch (error) {
     console.error(`STATE UNREACHED: ${error.message}; ordinary workflow evidence unavailable`);
   }
-  recordHook(process.env.HARNESS_DOCTOR_DIR, pluginRoot, event, id, {
-    code,
-    stdout: run.stdout ?? '',
-    stateContext,
-  });
+  try {
+    recordHook(process.env.HARNESS_DOCTOR_DIR, pluginRoot, event, id, {
+      code,
+      stdout: run.stdout ?? '',
+      stateContext,
+    });
+  } catch (error) {
+    console.error(`Diagnostic recording unavailable: ${error.message}`);
+  }
   process.stdout.write(process.env.HARNESS_RUNTIME === 'antigravity' ? antigravityOutput(id, run) : run.stdout ?? '');
   process.stderr.write(run.stderr ?? '');
   // AG consumes the JSON decision. A successfully delivered deny is not a

@@ -31,6 +31,7 @@ function snapshot(saved) {
 }
 const after = (saved) => snapshot(saved).slice(saved.records);
 export async function workflowScope(metadata, env = process.env) {
+  if (metadata?.provider !== undefined) throw new Error('provider adapter unsupported; native workflow scope required');
   if (!metadata?.data || !path.isAbsolute(metadata.data))
     throw new Error('observed hook data required');
   return resolveState(

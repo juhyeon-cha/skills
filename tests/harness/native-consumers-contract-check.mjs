@@ -52,7 +52,9 @@ try {
     assert.equal((await checkRules(fixture({data: [...rows, {...task, id: 'other'}]}))).code, 0);
     await fs.rm(external, {recursive: true, force: true});
     assert.equal((await registeredStoryWorktrees(root, {env})).worktrees(epic.id), 1);
-    assert.equal((await checkRules(fixture({data: [...rows, {...task, id: 'other'}]}))).code, 1);
+    const diagnostic = await checkRules(fixture({data: [...rows, {...task, id: 'other'}]}));
+    assert.equal(diagnostic.code, 0);
+    assert.match(diagnostic.stdout, /Advisory: S22/);
   });
   await check('workspace check validates config and Git registration on every backend without ledger', async () => {
     const file = path.join(root, '.harness.json');

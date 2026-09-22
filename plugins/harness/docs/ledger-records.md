@@ -10,6 +10,12 @@ Existing titles and comments remain intact. For an existing-title migration, fir
 
 ## Recording contract
 
+Keep the outcome, commit or inspected diff, checks and limitations. Add progress
+and retry details only when they help resume work. Phase markers and execution
+inventories are optional; a missing marker does not invalidate implementation,
+review or completion. Claim ownership still protects actual concurrent writers.
+
+
 | Information | Write | Behavior |
 |---|---|---|
 | Actor, delegation, verification phase, retry count | `ledger state <ID> <marker>` or `ledger state <ID> --file <file>` | Update execution state; no progress comment |
@@ -18,11 +24,11 @@ Existing titles and comments remain intact. For an existing-title migration, fir
 | Blocker, human decision request, judgment reversal | `ledger note <ID> --file <file>` | Append a durable event |
 | Completion | `ledger close <ID> --reason-file <file>` | Leave the single completion comment |
 
-State markers retain their grammar: `ACTOR: <repo> <actor>`, `DELEGATED: <milestone ID>`, `VERIFY_PENDING: <commit hash>` and `RETRY: <stage> <n>/<checkpoint>`. The numeric grammar is unchanged; verify-code owns progress-based checkpoint extension and explicit user budgets. Persist a retry before re-delegating. Delegation and verification update the same phase; changing a summary never clears it. `ledger show` exposes execution fields and compatible marker lines in notes; existing issues without state still read their last legacy markers. An old `ACTOR: <actor>` without a repo still requires `DECISION_NEEDED`, as specified by develop.
+State markers retain their grammar: `ACTOR: <repo> <actor>`, `DELEGATED: <milestone ID>`, `VERIFY_PENDING: <commit hash>` and `RETRY: <stage> <n>/<checkpoint>`. The numeric grammar is unchanged; verify-code owns progress-based checkpoint extension and explicit user budgets. A retry record is optional. Delegation and verification update the same phase; changing a summary never clears it. `ledger show` exposes execution fields and compatible marker lines in notes; existing issues without state still read their last legacy markers. Investigate a legacy actor without a repo when it leaves actual ownership ambiguous.
 
 Summary section names are bounded slugs such as `implementation`, `review`, `acceptance`, `integration`, `delivery` and `completion`. Keep the latest result and evidence in the body, with durable links for lengthy logs. A reversal remains an append-only event quoting the superseded judgment and its reason, even when a summary is replaced. Preserve human-authored body text outside the harness sections.
 
-A normal successful task ends with one completion comment containing the outcome, implementation/review/acceptance evidence and limitations. Update the acceptance summary before closing and pass the completion file to `close`; a separate completion `note` duplicates that record. Blockers and decisions may add event comments when they actually occur.
+A normal successful task ends with one completion comment containing the outcome, implementation/review/acceptance evidence and limitations. Pass the completion file to `close`; a separate acceptance summary or completion `note` is unnecessary when it duplicates that record. Blockers and decisions may add event comments when they actually occur.
 
 Create a body file before calling the ledger, following develop's “원장에 본문을 넘기는 형태”. Fixed marker strings without shell metacharacters may be passed inline. Implementers may write state, summaries and event notes for their assigned tasks; changing structure, claims and closure remains the orchestrator's responsibility.
 

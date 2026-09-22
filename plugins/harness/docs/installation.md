@@ -28,7 +28,7 @@ Run `node <installed root>/scripts/roles.mjs register claude` and save the regis
 
 Use a marketplace that contains the generated Codex manifest. Configure an explicitly selected local or Git marketplace with `codex plugin marketplace add <source>`, then `codex plugin add harness@<marketplace>`. `codex plugin list --json` gives inventory, not proof that the open session loaded the artifact. For updates, follow the installed CLI's marketplace upgrade/add procedure, then start a new session.
 
-Native registration is optional for the generic execution path in [roles.md](roles.md). When selecting native execution, register native agents using `node <installed root>/scripts/roles.mjs register codex <absolute CODEX_HOME/agents directory>` and save the JSON receipt. Plugin agent auto-discovery is not assumed. Keep one registration scope; verify other project/user agent directories and effective runtime discovery for duplicate names. The role contract's TOML verifier checks discoverable top-level names for collisions; the provider validates unrelated settings. On update, compare old files against the old receipt first: preserve any differing/foreign file and resolve the conflict; remove only verified owned old projections, regenerate from the new installed root, and replace the receipt. The generator refuses a differing file rather than overwriting it. Roll back the installed artifact and its matching generated roles/receipt together.
+Ordinary subagents use runtime tools directly as described in [roles.md](roles.md); they need no native registration. When selecting native execution, register native agents using `node <installed root>/scripts/roles.mjs register codex <absolute CODEX_HOME/agents directory>` and save the JSON receipt. Plugin agent auto-discovery is not assumed. Keep one registration scope; verify other project/user agent directories and effective runtime discovery for duplicate names. The role contract's TOML verifier checks discoverable top-level names for collisions; the provider validates unrelated settings. On update, compare old files against the old receipt first: preserve any differing/foreign file and resolve the conflict; remove only verified owned old projections, regenerate from the new installed root, and replace the receipt. The generator refuses a differing file rather than overwriting it. Roll back the installed artifact and its matching generated roles/receipt together.
 
 Review the plugin's exact hook definitions in Codex `/hooks` and trust them before use. Installation does not grant trust. `features.hooks=false`, individually disabled hooks and managed-only policies may prevent execution. Resolve these through the runtime's supported settings; diagnosis does not enable hooks or change trust. The official hook contract supplies `CLAUDE_PLUGIN_ROOT` compatibility alongside `PLUGIN_ROOT`. See [Codex hooks](https://learn.chatgpt.com/docs/hooks) and [plugin packaging](https://developers.openai.com/plugins/build/plugins).
 
@@ -95,8 +95,8 @@ skills, three agents and one hook group; that is format evidence, not loading.
 The [hook contract](https://antigravity.google/docs/hooks) maps context to
 PreInvocation, guard to PreToolUse and continuation to Stop. No native subagent
 events are invented. The [execution adapter](runtime-execution.md) normalizes
-these envelopes into shared policy and requires external parent attestation
-before mutations. Its fixtures do not establish live loading; diagnosis still
+these envelopes into shared policy. External parent attestation is an optional
+identity mechanism; ordinary local tools retain common protections without it. Its fixtures do not establish live loading; diagnosis still
 requires provider observations and never promotes a hook transport exit alone.
 
 For Codex, [plugin development](https://developers.openai.com/plugins/build/plugins)

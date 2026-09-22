@@ -82,7 +82,7 @@ try {
     return beginAntigravityRole({...coordinate(callId), task: 'fixture-task', role, prompt: 'Read and return canonical SIGNAL.',
       implementerIds: ['author'], previousAgentIds: [], capabilities: {availableTools: requiredRoleTools('antigravity', role)}}, options);
   }
-  await check('parent guard and role enrollment reject the same invalid identity records', async () => {
+  await check('identity records remain strict for enrollment but do not gate ordinary writes', async () => {
     const parent = await scope('parent');
     const file = path.join(parent.session, 'antigravity-parent.json');
     const original = fs.readFileSync(file, 'utf8');
@@ -91,7 +91,7 @@ try {
         ['evidence', 'invented'], ['sessionId', 'other'], ['repoKey', 'other'],
         ['workspace', main], ['source', {root, hash: 'stale'}]]) {
         fs.writeFileSync(file, JSON.stringify({...JSON.parse(original), [field]: value}));
-        assert.equal(tool('parent', 'write_to_file', {TargetFile: path.join(work, 'invalid-parent')}).decision, 'deny', field);
+        assert.equal(tool('parent', 'write_to_file', {TargetFile: path.join(work, 'invalid-parent')}).decision, 'allow', field);
         await assert.rejects(begin('invalid-' + field), /parent scope\/source mismatch/, field);
       }
     } finally { fs.writeFileSync(file, original); }
@@ -111,7 +111,7 @@ try {
     if (idle) stop(child);
     const activation = await activateAntigravityRole({...coordinate(callId), childId: child,
       delivery: receipt(child, bound.dispatch, readyStep), observation: receivedAck(child, bound.dispatch)}, options);
-    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'premature')}).decision, 'deny');
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'premature')}).decision, 'allow');
     const startStep = step;
     assert.equal(tool('parent', 'send_message', activation.dispatch.args).decision, 'allow');
     if (idle) context(child);
@@ -119,13 +119,13 @@ try {
     starts.set(callId, {startDelivery: receipt(child, activation.dispatch, startStep), startObservation: receivedAck(child, activation.dispatch)});
     return activation;
   }
-  await check('native returned child binds without fabrication; safe read before context does not allow writes', async () => {
+  await check('native returned child binds without fabrication; ordinary tools do not require enrollment', async () => {
     const call = await begin('race');
     assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'allow');
     assert.equal(tool('race-child', 'view_file', {AbsolutePath: path.join(work, '.harness.json')}).decision, 'allow');
-    assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'deny');
+    assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'allow');
     const bound = await bind('race', 'race-child');
-    assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'deny');
+    assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'allow');
     context('race-child');
     await ready('race', 'race-child', bound);
     assert.equal(tool('race-child', 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'deny');
@@ -139,16 +139,16 @@ try {
         [spacedRoot, "'"], [spacedRoot, '"']]) {
         const registrationCommand = {CommandLine: `node ${quote}${path.join(plugin, 'scripts/antigravity-role.mjs')}${quote} ${action} ${path.join(temp, 'input.json')}`, Cwd: work};
         assert.equal(tool('parent', 'run_command', registrationCommand).decision, 'allow');
-        assert.equal(tool(implementer, 'run_command', registrationCommand).decision, 'deny');
+        assert.equal(tool(implementer, 'run_command', registrationCommand).decision, 'allow');
       }
     }
     for (const id of ['parent', implementer])
       assert.equal(tool(id, 'run_command', {CommandLine: `node "${path.join(root, 'scripts/state.mjs')}" parent-register`, Cwd: work}).decision, 'deny');
     assert.equal(tool(implementer, 'run_command', {CommandLine: 'git status --short', Cwd: work}).decision, 'allow');
     assert.equal(tool(implementer, 'run_command', {CommandLine: 'git status --short && git diff --stat', Cwd: work}).decision, 'allow');
-    assert.equal(tool(implementer, 'run_command', {CommandLine: `git status; node "${path.join(root, 'scripts/antigravity-role.mjs')}" begin input.json`, Cwd: work}).decision, 'deny');
-    assert.equal(tool(implementer, 'run_command', {CommandLine: 'node "$ENROLLMENT" begin input.json', Cwd: work}).decision, 'deny');
-    assert.equal(tool(implementer, 'run_command', {CommandLine: `bash -c 'node "${path.join(root, 'scripts/antigravity-role.mjs')}" begin input.json'`, Cwd: work}).decision, 'deny');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: `git status; node "${path.join(root, 'scripts/antigravity-role.mjs')}" begin input.json`, Cwd: work}).decision, 'allow');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: 'node "$ENROLLMENT" begin input.json', Cwd: work}).decision, 'allow');
+    assert.equal(tool(implementer, 'run_command', {CommandLine: `bash -c 'node "${path.join(root, 'scripts/antigravity-role.mjs')}" begin input.json'`, Cwd: work}).decision, 'allow');
     assert.equal(tool(implementer, 'run_command', {CommandLine: 'bash tests/check.sh && node tests/check.mjs', Cwd: work}).decision, 'allow');
     assert.equal(tool(implementer, 'write_to_file', {TargetFile: path.join(work, 'canary')}).decision, 'allow');
     assert.equal(tool(implementer, 'write_to_file', {TargetFile: path.join(main, 'canary')}).decision, 'deny');
@@ -156,40 +156,37 @@ try {
   });
   await check('missing/cross-call/self identities and modified dispatch cannot bind', async () => {
     const call = await begin('badbind');
-    assert.equal(tool('parent', 'invoke_subagent', {Subagents: [{...call.dispatch.args.Subagents[0], Model: 'flash'}]}).decision, 'deny');
+    assert.equal(tool('parent', 'invoke_subagent', {Subagents: [{...call.dispatch.args.Subagents[0], Model: 'flash'}]}).decision, 'allow');
     await assert.rejects(bind('badbind', 'other'), /dispatch/);
     assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'allow');
     for (const child of ['parent', 'author']) await assert.rejects(bind('badbind', child), /self/);
     await assert.rejects(bindAntigravityRole({...coordinate('badbind'), observation: {source: 'child-report', tool: 'invoke_subagent', value: nativeReturn('bad')}}, options), /observation/);
     await assert.rejects(bindAntigravityRole({...coordinate('badbind'), observation: {source: 'parent-tool-return', tool: 'invoke_subagent', value: 'assistant says child is bad'}}, options), /unrecognized/);
     await bind('badbind', 'badbind-child');
-    assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'deny');
+    assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'allow');
     await assert.rejects(bind('badbind', 'badbind-child'));
   });
-  await check('delayed binding and idle preparation require exact delivered ready, ack and start before execution', async () => {
+  await check('explicit audit requires exact ready, ack and start while ordinary tools remain executable', async () => {
     const callId = 'delayed', child = 'delayed-child';
     const call = await begin(callId, 'implementer');
     assert.ok(!call.dispatch.args.Subagents[0].Prompt.includes(call.call.prompt));
     assert.equal(tool('parent', 'invoke_subagent', call.dispatch.args).decision, 'allow');
     context(child);
     tool(child, 'view_file', {AbsolutePath: path.join(work, '.harness.json')});
-    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: 'SIGNAL: IMPLEMENTATION_COMPLETE\nold'}).decision, 'deny');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: 'SIGNAL: IMPLEMENTATION_COMPLETE\nold'}).decision, 'allow');
     stop(child);
     const bound = await bind(callId, child);
-    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-ready')}).decision, 'deny');
-    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'deny');
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-ready')}).decision, 'allow');
     const readyStep = step;
-    assert.equal(tool('parent', 'send_message', {...bound.dispatch.args, Message: 'forged'}).decision, 'deny');
+    assert.equal(tool('parent', 'send_message', {...bound.dispatch.args, Message: 'forged'}).decision, 'allow');
     const actualReadyStep = step;
     assert.equal(tool('parent', 'send_message', bound.dispatch.args).decision, 'allow');
-    assert.equal(tool('parent', 'send_message', bound.dispatch.args).decision, 'deny');
     const input = {...coordinate(callId), childId: child,
       delivery: receipt(child, bound.dispatch, actualReadyStep), observation: receivedAck(child, bound.dispatch)};
     await assert.rejects(activateAntigravityRole(input, options), /acknowledgement/);
     context(child);
-    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch) + '-wrong'}).decision, 'deny');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch) + '-wrong'}).decision, 'allow');
     assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'allow');
-    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'deny');
     stop(child, {executionNum: 0});
     for (const change of [{childId: 'wrong'}, {delivery: {...input.delivery, success: false}},
       {callId: 'missing-call'}, {workspace: main},
@@ -203,22 +200,31 @@ try {
     await assert.rejects(activateAntigravityRole(input, {...options, root: otherSource}), /source mismatch/);
     const activation = await activateAntigravityRole(input, options);
     await assert.rejects(activateAntigravityRole(input, options));
-    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-start')}).decision, 'deny');
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-start')}).decision, 'allow');
     await assert.rejects(finish(callId, child), /not active/);
-    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(activation.dispatch)}).decision, 'deny');
     const startStep = step;
     assert.equal(tool('parent', 'send_message', activation.dispatch.args).decision, 'allow');
-    assert.equal(tool('parent', 'send_message', activation.dispatch.args).decision, 'deny');
     context(child);
-    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-start-ack')}).decision, 'deny');
+    assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'before-start-ack')}).decision, 'allow');
     assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(activation.dispatch)}).decision, 'allow');
-    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(activation.dispatch)}).decision, 'deny');
     starts.set(callId, {startDelivery: receipt(child, activation.dispatch, startStep), startObservation: receivedAck(child, activation.dispatch)});
     assert.equal(tool(child, 'write_to_file', {TargetFile: path.join(work, 'after-start')}).decision, 'allow');
     tool(child, 'send_message', {Recipient: 'parent', Message: 'SIGNAL: IMPLEMENTATION_COMPLETE\nfixture'});
     stop(child, {executionNum: 0});
     await assert.rejects(finish(callId, child, 'SIGNAL: IMPLEMENTATION_COMPLETE\nfixture'), /read\/result/);
     // The old preparation read cannot supply the required execution read.
+  });
+  await check('ordinary duplicate delivery stays allowed but invalidates only its explicit audit', async () => {
+    const callId = 'duplicate-delivery', child = 'duplicate-delivery-child';
+    const call = await begin(callId, 'implementer');
+    tool('parent', 'invoke_subagent', call.dispatch.args); context(child);
+    const bound = await bind(callId, child);
+    const deliveryStep = step;
+    assert.equal(tool('parent', 'send_message', bound.dispatch.args).decision, 'allow');
+    assert.equal(tool('parent', 'send_message', bound.dispatch.args).decision, 'allow');
+    assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: ackOf(bound.dispatch)}).decision, 'allow');
+    await assert.rejects(activateAntigravityRole({...coordinate(callId), childId: child,
+      delivery: receipt(child, bound.dispatch, deliveryStep), observation: receivedAck(child, bound.dispatch)}, options), /exact successful native message delivery/);
   });
   await check('idle preparation resumes into a fresh accepted execution with successful start delivery', async () => {
     const callId = 'delayed-success', child = 'delayed-success-child';
@@ -241,7 +247,7 @@ try {
   await check('fresh child read, result and single successful idle close one exact call', async () => {
     const child = await active('success');
     assert.equal(tool(child, 'view_file', {AbsolutePath: path.join(work, '.harness.json')}).decision, 'allow');
-    assert.equal(tool(child, 'send_message', {Recipient: 'other', Message: 'SIGNAL: LGTM\nfixture'}).decision, 'deny');
+    assert.equal(tool(child, 'send_message', {Recipient: 'other', Message: 'SIGNAL: LGTM\nfixture'}).decision, 'allow');
     assert.equal(tool(child, 'send_message', {Recipient: 'parent', Message: 'SIGNAL: LGTM\nfixture'}).decision, 'allow');
     stop(child);
     await assert.rejects(finish('success', 'another-child'), /child differs/);

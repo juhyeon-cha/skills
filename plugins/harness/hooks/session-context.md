@@ -7,7 +7,7 @@ Injected at SessionStart. Task-specific rules live in the owner skills listed be
 A gate does not weaken a prohibition — every gate can be bypassed, and "cannot block" is not "allowed". The full list of enforcement mechanisms and their limits is `${CLAUDE_PLUGIN_ROOT}/docs/guardrails.md`.
 
 - **Remote reflection only on explicit user instruction** — merge · tag push · release publication · GitHub issue changes · remote configuration changes · direct push to a default branch · a remote other than the current repo's own `origin` · `bd dolt push`. The two exceptions are user decisions.
-  - Exception one — ledger reflection tied to a target-repo push is automatic. A hand-typed push is itself the explicit instruction, and the working-branch push of cycle-close stage 2 is the same approval — inside that approval the orchestrator runs `bd dolt push` as an explicit stage (no harness git hook is planted in a target repo, so no pre-push does it instead). The procedure is `harness:develop` "사이클 종결".
+  - Exception one — ledger reflection tied to a target-repo push is automatic. A hand-typed push is itself the explicit instruction, and the working-branch push of cycle-close delivery is the same approval — inside that approval the orchestrator runs `bd dolt push` as an explicit stage (no harness git hook is planted in a target repo, so no pre-push does it instead). The procedure is `harness:develop` "사이클 종결".
   - Exception two — the working-branch push and PR creation of a cycle close are automatic **only when no decision is unresolved**. Scope: repos that carry a committed `.harness.json` — that file is the approval surface.
 
     | State at the end of the cycle | Working-branch push · PR creation |
@@ -23,20 +23,30 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
 
 ## Ledger
 
-- The ledger is reached only through the common adapter. Resolve the native `ledger` and other command notation through `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` before execution. Legacy `ledger.sh` is a POSIX wrapper for that same boundary. Subcommands, arguments and JSON keys preserve the existing contract. One value picks the backend, `ledger.backend` in the repo's `.harness.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
+- The ledger is reached only through the common adapter. Read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md` before adapter execution. Legacy `ledger.sh` wraps the same contract. The backend is `ledger.backend` in the repo's `.harness.json` (`github`·`beads`·`notion`); no file, or a value outside the three, is rc≠0 — no fallback.
 - Harness root discovery uses explicit `--root`, then `HARNESS_ROOT`, then the first `.harness.json` above cwd. That repository-owned file is the discriminator; a clone may live anywhere. The finder lives in the plugin's `lib/` — `harness:develop` section 1.
 - When delegating to a subagent, give the harness root absolute path on the first line. Every native ledger call carries that explicit `--root`; the legacy wrapper can carry `HARNESS_ROOT`. Never let an incidental cwd select another harness's ledger.
 - The ledger is the SSOT. `board all` projects it into `docs/sprints/`·`docs/backlog/`·`docs/adr/` **only on a backend with no UI of its own** — where those exist they are generated, never edited by hand.
-- Bodies (state·summary·note·description·acceptance·close reason) are passed through file options, never inside a shell command string — the form is `harness:develop` "원장에 본문을 넘기는 형태".
+- Pass ledger bodies through file options, following `harness:develop` "원장에 본문을 넘기는 형태".
+
+## Execution
+
+Use outcome-based implementation and risk-driven verification. Ordinary delegation
+needs a clear responsibility, inspected scope and actual response. Native audit
+records, SIGNAL formats, stage markers and retry counters are optional unless the
+user or project explicitly requires them. Keep concrete protections and approvals;
+failed required tests and unmet requirements still block completion.
 
 ## Procedure skills (9)
 
-`harness:plan-sprint` (sprint composition) → `harness:plan-story` (breakdown · acceptance) → `harness:develop` (implementation cycle — owner of the operating rules) → `harness:verify-code` (review) → `harness:verify-implement` (judgment · close) → `harness:retrospective` (retrospective) + `harness:setup` (first-time setup) · `harness:triage` (backlog triage) · `harness:status` (status, read-only).
+Use `harness:plan-sprint` for sprint composition, `plan-story` for decomposition,
+`develop` for execution, `verify-code` for review and `verify-implement` for
+acceptance. `retrospective`, `setup`, `triage` and `status` own their named tasks.
 
 Role definitions (3): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
-Their single bodies are `roles/*.md`; runtime registration, native identifiers,
-invocation and result evidence follow `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`.
-An unavailable capability or unidentified role is UNREACHED, never success.
+Bodies are `roles/*.md`; optional native registration and audit evidence follow `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`.
+An unavailable audited capability is not successful audit evidence; it does not
+prevent ordinary work unless that capability is explicitly required.
 
 ## Agile hierarchy ↔ ledger mapping
 
@@ -59,7 +69,7 @@ ledger create --title-file <task-title-file> -t task --parent <milestone ID> -l 
 
 ## Rules owned elsewhere
 
-Rules kept out of the always-on block. Each is needed only while running its procedure, so its owner holds it — the wording is not repeated here.
+Read these owners when their named procedure applies.
 
 | Rule | Owner |
 |---|---|

@@ -105,6 +105,19 @@ try {
     await assert.rejects(checkRules(fixture({data: null})));
     await assert.rejects(checkRules(fixture({failures: {list: {code: 1, stdout: '[]', stderr: 'failure'}}})));
   });
+  await check('procedural findings are advisory while invalid repository coordinates still fail', async () => {
+    for (const data of [
+      changed(task.id, {acceptance_criteria: ''}),
+      [...rows, {...task, id: 'another-task'}],
+      rows.map(row => row.issue_type === 'epic' ? row : {...row, status: 'closed'}),
+    ]) {
+      const result = await checkRules(fixture({data}));
+      assert.equal(result.code, 0, result.stdout);
+      assert.match(result.stdout, /Advisory/);
+    }
+    const invalid = await checkRules(fixture({data: changed(task.id, {labels: []})}));
+    assert.equal(invalid.code, 1); assert.match(invalid.stdout, /✗ R5/);
+  });
   await check('renderer is deterministic and retains metadata, natural ordering, notes and close reasons', () => {
     const fixtureRows = [...changed(task.id, {status: 'closed', close_reason: 'MATCH abc\nfull detail'}), {...milestone, id: 'repo#42.10', title: '열째'}];
     const files = renderDocuments('2026-S01', fixtureRows, rails, sprints);
@@ -150,5 +163,5 @@ try {
       }
     });
   }
-  assert.equal(reached,13); console.log(`PASS consumer policies ${reached}; offline fixtures`);
+  assert.equal(reached,14); console.log(`PASS consumer policies ${reached}; offline fixtures`);
 } finally { await fs.rm(temp, {recursive: true, force: true}); }

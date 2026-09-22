@@ -4,17 +4,19 @@
 
 ## Standard cycle
 
-```
-plan-sprint ─→ plan-story ─→ develop ─┬→ verify-code ─→ verify-implement ─→ ledger close
- (compose·label) (decompose·acceptance) │   (select path)   (verify·close)
-                                      └── repeat per milestone (batch condition: develop section 3) ──┘
-                                                   ↓ story complete
-                                             retrospective
-```
+Plan a concrete outcome, implement it in an assigned workspace, and verify the
+changed behavior. Use the skills for the responsibility needed: `develop` owns
+execution, `verify-code` selects risk-driven checks, and `verify-implement`
+compares requirements and records completion. Quality and acceptance may be
+assessed together. Independent review is selected for its value or an explicit
+requirement; a sequence of role calls is not a prerequisite.
 
-- verify-code selects local verification, combined independent verification, or separate review and evaluation under its Verification path rules. verify-implement records the evidence required by that path and closes accepted work.
-- Each step's procedure is the skill of the same name in the `harness@skills` plugin (`harness:<name>`). Skills carry delegation and signal handling; role discipline is carried by the plugin's `roles/` definitions — a delegation message carries only "paths + IDs + task-specific context".
-- The completion-flow rules (risk-based verification and evidence required for close) are owned by `harness:develop` "운영 규율"; the always-on subset is the plugin's session block.
+Ordinary delegation follows [roles.md](roles.md). Native invocation audit records and
+strict audit commands remain opt-in. Record outcome, commit/diff, checks and
+limitations; optional phases and retry markers aid resumption. Ledger structural
+diagnostics do not automatically block unrelated implementation or PR delivery.
+Actual writer collisions, failed required tests, unmet requirements and user
+approval boundaries still govern progress.
 
 ## New-session bootstrap
 
@@ -58,7 +60,7 @@ The ledger **rides no branch** — on `beads` it is a single `.gitignore`d DB gl
 | **Planning** (sprint composition · story decomposition) | **nothing** — the registries are behind the adapter and the root's files are machine-local, so planning produces no diff in any repo. What is left is the ledger's own reflection (`plan-sprint` 6 · `plan-story` 7) | no PR — there is nothing to merge |
 | **Task close** (`verify-implement` 3) | the code on the development branch. No documents | **PR creation** — a person merges |
 
-**Ledger reflection is an explicit step, never something a push carries.** No harness git hook exists, at the harness root or in a target repo, so the reflection happens where the cycle close says it does — the steps, their order, scope, and failure handling are owned by `harness:develop` "사이클 종결" and not restated here.
+**Ledger reflection is an explicit step, never something a push carries.** No harness git hook exists, at the harness root or in a target repo, so the reflection happens where the cycle close says it does — delivery dependencies, scope, and failure handling are owned by `harness:develop` "사이클 종결" and not restated here.
 
 ## Remote reflection — the boundary is single-owned by the first item of the session block's "절대 금지"
 
@@ -104,7 +106,7 @@ Seconds, and that is normal. Measured: `bd dolt pull` (nothing to receive) 7.6 s
 
 ## New clone, new harness, update
 
-- **A new machine joining a standing harness — two commands.** Install the plugin at user scope and clone a repo that already carries `.harness.json`; the clone brings the ledger coordinates with it and may live anywhere. What still needs credentials per backend (`gh auth` · `NOTION_TOKEN` · `ledger.sh bootstrap`) is owned by `harness:setup` "2. B — Join an existing harness" and is not restated here. Until `ledger.sh list` is rc 0, every skill and gate is powerless.
+- **A new machine joining a standing harness — two commands.** Install the plugin at user scope and clone a repo that already carries `.harness.json`; the clone brings the ledger coordinates with it and may live anywhere. What still needs credentials per backend (`gh auth` · `NOTION_TOKEN` · `ledger.sh bootstrap`) is owned by `harness:setup` "2. B — Join an existing harness" and is not restated here. A failed `ledger.sh list` prevents ledger operations; report it and continue independent authorized work.
 - **On `beads` the remote is the only ledger backup.** Lose `.beads/embeddeddolt/` and the sprint and judgment history is gone — projections are outside git and cannot restore the ledger. A ledger on one machine only is not a normal state. `github`·`notion` have no local copy to lose.
 - **Standing up a new harness**: `harness:setup` "1. A — New harness". The core is never copied into a project — the plugin is installed next to it.
 - **Updating a standing harness**: `harness:setup` "3. C — Update" and the selected runtime's [installation procedure](installation.md). Restart the session and verify the installed artifact and role receipts. No repository-owned configuration is overwritten by a plugin update.

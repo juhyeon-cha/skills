@@ -12,7 +12,7 @@ import {literalReadEffects} from './shell-effects.mjs';
 
 export function normalizeHookEvent(
   raw,
-  { env = process.env, platform = process.platform, delegatedRole, deferDelegatedRole = false } = {},
+  { env = process.env, platform = process.platform } = {},
 ) {
   if (!raw || Array.isArray(raw) || typeof raw !== 'object')
     throw new Error('hook input must be an object');
@@ -36,18 +36,11 @@ export function normalizeHookEvent(
     contract = {canonical: 'OTHER', effect: 'host-managed', roleIndependent: true};
   for (const key of ['agent_id', 'agent_type'])
     if (raw[key] != null && typeof raw[key] !== 'string') throw new Error(`invalid ${key}`);
-  if (delegatedRole && (!raw.agent_id || (raw.agent_type && raw.agent_type !== 'default') || !canonicalRole(delegatedRole)))
-    throw new Error('invalid delegated policy role');
-  const pendingRole = deferDelegatedRole && raw.agent_id && (!raw.agent_type || raw.agent_type === 'default');
-  // Only the resolver supplies null after classifying an ordinary child.
-  const ordinaryChild = delegatedRole === null && raw.agent_id && (!raw.agent_type || raw.agent_type === 'default');
-  if (raw.agent_id && !canonicalRole(raw.agent_type) && !delegatedRole && !pendingRole && !ordinaryChild)
-    throw new Error('child role is unidentified');
-  if (raw.agent_type && !canonicalRole(raw.agent_type) && !delegatedRole && !pendingRole && !ordinaryChild) throw new Error('unknown role');
+  // Unregistered agents use common safeguards; role metadata is not execution authority.
   const event = {
     ...raw,
     agent_type: canonicalRole(raw.agent_type) ?? '',
-    harness_policy_role: delegatedRole || canonicalRole(raw.agent_type) || '',
+    harness_policy_role: canonicalRole(raw.agent_type) || '',
     harness_operations: [],
     harness_shell_readonly: false,
     harness_tool_contract: contract,

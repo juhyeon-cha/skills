@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
-import {resolveState, runtimeIdentity, appendState, withStateLock, tsv, readActors, bindActor, cancelSession, isCancelled, storeWorkflow, readWorkflow, recordStateEvent} from '../../plugins/harness/lib/runtime/state.mjs';
+import {resolveState, runtimeIdentity, appendState, withStateLock, tsv, readActors, bindActor, cancelSession, isCancelled, storeWorkflow, readWorkflow, recordStateEvent, enableContinuation} from '../../plugins/harness/lib/runtime/state.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness/', import.meta.url));
 const modulePath = path.join(root, 'lib/runtime/state.mjs');
@@ -126,6 +126,9 @@ esac
   const pre = run('bash', [path.join(root, 'hooks/guard.sh')], {env: hookEnv, input: JSON.stringify({cwd: first, session_id: 'no-claim', tool_name: 'Bash', tool_input: {command: 'bd -C /h update fixture --claim --actor pretend-secret'}})});
   check(!fs.existsSync((await scoped('claude', first, 'no-claim')).actors), 'PreToolUse never establishes successful claim');
   check(!fs.readFileSync(env.HARNESS_GUARD_LOG, 'utf8').includes('pretend-secret'), 'guard does not persist raw claim command');
+  const defaultStop = run('bash', [path.join(root, 'hooks/stop-resume.sh')], {env: {...ledgerEnv, HARNESS_RUNTIME: 'claude'}, input: JSON.stringify({cwd: first, session_id: claude.sessionId})});
+  check(defaultStop.status === 0 && !defaultStop.stdout && !fs.existsSync(claude.stopLog), 'default Stop does not create continuation logs');
+  enableContinuation(claude);
   const stop = run('bash', [path.join(root, 'hooks/stop-resume.sh')], {env: {...ledgerEnv, HARNESS_RUNTIME: 'claude'}, input: JSON.stringify({cwd: first, session_id: claude.sessionId})});
   check(stop.status === 0 && !stop.stdout && fs.readFileSync(claude.stopLog, 'utf8').includes('CANCEL'), 'actual Stop consumes only explicit cancel');
   const quotedRepo = repo(`취소 'single' "double" repo`);

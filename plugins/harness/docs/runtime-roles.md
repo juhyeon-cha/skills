@@ -1,24 +1,24 @@
-# Runtime role execution
+# Optional native role execution
 
 For source ownership, native assembly and read-only configuration diagnosis,
 follow [Edit and inspect role settings](roles.md#edit-and-inspect-role-settings).
 Runtime declarations retain their own syntax and semantics: Claude frontmatter,
 Codex TOML and Antigravity frontmatter are not mutually interchangeable.
 Preserving a provider-specific field does not establish that the selected
-runtime version supports or enforces it. Generic collaboration does not load
-those declarations; its execution contract remains [roles.md](roles.md).
+runtime version supports or enforces it. Ordinary subagents do not load
+those declarations; use runtime tools directly as described in [roles.md](roles.md).
 The [official CLI discovery documentation](https://antigravity.google/docs/cli/subagents/)
 and [official subagent schema](https://antigravity.google/docs/subagents) are the
 primary contracts. The CLI's observed tool result parser is intentionally narrow:
 a changed format returns UNREACHED instead of guessing an identity.
 
-Before dispatch, run `node <plugin-root>/scripts/roles.mjs capabilities <input.json>`
+When explicitly using this native capability contract, run `node <plugin-root>/scripts/roles.mjs capabilities <input.json>`
 with `runtime`, `role`, the provider's observed `availableTools` and optional
 `modelOptions`. This tests required operations, including shell access for Git,
 the gate and ledger, plus file mutation tools for implementers. Missing tools
 fail explicitly. A declared list is not proof that a runtime loaded or enforced
 it; live role evidence still needs actual allowed reads and denied grader writes.
-Claude/Codex native and collaboration evidence continue through the existing
+Claude/Codex native evidence follows the
 [role procedures](roles.md). No capability result is a close reason.
 
 Antigravity accepts only its documented `inherit`, `flash` and `pro` model tiers.
@@ -29,13 +29,11 @@ a user's requested model into another provider's model.
 
 ## Antigravity parent observations
 
-Use `node <plugin-root>/scripts/antigravity-role.mjs begin|bind|activate|complete <input.json>`
+For the opt-in managed Antigravity protocol, use `node <plugin-root>/scripts/antigravity-role.mjs begin|bind|activate|complete <input.json>`
 from the registered parent or external operator. Child shell tools cannot enroll
 identities through this command. The guard checks normalized literal argv,
-including quoted paths and composed literal commands. Dynamic child shell
-arguments and inline `sh`/`bash`/`zsh -c` commands are denied because their
-enrollment effects cannot be classified; ordinary script-file invocations remain
-available. All inputs carry `runtime:
+including quoted paths and composed literal commands. Common guarded effects
+remain protected; an opaque script is not automatically a registration claim. All inputs carry `runtime:
 "antigravity"`, exact `workspace`, actual `parentId`, `callId`, and explicit `data`.
 The registry is scoped by the actual repository, session, source root and hash.
 It is parent-attested workflow evidence, not an authenticated provider API.
@@ -65,7 +63,7 @@ It is parent-attested workflow evidence, not an authenticated provider API.
   Activation returns `AWAITING_START_ACK` and exact START dispatch arguments with
   a second nonce and the task prompt. Send that message unchanged. The child must
   send its exact START_ACK before executing the task; activation alone permits no
-  task mutation. READY/ACK/START is a harness protocol over native messaging,
+  successful managed execution evidence. READY/ACK/START is a harness protocol over native messaging,
   **not** an Antigravity native registration or lifecycle feature.
 - `complete` additionally takes the bound `childId` and `observation` containing
   `source: "parent-received-message"`, actual `sender`, `recipient`, and `body`.
@@ -78,11 +76,12 @@ It is parent-attested workflow evidence, not an authenticated provider API.
   dispatch and both child acknowledgements are single-use; retrying a failed
   delivery requires a fresh call, rather than replaying an uncertain send.
 
-A child can read before registration. Mutation remains denied until the actual
-returned ID is bound, context was observed at the same source and workspace, READY
-delivery and acknowledgement were attested, and START's exact nonce acknowledgement
-was observed from that child. Reviewer/evaluator mutation then follows the shared guard;
-the native tools list is not claimed as an exhaustive enforcement boundary.
+The managed audit accepts execution only after the returned ID is bound, context
+matches source/workspace, and READY/START acknowledgements are observed. This is
+an audit condition, not a prerequisite for ordinary local tool execution.
+Recognized native reviewer/evaluator roles retain concrete guard restrictions;
+unidentified agents use common child protections, including remote restrictions.
+The native tools list is not an exhaustive enforcement boundary.
 Unregistered dispatches, duplicate bindings, other calls or workspaces, stale
 source, parent self-judgment and author-as-grader all fail. Parent observations
 and their source must be retained locally for independent verification.

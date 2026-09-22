@@ -751,7 +751,7 @@ for i in "${!BD_LIMIT_CMD[@]}"; do
   run "${BD_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${BD_LIMIT_N[$i]}" "${BD_LIMIT_CMD[$i]}"
   if [[ "${BD_LIMIT_CMD[$i]}" = '[agent_type 없음]'* ]]; then
-    step "미식별 역할 차단: ${BD_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
+    step "Ordinary agent uses common safeguards: ${BD_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
   else
     step "한계(못 막음, rc=0 고정) ${BD_LIMIT_N[$i]}: ${BD_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
   fi
@@ -1161,8 +1161,8 @@ done
 runsub 'git push origin master'
 echo "  deny(push) → $GUARD_OUT"
 step "push: 오케스트레이터·사람의 몫임을 밝힌다" has_text '오케스트레이터·사람의 몫' "$GUARD_OUT"
-step "push: 서브에이전트가 대신 할 일을 지시한다" has_text 'IMPLEMENTATION_COMPLETE' "$GUARD_OUT"
-step "push: 근거 문서를 인용한다"                 has_text 'implementer.md' "$GUARD_OUT"
+step "push: 서브에이전트가 대신 할 일을 지시한다" has_text '작업 결과와 커밋 해시' "$GUARD_OUT"
+step "push: 근거 문서를 인용한다"                 has_text "harness:develop '사이클 종결'" "$GUARD_OUT"
 step "push: 오탐 가능성을 밝힌다"                 has_text '오탐' "$GUARD_OUT"
 # 오탐의 성격이 하나가 아니다. 초판 메시지는 "그 경우는 오탐이고 고칠 명령이 없다" 한 줄이라
 # `git stash push` 로 막힌 에이전트가 있는 대안(`git stash`)을 못 찾고 멈춘다. 갈래 3종이
@@ -1179,7 +1179,7 @@ step "gh: 오케스트레이터·사람의 몫임을 밝힌다"  has_text '오�
 step "gh: 문제의 하위 명령이 실린다"            has_text "'gh pr create'" "$GUARD_OUT"
 step "gh: 읽기 면제 목록을 알린다"              has_text "$GH_EXEMPT_SRC" "$GUARD_OUT"
 step "gh: 통과하는 읽기 예시를 준다"            has_text 'gh pr view' "$GUARD_OUT"
-step "gh: 서브에이전트가 대신 할 일을 지시한다" has_text 'IMPLEMENTATION_COMPLETE' "$GUARD_OUT"
+step "gh: 서브에이전트가 대신 할 일을 지시한다" has_text '작업 결과와 커밋 해시' "$GUARD_OUT"
 
 runsub 'G=gh; $G pr create'
 echo "  deny(치환) → $GUARD_OUT"
@@ -1685,12 +1685,12 @@ for i in "${!GR_LIMIT_CMD[@]}"; do
   run "${GR_LIMIT_JSON[$i]}"
   printf '  rc=%d  [한계 %s] %s\n' "$GUARD_RC" "${GR_LIMIT_N[$i]}" "${GR_LIMIT_CMD[$i]}"
   if [[ "${GR_LIMIT_CMD[$i]}" = '[agent_type 없는 위임]'* ]]; then
-    step "미식별 역할 차단: ${GR_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
+    step "Ordinary agent uses common safeguards: ${GR_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
   else
     step "한계(못 막음, rc=0 고정) ${GR_LIMIT_N[$i]}: ${GR_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
   fi
 done
-# 유형 없는 자식은 공통 정규화에서 차단된다. 위 음성 제어가 그 경로를 유지한다.
+# Unknown roles use common protections; role-specific restrictions require a known role.
 
 echo "── ⑬ A5: implementer 의 bd 쓰기 범위 제한 (note 하나만 허용) ──"
 # ⑫ 와 같은 판정 지점(gr_bd_subcmds 로 뽑은 하위 명령)에 **다른 허용 목록**이 붙는다.
@@ -2203,7 +2203,7 @@ for i in "${!IMPL_LIMIT_CMD[@]}"; do
   if [[ "${IMPL_LIMIT_CMD[$i]}" = *'mcp__bd__create'* ]]; then
     step "Opaque ledger tools remain subject to host permissions" [ "$GUARD_RC" -eq 0 ]
   elif [[ "${IMPL_LIMIT_CMD[$i]}" = '[agent_type 없는 위임]'* ]]; then
-    step "미식별 역할 차단: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 2 ]
+    step "Ordinary agent uses common safeguards: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
   else
     step "한계(못 막음, rc=0 고정) ${IMPL_LIMIT_N[$i]}: ${IMPL_LIMIT_CMD[$i]}" [ "$GUARD_RC" -eq 0 ]
   fi

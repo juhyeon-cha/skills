@@ -107,7 +107,7 @@ State identity, paths, locks and cancellation are defined in [Runtime state](sta
 
 A9 checks the exact first-line SIGNAL against the source role vocabulary. The clean/dirty and asynchronous notification negative controls remain in `--self-check`; `tests/harness/transcript-contract-check.sh` also checks missing/unfinished calls, unknown formats and mixed reached/unreached populations. Existing measurement lineage is `harness-dg0.6.18`, `harness-m8gg.8.12` and `skills#264`.
 
-The ordinary workflow records required calls before invocation and validates native returns against subsequent hook observations. Historical Claude directory scans derive invocations from Agent/Task records. Completion-only fragments cannot establish the population, and a missing completion is retained as UNREACHED. Other natural-language discipline items do not gain a judgment merely because their data can be read here.
+The opt-in managed workflow records audited calls before invocation and validates native returns against subsequent hook observations. Historical Claude directory scans derive invocations from Agent/Task records. Completion-only fragments cannot establish the population, and a missing completion is retained as UNREACHED. Other natural-language discipline items do not gain a judgment merely because their data can be read here.
 
 ### Ceilings
 

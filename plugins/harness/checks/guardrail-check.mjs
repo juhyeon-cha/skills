@@ -384,13 +384,16 @@ export async function checkGuardrails({
           ...(rootFinder ? { rootFinder } : {}),
         },
       );
-      const records = fs.readFileSync(scope.stopLog, 'utf8').trimEnd().split('\n').slice(before);
+      const records = fs.existsSync(scope.stopLog) ? fs.readFileSync(scope.stopLog, 'utf8').trimEnd().split('\n').slice(before) : [];
+      if (!continuation) lines = 0;
       runs++;
       observedLines += records.length;
       expectedLines += lines;
       assert.equal(result.code, 0);
       assert.equal(records.length, lines);
-      assert.equal(records.at(-1).split('\t')[2], expected);
+      assert.equal(result.outcomes.at(-1), expected);
+      if (records.length) assert.equal(records.at(-1).split('\t')[2], expected);
+      for (const outcome of result.outcomes) outcomes.add(outcome);
       for (const record of records) outcomes.add(record.split('\t')[2]);
       if (expected === 'BLOCK') assert.equal(JSON.parse(result.stdout).decision, 'block');
       else assert.equal(result.stdout, '');
@@ -415,7 +418,7 @@ export async function checkGuardrails({
     );
     await check('S7 default is advisory and continuation is session scoped', async () => {
       const result = await stopCase('advisory', [{assignee: 'mine'}], 'NOTICE', {continuation: false});
-      assert.match(result.stderr, /unfinished/);
+      assert.equal(result.stderr, '');
       await stopCase('explicit-continuation', [{assignee: 'mine'}], 'BLOCK');
       await stopCase('different-session', [{assignee: 'mine'}], 'NOTICE', {continuation: false});
       const bad = await scopeFor('corrupt-continuation');
@@ -532,13 +535,13 @@ export async function checkGuardrails({
     await check('S7 outcome population, log count and source declarations agree', () => {
       const source = fs.readFileSync(path.join(pluginRoot, 'lib/runtime/stop.mjs'), 'utf8');
       const sourceOutcomes = [
-        ...new Set([...source.matchAll(/log\('([A-Z_]+)'/g)].map((match) => match[1])),
+        ...new Set([...source.matchAll(/(?:log|outcomes.push)\('([A-Z_]+)'/g)].map((match) => match[1])),
       ];
       assert.deepEqual([...outcomes].sort(), [...stop.STOP_OUTCOMES].sort());
       assert.deepEqual(sourceOutcomes.sort(), [...outcomes].sort());
       assert.ok(runs >= 25);
       assert.equal(observedLines, expectedLines);
-      assert.ok(observedLines >= runs);
+      assert.ok(observedLines > 0);
     });
     await check(
       'S7 unavailable state is diagnosed without claiming idle or modifying the ledger',
@@ -559,8 +562,8 @@ export async function checkGuardrails({
         );
         assert.equal(result.code, 0);
         assert.equal(result.stdout, '');
-        assert.match(result.stderr, /UNREACHED/);
-        assert.equal(calls, 1);
+        assert.equal(result.stderr, '');
+        assert.equal(calls, 0);
         assert.ok(!result.outcomes.includes('IDLE'));
       },
     );
@@ -580,8 +583,8 @@ export async function checkGuardrails({
       );
       assert.equal(result.code, 0);
       assert.equal(result.stdout, '');
-      assert.ok(fs.existsSync(scope.stopLog));
-      assert.match(fs.readFileSync(scope.stopLog, 'utf8'), /RECURSE/);
+      assert.equal(fs.existsSync(scope.stopLog), false);
+      assert.deepEqual(result.outcomes, ['NOTICE']);
     });
   } catch (error) {
     errors.push(`✗ guardrail setup/fixture UNREACHED: ${error.message}`);
