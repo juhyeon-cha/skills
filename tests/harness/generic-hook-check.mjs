@@ -4,8 +4,6 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { beginDelegation, bindDelegation, completeDelegation } from '../../plugins/harness/lib/runtime/delegation.mjs';
-import { loadRole } from '../../plugins/harness/lib/runtime/roles.mjs';
 import { evaluateGuard } from '../../plugins/harness/lib/guard/guard.mjs';
 import { normalizeHookEvent } from '../../plugins/harness/lib/guard/hook-event.mjs';
 import { resolveState } from '../../plugins/harness/lib/runtime/state.mjs';
@@ -26,7 +24,6 @@ try {
   git('init', '-qb', 'fixture');
   fs.writeFileSync(path.join(repo, '.harness.json'), '{}\n');
   git('add', '.'); git('commit', '-qm', 'base');
-  const head = git('rev-parse', 'HEAD');
   const worktree = path.join(temp, 'worktree');
   git('worktree', 'add', '-qb', 'worktree-fixture', worktree);
   // Replay exec_command inputs preserved in generic-child-observation.md.
@@ -84,49 +81,8 @@ try {
   fs.writeFileSync(source, original.replace(anchor, "throw new Error('restored metadata gate');"));
   const mutant = await import(pathToFileURL(source));
   assert.equal((await mutant.evaluateGuard(ordinary, {pluginRoot: copy, env})).code, 2);
-  const call = { version: 1, runtime: 'codex', provider: 'collaboration', repository: worktree, data: env.HARNESS_DATA_DIR, sessionId: 'generic-session', parentAgentId: '/root', callId: 'read-review', role: 'reviewer', task: 'fixture#1', sourceHash: loadRole('reviewer', plugin).sha256, commitScope: { mode: 'fixed', base: head, head, branch: 'worktree-fixture' }, implementerIds: ['/root/author'], previousAgentIds: [], permission: 'prompt-only' };
-  const pending = await beginDelegation(call, { root: plugin, env });
-  assert.equal(pending.status, 'PENDING');
-  const child = `/root/${pending.dispatch.task_name}`;
-  // Hook cwd is the parent session checkout; the call is bound to its linked tree.
-  // Commands remain executable before and after explicit audit binding.
-  const event = { tool_name: 'Bash', cwd: repo, session_id: call.sessionId, agent_id: child, tool_input: { command: 'node --version' } };
-  const guard = (changes = {}) => evaluateGuard({ ...event, ...changes }, { pluginRoot: plugin, env });
-  const beforeBind = await guard();
-  const bound = await bindDelegation({ call, observation: { source: 'parent-tool-return', tool: 'collaboration.spawn_agent', value: { task_name: child } } }, { root: plugin, env });
-  assert.equal(bound.status, 'PENDING');
-  const afterBind = await guard();
-  {
-    assert.equal(pending.dispatch.model, undefined);
-    assert.equal(pending.dispatch.reasoning_effort, undefined);
-    assert.equal(pending.dispatch.fork_turns, undefined);
-    assert.equal(beforeBind.code, 0, beforeBind.stderr);
-    assert.equal(afterBind.code, 0, afterBind.stderr);
-    // Codex UUID/default metadata, including malformed or absent metadata,
-    // must not select permissions for an ordinary tool call.
-    const nativeEvent = { ...event, agent_id: '01a093ff-1e5b-7302-9ed5-8ba5379852bb', agent_type: 'default' };
-    const metadata = { thread: { id: nativeEvent.agent_id, source: { subAgent: { thread_spawn: {
-      parent_thread_id: call.sessionId, depth: 1, agent_path: child, agent_role: null,
-    } } } } };
-    const nativeGuard = (changes = {}, reply = metadata) => evaluateGuard({ ...nativeEvent, ...changes }, {
-      pluginRoot: plugin, env, readThread: async () => reply,
-    });
-    assert.equal((await nativeGuard()).code, 0, 'UUID/default needs no metadata');
-    for (const edit of [
-      r => { r.thread.id = 'different'; },
-      r => { r.thread.source.subAgent.thread_spawn.parent_thread_id = 'foreign'; },
-      r => { delete r.thread.source.subAgent.thread_spawn.agent_path; },
-      r => { r.thread.source.subAgent.thread_spawn.agent_role = 'worker'; },
-      r => { r.thread.agentRole = 'harness-reviewer'; },
-      r => { r.thread.source = 'cli'; },
-    ]) {
-      const reply = structuredClone(metadata); edit(reply);
-      assert.equal((await nativeGuard({}, reply)).code, 0);
-    }
-    assert.equal((await nativeGuard({ agent_id: child })).code, 0, 'default does not require runtime UUID');
-    assert.equal((await evaluateGuard(nativeEvent, { pluginRoot: plugin, env, readThread: async () => { throw Error('offline'); } })).code, 0);
-    assert.equal((await nativeGuard({ tool_name: 'Write', tool_input: { file_path: path.join(worktree, 'blocked.txt') } })).code, 0);
-    assert.equal((await nativeGuard({ tool_name: 'Bash', tool_input: { command: 'git commit -m blocked' } })).code, 0);
+  const event = { tool_name: 'Bash', cwd: repo, session_id: 'generic-session', agent_id: '/root/ordinary', tool_input: { command: 'node --version' } };
+  const guard = (changes = {}) => evaluateGuard({...event, ...changes}, {pluginRoot: plugin, env});
     const hook = spawnSync(process.execPath, [path.join(plugin, 'hooks/guard.mjs')], { env: { ...env, CLAUDE_PLUGIN_ROOT: plugin }, input: JSON.stringify(event), encoding: 'utf8' });
     assert.equal(hook.status, 0, hook.stderr);
     const doctor = path.join(temp, 'doctor'); fs.mkdirSync(doctor);
@@ -143,71 +99,33 @@ try {
       }
     }
 
-    assert.equal((await guard({ cwd: worktree })).code, 0);
-    for (const changes of [{ session_id: 'foreign' }, { session_id: undefined }, { agent_type: 'unknown' }]) assert.equal((await guard(changes)).code, 0);
-    assert.equal((await guard({agent_id: '/root/unregistered'})).code, 0);
-    assert.equal((await guard({agent_id: '/root/unregistered', harness_policy_role: 'harness:reviewer'})).code, 0);
-    assert.equal((await ordinaryGuard()).code, 0, 'unrelated managed inventory does not enroll ordinary children');
-    assert.equal(normalizeHookEvent(event, { delegatedRole: 'harness:reviewer' }).agent_type, '', 'generic policy must not fabricate native identity');
-    assert.equal(normalizeHookEvent({ ...event, agent_id: '', harness_policy_role: 'harness:implementer' }).harness_policy_role, '', 'raw policy claims are ignored');
-    const scope = await resolveState({ cwd: repo, sessionId: call.sessionId }, env);
-    const directory = path.join(scope.session, 'delegation');
-    const mutate = async (suffix, edit) => {
-      const target = path.join(directory, fs.readdirSync(directory).find(name => name.endsWith(suffix)));
-      const original = fs.readFileSync(target, 'utf8');
-      try {
-        fs.writeFileSync(target, edit(JSON.parse(original)));
-        assert.equal((await guard()).code, 0, `${suffix} corruption is not execution authority`);
-        assert.equal((await ordinaryGuard()).code, 0, 'unrelated corrupt records do not enroll ordinary children');
-        assert.equal((await guard({tool_name: 'Read', tool_input: {file_path: path.join(worktree, '.harness.json')}})).code, 0,
-          'corrupt role evidence must not block inspection');
-      } finally { fs.writeFileSync(target, original); }
-      assert.equal((await guard()).code, 0, 'restored record must allow read');
-    };
-    await mutate('.call.json', record => { record.value.sourceHash = '0'.repeat(64); return JSON.stringify(record); });
-    await mutate('.call.json', record => { record.value.sessionId = 'foreign'; return JSON.stringify(record); });
-    await mutate('.call.json', record => { record.value.role = 'implementer'; return JSON.stringify(record); });
-    await mutate('.call.json', () => '{broken');
-    await mutate('.binding.json', record => { record.value.child = '/root/foreign'; return JSON.stringify(record); });
-    await mutate('.dispatch.json', record => { record.value.task_name = 'harness_' + '0'.repeat(32); return JSON.stringify(record); });
-    const foreign = path.join(temp, 'foreign');
-    fs.mkdirSync(foreign);
-    const initialized = spawnSync('git', ['init', '-q', foreign], { env, encoding: 'utf8' });
-    assert.equal(initialized.status, 0, initialized.stderr);
-    assert.equal((await guard({ cwd: foreign })).code, 0, 'ordinary commands need no inventory');
-    assert.equal((await evaluateGuard(event, { pluginRoot: plugin, env: { ...env, HARNESS_DATA_DIR: path.join(temp, 'foreign-data') } })).code, 0);
-    assert.equal((await guard({ agent_type: 'harness-reviewer' })).code, 0);
-    for (const changes of [
-      { tool_name: 'Write', tool_input: { file_path: path.join(worktree, 'blocked.txt'), content: 'no' } },
-      { tool_name: 'Bash', tool_input: { command: 'git commit -m forbidden' } },
-      { tool_name: 'Bash', tool_input: { command: 'ledger.mjs note fixture#1 forbidden' } },
-    ]) {
-      assert.equal((await guard(changes)).code, changes.tool_name === 'Write' || changes.tool_input.command.startsWith('git commit') ? 0 : 2);
-      assert.equal((await guard({ ...changes, agent_type: 'harness-reviewer' })).code, 2);
-    }
-    const outcome = await completeDelegation({ call, head, observation: { source: 'parent-tool-return', tool: 'collaboration.list_agents', value: { agents: [{ agent_name: child, agent_status: { completed: 'SIGNAL: UNREACHED' } }] } } }, { root: plugin, env });
-    assert.equal(outcome.status, 'REJECTED');
-    assert.equal((await guard()).code, 0);
-    assert.equal((await guard({tool_name: 'Read', tool_input: {file_path: path.join(worktree, '.harness.json')}})).code, 0,
-      'terminal audit still permits inspection');
-    assert.equal((await nativeGuard()).code, 0, 'terminal audit does not end ordinary execution');
-    const successfulCall = { ...call, callId: 'successful-review' };
-    const successful = await beginDelegation(successfulCall, { root: plugin, env });
-    const successfulChild = `/root/${successful.dispatch.task_name}`;
-    await bindDelegation({ call: successfulCall, observation: { source: 'parent-tool-return', tool: 'collaboration.spawn_agent', value: { task_name: successfulChild } } }, { root: plugin, env });
-    const accepted = await completeDelegation({ call: successfulCall, head, observation: { source: 'parent-tool-return', tool: 'collaboration.list_agents', value: { agents: [{ agent_name: successfulChild, agent_status: { completed: 'SIGNAL: LGTM' } }] } } }, { root: plugin, env });
-    assert.equal(accepted.status, 'OBSERVED');
-    assert.equal((await guard({ agent_id: successfulChild })).code, 0, 'successful audit does not end ordinary execution');
-    const implementation = { ...call, callId: 'implementation', role: 'implementer', sourceHash: loadRole('implementer', plugin).sha256, commitScope: { mode: 'implementation', base: head, branch: 'worktree-fixture' }, implementerIds: [] };
-    const impl = await beginDelegation(implementation, { root: plugin, env });
-    const implChild = `/root/${impl.dispatch.task_name}`;
-    const write = { agent_id: implChild, tool_name: 'Write', tool_input: { file_path: path.join(worktree, 'allowed.txt'), content: 'fixture' } };
-    assert.equal((await guard(write)).code, 0, 'implementer can write the linked tree');
-    fs.writeFileSync(path.join(worktree, 'dirty.txt'), 'implementation in progress');
-    assert.equal((await guard(write)).code, 0, 'implementation dirty tree remains executable');
-    assert.equal((await guard({ agent_id: implChild, tool_name: 'Bash', tool_input: { command: 'git push origin HEAD' } })).code, 2);
-    console.log('PASS generic hook: ordinary children allowed; audit records do not authorize execution; native and common protections retained; restored gate mutation verified');
+  assert.equal(normalizeHookEvent({...event, harness_policy_role: 'harness:reviewer'}).harness_policy_role, '');
+  const scope = await resolveState({cwd: repo, sessionId: event.session_id}, env);
+  const directory = path.join(scope.session, 'delegation');
+  fs.mkdirSync(directory, {recursive: true});
+  const legacy = path.join(directory, 'legacy.call.json');
+  fs.writeFileSync(legacy, '{broken');
+  assert.equal((await guard()).code, 0);
+  assert.equal(fs.readFileSync(legacy, 'utf8'), '{broken');
+  const oldScope = path.join(temp, 'old-scope.json');
+  fs.writeFileSync(oldScope, JSON.stringify({runtime: 'codex', provider: 'collaboration', repository: repo,
+    sessionId: event.session_id, data: env.HARNESS_DATA_DIR}));
+  const removedDoctor = spawnSync(process.execPath, [path.join(plugin, 'scripts/doctor.mjs'), 'delegation', oldScope], {env, encoding: 'utf8'});
+  assert.equal(removedDoctor.status, 1);
+  assert.equal(JSON.parse(removedDoctor.stdout).status, 'UNREACHED');
+  const oldAudit = spawnSync(process.execPath, [path.join(plugin, 'scripts/transcript.mjs'), '--scope', oldScope], {env, encoding: 'utf8'});
+  assert.notEqual(oldAudit.status, 0);
+  assert.match(oldAudit.stdout + oldAudit.stderr, /provider adapter unsupported/);
+  assert.equal(fs.readFileSync(legacy, 'utf8'), '{broken');
+
+  for (const changes of [
+    {tool_name: 'Write', tool_input: {file_path: path.join(worktree, 'ordinary.txt'), content: 'allowed'}},
+    {cwd: worktree, tool_input: {command: 'git commit -m fixture'}},
+  ]) {
+    assert.equal((await guard(changes)).code, 0);
+    assert.equal((await guard({...changes, agent_type: 'harness-reviewer'})).code, 2);
   }
+  console.log('PASS ordinary children: direct tools allowed, legacy records ignored and preserved, common/native protections retained, restored gate mutation detected');
 } finally {
-  fs.rmSync(temp, { recursive: true, force: true });
+  fs.rmSync(temp, {recursive: true, force: true});
 }

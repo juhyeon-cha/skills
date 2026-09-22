@@ -32,7 +32,7 @@ A gate does not weaken a prohibition — every gate can be bypassed, and "cannot
 ## Execution
 
 Use outcome-based implementation and risk-driven verification. Ordinary delegation
-needs a clear responsibility, inspected scope and actual response. Managed audit
+needs a clear responsibility, inspected scope and actual response. Native audit
 records, SIGNAL formats, stage markers and retry counters are optional unless the
 user or project explicitly requires them. Keep concrete protections and approvals;
 failed required tests and unmet requirements still block completion.
@@ -44,7 +44,7 @@ Use `harness:plan-sprint` for sprint composition, `plan-story` for decomposition
 acceptance. `retrospective`, `setup`, `triage` and `status` own their named tasks.
 
 Role definitions (3): `harness:implementer` · `harness:reviewer` · `harness:evaluator`.
-Bodies are `roles/*.md`; optional runtime registration and managed evidence follow `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`.
+Bodies are `roles/*.md`; optional native registration and audit evidence follow `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`.
 An unavailable audited capability is not successful audit evidence; it does not
 prevent ordinary work unless that capability is explicitly required.
 

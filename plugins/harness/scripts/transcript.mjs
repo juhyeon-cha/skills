@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import assert from 'node:assert/strict';
-import { auditClaude, auditGeneric, summarize } from '../lib/transcript.mjs';
+import { auditClaude, summarize } from '../lib/transcript.mjs';
 import { decodeClaude } from '../lib/transcripts/claude.mjs';
 import { workflowScope, auditWorkflow } from '../lib/runtime/workflow.mjs';
 
@@ -103,8 +103,7 @@ try {
       throw new Error('scope inventory cannot be combined with Claude directory filters');
     const context = options.scope ? JSON.parse(fs.readFileSync(options.scope)) : null;
     const report = context
-      ? context.provider === 'collaboration' ? await auditGeneric(context)
-        : auditWorkflow(await workflowScope(context))
+      ? auditWorkflow(await workflowScope(context))
       : auditClaude(options);
     for (const reason of report.unreached) console.error(`UNREACHED: ${reason}`);
     console.log(

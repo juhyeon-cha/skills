@@ -1,58 +1,40 @@
-# Codex subagents: invocation, hook identity and models
+# Codex subagents: native configuration and ordinary delegation
 
-Verified against official OpenAI documentation and Codex CLI 0.154.0 on 2026-09-12.
+Read this when changing Codex role registration or diagnosing a mismatch between
+native configuration and ordinary subagent behavior. The operating procedure is
+[roles.md](../plugins/harness/docs/roles.md).
 
-## Documented invocation
+## Native roles
 
-[Subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents) defines
-custom agents in project `.codex/agents/*.toml` or user `~/.codex/agents/*.toml`.
-The required fields are `name`, `description`, and `developer_instructions`.
-Model and reasoning can be selected in the agent file, explicit spawn options,
-or `[agents]` defaults. The custom-agent file wins; global defaults should not be
-rewritten to implement a role-specific choice.
+Harness assembles `roles/<role>.md` with `native/codex/<role>.toml` through
+`scripts/roles.mjs register codex`. Registration and its receipt establish generated
+files, not runtime discovery or invocation. A native delegation tool must actually
+select the registered identifier before execution can establish native loading.
+Prompting an ordinary child with a role name is not that evidence.
 
-Harness generates these files with `scripts/roles.mjs register codex` and verifies
-their receipt. A current collaboration tool with no native role selector cannot
-prove native agent invocation by merely mentioning a custom name in its prompt.
-Use the explicitly selected generic contract in that case; no automatic fallback.
+The shipped Claude and Codex templates omit model declarations and inherit runtime
+settings. Runtime-specific settings belong in their native templates. The read-only
+`roles.mjs explain` command shows the canonical body and declared native template;
+it does not report an observed execution model or dispatch an agent.
 
-## Actual identity boundary
+## Ordinary subagents
 
-[Hooks](https://learn.chatgpt.com/docs/hooks) supplies a subagent identifier and
-type, with the parent's session ID. It does not promise that the identifier is
-the path returned by `collaboration.spawn_agent`. The 2.3.2 live run supplied a
-UUID and `default`, while the tool returned `/root/<name>`.
+Use the runtime's ordinary delegation tool directly with the responsibility,
+repository, requirements and identified review scope. Inspect its actual returned
+findings. Model selection belongs to the caller or runtime settings; Harness has
+no generic model-preference layer, invocation inventory or begin/bind/complete
+protocol. Reuse or create a child according to the task and independence needed.
 
-[App Server](https://learn.chatgpt.com/docs/app-server) documents metadata-only
-`thread/read` and generation of a schema matching the installed CLI. The 0.154.0
-schema includes `source.subAgent.thread_spawn.parent_thread_id`, `agent_path`,
-and `agent_role`. An actual read of the previously blocked child confirmed its
-UUID, exact tool path and parent. The guard verifies those fields before applying
-the existing delegation inventory rules. No timing match or rollout parsing is
-used. Missing optional metadata fails closed, including on remote-only state.
-
-## Model decision
-
-[Models](https://learn.chatgpt.com/docs/models) describes Terra as balanced and
-lower-cost, Sol as suited to complex coding. The selected policy lives in
-`plugins/harness/lib/runtime/role-models.mjs`: reviewer Sol/high, evaluator
-Terra/medium, implementer parent inheritance. Claude evaluator retains Sonnet.
-Ambiguous acceptance or conflicting evidence should return a decision request;
-an explicitly approved escalation can use Sol/high. No token-saving ratio or
-quality equivalence to Sonnet has been measured.
-
-A real bounded subagent was spawned with explicit Terra/medium and no history
-fork. App Server metadata confirmed the same model and effort and the exact
-tool path. Its short model-policy response is a configuration smoke test, not a
-Harness review or acceptance verdict. Thread metadata reports current configured
-or latest persisted settings, not per-turn execution telemetry.
+Ordinary tool execution does not consult provider metadata or a delegation
+inventory to establish a role. Known native roles retain their concrete tool
+restrictions; common child safeguards still apply to ordinary children. Neither a
+prompt nor an allowed tool call proves a read-only permission boundary.
 
 ## Verification boundary
 
-`generic-hook-check.mjs` covers UUID/default metadata, wrong parent/path/profile,
-unavailable metadata, terminal calls and grader write denial. The transport test
-checks the read-only handshake and protocol failure paths. Registration tests
-verify generated role model/effort and unchanged Claude source ownership.
-Those fixtures do not establish activation of the changed installed hook. A
-fresh live child must still reach its first tool using the updated artifact before
-claiming that the original runtime execution failure is resolved.
+Configuration and fixture tests establish source assembly and tested contracts.
+They do not establish that an installed runtime discovered a role, used a particular
+model, activated hooks or enforced permissions. Claim those only after observing
+the corresponding behavior in that runtime. When a native role selector is
+unavailable, ordinary delegation remains usable; an explicitly required native
+audit remains unverified.

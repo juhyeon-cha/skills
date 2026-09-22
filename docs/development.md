@@ -90,7 +90,7 @@ The as-built rule list and each rule's limits are [guardrails.md](../plugins/har
 
 ## Skills and role definitions
 
-- A skill carries delegation, signal handling, and order only. Role discipline (path check, full-text gate judgment, the forbidden list) is owned by the plugin's `roles/` definitions — never the same rule in two places.
+- A skill owns its task procedure and verification selection. Shared role guidance is owned by `roles/`; runtime declarations by `native/`. Ordinary subagents use runtime tools directly, without a harness dispatch adapter or execution inventory.
 - No absolute path is **baked** into a core file. The harness root is what `lib/harness-root.sh` prints, or `HARNESS_ROOT`.
 - **The harness root travels in the delegation message.** The worktree is `<repo clone>/.claude/worktrees/<worktree name>/`, and a subagent that is handed no root cannot call `ledger.sh` at all — `HARNESS_ROOT=<harness root>` is the only thing that points it at this harness. A new role or skill that forgets that slot breaks silently.
 - Skills and agents reference each other and the plugin's own files through `${CLAUDE_PLUGIN_ROOT}` — the runtime substitutes it with the install path in skill and agent bodies.

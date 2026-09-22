@@ -73,9 +73,9 @@ reviewable outcome, not a mandatory sequence of role invocations.
    accepted tasks when ledger writes are authorized. Preserve unresolved work and
    its reason; a blocked task does not prevent unrelated work.
 
-Ordinary delegation follows `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`. Use the managed
-begin/bind/complete/audit protocol only when explicitly selected for its audit
-purpose. Its strict validators still govern claims about that protocol.
+Ordinary delegation follows `${CLAUDE_PLUGIN_ROOT}/docs/roles.md`. Use the native
+audit procedure in `docs/transcripts.md` only when explicitly selected for its
+audit purpose. Its strict validators govern claims about native invocation.
 
 ## 4. 스토리 마무리
 

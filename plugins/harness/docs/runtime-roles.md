@@ -5,8 +5,8 @@ follow [Edit and inspect role settings](roles.md#edit-and-inspect-role-settings)
 Runtime declarations retain their own syntax and semantics: Claude frontmatter,
 Codex TOML and Antigravity frontmatter are not mutually interchangeable.
 Preserving a provider-specific field does not establish that the selected
-runtime version supports or enforces it. Generic collaboration does not load
-those declarations; its execution contract remains [roles.md](roles.md).
+runtime version supports or enforces it. Ordinary subagents do not load
+those declarations; use runtime tools directly as described in [roles.md](roles.md).
 The [official CLI discovery documentation](https://antigravity.google/docs/cli/subagents/)
 and [official subagent schema](https://antigravity.google/docs/subagents) are the
 primary contracts. The CLI's observed tool result parser is intentionally narrow:
@@ -18,7 +18,7 @@ with `runtime`, `role`, the provider's observed `availableTools` and optional
 the gate and ledger, plus file mutation tools for implementers. Missing tools
 fail explicitly. A declared list is not proof that a runtime loaded or enforced
 it; live role evidence still needs actual allowed reads and denied grader writes.
-Claude/Codex native and collaboration evidence continue through the existing
+Claude/Codex native evidence follows the
 [role procedures](roles.md). No capability result is a close reason.
 
 Antigravity accepts only its documented `inherit`, `flash` and `pro` model tiers.

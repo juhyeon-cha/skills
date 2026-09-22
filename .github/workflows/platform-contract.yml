@@ -30,14 +30,10 @@ jobs:
         run: node tests/harness/native-hook-contract-check.mjs
       - name: Check native guardrail wiring and negative controls
         run: node plugins/harness/checks/guardrail-check.mjs
-      - name: Run generic delegation and capability integration contracts
-        run: node tests/harness/delegation-contract-check.mjs
-      - name: Run delegation procedure and doctor integration contracts
-        run: node tests/harness/delegation-integration-check.mjs
-      - name: Run registered generic child hook contracts
+      - name: Run ordinary child hook contracts
         run: node tests/harness/generic-hook-check.mjs
-      - name: Run Codex identity transport and model contracts
-        run: node tests/harness/codex-identity-check.mjs
+      - name: Run native role explanation contracts
+        run: node tests/harness/role-explanation-check.mjs
   native:
     strategy:
       fail-fast: false

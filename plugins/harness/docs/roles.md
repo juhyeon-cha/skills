@@ -38,27 +38,19 @@ registration alone do not establish host permission enforcement. Use runtime
 permissions when an actual read-only boundary is required and verify that boundary
 before claiming it. A passing hook is not proof of safety or user authorization.
 
-## Select an optional managed contract
+## Optional native audit
 
-Choose managed/native auditing when the user or project requires it, or when its
-invocation history is useful to a concrete investigation. Its commands remain
-strict: invalid identity, stale sources, failed completion and missing observations
-cannot be reported as successful managed evidence. Record an attempted audit's
-actual status without making it a universal completion prerequisite.
+Use the native audit when the user or project requires proof of registered-role
+invocation, or when investigating native loading. Follow Register, Call and Result
+below and [transcripts.md](transcripts.md). Its validators remain strict:
+`REACHED` attests the observation contract, not correctness. Missing observations
+remain unavailable and do not invalidate independently obtained ordinary findings.
+An explicitly required native or enforced contract remains required when unavailable.
 
-For managed Codex collaboration, follow
-[Generic parent observations](transcripts.md#generic-parent-observations).
-`delegation.mjs capability` and `doctor.mjs delegation` inspect declared capability;
-the default permission is prompt-only and unsupported requested enforcement is
-unavailable. `OBSERVED` describes parent-observed execution, not semantic quality,
-registered native identity, model usage or enforced role permissions.
-
-For native audit, use Register, Call and Result below and the native observation
-procedure in [transcripts.md](transcripts.md). `REACHED` attests the validated
-observation contract, not correctness. An explicitly required native or enforced
-contract remains required when unavailable; choose another ordinary path only
-when the requirement permits it. Cross-session recovery is optional and described
-in [transcripts.md](transcripts.md#cross-session-independent-evaluator-recovery).
+Ordinary subagents use runtime tools directly. Harness supplies no separate generic
+delegation adapter, model preference or execution inventory. Choose model settings
+through the runtime's native configuration or caller options, respecting the user's
+selection. Returned findings and the inspected scope determine review usefulness.
 
 ## Edit and inspect role settings
 
@@ -86,11 +78,10 @@ Keep the Codex marker on its own top-level line, with no existing
 Build Claude `agents/<role>.md` with `distribution.mjs generate` and check the
 artifact with `distribution.mjs check`; those files are generated discovery
 artifacts. For deployment and re-registration after either source changes,
-follow [installation.md](installation.md). Managed generic collaboration reads the
-canonical role body and uses its dispatch options; native templates, including
-sandbox settings, do not configure that path.
+follow [installation.md](installation.md). Native declarations configure registered
+roles; they do not configure an ordinary child prompted to perform a responsibility.
 
-Before diagnosing declared role configuration, run the read-only command:
+Before diagnosing declared native role configuration, run the read-only command:
 
 ```sh
 node <plugin-root>/scripts/roles.mjs explain <input.json>
@@ -99,68 +90,45 @@ node <plugin-root>/scripts/roles.mjs explain <input.json>
 For example, `input.json` can contain:
 
 ```json
-{"runtime":"codex","role":"reviewer","execution":"generic"}
+{"runtime":"codex","role":"reviewer","execution":"native"}
 ```
 
-The result has `canonical.file` and `canonical.sha256`, `native.source` and
-`native.rendered`, plus `native.artifact` (the Claude discovery path, otherwise
-null). This example returns `requested: null`, `selectedDispatchOptions: {}`,
-`native.applicableToSelectedPath: false`, `native.loading: "unverified"`,
-`observed: {"model":"unknown","reasoningEffort":"unknown"}` and
-`enforcement: "unavailable"`. With `execution: "native"`, applicability is true,
-selected dispatch options are null and enforcement is `"unverified"`.
-Native execution supports all three runtimes; generic supports Codex only.
-
-Optional `modelOptions` uses the Model selection contract below; optional
-`installedRoot` is an absolute path used when rendering root references.
-`requestProvenance: "caller-supplied-not-dispatched"` applies even to an explicit
-request. Requests do not override `native.rendered`; generic
-`selectedDispatchOptions` describes the selection that a dispatch would use.
+The result identifies the canonical role body and native source/rendered template.
+Optional `installedRoot` is the absolute directory used to render root references.
+Optional `modelOptions` validates an explicit native model request under
+[runtime-roles.md](runtime-roles.md); it does not select defaults or rewrite the
+template. `requested` is caller-supplied, not dispatched. `observed` remains unknown,
+and native loading and enforcement remain unverified.
 Explain neither dispatches nor registers, writes receipts or detects the loaded
 model. A rendered template is declared configuration only. Use registration
 verification and current-session observations for those separate questions.
 
 ## Register (native)
 
-Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It validates and references the generated Claude files without rewriting them; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator assembles the selected native template with the role body and resolves its plugin-root pointers. Native declarations and generic Model selection below remain separate.
+Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It validates and references the generated Claude files without rewriting them; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator assembles the selected native template with the role body and resolves its plugin-root pointers.
 
 Run `verify <registration.json>` before claiming verified native registration. Missing files, changed sources, altered generated files and duplicate native names in that directory fail. Also check the runtime's discovered roles for duplicate identifiers from other scopes; the directory check cannot enumerate a runtime's effective configuration. Generated files are projections: after an update, review and remove the old generated files, then regenerate from the new install and replace the receipt. Keep the old install and receipt together for rollback. Never maintain generated role prose by hand.
 
 Owned projections still require exact bytes and source hashes. For other TOML files, the directory verifier reads the top-level name for collisions; the runtime validates unrelated fields. It distinguishes comments, quoted and multiline strings, arrays and inline tables so their contents cannot supply a false name. Dotted paths and fields after the first table header are not top-level scalar names. Names use single-line basic/literal strings, with bare or quoted keys and TOML escapes including `\uXXXX` and `\UXXXXXXXX`. Duplicate names, unreadable name values and unfinished strings or containers produce UNREACHED. Unrelated numeric, boolean, array, multiline instruction and table values do not prevent registration.
 
-Registration proves files, not runtime loading or hook activation. Start a new runtime session after registration. Its native delegation capability must expose the requested identifier and deliver role identity in hooks. If it cannot, record UNREACHED and apply execution-path selection above. Claude live verification is tracked separately in skills#268; a fixture is not a live claim.
+Registration proves files, not runtime loading or hook activation. Start a new runtime session after registration. Its native delegation capability must expose the requested identifier and deliver role identity in hooks. If it cannot, record UNREACHED and report the native audit limit. Claude live verification is tracked separately in skills#268; a fixture is not a live claim.
 
-## Model selection
+## Model settings
 
-`lib/runtime/role-models.mjs` holds preferences, not runtime requirements.
-Codex roles inherit the runtime's model and effort when availability is unknown
-or the preferred model is unavailable. Native projections omit fixed defaults.
-For generic begin, optional `modelOptions.availableModels` supplies a current
-provider-supported list; a listed preference can be selected. If that default
-fails at dispatch, retry with inherited settings and record the actual choice.
-Do not add a model-discovery gate just to use a preference.
-
-An explicit user selection travels as `modelOptions.model` and optional
-`reasoning_effort`. Keep it unchanged; known unavailability is an error, and a
-provider rejection follows human wait. A model change needs a fresh child;
-reviewer follow-ups retain their existing runtime settings. Requested options
-are not observed model evidence. Record an observed choice when available and
-leave missing usage unknown. Claude retains its runtime-owned model settings.
-
-Sources: [OpenAI subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents),
-[models](https://learn.chatgpt.com/docs/models),
-[hooks](https://learn.chatgpt.com/docs/hooks), and
-[App Server](https://learn.chatgpt.com/docs/app-server).
-Provider metadata schemas may differ across clients. Ordinary execution does
-not require App Server metadata resolution.
+Each runtime owns its model settings. The shipped Claude and Codex native templates
+omit model declarations and inherit runtime settings. To change a recurring role's
+configuration, edit that runtime's template and regenerate/register as described
+above. Harness does not select preferred models for ordinary subagents.
+Requested or rendered settings do not establish which model executed a turn;
+report observed usage only when the runtime supplies it.
 
 ## Call (native)
 
 Save a request JSON containing `role`, `task` (the task or batch unit), `message` (the skill's delegation message), `sessionId`, `parentAgentId`, `implementerIds` and `previousAgentIds`. IDs are runtime instance IDs, not role names. Populate implementation authors and previous attempts from persisted delegation records; an empty previous list is valid only on the first attempt. The task/batch and commit range in the message are the scope of this call.
 
-Before native invocation, persist the required call with `workflow.mjs begin` as [Runtime observations](transcripts.md) specifies. It uses `roleCall` and records the observation boundary; standalone `roles.mjs call` validates a request but does not persist that inventory. Invoke the runtime's native delegate tool with the returned call's `identifier` and `message`: Claude uses `harness:<role>`, Codex uses `harness-<role>`. Record the returned child and invocation IDs before waiting. The CLI does not spawn a model or prove runtime loading. A generic child instructed to read a role file is not evidence of custom-role registration.
+When auditing native invocation, persist the required call with `workflow.mjs begin` as [Runtime observations](transcripts.md) specifies. It uses `roleCall` and records the observation boundary; standalone `roles.mjs call` validates a request but does not persist that inventory. Invoke the runtime's native delegate tool with the returned call's `identifier` and `message`: Claude uses `harness:<role>`, Codex uses `harness-<role>`. Record the returned child and invocation IDs before waiting. The CLI does not spawn a model or prove runtime loading. A generic child instructed to read a role file is not evidence of custom-role registration.
 
-For a managed retry, create a new call while retaining the earlier result. Native evidence requires a fresh child when the provider cannot isolate a new invocation. Use the generic linked-retry path to reuse a reviewer. Evaluator/reviewer IDs must differ from the parent and every implementation author.
+For a managed retry, create a new call while retaining the earlier result. Native evidence requires a fresh child when the provider cannot isolate a new invocation. Evaluator/reviewer IDs must differ from the parent and every implementation author.
 
 ## Result (native)
 

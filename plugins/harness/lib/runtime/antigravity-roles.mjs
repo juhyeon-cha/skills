@@ -47,8 +47,8 @@ async function scoped(input, root, env) {
   return scope;
 }
 
-// Parent/operator-owned observations have the same attestation boundary as the
-// collaboration adapter. They are not provider signatures or native permission proof.
+// Parent/operator-owned observations attest native invocation.
+// They are not provider signatures or native permission proof.
 export async function beginAntigravityRole(input, {root, env = process.env}) {
   const scope = await scoped(input, root, env);
   for (const key of ['callId', 'task', 'parentId']) text(input[key], key);

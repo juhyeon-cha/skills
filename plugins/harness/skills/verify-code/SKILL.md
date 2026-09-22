@@ -7,7 +7,7 @@ description: Review a task's code quality and select verification by risk. Use o
 
 Before executing command notation, read `${CLAUDE_PLUGIN_ROOT}/docs/commands.md`.
 The reviewer responsibility guidance is `${CLAUDE_PLUGIN_ROOT}/roles/reviewer.md`.
-Ordinary delegation and optional managed execution are owned by `docs/roles.md`.
+Ordinary delegation and optional native auditing are owned by `docs/roles.md`.
 
 ## Verification path
 

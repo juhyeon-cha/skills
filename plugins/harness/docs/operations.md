@@ -11,7 +11,7 @@ compares requirements and records completion. Quality and acceptance may be
 assessed together. Independent review is selected for its value or an explicit
 requirement; a sequence of role calls is not a prerequisite.
 
-Ordinary delegation follows [roles.md](roles.md). Managed invocation records and
+Ordinary delegation follows [roles.md](roles.md). Native invocation audit records and
 strict audit commands remain opt-in. Record outcome, commit/diff, checks and
 limitations; optional phases and retry markers aid resumption. Ledger structural
 diagnostics do not automatically block unrelated implementation or PR delivery.
