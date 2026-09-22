@@ -1,0 +1,12 @@
+Preserved tool result from the first local observation command:
+Command: /private/tmp/knowledge-contract-venv/bin/python /private/tmp/stage5-work/m0/observe.py
+Exit code: 1
+Traceback (most recent call last):
+  File "/private/tmp/stage5-work/m0/observe.py", line 29, in <module>
+    assert queue['candidates'] and status['baseline']['snapshot']['commit']==before['producer']['commit']
+                                   ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+TypeError: string indices must be integers, not 'str'
+
+The first fixture repositories and project stores remain under /private/tmp/stage5-work/m0.
+Inspected public status before retry; baseline is a commit string. The historical m0-replay.py
+contains the corrected assertion and uses a new replay-2 directory. No fixture was deleted.

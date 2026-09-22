@@ -1,0 +1,153 @@
+{
+  "frozen_at": "2026-09-22T02:38:18.026854+00:00",
+  "scope": "Isolated local Git, no operational services",
+  "repositories": [
+    {
+      "id": "svc-producer",
+      "path": "/private/tmp/stage5-work/m0/producer",
+      "url": "https://producer.invalid/example"
+    },
+    {
+      "id": "svc-consumer",
+      "path": "/private/tmp/stage5-work/m0/consumer",
+      "url": "https://consumer.invalid/example"
+    }
+  ],
+  "goal": {
+    "id": "contract-total",
+    "v1": "amount",
+    "v2": "total",
+    "members": [
+      "svc-producer",
+      "svc-consumer"
+    ]
+  },
+  "source_inputs": {
+    "producer_v1": "def emit(): return {'amount': 10}\n",
+    "producer_v2": "def emit(): return {'total': 10}\n",
+    "consumer_v1": "def parse(payload): return payload['amount']\n",
+    "consumer_v2": "def parse(payload): return payload['total']\n"
+  },
+  "scenarios": [
+    {
+      "id": "code-first",
+      "conditions": [
+        "S5-01",
+        "S5-02",
+        "S5-03"
+      ],
+      "input": "Predict then rename producer amount to total, update consumer after partial observation",
+      "expected": "Both repositories affected; partial until integration returns 10; query/wiki link current commits and goal"
+    },
+    {
+      "id": "document-first",
+      "conditions": [
+        "S5-01",
+        "S5-02",
+        "S5-03"
+      ],
+      "input": "Approve total contract while both sources use amount, then implement separately",
+      "expected": "Current amount differs from pending target total; verify both before whole completion"
+    },
+    {
+      "id": "permission",
+      "conditions": [
+        "S5-01",
+        "S5-04"
+      ],
+      "input": "Revoke consumer access after indexing",
+      "expected": "Managed query/render suppress unauthorized content and paths; required member remains unknown; copied static bytes cannot be revoked"
+    },
+    {
+      "id": "partial",
+      "conditions": [
+        "S5-01",
+        "S5-02",
+        "S5-04"
+      ],
+      "input": "Producer v2 verified, consumer v1 pending",
+      "expected": "Partial goal; integration fails"
+    },
+    {
+      "id": "withdrawn",
+      "conditions": [
+        "S5-02",
+        "S5-04"
+      ],
+      "input": "Withdraw target v2 after producer change",
+      "expected": "Withdrawn goal distinct from unchanged source; no implicit rollback"
+    },
+    {
+      "id": "update-failure",
+      "conditions": [
+        "S5-01",
+        "S5-04"
+      ],
+      "input": "Consumer source unavailable during refresh/publication",
+      "expected": "Producer may advance; failed consumer and old observation remain; no atomic whole success"
+    },
+    {
+      "id": "stale",
+      "conditions": [
+        "S5-01",
+        "S5-02",
+        "S5-04"
+      ],
+      "input": "Source advances after indexing; source removed/revoked from allowed view",
+      "expected": "Detect stale/revoked view on access; regenerate or fail closed"
+    },
+    {
+      "id": "wrong-prediction",
+      "conditions": [
+        "S5-03",
+        "S5-05"
+      ],
+      "input": "Predict producer-only change",
+      "expected": "Independent semantic assessment detects missing consumer; actual failure/correction links original prediction"
+    },
+    {
+      "id": "comparison",
+      "conditions": [
+        "S5-05",
+        "S5-06"
+      ],
+      "input": "Same questions on manual per-repository evidence and managed aggregate",
+      "expected": "Compare observed quality/time/interventions and available cost; infrastructure choice from measured bottlenecks"
+    }
+  ],
+  "questions": [
+    {
+      "question": "Can both services use total now?",
+      "ground": "Both app.py pinned sources plus integration result",
+      "answer": "Only after both verified; producer-only is partial"
+    },
+    {
+      "question": "Current consumer versus target?",
+      "ground": "consumer app.py and goal version",
+      "answer": "amount at v1; total pending v2"
+    },
+    {
+      "question": "Affected repositories?",
+      "ground": "producer writes amount, consumer reads amount",
+      "answer": "Both"
+    },
+    {
+      "question": "Inaccessible member establishes completion?",
+      "ground": "goal membership plus access state",
+      "answer": "No; unknown is not success"
+    },
+    {
+      "question": "Old wiki current after source/permission change?",
+      "ground": "index version versus live source/permission",
+      "answer": "Detect stale/revoked view; copied bytes cannot be revoked"
+    },
+    {
+      "question": "Withdrawal restores source?",
+      "ground": "withdrawal record and source commit",
+      "answer": "No"
+    }
+  ],
+  "quality": "Every original S5 and required scenario needs evidence. All six answers correct with pinned grounds. No averages offset mandatory failure. Reject false completion, stale evidence, unauthorized exposure and missed impact. Real independent model identity/raw response distinct from test doubles.",
+  "cost": "Record actual monotonic wall time, calls and intervention events; usage and money null if unavailable, never assumed zero. Compare same questions/fixtures; choose added infrastructure only for measured unresolved bottleneck. Unknown cost prevents cost superiority claim.",
+  "m0_boundary": "Observe existing contracts only; full S5 remains pending"
+}

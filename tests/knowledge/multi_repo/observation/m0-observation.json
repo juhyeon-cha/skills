@@ -1,0 +1,297 @@
+{
+  "source_head": "788d740d6f8947580bc93c186b8b9b48a3067ad3",
+  "python": "3.14.7 (main, Aug  5 2026, 10:29:49) [Clang 21.0.0 (clang-2100.1.1.101)]",
+  "before": {
+    "producer": {
+      "version": 1,
+      "kind": "snapshot",
+      "repository": "svc-producer",
+      "commit": "3e33eef32334a2e861895c4e2d7e709c2e8b7d4a",
+      "scope": [
+        "app.py"
+      ],
+      "files": [
+        {
+          "path": "app.py",
+          "mode": "100644",
+          "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+          "text": "def emit(): return {'amount': 10}\n"
+        }
+      ],
+      "id": "c478699820317ec58b5001e1fd92a6d9277efd417df01997248c646778ea0911"
+    },
+    "consumer": {
+      "version": 1,
+      "kind": "snapshot",
+      "repository": "svc-consumer",
+      "commit": "40088572fe8c67f480e52bce3ec84e534f2687e0",
+      "scope": [
+        "app.py"
+      ],
+      "files": [
+        {
+          "path": "app.py",
+          "mode": "100644",
+          "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+          "text": "def parse(payload): return payload['amount']\n"
+        }
+      ],
+      "id": "d499a8585816044b44773f0e66183ac55c1e3cf660f7e36839f5cef808c65827"
+    }
+  },
+  "producer_after": {
+    "version": 1,
+    "kind": "snapshot",
+    "repository": "svc-producer",
+    "commit": "6ee0cd5570105d1b156b7f97e75bb214135821e6",
+    "scope": [
+      "app.py"
+    ],
+    "files": [
+      {
+        "path": "app.py",
+        "mode": "100644",
+        "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+        "text": "def emit(): return {'total': 10}\n"
+      }
+    ],
+    "id": "e997627332baf86a40af4ccc4a0178aa7ecad0a752934e4a2a9f73f252e29ba4"
+  },
+  "producer_impact": {
+    "version": 1,
+    "kind": "impact",
+    "bindings": "ca569fd3d32800429c53e32e5a962c56b17d34612fe5f9a0b9a9b31766a99092",
+    "before": "c478699820317ec58b5001e1fd92a6d9277efd417df01997248c646778ea0911",
+    "after": "e997627332baf86a40af4ccc4a0178aa7ecad0a752934e4a2a9f73f252e29ba4",
+    "change": "8191a727f79a09cf44f862061bd9590e0bf69a3699345e675160cc75881e1640",
+    "candidates": [
+      {
+        "path": "contract.md",
+        "sha256": "76af9a745eb23ace1e509ae0859a5634ad2e309a862c9389fb10099d4b21a98f",
+        "claims": [
+          {
+            "id": "field",
+            "text": "Current field: amount.",
+            "changes": [
+              {
+                "type": "modified",
+                "before": "app.py",
+                "after": "app.py"
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "unlinked_changes": [],
+    "id": "257dc93ac02f73ad0a44a9e70244c1f8e665b58fe0dedec4319d81c0812cfcf6"
+  },
+  "status_after_source_change": {
+    "project": "/private/tmp/stage5-work/m0/replay-2/producer-project",
+    "settings": {
+      "audience": "Callers",
+      "docs": "/private/tmp/stage5-work/m0/replay-2/producer-docs",
+      "purpose": "Read current contract",
+      "repo": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "repository": "svc-producer",
+      "scope": [
+        "app.py"
+      ]
+    },
+    "baseline": "3e33eef32334a2e861895c4e2d7e709c2e8b7d4a",
+    "active": null,
+    "retirement": null,
+    "runs": []
+  },
+  "integration": "failed with consumer KeyError amount",
+  "errors": {
+    "unavailable": {
+      "type": "ValueError",
+      "message": "SOURCE_UNREACHED: fatal: cannot change to '/private/tmp/stage5-work/m0/replay-2/missing-repository': No such file or directory",
+      "note": "missing path represents unavailable boundary; permission enforcement is not implemented by this probe"
+    },
+    "denied": {
+      "type": "ValueError",
+      "message": "SOURCE_UNREACHED: fatal: cannot change to '/private/tmp/stage5-work/m0/replay-2/denied-source': No such file or directory",
+      "note": "missing path represents unavailable boundary; permission enforcement is not implemented by this probe"
+    }
+  },
+  "observations": {
+    "single_repo_impact": "Only producer document candidate; no consumer relationship surface",
+    "recorded_status": "Returns old baseline even after source HEAD advance; deep checks exported artifacts only",
+    "partial": "Producer v2 plus consumer v1 actually fails integration",
+    "permission": "No existing multi-repo permission projection; unavailable capture fails; permission scenario remains implementation work"
+  },
+  "trace": [
+    {
+      "argv": [
+        "git",
+        "init"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "rc": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/stage5-work/m0/replay-2/producer/.git/\n",
+      "stderr": "hint: Using 'master' as the name for the initial branch. This default branch name\nhint: will change to \"main\" in Git 3.0. To configure the initial branch name\nhint: to use in all of your new repositories, which will suppress this warning,\nhint: call:\nhint:\nhint: \tgit config --global init.defaultBranch <name>\nhint:\nhint: Names commonly chosen instead of 'master' are 'main', 'trunk' and\nhint: 'development'. The just-created branch can be renamed via this command:\nhint:\nhint: \tgit branch -m <name>\nhint:\nhint: Disable this message with \"git config set advice.defaultBranchName false\"\n",
+      "seconds": 0.013786833733320236
+    },
+    {
+      "argv": [
+        "git",
+        "add",
+        "app.py"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "rc": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.00944550009444356
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "v1"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "rc": 0,
+      "stdout": "[master (root-commit) 3e33eef] v1\n 1 file changed, 1 insertion(+)\n create mode 100644 app.py\n",
+      "stderr": "",
+      "seconds": 0.020539625082165003
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "rc": 0,
+      "stdout": "3e33eef32334a2e861895c4e2d7e709c2e8b7d4a\n",
+      "stderr": "",
+      "seconds": 0.008148124907165766
+    },
+    {
+      "argv": [
+        "git",
+        "init"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/consumer",
+      "rc": 0,
+      "stdout": "Initialized empty Git repository in /private/tmp/stage5-work/m0/replay-2/consumer/.git/\n",
+      "stderr": "hint: Using 'master' as the name for the initial branch. This default branch name\nhint: will change to \"main\" in Git 3.0. To configure the initial branch name\nhint: to use in all of your new repositories, which will suppress this warning,\nhint: call:\nhint:\nhint: \tgit config --global init.defaultBranch <name>\nhint:\nhint: Names commonly chosen instead of 'master' are 'main', 'trunk' and\nhint: 'development'. The just-created branch can be renamed via this command:\nhint:\nhint: \tgit branch -m <name>\nhint:\nhint: Disable this message with \"git config set advice.defaultBranchName false\"\n",
+      "seconds": 0.0128521672450006
+    },
+    {
+      "argv": [
+        "git",
+        "add",
+        "app.py"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/consumer",
+      "rc": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.008794249966740608
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "v1"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/consumer",
+      "rc": 0,
+      "stdout": "[master (root-commit) 4008857] v1\n 1 file changed, 1 insertion(+)\n create mode 100644 app.py\n",
+      "stderr": "",
+      "seconds": 0.01902712509036064
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/consumer",
+      "rc": 0,
+      "stdout": "40088572fe8c67f480e52bce3ec84e534f2687e0\n",
+      "stderr": "",
+      "seconds": 0.007629874628037214
+    },
+    {
+      "argv": [
+        "git",
+        "add",
+        "app.py"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "rc": 0,
+      "stdout": "",
+      "stderr": "",
+      "seconds": 0.008770875167101622
+    },
+    {
+      "argv": [
+        "git",
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.invalid",
+        "commit",
+        "-m",
+        "v2"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "rc": 0,
+      "stdout": "[master 6ee0cd5] v2\n 1 file changed, 1 insertion(+), 1 deletion(-)\n",
+      "stderr": "",
+      "seconds": 0.01921008387580514
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/private/tmp/stage5-work/m0/replay-2/producer",
+      "rc": 0,
+      "stdout": "6ee0cd5570105d1b156b7f97e75bb214135821e6\n",
+      "stderr": "",
+      "seconds": 0.007379208225756884
+    },
+    {
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-c",
+        "import runpy; p=runpy.run_path('/private/tmp/stage5-work/m0/replay-2/producer/app.py'); c=runpy.run_path('/private/tmp/stage5-work/m0/replay-2/consumer/app.py'); print(c['parse'](p['emit']()))"
+      ],
+      "cwd": null,
+      "rc": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import runpy; p=runpy.run_path('/private/tmp/stage5-work/m0/replay-2/producer/app.py'); c=runpy.run_path('/private/tmp/stage5-work/m0/replay-2/consumer/app.py'); print(c['parse'](p['emit']()))\n                                                                                                                                                                            ~~~~~~~~~~^^^^^^^^^^^^^\n  File \"/private/tmp/stage5-work/m0/replay-2/consumer/app.py\", line 1, in parse\n    def parse(payload): return payload['amount']\n                               ~~~~~~~^^^^^^^^^^\nKeyError: 'amount'\n",
+      "seconds": 0.04231016570702195
+    },
+    {
+      "argv": [
+        "git",
+        "rev-parse",
+        "HEAD"
+      ],
+      "cwd": "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388",
+      "rc": 0,
+      "stdout": "788d740d6f8947580bc93c186b8b9b48a3067ad3\n",
+      "stderr": "",
+      "seconds": 0.006979375146329403
+    }
+  ],
+  "model_usage": null
+}
