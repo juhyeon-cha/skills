@@ -414,6 +414,21 @@ class Store:
             result['validation'] = 'pending_or_stale'
         return result
 
+    def relation_allowed(self, record, scope):
+        # Authorize the entire historical record, including mixed feedback text.
+        # Current goal membership can be narrower than the recorded evidence.
+        if record['kind'] == 'prediction':
+            repositories = set(record['before']) | set(record['before_documents']) | set(record['affected'])
+        else:
+            prediction = self.object(record['prediction'])
+            if not self.relation_allowed(prediction, scope):
+                return False
+            repositories = (set(record['changes']) | set(record['documents']) |
+                            set(record['omissions']) | set(record['unresolved']) |
+                            {r for feedback in record['feedback'] for r in feedback['repositories']})
+        self.policy()
+        return all(self.allowed(r, scope) for r in repositories)
+
     def view(self, name, scope='query'):
         goal = self.goal(name)
         members, hidden = [], 0
@@ -453,7 +468,7 @@ class Store:
                     continue
                 record_id = event[event['kind']]
                 record = self.object(record_id)
-                if record['goal'] != name:
+                if record['goal'] != name or not self.relation_allowed(record, scope):
                     continue
                 relation = {'kind': event['kind'], 'record': record_id, 'time': record['time']}
                 if event['kind'] == 'prediction':
@@ -528,6 +543,9 @@ class Store:
             view['integration'] = 'pending'
             view.pop('origin', None)
             view.pop('relations', None)
+        if 'relations' in view:
+            view['relations'] = [r for r in view['relations']
+                                 if self.relation_allowed(self.object(r['record']), 'query')]
         history, latest = [], None
         for identity in self.state['publications']:
             publication = self.object(identity)

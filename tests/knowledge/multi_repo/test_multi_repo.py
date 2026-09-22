@@ -177,6 +177,45 @@ class Contracts(unittest.TestCase):
         f.persist()
         self.assertNotIn('consumer', json.dumps(f.call('wiki', {'goal': 'contract'})))
 
+    def test_removed_member_history_requires_current_full_scope(self):
+        f = Fixture()
+        old = f.call('predict', {'goal': 'contract', 'origin': f.origin('user'),
+            'affected': ['producer'], 'rationale': 'Mixed historical scope'})['prediction']
+        comparison = f.call('compare', {'goal': 'contract', 'prediction': old, 'feedback': [
+            {'kind': 'decision', 'repositories': ['producer'], 'intake': f.origin('user')['intake'],
+             'description': 'PRIVATE historical consumer feedback'}]})['comparison']
+        f.goal['version'] = 'v2'
+        del f.goal['members']['consumer']
+        f.goal['integration'] = ['producer']
+        f.call('set_goal', f.goal)
+        visible = f.call('predict', {'goal': 'contract', 'origin': f.origin('user'),
+            'affected': ['producer'], 'rationale': 'Visible history'})['prediction']
+        visible_comparison = f.call('compare', {'goal': 'contract', 'prediction': visible,
+            'feedback': []})['comparison']
+        expected = {old, comparison, visible, visible_comparison}
+        for method in ('refresh', 'query', 'wiki'):
+            self.assertEqual({r['record'] for r in f.call(method, {'goal': 'contract'})['relations']}, expected)
+        for rights in ([], ['source', 'publish'], ['source', 'query']):
+            f.host['principals']['operator']['repositories']['consumer'] = rights
+            f.persist()
+            for method in ('refresh', 'query', 'wiki'):
+                with self.subTest(rights=rights, method=method):
+                    result = f.call(method, {'goal': 'contract'})
+                    permitted = method != 'wiki' and 'query' in rights
+                    self.assertEqual({r['record'] for r in result['relations']},
+                        expected if permitted else {visible, visible_comparison})
+                    if not permitted:
+                        self.assertNotIn('consumer', json.dumps(result))
+                        self.assertNotIn('PRIVATE', json.dumps(result))
+                    self.assertEqual(result['withheld_count'], 0)
+                    if method == 'refresh':
+                        state = json.loads((f.root / 'state/state.json').read_text())
+                        cached = json.loads((f.root / 'state/objects' / (state['index']['contract'] + '.json')).read_text())
+                        self.assertEqual(cached, result)
+        f.host['principals']['operator']['repositories']['consumer'] = ['source', 'query', 'publish']
+        f.persist()
+        self.assertEqual({r['record'] for r in f.call('wiki', {'goal': 'contract'})['relations']}, expected)
+
     def test_drift_missing_and_tampered_evidence(self):
         f = Fixture()
         _, receipt = f.complete()
