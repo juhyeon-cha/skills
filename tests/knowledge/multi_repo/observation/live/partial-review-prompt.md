@@ -1,0 +1,5 @@
+Independently verify the supplied local multi-repository packets against their actual source text, raw check records and current documents. Review only members present in sources (producer); goal may include pending consumer. A producer pass never implies whole integration completion. Check the approved local total=10 target and documents against source and checks. Do not author/change files or open expected-answer files. Return JSON only: {"reviews":[{"flow":"code-first","response":{"packet":"exact packet filename SHA","verdict":"pass|revise|blocked","findings":[],"implementation":"pass|fail","documents":"pass|fail"}},{"flow":"document-first","response":...}],"limitations":[...]}. Pass requires sound source/check/document correspondence and no findings; do not invent execution. Read these complete packet files:
+{
+  "code-first": "/private/tmp/stage5-work/live/code-first/multi-state/objects/416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f.json",
+  "document-first": "/private/tmp/stage5-work/live/document-first/multi-state/objects/0afe0d62d038757d9d1bd0e1c6a0fe1cadb0138460e50b74356632b5e3112133.json"
+}

@@ -1,0 +1,73 @@
+{
+  "deployment": "not_verified",
+  "document_quality": "not_evaluated",
+  "id": "78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a",
+  "implementation": "not_verified",
+  "input": {
+    "current": {
+      "code": "code",
+      "description": "두 로컬 기준 저장소는 amount를 교환한다. 소비자 근거는 고정 baseline-packet.json의 별도 svc-consumer 항목이다."
+    },
+    "differences": [
+      {
+        "description": "양쪽 소스와 검사가 아직 amount를 사용하므로 total 목표는 미구현이다.",
+        "kind": "behavior",
+        "sources": [
+          "code",
+          "target-document"
+        ]
+      }
+    ],
+    "intent": "behavior_change",
+    "origin": "code",
+    "rationale": "사용자가 승인한 격리 로컬 시험을 amount/total 예제로 구체화한 구현 선택이다. 운영 업무 정책을 승인받았다는 뜻이 아니다. 문서·코드·사용자 근거를 구분하며 원본 intake의 not_verified 상태는 후속 검증 기록과 별개로 보존한다.",
+    "sources": [
+      {
+        "authority": "user_instruction",
+        "id": "user",
+        "kind": "user",
+        "locator": "conversation:user-stage5-request",
+        "sha256": "4075f5d5e8fef898877c2efd02b99ae4d131724789919765f28b89134cd56fe8",
+        "text": "검증은 격리된 로컬 복수 저장소로 한정해. 코드 선행 변경과 문서 선행 계약 변경을 각각 영향 예측→반영→구현 검증→검색·위키 조회까지 실행해.",
+        "version": "session-01a0c6f1"
+      },
+      {
+        "authority": "observed_implementation",
+        "id": "code",
+        "kind": "code",
+        "locator": "/private/tmp/stage5-work/live/code-first/producer/app.py",
+        "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+        "text": "def emit(): return {'amount': 10}\n",
+        "version": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a"
+      },
+      {
+        "authority": "context",
+        "id": "target-document",
+        "kind": "document",
+        "locator": "/private/tmp/stage5-work/live/code-first/target.md",
+        "sha256": "e111ccd22a0b17604e5d554c29bd83401fe8eb66c763206659cc57b456c8eee2",
+        "text": "로컬 실험 목표 contract-total v2: 생산자와 소비자가 amount 대신 total 필드를 교환한다. 값은 10을 유지한다. 현재 두 소스는 amount를 사용하며 이 문서 작성만으로 구현·검증 완료가 되지 않는다. 두 저장소별 검사와 통합 검사 및 독립 리뷰가 필요하다.\n",
+        "version": "v2"
+      }
+    ],
+    "target": {
+      "acceptance": [
+        "생산자 emit()가 total=10을 반환한다.",
+        "소비자 parse()가 total을 읽는다.",
+        "두 함수를 연결한 결과가 10이다.",
+        "두 저장소 문서·검색·위키가 현재 구현 및 미구현 목표를 구분한다."
+      ],
+      "description": "로컬 실험 목표 contract-total v2: 생산자와 소비자가 amount 대신 total 필드를 교환한다. 값은 10을 유지한다. 현재 두 소스는 amount를 사용하며 이 문서 작성만으로 구현·검증 완료가 되지 않는다. 두 저장소별 검사와 통합 검사 및 독립 리뷰가 필요하다.",
+      "sources": [
+        "user",
+        "target-document"
+      ],
+      "status": "confirmed"
+    },
+    "version": 1
+  },
+  "kind": "change-intake",
+  "phase": "pending_implementation",
+  "route": "implementation_handoff",
+  "version": 1
+}

@@ -1,0 +1,6 @@
+{
+  "observed_at": "2026-09-22T03:36:46.645168+00:00",
+  "issue": "Preparation reused baseline-reader-prompt.md before any comparison reader dispatch. Original actual prompt remained intact in baseline-reader-dispatch-intent.json.",
+  "recovery": "Restored initial prompt from actual_prompt; comparison files use comparison- prefix. No model invocation used the colliding path.",
+  "restored_prompt_sha256": "35af38eba44ff0642a09859f892811257928c719feadf52fb80a72f2c4bfb69b"
+}

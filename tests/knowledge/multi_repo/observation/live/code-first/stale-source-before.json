@@ -1,0 +1,3 @@
+{
+  "text": "def emit(): return {'total': 10}\n"
+}

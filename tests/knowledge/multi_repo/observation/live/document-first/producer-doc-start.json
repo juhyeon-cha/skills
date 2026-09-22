@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "after": "2334c37a2209962affaf6484acec4216c98d7554",
+  "before": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+  "context": "/private/tmp/stage5-work/live/document-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/context.json",
+  "next_action": "prepare",
+  "phase": "awaiting_decisions",
+  "run": "26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e"
+}

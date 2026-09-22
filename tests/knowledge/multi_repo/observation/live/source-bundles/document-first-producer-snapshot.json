@@ -1,0 +1,7 @@
+{
+  "revision": "2334c37a2209962affaf6484acec4216c98d7554",
+  "app": "def emit(): return {'total': 10}\n",
+  "check": "from app import emit\nassert emit() == {'total': 10}\n",
+  "status": "",
+  "bundle_sha256": "557ad3e4d9f9654e84ea2a32c9a4eb3c69a74c69de76a2fa601fc3bebd7923aa"
+}

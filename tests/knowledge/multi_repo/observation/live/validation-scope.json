@@ -1,0 +1,13 @@
+{
+  "observed_at": "2026-09-22T03:43:09.377296+00:00",
+  "implementation_head": "6d64aec55f2cff443792c998e16e7886d5f9d47c",
+  "real_model_tool": "collaboration",
+  "model_id": "not exposed in actual tool return",
+  "provider_tokens": null,
+  "provider_cost": null,
+  "provider_latency": null,
+  "time_basis": "Intent record creation through response preservation; actual coordinator wall interval including scheduling, waiting and transcription, not provider latency.",
+  "authorization_boundary": "Trusted local host declaration; not provider authentication/OS sandbox. Reader restrictions are prompts, not enforced tool isolation.",
+  "operation_scope": "Four isolated local Git fixtures in two flows. Invalid example URLs not contacted. No external search/wiki services, installation, release, migration or deletion.",
+  "feedback_scope": "Existing current_documentation intake receipts connect omission and local authoring decision. Registration is not downstream automatic completion."
+}

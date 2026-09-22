@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-09-22T03:36:14.125318+00:00",
+  "prompt_sha256": "4f3b3ba2eee5d08f59e180f7d084ccadcd900fbbf05dadc8e42775ff222433ab",
+  "input": "/private/tmp/stage5-work/live/candidate-reader-input.json",
+  "input_sha256": "c7a08ee6b8d82da9b96cd51c267c0e1c1968a133839c98e6baff17692f4778d8",
+  "synthetic": false,
+  "usage_tokens": null,
+  "money": null
+}

@@ -1,0 +1,9 @@
+{
+  "actor": "/root/s5_partial_semantic",
+  "started_at": "2026-09-22T03:31:00.581768+00:00",
+  "finished_at": "2026-09-22T03:31:59.279194+00:00",
+  "raw_sha256": "ead83676574ca6657c2196f29b782c6a6e9714d7fe97166b9316c29c31757640",
+  "synthetic": false,
+  "usage_tokens": null,
+  "money": null
+}

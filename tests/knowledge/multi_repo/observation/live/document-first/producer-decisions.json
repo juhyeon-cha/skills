@@ -1,0 +1,16 @@
+{
+  "impact": "1e35ed1309659a602c03b98dec2c374972b91721b145fda4fa1712d0dd8b4345",
+  "claims": [
+    {
+      "path": "contract.md",
+      "id": "field",
+      "action": "replace",
+      "reason": "Approved isolated target implementation changes the exchanged field; describe pinned current source, not deployment.",
+      "text": "생산자는 total 필드에 값 10을 담아 반환한다.",
+      "evidence": [
+        "app.py"
+      ]
+    }
+  ],
+  "unlinked": []
+}

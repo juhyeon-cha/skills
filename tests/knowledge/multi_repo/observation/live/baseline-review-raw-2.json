@@ -1,0 +1,47 @@
+{
+  "review_type": "baseline_document_content_review",
+  "results": [
+    {
+      "flow": "code-first",
+      "repository_id": "svc-producer",
+      "revision": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+      "verdict": "pass",
+      "document_quote": "생산자는 amount 필드에 값 10을 담아 반환한다.",
+      "source_quote": "def emit(): return {'amount': 10}",
+      "reason": "현재 반환 필드와 값이 일치하며 total 목표의 완료를 주장하지 않는다."
+    },
+    {
+      "flow": "code-first",
+      "repository_id": "svc-consumer",
+      "revision": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+      "verdict": "pass",
+      "document_quote": "소비자는 amount 필드를 읽어 값을 반환한다.",
+      "source_quote": "def parse(payload): return payload['amount']",
+      "reason": "현재 조회 필드와 반환 동작이 일치하며 total 지원을 주장하지 않는다."
+    },
+    {
+      "flow": "document-first",
+      "repository_id": "svc-producer",
+      "revision": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+      "verdict": "pass",
+      "document_quote": "생산자는 amount 필드에 값 10을 담아 반환한다.",
+      "source_quote": "def emit(): return {'amount': 10}",
+      "reason": "현재 동작을 정확히 기록한다. 향후 total 목표와의 차이는 기준 문서의 사실 오류가 아니다."
+    },
+    {
+      "flow": "document-first",
+      "repository_id": "svc-consumer",
+      "revision": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+      "verdict": "pass",
+      "document_quote": "소비자는 amount 필드를 읽어 값을 반환한다.",
+      "source_quote": "def parse(payload): return payload['amount']",
+      "reason": "현재 amount 접근을 정확히 기록하며 목표 구현 완료를 주장하지 않는다."
+    }
+  ],
+  "limitations": [
+    "baseline-packet.json의 고정 소스·문서 문자열을 정적으로 비교했다. 저장소 파일과 리비전의 일치 및 SHA-256은 검증하지 않았다.",
+    "프로그램 실행, 통합 검증, 배포 검증 및 독립 독자 평가는 수행하지 않았다.",
+    "pass는 현재 필드 설명에 한정된다. contract-total v2의 total 교환 목표는 제공된 소스에 구현되지 않았고 기준 문서도 완성된 목표 명세나 구현 인계 문서로 승인한 것은 아니다.",
+    "이전 응답의 document-first svc-consumer 리비전 오기를 수정한 대체 응답이다."
+  ]
+}

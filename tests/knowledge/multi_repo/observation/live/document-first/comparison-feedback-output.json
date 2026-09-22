@@ -1,0 +1,9 @@
+{
+  "comparison": "c95d1c64084c1aed6297e0688937c829c3a62dd6fcbae869444c488dcfa3c4c6",
+  "feedback_count": 2,
+  "omissions": [
+    "svc-consumer"
+  ],
+  "path": "/private/tmp/stage5-work/live/document-first/multi-state/objects/c95d1c64084c1aed6297e0688937c829c3a62dd6fcbae869444c488dcfa3c4c6.json",
+  "unresolved": []
+}

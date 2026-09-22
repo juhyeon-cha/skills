@@ -1,0 +1,1 @@
+{"commit":"66a30398027db7537d3dd2da7fbc1a875e5bcc3a","files":[{"mode":"100644","path":"app.py","sha256":"e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58","text":"def emit(): return {'amount': 10}\n"}],"id":"a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4","kind":"snapshot","repository":"svc-producer","scope":["app.py"],"version":1}

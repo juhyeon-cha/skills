@@ -1,0 +1,6 @@
+{
+  "actual_prompt": "Independently assess /private/tmp/stage5-work/live/impact-input.json before source changes. Answer its questions with exact evidence in concise JSON for both flows. Do not read impact-expected.json, modify files, execute code, or claim observed implementation completion. Target business content is an authorized local test scenario, not operational policy.",
+  "started_at": "2026-09-22T03:00:08.891375+00:00",
+  "input_sha256": "ede6c00c37caf0c2f6e001fc2b1e6b35f20df69db883fe44d57dd38e45e28260",
+  "expected_sha256": "dbe494f29c2879f8404b1dc62ebf3a3651fb2cc168fcb858d7d01246a76440ee"
+}

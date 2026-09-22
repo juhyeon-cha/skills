@@ -2,6 +2,8 @@
 
 이 문서는 현재 구현된 코드→기존 문서 갱신 계약이다. [양방향 변경 설계](../roadmap.md)는 후속 목표이며, 목표 명세의 코드 구현은 아직 이 CLI의 기능이 아니다. 출발점·현재/목표 분류와 인계는 [접수 계약](change-intake.md), 종료·격리·새 기준 전환은 배포 상태 계약에 추가했다.
 
+여러 프로젝트의 목표·근거를 연결할 때는 별도 [다중 저장소 계약](../../../../plugins/toolkit/skills/refresh-knowledge/references/multi-repo.md)을 읽는다. 저장소별 현재 소스·목표·검증과 조회 권한을 집계하며, 이 문서의 프로젝트 기준을 대체하지 않는다. 실제 두 저장소의 양방향 흐름·검색·관리 위키 검증은 [5단계 관측](../experiments/multi-repo-observation.md)으로 구분한다.
+
 근거 수집부터 문서 적용까지를 toolkit 설치 스킬과 프로젝트 CLI로 연결했다. 사용자는 갱신할 저장소·변경 범위·문서 목적을 지정하고, 에이전트가 근거 판단과 문장 작성, 독립 리뷰, 로컬 적용을 진행한다. 누락된 정책 결정이나 근거 충돌만 사용자에게 돌아오도록 절차를 정했다.
 
 두 스킬과 실행 코드는 toolkit 패키지 안에 있다. 각 스킬은 자체 참조 문서를 포함하며, 작성과 독립 리뷰는 스킬 이름으로 의존성을 명시한다. 공개 진입점은 `refresh-knowledge/scripts/knowledge.py`이며 [프로젝트 사용법](../../../../plugins/toolkit/skills/refresh-knowledge/references/project.md)을 따른다. 원격 릴리스 발행은 별도다.

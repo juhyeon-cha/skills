@@ -1,0 +1,30 @@
+{
+  "id": "519009f281d12cecfe8af19eebd58ef3b3329637170a8eeab660e29bd5488fd1",
+  "kind": "completion",
+  "next_bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "field",
+            "text": "생산자는 total 필드에 값 10을 담아 반환한다."
+          }
+        ],
+        "path": "contract.md",
+        "sha256": "06ee94badbfb5e076899b95a90b4d202cdc1bc4c0e7ebc329d708ebce96b6ff1"
+      }
+    ],
+    "id": "e0a0aa6c21e2a170606f47279f401909150e0227765768a0503660ec172225f9",
+    "kind": "bindings",
+    "snapshot": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6",
+    "version": 1
+  },
+  "packet": "5ab0128e9d289a3ba563639a72794e1473f5e5e4bb606c4741bbbb4a9e215582",
+  "plan": "24ca8fd58c22bbd962124823c4f2086599e49b95d6ea5cfbaac505f50d47dd6d",
+  "review": "736870a31f251729ae5bec76b576a2ef3059ac407d75bb824674312526a86c16",
+  "status": "applied",
+  "version": 1
+}

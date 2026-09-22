@@ -1,0 +1,31 @@
+{
+  "id": "contract-total",
+  "version": "v3",
+  "status": "withdrawn",
+  "members": {
+    "svc-producer": {
+      "target": "emit() returns total=10",
+      "criteria": [
+        "producer-total"
+      ]
+    },
+    "svc-consumer": {
+      "target": "parse() reads total and returns 10",
+      "criteria": [
+        "consumer-total"
+      ]
+    }
+  },
+  "integration": [
+    "exchange-total"
+  ],
+  "origin": {
+    "kind": "user",
+    "request": "code-first-request",
+    "cause": "stage5-authorized-local-test",
+    "intake": {
+      "path": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/64d2e426bd9db1d0df2abd1f4e640d3826ebff6381b4a0b4cd60667bb4a9c668.json",
+      "sha256": "77213a840f875f97d438ef6e2df4fd5825c491384358ce637cc05657692d83d0"
+    }
+  }
+}

@@ -48,6 +48,9 @@ jobs:
           - {runner: windows-latest, platform: win32}
     runs-on: ${{ matrix.host.runner }}
     steps:
+      - name: Enable long paths for Windows checkout
+        if: runner.os == 'Windows'
+        run: git config --global core.longpaths true
       - uses: actions/checkout@v7
         with:
           persist-credentials: false

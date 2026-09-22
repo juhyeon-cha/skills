@@ -1,0 +1,11 @@
+{
+  "comparison": "044afee32361c35db48fed792d1785dd6ec51c0067325c13a28126293f4c0cfa",
+  "feedback_count": 0,
+  "omissions": [
+    "svc-consumer"
+  ],
+  "path": "/private/tmp/stage5-work/live/document-first/multi-state/objects/044afee32361c35db48fed792d1785dd6ec51c0067325c13a28126293f4c0cfa.json",
+  "unresolved": [
+    "svc-consumer"
+  ]
+}

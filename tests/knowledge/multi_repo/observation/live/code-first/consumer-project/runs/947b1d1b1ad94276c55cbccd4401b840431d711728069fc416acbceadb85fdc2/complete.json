@@ -1,0 +1,30 @@
+{
+  "id": "74754a5da4d4a6d4f746802ebcb9068282b7d352636b74d2a7312182b0b79784",
+  "kind": "completion",
+  "next_bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "field",
+            "text": "소비자는 total 필드를 읽어 값을 반환한다."
+          }
+        ],
+        "path": "contract.md",
+        "sha256": "eb2d21dc5ed8f2ad7cd5876cc3b6ce9694f9e378854c0f395d5a39082f591663"
+      }
+    ],
+    "id": "f510305f414553064502b1ee365c060b5b1578b57537891b1c86b6cc364563c5",
+    "kind": "bindings",
+    "snapshot": "ebe115c25ce9b304cbae503ac63831e46af12db95f87ed69b6925b9881727241",
+    "version": 1
+  },
+  "packet": "7611aae2a5ad9fa9059591ce31d4e90f9bcf9bf81f099cc37b00f37f59667ee3",
+  "plan": "84707aac2771999543c6e48077a6bdcc86a3a4455e6093f47d269fa4ef4851a6",
+  "review": "7b5feab022568d314ef8f9b2ddae256760c4ef37fe5e452aaeb6ecdf2523e9dc",
+  "status": "applied",
+  "version": 1
+}

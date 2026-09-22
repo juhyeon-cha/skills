@@ -1,0 +1,9 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "intake": "3e19e4fc59cd74470d31376aef51510f35d824d044149cc59d2d9a2cac3e7163",
+  "phase": "awaiting_document_update",
+  "record": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/3e19e4fc59cd74470d31376aef51510f35d824d044149cc59d2d9a2cac3e7163.json",
+  "route": "current_documentation"
+}

@@ -1,0 +1,16 @@
+{
+  "documents": [
+    {
+      "path": "contract.md",
+      "claims": [
+        {
+          "id": "field",
+          "text": "생산자는 amount 필드에 값 10을 담아 반환한다.",
+          "evidence": [
+            "app.py"
+          ]
+        }
+      ]
+    }
+  ]
+}

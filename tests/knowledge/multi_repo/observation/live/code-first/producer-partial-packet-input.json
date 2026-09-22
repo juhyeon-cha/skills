@@ -1,0 +1,6 @@
+{
+  "goal": "contract-total",
+  "repositories": [
+    "svc-producer"
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "after": "d9c59b8818187754672256dd953e56cebbd892b7",
+  "before": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+  "context": "/private/tmp/stage5-work/live/code-first/consumer-project/runs/947b1d1b1ad94276c55cbccd4401b840431d711728069fc416acbceadb85fdc2/context.json",
+  "next_action": "prepare",
+  "phase": "awaiting_decisions",
+  "run": "947b1d1b1ad94276c55cbccd4401b840431d711728069fc416acbceadb85fdc2"
+}

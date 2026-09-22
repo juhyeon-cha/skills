@@ -1,0 +1,11 @@
+{
+  "started_at": "2026-09-22T03:29:18.508841+00:00",
+  "prompt_sha256": "a6d7d11117becb9e14328bd2a241e2aa0f32dec4bab67595378fa25c427cdb96",
+  "packets": {
+    "code-first": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/5ab0128e9d289a3ba563639a72794e1473f5e5e4bb606c4741bbbb4a9e215582/packet.json",
+    "document-first": "/private/tmp/stage5-work/live/document-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/5ab0128e9d289a3ba563639a72794e1473f5e5e4bb606c4741bbbb4a9e215582/packet.json"
+  },
+  "synthetic": false,
+  "usage_tokens": null,
+  "money": null
+}

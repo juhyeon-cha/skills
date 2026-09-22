@@ -1,0 +1,8 @@
+{
+  "tool": "collaboration.spawn_agent",
+  "return": {
+    "task_name": "/root/s5_producer_docs"
+  },
+  "observed_at": "2026-09-22T03:29:35.321544+00:00",
+  "message": "Read and execute only the review instructions in /private/tmp/stage5-work/live/producer-doc-review-prompt.md. You are an actual independent semantic document reviewer, not a test double. Read referenced toolkit review-knowledge skill and two packets; do not read expected answers or unrelated files, do not edit/apply. Return exact requested JSON only. You did not author these documents."
+}

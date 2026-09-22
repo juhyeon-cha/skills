@@ -1,0 +1,7 @@
+{
+  "actual_prompt": "Your raw response is preserved at /private/tmp/stage5-work/live/baseline-review-raw-1.json. Verification found document-first svc-consumer revision differs from the frozen input, so that response is not accepted as bound review. Re-read the frozen baseline-packet.json and return a concise replacement JSON with all four exact (flow, repository_id, revision, verdict, evidence quote), plus limitations. Do not edit files or claim execution. Other review scope remains unchanged.",
+  "tool": "collaboration.followup_task",
+  "target": "/root/s5_baseline_review",
+  "actual_tool_return": null,
+  "observed_after_dispatch": "2026-09-22T02:55:27.811993+00:00"
+}

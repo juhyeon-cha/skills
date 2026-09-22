@@ -1,0 +1,94 @@
+{
+  "observed_at": "2026-09-22T02:59:45.628226+00:00",
+  "checks": [
+    {
+      "flow": "code-first",
+      "check": "producer-total",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "-c",
+        "from app import emit; assert emit() == {'total': 10}; print('producer total=10 verified')"
+      ],
+      "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    from app import emit; assert emit() == {'total': 10}; print('producer total=10 verified')\n                                 ^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+      "elapsed_seconds": 0.053143625147640705
+    },
+    {
+      "flow": "code-first",
+      "check": "consumer-total",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "-c",
+        "from app import parse; assert parse({'total': 10}) == 10; print('consumer total verified')"
+      ],
+      "cwd": "/private/tmp/stage5-work/live/code-first/consumer",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    from app import parse; assert parse({'total': 10}) == 10; print('consumer total verified')\n                                  ~~~~~^^^^^^^^^^^^^^^\n  File \"/private/tmp/stage5-work/live/code-first/consumer/app.py\", line 1, in parse\n    def parse(payload): return payload['amount']\n                               ~~~~~~~^^^^^^^^^^\nKeyError: 'amount'\n",
+      "elapsed_seconds": 0.04976741690188646
+    },
+    {
+      "flow": "code-first",
+      "check": "exchange-total",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "/private/tmp/stage5-work/live/code-first/integration.py"
+      ],
+      "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/private/tmp/stage5-work/live/code-first/integration.py\", line 5, in <module>\n    assert payload == {'total': 10}, payload\n           ^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: {'amount': 10}\n",
+      "elapsed_seconds": 0.05160129116848111
+    },
+    {
+      "flow": "document-first",
+      "check": "producer-total",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "-c",
+        "from app import emit; assert emit() == {'total': 10}; print('producer total=10 verified')"
+      ],
+      "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    from app import emit; assert emit() == {'total': 10}; print('producer total=10 verified')\n                                 ^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError\n",
+      "elapsed_seconds": 0.04971987474709749
+    },
+    {
+      "flow": "document-first",
+      "check": "consumer-total",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "-c",
+        "from app import parse; assert parse({'total': 10}) == 10; print('consumer total verified')"
+      ],
+      "cwd": "/private/tmp/stage5-work/live/document-first/consumer",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    from app import parse; assert parse({'total': 10}) == 10; print('consumer total verified')\n                                  ~~~~~^^^^^^^^^^^^^^^\n  File \"/private/tmp/stage5-work/live/document-first/consumer/app.py\", line 1, in parse\n    def parse(payload): return payload['amount']\n                               ~~~~~~~^^^^^^^^^^\nKeyError: 'amount'\n",
+      "elapsed_seconds": 0.053836791310459375
+    },
+    {
+      "flow": "document-first",
+      "check": "exchange-total",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "/private/tmp/stage5-work/live/document-first/integration.py"
+      ],
+      "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "Traceback (most recent call last):\n  File \"/private/tmp/stage5-work/live/document-first/integration.py\", line 5, in <module>\n    assert payload == {'total': 10}, payload\n           ^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: {'amount': 10}\n",
+      "elapsed_seconds": 0.05491941701620817
+    }
+  ],
+  "expected": "all fail because target total is not implemented"
+}

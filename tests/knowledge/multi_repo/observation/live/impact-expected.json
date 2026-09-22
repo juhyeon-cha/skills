@@ -1,0 +1,10 @@
+{
+  "affected": [
+    "svc-producer",
+    "svc-consumer"
+  ],
+  "source_and_tests": "both app.py and local checks; docs update",
+  "whole": "both member and integration verification plus independent review",
+  "partial": "producer verified alone never whole completion",
+  "target_quality": "testable total=10, explicit pending and local scope"
+}

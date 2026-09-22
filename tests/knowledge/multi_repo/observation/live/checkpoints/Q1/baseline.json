@@ -1,0 +1,883 @@
+{
+  "question": {
+    "id": "Q1",
+    "question": "Can both services use total now?"
+  },
+  "principal": "reader",
+  "artifacts": [
+    {
+      "kind": "goal",
+      "source_sha256": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+      "value": {
+        "id": "contract-total",
+        "integration": [
+          "exchange-total"
+        ],
+        "members": {
+          "svc-consumer": {
+            "criteria": [
+              "consumer-total"
+            ],
+            "target": "parse() reads total and returns 10"
+          },
+          "svc-producer": {
+            "criteria": [
+              "producer-total"
+            ],
+            "target": "emit() returns total=10"
+          }
+        },
+        "origin": {
+          "cause": "stage5-authorized-local-test",
+          "intake": {
+            "path": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a.json",
+            "sha256": "4ec927a16368ac692ed8f64d8431a1c09d3953f5da3fd12bb2718c0b8f902c42"
+          },
+          "kind": "code",
+          "request": "code-first-request"
+        },
+        "status": "active",
+        "version": "v2"
+      }
+    },
+    {
+      "kind": "intake",
+      "source_sha256": "4ec927a16368ac692ed8f64d8431a1c09d3953f5da3fd12bb2718c0b8f902c42",
+      "value": {
+        "deployment": "not_verified",
+        "document_quality": "not_evaluated",
+        "id": "78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a",
+        "implementation": "not_verified",
+        "input": {
+          "current": {
+            "code": "code",
+            "description": "두 로컬 기준 저장소는 amount를 교환한다. 소비자 근거는 고정 baseline-packet.json의 별도 svc-consumer 항목이다."
+          },
+          "differences": [
+            {
+              "description": "양쪽 소스와 검사가 아직 amount를 사용하므로 total 목표는 미구현이다.",
+              "kind": "behavior",
+              "sources": [
+                "code",
+                "target-document"
+              ]
+            }
+          ],
+          "intent": "behavior_change",
+          "origin": "code",
+          "rationale": "사용자가 승인한 격리 로컬 시험을 amount/total 예제로 구체화한 구현 선택이다. 운영 업무 정책을 승인받았다는 뜻이 아니다. 문서·코드·사용자 근거를 구분하며 원본 intake의 not_verified 상태는 후속 검증 기록과 별개로 보존한다.",
+          "sources": [
+            {
+              "authority": "user_instruction",
+              "id": "user",
+              "kind": "user",
+              "locator": "conversation:user-stage5-request",
+              "sha256": "4075f5d5e8fef898877c2efd02b99ae4d131724789919765f28b89134cd56fe8",
+              "text": "검증은 격리된 로컬 복수 저장소로 한정해. 코드 선행 변경과 문서 선행 계약 변경을 각각 영향 예측→반영→구현 검증→검색·위키 조회까지 실행해.",
+              "version": "session-01a0c6f1"
+            },
+            {
+              "authority": "observed_implementation",
+              "id": "code",
+              "kind": "code",
+              "locator": "/private/tmp/stage5-work/live/code-first/producer/app.py",
+              "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+              "text": "def emit(): return {'amount': 10}\n",
+              "version": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a"
+            },
+            {
+              "authority": "context",
+              "id": "target-document",
+              "kind": "document",
+              "locator": "/private/tmp/stage5-work/live/code-first/target.md",
+              "sha256": "e111ccd22a0b17604e5d554c29bd83401fe8eb66c763206659cc57b456c8eee2",
+              "text": "로컬 실험 목표 contract-total v2: 생산자와 소비자가 amount 대신 total 필드를 교환한다. 값은 10을 유지한다. 현재 두 소스는 amount를 사용하며 이 문서 작성만으로 구현·검증 완료가 되지 않는다. 두 저장소별 검사와 통합 검사 및 독립 리뷰가 필요하다.\n",
+              "version": "v2"
+            }
+          ],
+          "target": {
+            "acceptance": [
+              "생산자 emit()가 total=10을 반환한다.",
+              "소비자 parse()가 total을 읽는다.",
+              "두 함수를 연결한 결과가 10이다.",
+              "두 저장소 문서·검색·위키가 현재 구현 및 미구현 목표를 구분한다."
+            ],
+            "description": "로컬 실험 목표 contract-total v2: 생산자와 소비자가 amount 대신 total 필드를 교환한다. 값은 10을 유지한다. 현재 두 소스는 amount를 사용하며 이 문서 작성만으로 구현·검증 완료가 되지 않는다. 두 저장소별 검사와 통합 검사 및 독립 리뷰가 필요하다.",
+            "sources": [
+              "user",
+              "target-document"
+            ],
+            "status": "confirmed"
+          },
+          "version": 1
+        },
+        "kind": "change-intake",
+        "phase": "pending_implementation",
+        "route": "implementation_handoff",
+        "version": 1
+      }
+    },
+    {
+      "kind": "revision",
+      "repository": "svc-producer",
+      "value": "2334c37a2209962affaf6484acec4216c98d7554\n"
+    },
+    {
+      "kind": "source",
+      "repository": "svc-producer",
+      "value": "def emit(): return {'total': 10}\n"
+    },
+    {
+      "kind": "project-status",
+      "repository": "svc-producer",
+      "value": {
+        "_meta": {
+          "cli_contract": 1
+        },
+        "active": null,
+        "baseline": "2334c37a2209962affaf6484acec4216c98d7554",
+        "project": "/private/tmp/stage5-work/live/code-first/producer-project",
+        "retirement": null,
+        "runs": [
+          {
+            "after": "2334c37a2209962affaf6484acec4216c98d7554",
+            "before": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+            "completion": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/complete.json",
+            "context": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/context.json",
+            "context_integrity": "verified",
+            "next_action": "start",
+            "packet": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/5ab0128e9d289a3ba563639a72794e1473f5e5e4bb606c4741bbbb4a9e215582/packet.json",
+            "phase": "completed",
+            "review": {
+              "id": "736870a31f251729ae5bec76b576a2ef3059ac407d75bb824674312526a86c16",
+              "path": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/5ab0128e9d289a3ba563639a72794e1473f5e5e4bb606c4741bbbb4a9e215582/review-736870a31f251729ae5bec76b576a2ef3059ac407d75bb824674312526a86c16.json"
+            },
+            "review_integrity": "verified",
+            "run": "26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e"
+          }
+        ],
+        "settings": {
+          "audience": "두 서비스의 계약 변경을 검토하는 개발자",
+          "docs": "/private/tmp/stage5-work/live/code-first/producer-docs",
+          "purpose": "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.",
+          "repo": "/private/tmp/stage5-work/live/code-first/producer",
+          "repository": "svc-producer",
+          "scope": [
+            "app.py"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "document",
+      "source_sha256": "06ee94badbfb5e076899b95a90b4d202cdc1bc4c0e7ebc329d708ebce96b6ff1",
+      "value": "생산자는 total 필드에 값 10을 담아 반환한다.\n"
+    },
+    {
+      "kind": "revision",
+      "repository": "svc-consumer",
+      "value": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2\n"
+    },
+    {
+      "kind": "source",
+      "repository": "svc-consumer",
+      "value": "def parse(payload): return payload['amount']\n"
+    },
+    {
+      "kind": "project-status",
+      "repository": "svc-consumer",
+      "value": {
+        "_meta": {
+          "cli_contract": 1
+        },
+        "active": null,
+        "baseline": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+        "project": "/private/tmp/stage5-work/live/code-first/consumer-project",
+        "retirement": null,
+        "runs": [],
+        "settings": {
+          "audience": "두 서비스의 계약 변경을 검토하는 개발자",
+          "docs": "/private/tmp/stage5-work/live/code-first/consumer-docs",
+          "purpose": "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.",
+          "repo": "/private/tmp/stage5-work/live/code-first/consumer",
+          "repository": "svc-consumer",
+          "scope": [
+            "app.py"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "document",
+      "source_sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69",
+      "value": "소비자는 amount 필드를 읽어 값을 반환한다.\n"
+    },
+    {
+      "kind": "check",
+      "source_sha256": "4d77957a9f88dd3d8485a6e334357d81b200278fb2bd7bafcaa93f01faed5d27",
+      "value": {
+        "command": {
+          "argv": [
+            "/private/tmp/knowledge-contract-venv/bin/python",
+            "-B",
+            "-c",
+            "from app import parse; assert parse({'total': 10}) == 10; print('consumer total verified')"
+          ],
+          "cwd_repository": "svc-consumer",
+          "repositories": [
+            "svc-consumer"
+          ]
+        },
+        "exit_code": 1,
+        "finished_at": "2026-09-22T03:29:35.964458+00:00",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "input_files": {
+          "/private/tmp/knowledge-contract-venv/bin/python": "87d4df53fd91304be5bac391fb204643c36b7df2023c04a0953bcbc7d4fdf634"
+        },
+        "kind": "check",
+        "name": "consumer-total",
+        "source_unchanged": true,
+        "sources": {
+          "svc-consumer": {
+            "commit": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+                "text": "def parse(payload): return payload['amount']\n"
+              }
+            ],
+            "id": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+            "kind": "snapshot",
+            "repository": "svc-consumer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          }
+        },
+        "started_at": "2026-09-22T03:29:35.730601+00:00",
+        "stderr": "Traceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    from app import parse; assert parse({'total': 10}) == 10; print('consumer total verified')\n                                  ~~~~~^^^^^^^^^^^^^^^\n  File \"/private/tmp/stage5-work/live/code-first/consumer/app.py\", line 1, in parse\n    def parse(payload): return payload['amount']\n                               ~~~~~~~^^^^^^^^^^\nKeyError: 'amount'\n",
+        "stdout": ""
+      }
+    },
+    {
+      "kind": "check",
+      "source_sha256": "0a6676458908a42d2c3b8eb314fdf89cd0127fd729d72af292e0ddf9578003dd",
+      "value": {
+        "command": {
+          "argv": [
+            "/private/tmp/knowledge-contract-venv/bin/python",
+            "-B",
+            "/private/tmp/stage5-work/live/code-first/integration.py"
+          ],
+          "cwd_repository": "svc-producer",
+          "repositories": [
+            "svc-producer",
+            "svc-consumer"
+          ]
+        },
+        "exit_code": 1,
+        "finished_at": "2026-09-22T03:29:36.340601+00:00",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "input_files": {
+          "/private/tmp/knowledge-contract-venv/bin/python": "87d4df53fd91304be5bac391fb204643c36b7df2023c04a0953bcbc7d4fdf634",
+          "/private/tmp/stage5-work/live/code-first/integration.py": "13e3fcb05fe8a6e55af550e1b7a8500a0c78f567b11e4ea33b3d163d72819388"
+        },
+        "kind": "check",
+        "name": "exchange-total",
+        "source_unchanged": true,
+        "sources": {
+          "svc-consumer": {
+            "commit": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+                "text": "def parse(payload): return payload['amount']\n"
+              }
+            ],
+            "id": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+            "kind": "snapshot",
+            "repository": "svc-consumer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          },
+          "svc-producer": {
+            "commit": "2334c37a2209962affaf6484acec4216c98d7554",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+                "text": "def emit(): return {'total': 10}\n"
+              }
+            ],
+            "id": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6",
+            "kind": "snapshot",
+            "repository": "svc-producer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          }
+        },
+        "started_at": "2026-09-22T03:29:36.145107+00:00",
+        "stderr": "Traceback (most recent call last):\n  File \"/private/tmp/stage5-work/live/code-first/integration.py\", line 6, in <module>\n    assert c['parse'](payload) == 10\n           ~~~~~~~~~~^^^^^^^^^\n  File \"/private/tmp/stage5-work/live/code-first/consumer/app.py\", line 1, in parse\n    def parse(payload): return payload['amount']\n                               ~~~~~~~^^^^^^^^^^\nKeyError: 'amount'\n",
+        "stdout": ""
+      }
+    },
+    {
+      "kind": "check",
+      "source_sha256": "11e899ce317c625d618d488a49bb39536529651f0e779698cf040da03eb8149f",
+      "value": {
+        "command": {
+          "argv": [
+            "/private/tmp/knowledge-contract-venv/bin/python",
+            "-B",
+            "-c",
+            "from app import emit; assert emit() == {'total': 10}; print('producer total=10 verified')"
+          ],
+          "cwd_repository": "svc-producer",
+          "repositories": [
+            "svc-producer"
+          ]
+        },
+        "exit_code": 0,
+        "finished_at": "2026-09-22T03:29:35.661628+00:00",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "input_files": {
+          "/private/tmp/knowledge-contract-venv/bin/python": "87d4df53fd91304be5bac391fb204643c36b7df2023c04a0953bcbc7d4fdf634"
+        },
+        "kind": "check",
+        "name": "producer-total",
+        "source_unchanged": true,
+        "sources": {
+          "svc-producer": {
+            "commit": "2334c37a2209962affaf6484acec4216c98d7554",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+                "text": "def emit(): return {'total': 10}\n"
+              }
+            ],
+            "id": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6",
+            "kind": "snapshot",
+            "repository": "svc-producer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          }
+        },
+        "started_at": "2026-09-22T03:29:35.567658+00:00",
+        "stderr": "",
+        "stdout": "producer total=10 verified\n"
+      }
+    },
+    {
+      "kind": "review",
+      "source_sha256": "5bdc318ed4975aa1f6fb580f4ba0a7e6be2793b27cd9751b0d44102bfc160e1a",
+      "value": {
+        "actor": "/root/s5_partial_semantic",
+        "author": "/root",
+        "call_id": "s5_partial_semantic",
+        "finished_at": "2026-09-22T03:31:59.279194+00:00",
+        "goal": "contract-total",
+        "host_tool": "collaboration.spawn_agent",
+        "packet": "416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f",
+        "prompt_sha256": "416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f",
+        "raw_response": "{\"packet\":\"416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f\",\"verdict\":\"pass\",\"findings\":[],\"implementation\":\"pass\",\"documents\":\"pass\"}",
+        "response": {
+          "documents": "pass",
+          "findings": [],
+          "implementation": "pass",
+          "packet": "416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f",
+          "verdict": "pass"
+        },
+        "started_at": "2026-09-22T03:31:00.581768+00:00",
+        "synthetic": false
+      }
+    },
+    {
+      "kind": "prediction",
+      "source_sha256": "81e39e28eccc27550dbf1a297a0f1cde05de2a9b1894d56ce27fa127d062f27f",
+      "value": {
+        "affected": [
+          "svc-producer"
+        ],
+        "before": {
+          "svc-consumer": {
+            "commit": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+                "text": "def parse(payload): return payload['amount']\n"
+              }
+            ],
+            "id": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+            "kind": "snapshot",
+            "repository": "svc-consumer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          },
+          "svc-producer": {
+            "commit": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+                "text": "def emit(): return {'amount': 10}\n"
+              }
+            ],
+            "id": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+            "kind": "snapshot",
+            "repository": "svc-producer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          }
+        },
+        "before_documents": {
+          "svc-consumer": {
+            "bindings": {
+              "documents": [
+                {
+                  "claims": [
+                    {
+                      "evidence": [
+                        "app.py"
+                      ],
+                      "id": "field",
+                      "text": "소비자는 amount 필드를 읽어 값을 반환한다."
+                    }
+                  ],
+                  "path": "contract.md",
+                  "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69"
+                }
+              ],
+              "id": "c4135719d52db2219a96861ae35086a27a738c039af8078afea5d42d2708194a",
+              "kind": "bindings",
+              "snapshot": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+              "version": 1
+            },
+            "documents": [
+              {
+                "path": "contract.md",
+                "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69",
+                "text": "소비자는 amount 필드를 읽어 값을 반환한다.\n"
+              }
+            ]
+          },
+          "svc-producer": {
+            "bindings": {
+              "documents": [
+                {
+                  "claims": [
+                    {
+                      "evidence": [
+                        "app.py"
+                      ],
+                      "id": "field",
+                      "text": "생산자는 amount 필드에 값 10을 담아 반환한다."
+                    }
+                  ],
+                  "path": "contract.md",
+                  "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295"
+                }
+              ],
+              "id": "6038e6a7c506ec2e3f01262819bc74d8bf705cb6292871bfc3474ac45703ce5e",
+              "kind": "bindings",
+              "snapshot": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+              "version": 1
+            },
+            "documents": [
+              {
+                "path": "contract.md",
+                "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295",
+                "text": "생산자는 amount 필드에 값 10을 담아 반환한다.\n"
+              }
+            ]
+          }
+        },
+        "goal": "contract-total",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "kind": "prediction",
+        "origin": {
+          "cause": "stage5-authorized-local-test",
+          "intake": {
+            "path": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a.json",
+            "sha256": "4ec927a16368ac692ed8f64d8431a1c09d3953f5da3fd12bb2718c0b8f902c42"
+          },
+          "kind": "code",
+          "request": "code-first-request"
+        },
+        "rationale": "Intentional missing-consumer negative case",
+        "time": "2026-09-22T03:27:36.296623+00:00"
+      }
+    },
+    {
+      "kind": "prediction",
+      "source_sha256": "63e8e06134eadd95b4f3f6b31d89021410971e698a0a6644a5acdb0116f6546a",
+      "value": {
+        "affected": [
+          "svc-producer",
+          "svc-consumer"
+        ],
+        "before": {
+          "svc-consumer": {
+            "commit": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+                "text": "def parse(payload): return payload['amount']\n"
+              }
+            ],
+            "id": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+            "kind": "snapshot",
+            "repository": "svc-consumer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          },
+          "svc-producer": {
+            "commit": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+                "text": "def emit(): return {'amount': 10}\n"
+              }
+            ],
+            "id": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+            "kind": "snapshot",
+            "repository": "svc-producer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          }
+        },
+        "before_documents": {
+          "svc-consumer": {
+            "bindings": {
+              "documents": [
+                {
+                  "claims": [
+                    {
+                      "evidence": [
+                        "app.py"
+                      ],
+                      "id": "field",
+                      "text": "소비자는 amount 필드를 읽어 값을 반환한다."
+                    }
+                  ],
+                  "path": "contract.md",
+                  "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69"
+                }
+              ],
+              "id": "c4135719d52db2219a96861ae35086a27a738c039af8078afea5d42d2708194a",
+              "kind": "bindings",
+              "snapshot": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+              "version": 1
+            },
+            "documents": [
+              {
+                "path": "contract.md",
+                "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69",
+                "text": "소비자는 amount 필드를 읽어 값을 반환한다.\n"
+              }
+            ]
+          },
+          "svc-producer": {
+            "bindings": {
+              "documents": [
+                {
+                  "claims": [
+                    {
+                      "evidence": [
+                        "app.py"
+                      ],
+                      "id": "field",
+                      "text": "생산자는 amount 필드에 값 10을 담아 반환한다."
+                    }
+                  ],
+                  "path": "contract.md",
+                  "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295"
+                }
+              ],
+              "id": "6038e6a7c506ec2e3f01262819bc74d8bf705cb6292871bfc3474ac45703ce5e",
+              "kind": "bindings",
+              "snapshot": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+              "version": 1
+            },
+            "documents": [
+              {
+                "path": "contract.md",
+                "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295",
+                "text": "생산자는 amount 필드에 값 10을 담아 반환한다.\n"
+              }
+            ]
+          }
+        },
+        "goal": "contract-total",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "kind": "prediction",
+        "origin": {
+          "cause": "stage5-authorized-local-test",
+          "intake": {
+            "path": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a.json",
+            "sha256": "4ec927a16368ac692ed8f64d8431a1c09d3953f5da3fd12bb2718c0b8f902c42"
+          },
+          "kind": "code",
+          "request": "code-first-request"
+        },
+        "rationale": "Independent pre-change impact response identifies producer writer and consumer field dependency.",
+        "time": "2026-09-22T03:27:36.579545+00:00"
+      }
+    },
+    {
+      "kind": "prediction",
+      "source_sha256": "8e8c8b017b6188b27d1952508f339008dc1fb1585484e85a4507afdce5b01916",
+      "value": {
+        "affected": [
+          "svc-producer",
+          "svc-consumer"
+        ],
+        "before": {
+          "svc-consumer": {
+            "commit": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+                "text": "def parse(payload): return payload['amount']\n"
+              }
+            ],
+            "id": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+            "kind": "snapshot",
+            "repository": "svc-consumer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          },
+          "svc-producer": {
+            "commit": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+                "text": "def emit(): return {'amount': 10}\n"
+              }
+            ],
+            "id": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+            "kind": "snapshot",
+            "repository": "svc-producer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          }
+        },
+        "before_documents": {
+          "svc-consumer": {
+            "bindings": {
+              "documents": [
+                {
+                  "claims": [
+                    {
+                      "evidence": [
+                        "app.py"
+                      ],
+                      "id": "field",
+                      "text": "소비자는 amount 필드를 읽어 값을 반환한다."
+                    }
+                  ],
+                  "path": "contract.md",
+                  "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69"
+                }
+              ],
+              "id": "c4135719d52db2219a96861ae35086a27a738c039af8078afea5d42d2708194a",
+              "kind": "bindings",
+              "snapshot": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+              "version": 1
+            },
+            "documents": [
+              {
+                "path": "contract.md",
+                "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69",
+                "text": "소비자는 amount 필드를 읽어 값을 반환한다.\n"
+              }
+            ]
+          },
+          "svc-producer": {
+            "bindings": {
+              "documents": [
+                {
+                  "claims": [
+                    {
+                      "evidence": [
+                        "app.py"
+                      ],
+                      "id": "field",
+                      "text": "생산자는 amount 필드에 값 10을 담아 반환한다."
+                    }
+                  ],
+                  "path": "contract.md",
+                  "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295"
+                }
+              ],
+              "id": "6038e6a7c506ec2e3f01262819bc74d8bf705cb6292871bfc3474ac45703ce5e",
+              "kind": "bindings",
+              "snapshot": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+              "version": 1
+            },
+            "documents": [
+              {
+                "path": "contract.md",
+                "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295",
+                "text": "생산자는 amount 필드에 값 10을 담아 반환한다.\n"
+              }
+            ]
+          }
+        },
+        "goal": "contract-total",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "kind": "prediction",
+        "origin": {
+          "cause": "stage5-authorized-local-test",
+          "intake": {
+            "path": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/0a6ae06bcc29611ae345119ea2d2c00766d62b3b8f49221f82dfcc1ab63d762a.json",
+            "sha256": "6d6ea30e9574f2d5951faf9988822736d6b4e6e85a9d454182336adbda6ae176"
+          },
+          "kind": "user",
+          "request": "code-first-request"
+        },
+        "rationale": "Independent pre-change impact response identifies producer writer and consumer field dependency.",
+        "time": "2026-09-22T03:27:36.858698+00:00"
+      }
+    },
+    {
+      "kind": "previous-index",
+      "source_sha256": "ebb4ab0ead3f4285c1fe5c0eef17da74140d128412669a1388db3b378bf5fac6",
+      "value": {
+        "completion": "incomplete",
+        "goal": "contract-total",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "integration": "pending",
+        "members": [
+          {
+            "current": {
+              "commit": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+              "files": [
+                {
+                  "mode": "100644",
+                  "path": "app.py",
+                  "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+                  "text": "def parse(payload): return payload['amount']\n"
+                }
+              ],
+              "snapshot": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6"
+            },
+            "repository": "svc-consumer",
+            "source_url": "https://consumer.invalid/example",
+            "target": "parse() reads total and returns 10",
+            "validation": "pending_or_stale"
+          },
+          {
+            "current": {
+              "commit": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+              "files": [
+                {
+                  "mode": "100644",
+                  "path": "app.py",
+                  "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+                  "text": "def emit(): return {'amount': 10}\n"
+                }
+              ],
+              "snapshot": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4"
+            },
+            "repository": "svc-producer",
+            "source_url": "https://producer.invalid/example",
+            "target": "emit() returns total=10",
+            "validation": "pending_or_stale"
+          }
+        ],
+        "origin": {
+          "cause": "stage5-authorized-local-test",
+          "kind": "code",
+          "request": "code-first-request"
+        },
+        "relations": [
+          {
+            "affected": [
+              "svc-producer"
+            ],
+            "kind": "prediction",
+            "origin": "code",
+            "record": "81e39e28eccc27550dbf1a297a0f1cde05de2a9b1894d56ce27fa127d062f27f",
+            "time": "2026-09-22T03:27:36.296623+00:00"
+          },
+          {
+            "affected": [
+              "svc-producer",
+              "svc-consumer"
+            ],
+            "kind": "prediction",
+            "origin": "code",
+            "record": "63e8e06134eadd95b4f3f6b31d89021410971e698a0a6644a5acdb0116f6546a",
+            "time": "2026-09-22T03:27:36.579545+00:00"
+          },
+          {
+            "affected": [
+              "svc-producer",
+              "svc-consumer"
+            ],
+            "kind": "prediction",
+            "origin": "user",
+            "record": "8e8c8b017b6188b27d1952508f339008dc1fb1585484e85a4507afdce5b01916",
+            "time": "2026-09-22T03:27:36.858698+00:00"
+          }
+        ],
+        "required_count": 2,
+        "status": "active",
+        "version": "v2",
+        "withheld_count": 0
+      }
+    },
+    {
+      "kind": "publication",
+      "source_sha256": "4bdac895ad64363fea035a2325af08ed00a857929332519a9f8a6271d967f56f",
+      "value": {
+        "goal": "contract-total",
+        "members": {
+          "svc-consumer": "failed",
+          "svc-producer": "published"
+        },
+        "outcome": "partial",
+        "principal": "reader",
+        "time": "2026-09-22T03:32:00.263669+00:00",
+        "view": "d27897b814c8657974ff333714fb92a43fbdef05703dbb258b572aa10392c6ae"
+      }
+    }
+  ]
+}

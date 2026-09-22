@@ -1,0 +1,47 @@
+{
+  "frozen_at": "2026-09-22T03:05:45.963020+00:00",
+  "scope": "Operationalizes existing six-question comparison before collecting product checkpoints or reader responses. Original frozen plan remains unchanged.",
+  "questions": [
+    {
+      "id": "Q1",
+      "checkpoint": "code-first producer-only",
+      "question": "Can both services use total now?",
+      "expected": "No; producer verified alone and consumer amount pending; cite pinned states."
+    },
+    {
+      "id": "Q2",
+      "checkpoint": "document-first before implementation",
+      "question": "What does consumer implement now, and what is the approved target?",
+      "expected": "Current amount; local confirmed target total v2, pending implementation."
+    },
+    {
+      "id": "Q3",
+      "checkpoint": "code-first after both complete and compare",
+      "question": "Which repositories were affected, and what did the producer-only prediction miss?",
+      "expected": "Both, omitted consumer; cite comparison and source revisions."
+    },
+    {
+      "id": "Q4",
+      "checkpoint": "restricted after consumer revocation",
+      "question": "Does this visible result establish whole completion? What can be said about inaccessible members?",
+      "expected": "No; withheld required member prevents whole completion; no unauthorized contents/paths/URLs."
+    },
+    {
+      "id": "Q5",
+      "checkpoint": "source advances after publish",
+      "question": "Can the previous index/wiki be treated as current?",
+      "expected": "No; stale index/publication detected and current verified view withheld or pending."
+    },
+    {
+      "id": "Q6",
+      "checkpoint": "goal withdrawn",
+      "question": "Did withdrawing the target restore old amount code?",
+      "expected": "No; withdrawn target distinct from retained current total code, no implicit rollback."
+    }
+  ],
+  "baseline_retrieval": "For each checkpoint collect allowed raw sources via Git, project public status, goal/intake and check/review/compare evidence references separately. Record each actual retrieval command and file-read artifact with bytes/hash. Give fresh reader this per-repository evidence without aggregate answer.",
+  "candidate_retrieval": "For identical principal and checkpoint use actual query+wiki outputs and their permitted source links. Record actual retrieval commands and output hashes. Give a different fresh reader only these results and questions.",
+  "navigation_measurement": "Count actual preparation retrieval operations and distinct evidence artifacts supplied, not inferred human/model thought steps. Record model wall intervals separately; these are coordinator dispatch-to-observation, not provider latency. No claim of statistically significant performance or human usability.",
+  "pass": "All six answers correct and grounded; no unauthorized disclosure/false completion/stale-current claim. Preserve an initial wrong/missing response and repeat only after fixing actual cause. Mandatory failures never averaged.",
+  "decision": "Use observed retrieval operations/artifact dispersion and repeated state reconciliation as navigation evidence under the existing protocol. If managed result does not reduce either, do not claim navigation improvement. Tool adoption decisions require an observed unresolved bottleneck. Money/tokens null when unreported."
+}

@@ -1,0 +1,42 @@
+{
+  "code-first": {
+    "origin": {
+      "_meta": {
+        "cli_contract": 1
+      },
+      "intake": "78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a",
+      "phase": "pending_implementation",
+      "record": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a.json",
+      "route": "implementation_handoff"
+    },
+    "user-origin": {
+      "_meta": {
+        "cli_contract": 1
+      },
+      "intake": "0a6ae06bcc29611ae345119ea2d2c00766d62b3b8f49221f82dfcc1ab63d762a",
+      "phase": "pending_implementation",
+      "record": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/0a6ae06bcc29611ae345119ea2d2c00766d62b3b8f49221f82dfcc1ab63d762a.json",
+      "route": "implementation_handoff"
+    }
+  },
+  "document-first": {
+    "origin": {
+      "_meta": {
+        "cli_contract": 1
+      },
+      "intake": "5a2e28f2ff7077293ecd3feadf032d15268244938e0439c47a56fb00fe1b4cf0",
+      "phase": "pending_implementation",
+      "record": "/private/tmp/stage5-work/live/document-first/producer-project/intakes/5a2e28f2ff7077293ecd3feadf032d15268244938e0439c47a56fb00fe1b4cf0.json",
+      "route": "implementation_handoff"
+    },
+    "user-origin": {
+      "_meta": {
+        "cli_contract": 1
+      },
+      "intake": "257bdfafe74b54b5fc31ed37c8df6e4f6e14fb750c850b8d1d7c8564f319aefa",
+      "phase": "pending_implementation",
+      "record": "/private/tmp/stage5-work/live/document-first/producer-project/intakes/257bdfafe74b54b5fc31ed37c8df6e4f6e14fb750c850b8d1d7c8564f319aefa.json",
+      "route": "implementation_handoff"
+    }
+  }
+}

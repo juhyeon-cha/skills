@@ -1,0 +1,1 @@
+{"affected":["svc-producer","svc-consumer"],"complete":false,"mismatch":"producer emits total; consumer reads amount; integration would fail","wiki":"reject; producer verified consumer pending","revoked":"consumer unknown, preserve required membership and suppress unauthorized evidence","execution_claim":false}

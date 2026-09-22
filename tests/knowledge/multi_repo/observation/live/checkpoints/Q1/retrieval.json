@@ -1,0 +1,173 @@
+{
+  "flow": "code-first",
+  "principal": "reader",
+  "checkpoint": "code-first producer-only",
+  "baseline": {
+    "operations": [
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e.json",
+        "bytes": 603,
+        "sha256": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "transformed": true
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/78dd0dbbdd5875de37048034712ea971664c375afc4d859475f494e5cf5e157a.json",
+        "bytes": 3520,
+        "sha256": "4ec927a16368ac692ed8f64d8431a1c09d3953f5da3fd12bb2718c0b8f902c42",
+        "transformed": false
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/code-first/producer",
+          "rev-parse",
+          "HEAD"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/code-first/producer",
+          "show",
+          "HEAD:app.py"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "/private/tmp/knowledge-contract-venv/bin/python",
+          "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+          "--project",
+          "/private/tmp/stage5-work/live/code-first/producer-project",
+          "status",
+          "--deep"
+        ]
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/producer-docs/contract.md",
+        "bytes": 60,
+        "sha256": "06ee94badbfb5e076899b95a90b4d202cdc1bc4c0e7ebc329d708ebce96b6ff1",
+        "transformed": false
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/code-first/consumer",
+          "rev-parse",
+          "HEAD"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/code-first/consumer",
+          "show",
+          "HEAD:app.py"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "/private/tmp/knowledge-contract-venv/bin/python",
+          "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+          "--project",
+          "/private/tmp/stage5-work/live/code-first/consumer-project",
+          "status",
+          "--deep"
+        ]
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/consumer-docs/contract.md",
+        "bytes": 58,
+        "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/4d77957a9f88dd3d8485a6e334357d81b200278fb2bd7bafcaa93f01faed5d27.json",
+        "bytes": 1492,
+        "sha256": "4d77957a9f88dd3d8485a6e334357d81b200278fb2bd7bafcaa93f01faed5d27",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/0a6676458908a42d2c3b8eb314fdf89cd0127fd729d72af292e0ddf9578003dd.json",
+        "bytes": 1939,
+        "sha256": "0a6676458908a42d2c3b8eb314fdf89cd0127fd729d72af292e0ddf9578003dd",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/11e899ce317c625d618d488a49bb39536529651f0e779698cf040da03eb8149f.json",
+        "bytes": 1070,
+        "sha256": "11e899ce317c625d618d488a49bb39536529651f0e779698cf040da03eb8149f",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/5bdc318ed4975aa1f6fb580f4ba0a7e6be2793b27cd9751b0d44102bfc160e1a.json",
+        "bytes": 774,
+        "sha256": "5bdc318ed4975aa1f6fb580f4ba0a7e6be2793b27cd9751b0d44102bfc160e1a",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/81e39e28eccc27550dbf1a297a0f1cde05de2a9b1894d56ce27fa127d062f27f.json",
+        "bytes": 2633,
+        "sha256": "81e39e28eccc27550dbf1a297a0f1cde05de2a9b1894d56ce27fa127d062f27f",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/63e8e06134eadd95b4f3f6b31d89021410971e698a0a6644a5acdb0116f6546a.json",
+        "bytes": 2702,
+        "sha256": "63e8e06134eadd95b4f3f6b31d89021410971e698a0a6644a5acdb0116f6546a",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/8e8c8b017b6188b27d1952508f339008dc1fb1585484e85a4507afdce5b01916.json",
+        "bytes": 2702,
+        "sha256": "8e8c8b017b6188b27d1952508f339008dc1fb1585484e85a4507afdce5b01916",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/ebb4ab0ead3f4285c1fe5c0eef17da74140d128412669a1388db3b378bf5fac6.json",
+        "bytes": 1854,
+        "sha256": "ebb4ab0ead3f4285c1fe5c0eef17da74140d128412669a1388db3b378bf5fac6",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/4bdac895ad64363fea035a2325af08ed00a857929332519a9f8a6271d967f56f.json",
+        "bytes": 245,
+        "sha256": "4bdac895ad64363fea035a2325af08ed00a857929332519a9f8a6271d967f56f",
+        "transformed": false
+      }
+    ],
+    "retrieval_operation_count": 19,
+    "supplied_artifacts": 19
+  },
+  "candidate": {
+    "retrieval_operation_count": 2,
+    "supplied_artifacts": 2
+  },
+  "files": {
+    "baseline.json": "b215c78771d00a56f395f70e8d99b8bada4e0dcfeb316959fe329fc052a657fe",
+    "candidate.json": "4355dd3edd44b5acbbb470b84fe447b3aeee8245fef497773db64c7548c3fb48"
+  },
+  "limitations": "Preparation retrieval operations and supplied artifact count, not inferred user clicks or thought steps. Intermediate authorization selection/state enumeration excluded from both displayed counts; no runtime-efficiency claim."
+}

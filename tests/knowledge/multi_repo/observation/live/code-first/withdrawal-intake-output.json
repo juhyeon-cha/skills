@@ -1,0 +1,9 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "intake": "64d2e426bd9db1d0df2abd1f4e640d3826ebff6381b4a0b4cd60667bb4a9c668",
+  "phase": "withdrawn",
+  "record": "/private/tmp/stage5-work/live/code-first/producer-project/intakes/64d2e426bd9db1d0df2abd1f4e640d3826ebff6381b4a0b4cd60667bb4a9c668.json",
+  "route": "implementation_handoff"
+}

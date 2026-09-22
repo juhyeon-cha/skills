@@ -1,0 +1,1 @@
+{"commit":"78be3471850b88509abcf7e5a3cf7aeb80b59ae2","files":[{"mode":"100644","path":"app.py","sha256":"885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51","text":"def parse(payload): return payload['amount']\n"}],"id":"118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6","kind":"snapshot","repository":"svc-consumer","scope":["app.py"],"version":1}

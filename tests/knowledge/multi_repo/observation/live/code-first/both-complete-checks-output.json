@@ -1,0 +1,23 @@
+{
+  "checks": [
+    {
+      "check": "producer-total",
+      "evidence": "427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5",
+      "exit_code": 0,
+      "source_unchanged": true
+    },
+    {
+      "check": "consumer-total",
+      "evidence": "56d6f59125ca73e1ff2f23795126e2f57d81f8d12a1c0a1e886e4c7a19c2e4b9",
+      "exit_code": 0,
+      "source_unchanged": true
+    },
+    {
+      "check": "exchange-total",
+      "evidence": "9c15df0405ab65df7cdb8f484f22b2c277d8e0a157b3d3ccd456bf32fdb20a18",
+      "exit_code": 0,
+      "source_unchanged": true
+    }
+  ],
+  "goal": "contract-total"
+}

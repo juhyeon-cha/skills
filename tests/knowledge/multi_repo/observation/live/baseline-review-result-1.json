@@ -1,0 +1,15 @@
+{
+  "actor": "/root/s5_baseline_review",
+  "observed_at": "2026-09-22T02:55:03.834585+00:00",
+  "accepted": false,
+  "errors": [
+    {
+      "flow": "document-first",
+      "repository_id": "svc-consumer",
+      "expected": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+      "returned": "78be3471850b88509abcf7e5a3cf7a5a3cf7aeb80b59ae2"
+    }
+  ],
+  "tokens": null,
+  "cost": null
+}
