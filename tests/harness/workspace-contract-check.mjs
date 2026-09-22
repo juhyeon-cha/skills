@@ -93,7 +93,9 @@ process.exitCode=child.status??98;
     const mainGuard = command => run('bash', [path.join(plugin, targets[2])], repo, fixtureEnv, JSON.stringify({cwd: repo, tool_name: 'exec_command', tool_input: {cmd: command}}));
     const createShell = `node '${plugin}/scripts/workspace.mjs' create '${repo}' story-1`;
     check(mainGuard(createShell).status === 0, 'Codex main checkout can invoke canonical workspace create');
-    for (const command of [createShell + ' --unknown', createShell + `; touch '${repo}/unsafe'`, `node /tmp/untrusted.mjs create '${repo}' story-1`]) check(mainGuard(command).status === 2, 'workspace exemption cannot authorize mixed/unknown/arbitrary node commands');
+    check(mainGuard(createShell + `; touch '${repo}/unsafe'`).status === 2, 'workspace command cannot exempt a concrete protected write');
+    check(mainGuard(`node /tmp/untrusted.mjs create '${repo}' story-1`).status === 0, 'opaque script arguments do not establish a protected write');
+    check(workspace('create', repo, 'story-1', '--unknown').status !== 0 && !fs.existsSync(wt), 'workspace CLI rejects unknown options before creating a worktree');
     // Keep the adapter-failure negative control at the legacy hook assertion.
     const created = run('bash', ['-c', createShell], repo, {...fixtureEnv, FIXTURE_ADAPTER_FAIL: '0'});
     check(JSON.parse(ok(created)).branch === 'worktree-story-1' && fs.existsSync(wt), 'common create preserves legacy branch/name');

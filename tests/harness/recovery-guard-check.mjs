@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath, pathToFileURL} from 'node:url';
+import {normalizeHookEvent} from '../../plugins/harness/lib/guard/hook-event.mjs';
 import {evaluateGuard} from '../../plugins/harness/lib/guard/guard.mjs';
 
 const root = fileURLToPath(new URL('../../plugins/harness/', import.meta.url));
@@ -110,8 +111,16 @@ for (const [label, relative, from, to, input, expected] of [
   const file = path.join(copy, relative), original = fs.readFileSync(file, 'utf8');
   assert.ok(original.includes(from)); fs.writeFileSync(file, original.replace(from, to));
   const mutant = await import(pathToFileURL(path.join(copy, 'lib/guard/guard.mjs')));
-  const result = await mutant.evaluateGuard(input, {env, pluginRoot: copy});
-  assert.notEqual(result.code, expected, `${label}: removing fix must fail regression`);
+  if (label === 'effects') {
+    // Read classification remains useful even though identity no longer gates execution.
+    assert.equal(normalizeHookEvent(input, {env}).harness_effect_readonly, true);
+    const changed = await import(pathToFileURL(path.join(copy, 'lib/guard/hook-event.mjs')));
+    assert.notEqual(changed.normalizeHookEvent(input, {env}).harness_effect_readonly, true);
+  } else {
+    assert.equal((await evaluateGuard(input, {env, pluginRoot: root})).code, expected);
+    const result = await mutant.evaluateGuard(input, {env, pluginRoot: copy});
+    assert.notEqual(result.code, expected, `${label}: removing fix must fail regression`);
+  }
   checks++;
 }
 console.log(`PASS recovery guard: ${checks} assertions, 3 killed mutations; candidate commands not executed`);
