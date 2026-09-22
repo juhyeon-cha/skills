@@ -4,7 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {isReadonlySearch} from '../../plugins/harness/lib/guard/operations.mjs';
-import {registerRoles, verifyRegistration} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {registerRoles, verifyRegistration, projectRole} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {inspectDistribution, generateDistribution} from '../../plugins/harness/lib/distribution.mjs';
+import {fileURLToPath} from 'node:url';
 import {resolveState} from '../../plugins/harness/lib/runtime/state.mjs';
 import {evaluateStop} from '../../plugins/harness/lib/runtime/stop.mjs';
 
@@ -20,6 +22,51 @@ try {
     'rg x $(touch /repo/file) 2>/dev/null', 'cat /repo < /dev/null',
     'cat /repo 2>&1', 'rg x /repo >"/dev/null"',
   ]) assert.equal(isReadonlySearch(command), false, command);
+
+  const root = fileURLToPath(new URL('../../plugins/harness', import.meta.url));
+  const fixture = path.join(temp, 'native-source'); fs.cpSync(root, fixture, {recursive: true});
+  for (const runtime of ['claude', 'codex', 'antigravity']) {
+    const file = path.join(fixture, 'native', runtime, `reviewer.${runtime === 'codex' ? 'toml' : 'md'}`);
+    const original = fs.readFileSync(file, 'utf8');
+    const marker = runtime === 'codex' ? '# HARNESS_ROLE_INSTRUCTIONS' : '<!-- HARNESS_ROLE_INSTRUCTIONS -->';
+    const invalid = [original.replace(marker, ''), original + '\n' + marker,
+      runtime === 'codex' ? original.replace(marker, `[nested]\n${marker}`) : original.replace(marker, '').replace('name:', `${marker}\nname:`)];
+    if (runtime === 'codex') invalid.push(original.replace(marker, `developer_instructions = "extra"\n${marker}`),
+      original.replace(marker, `"developer_\\u0069nstructions" = "extra"\n${marker}`),
+      original.replace(marker, `harness_instruction_slot = true\ninstructions = """\n${marker}\n"""`));
+    for (const text of invalid) {
+      fs.writeFileSync(file, text);
+      assert.throws(() => projectRole(runtime, 'reviewer', fixture));
+    }
+    fs.writeFileSync(file, original.replaceAll('\n', '\r\n'));
+    assert.ok(projectRole(runtime, 'reviewer', fixture).text.includes('SIGNAL:'));
+    const extra = runtime === 'codex' ? 'experimental_value = [1, 2]\n' : 'custom_native_field: preserved\n';
+    fs.writeFileSync(file, original.replace(runtime === 'codex' ? marker : 'name:', runtime === 'codex' ? extra + marker : extra + 'name:'));
+    assert.ok(projectRole(runtime, 'reviewer', fixture).text.includes(extra));
+    if (runtime === 'antigravity') {
+      fs.writeFileSync(file, original.replace('model: inherit', 'model: pro'));
+      assert.match(projectRole(runtime, 'reviewer', fixture, fixture, {availableTools: ['view_file', 'run_command', 'send_message']}).text, /model: pro/);
+      assert.match(projectRole(runtime, 'reviewer', fixture, fixture, {modelOptions: {model: 'flash'}}).text, /model: flash/);
+    }
+    fs.writeFileSync(file, original);
+  }
+  const canonical = path.join(fixture, 'roles/reviewer.md');
+  const originalBody = fs.readFileSync(canonical, 'utf8');
+  const special = '\nLiteral $& $` $\' quotes " slash \\ and newline\n';
+  fs.writeFileSync(canonical, originalBody + special);
+  const installedRoot = '/path with spaces/"quoted"/$&';
+  for (const runtime of ['claude', 'codex', 'antigravity']) {
+    const text = projectRole(runtime, 'reviewer', fixture, installedRoot).text;
+    const body = runtime === 'codex' ? JSON.parse(/^developer_instructions = (.+)$/m.exec(text)[1]) : text;
+    assert.ok(body.endsWith(special));
+    assert.ok(body.includes(runtime === 'claude' ? '${CLAUDE_PLUGIN_ROOT}' : installedRoot));
+  }
+  assert.throws(() => inspectDistribution(fixture), /generated Claude role drift: reviewer/);
+  generateDistribution(fixture);
+  const native = path.join(fixture, 'native/claude/reviewer.md');
+  fs.appendFileSync(native, '\n');
+  assert.throws(() => inspectDistribution(fixture), /generated Claude role drift: reviewer/);
+  console.log('PASS native slots reject missing, duplicate, misplaced and assigned instructions; body bytes and stale output');
 
   const directory = path.join(temp, 'agents');
   const registration = registerRoles('codex', directory);

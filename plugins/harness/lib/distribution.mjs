@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { loadRole } from './runtime/roles.mjs';
+import { loadRole, projectRole, inspectRoleArtifacts } from './runtime/roles.mjs';
 import { roleNames } from './runtime/role-contract.mjs';
 
 export const pluginRoot = fs.realpathSync(fileURLToPath(new URL('../', import.meta.url)));
@@ -122,6 +122,7 @@ export function projections(root = pluginRoot) {
   for (const id of ['context', 'guard', 'workspace', 'stop', 'role-start', 'role-stop'])
     if (!seen.has(id)) throw new Error(`required hook missing: ${id}`);
   return {
+    ...Object.fromEntries(roleNames.map(role => [`agents/${role}.md`, projectRole('claude', role, root).text])),
     '.codex-plugin/plugin.json': encoded({
       ...manifest,
       hooks: './hooks/codex.json',
@@ -179,6 +180,7 @@ function inspectRuntimeMarkers(directory) {
 
 export function inspectDistribution(root = pluginRoot) {
   root = fs.realpathSync(root);
+  inspectRoleArtifacts(root);
   for (const [relative, text] of Object.entries(projections(root)))
     if (fs.readFileSync(path.join(root, relative), 'utf8') !== text)
       throw new Error(`generated drift: ${relative}`);
@@ -199,11 +201,6 @@ export function inspectDistribution(root = pluginRoot) {
     const entry = loadRole(role, root);
     return { role, hash: entry.sha256 };
   });
-  if (
-    fs.readdirSync(path.join(root, 'agents')).filter((name) => name.endsWith('.md')).length !==
-    roles.length
-  )
-    throw new Error('unexpected role registration');
   const files = {};
   function walk(directory, prefix = '') {
     for (const name of fs.readdirSync(directory).sort()) {

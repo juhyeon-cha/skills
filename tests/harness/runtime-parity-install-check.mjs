@@ -9,12 +9,59 @@ import {inspectDistribution, generateDistribution, digest} from '../../plugins/h
 import {verifyRegistration, registerRoles, loadRole} from '../../plugins/harness/lib/runtime/roles.mjs';
 import {createChallenge, recordHook, diagnose} from '../../plugins/harness/lib/runtime/doctor.mjs';
 import {formatStateContext} from '../../plugins/harness/lib/runtime/state.mjs';
+import {previousRoleArtifact} from './fixtures/previous-role-artifact.mjs';
 
 const source = fileURLToPath(new URL('../../plugins/harness', import.meta.url));
 const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'parity-install-')));
 const read = file => fs.readFileSync(file, 'utf8');
 const put = (file, text) => {fs.mkdirSync(path.dirname(file), {recursive:true}); fs.writeFileSync(file, text);};
 try {
+  const previous = path.join(scratch, 'previous-artifact');
+  const prior = await previousRoleArtifact(previous);
+  for (const surface of ['claude-cli', 'codex-cli', 'codex-desktop', 'antigravity-cli']) {
+    const destination = path.join(scratch, `old-new-${surface}`, 'plugin');
+    const coordinates = {destination, surface,
+      ...(surface.startsWith('codex') ? {agentsDestination: path.join(scratch, `old-new-${surface}`, 'agents')} : {})};
+    const controls = ['config.toml', 'hook-trust.json', 'provider-connections.json'].map(name => path.join(scratch, `old-new-${surface}`, name));
+    for (const file of controls) put(file, `user-owned ${path.basename(file)}\n`);
+    const controlBytes = controls.map(file => fs.readFileSync(file));
+    const initial = prior.install.installDistribution({...coordinates, source: previous});
+    const receiptFile = destination + '.harness-receipt.json';
+    const receiptBytes = fs.readFileSync(receiptFile);
+    const saved = new Map(Object.keys(initial.receipt.files).map(file => [file, fs.readFileSync(file)]));
+    const assertRestored = () => {
+      assert.deepEqual(fs.readFileSync(receiptFile), receiptBytes);
+      for (const [file, bytes] of saved) assert.deepEqual(fs.readFileSync(file), bytes);
+      assert.deepEqual(prior.distribution.inspectDistribution(initial.receipt.installedRoot).files, prior.artifact.files);
+      assert.equal(prior.install.diagnoseInstallation({...coordinates, source: previous}).static, 'PASS');
+      for (let i = 0; i < controls.length; i++) assert.deepEqual(fs.readFileSync(controls[i]), controlBytes[i]);
+    };
+    assertRestored();
+    assert.throws(() => installationPlan({...coordinates, source: previous}), /ENOENT|artifact set/);
+    // Fail after writing a genuine old native artifact. Recovery must restore
+    // every saved byte and receipt, including changes made earlier in the plan.
+    const native = initial.receipt.components.roles[0];
+    const originalWrite = fs.writeFileSync;
+    let reached = false;
+    fs.writeFileSync = (file, ...args) => {
+      if (!reached && file === native) {
+        reached = true; originalWrite(file, 'partial native update');
+        throw new Error('old-new native interruption');
+      }
+      return originalWrite(file, ...args);
+    };
+    try { assert.throws(() => installDistribution({...coordinates, source}), /old-new native interruption/); }
+    finally { fs.writeFileSync = originalWrite; }
+    assert(reached); assertRestored();
+    const current = installDistribution({...coordinates, source});
+    assert.equal(diagnoseInstallation({...coordinates, source}).static, 'PASS');
+    assert.notDeepEqual(fs.readFileSync(receiptFile), receiptBytes);
+    assert.notEqual(current.receipt.sourceHash, prior.artifact.hash);
+    // An old layout is interpreted only by its immutable original installer.
+    prior.install.installDistribution({...coordinates, source: previous});
+    assertRestored();
+    console.log(`PASS genuine previous/current/previous ${surface}: artifact, native output and receipt bytes restored`);
+  }
   const newer = path.join(scratch, 'newer');
   fs.cpSync(source, newer, {recursive:true});
   const manifest = path.join(newer, '.claude-plugin/plugin.json');
@@ -22,6 +69,21 @@ try {
   put(manifest, JSON.stringify(changed));
   put(path.join(newer, 'hooks/session-context.md'), read(path.join(newer, 'hooks/session-context.md')) + '\nFixture updated context.\n');
   generateDistribution(newer);
+  for (const runtime of ['claude', 'antigravity']) {
+    const nested = path.join(scratch, `native-options-${runtime}`);
+    fs.cpSync(source, nested, {recursive: true});
+    const template = path.join(nested, 'native', runtime, 'reviewer.md');
+    const optionsText = 'provider_options:\n  nested_value: true\n  list: [one, two]\n';
+    put(template, read(template).replace('\n---\n', `\n${optionsText}---\n`));
+    generateDistribution(nested);
+    const options = {source: nested, destination: path.join(scratch, `nested-install-${runtime}`), surface: `${runtime}-cli`};
+    const staged = installDistribution(options);
+    assert.equal(diagnoseInstallation(options).static, 'PASS');
+    assert(read(staged.receipt.components.roles.find(file => path.basename(file) === 'reviewer.md')).includes(optionsText));
+    const duplicate = path.join(path.dirname(staged.receipt.components.roles[0]), 'quoted-duplicate.md');
+    put(duplicate, '---\n"na\\u006de": "' + (runtime === 'claude' ? 'reviewer' : 'harness-reviewer') + '"\nprovider_options:\n  nested: true\n---\n');
+    assert.match(diagnoseInstallation(options).reasons.join(' '), /duplicate/);
+  }
   const markerSource = path.join(scratch, 'marker-source');
   fs.cpSync(source, markerSource, {recursive:true});
   put(path.join(markerSource, '.in_use/12345'), '{"pid":');

@@ -3,6 +3,7 @@ import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {inspectDistribution, digest, readJson, skillName} from '../distribution.mjs';
 import {projectRole, nativeAgentName} from './roles.mjs';
+import {nativeMarkdownName} from './native-role.mjs';
 import {diagnose} from './doctor.mjs';
 
 const installationSurfaces = ['claude-cli', 'codex-cli', 'codex-desktop', 'antigravity-cli'];
@@ -204,7 +205,7 @@ export function diagnoseInstallation(options) {
         if (fs.lstatSync(file).isDirectory()) { discover(file, category); continue; }
         if (!/\.(md|toml)$/.test(entry)) continue;
         const body = fs.readFileSync(file, 'utf8');
-        const name = entry.endsWith('.toml') ? nativeAgentName(body) : skillName(body);
+        const name = entry.endsWith('.toml') ? nativeAgentName(body) : category === 1 ? nativeMarkdownName(body) : skillName(body);
         const key = `${category}:${name}`;
         if (names.has(key)) throw new Error('duplicate discoverable skill or role');
         names.add(key);

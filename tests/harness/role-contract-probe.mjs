@@ -34,7 +34,7 @@ if (action === 'prepare') {
   const message = `HARNESS_ROOT=${repo}; worktree=${workspace}; commits=${commit}; task=fixture#1. Story branch fixture-review. HEAD ${commit}, working tree clean. Review this commit against CLAUDE.md. Gate node --check value.mjs rc0 is supplied as a fixture fact; verify the changed code yourself. No ledger read is needed for this quality review. Return your role's first-line SIGNAL.`;
   json('request.json', {role: 'reviewer', task: 'fixture#1', message, parentAgentId: 'pending', sessionId: 'pending', implementerIds: ['fixture-author'], previousAgentIds: []});
   fs.writeFileSync(path.join(base, 'prompt.txt'), `Delegate this review to the native custom agent harness-reviewer. Use its registered role without replacing its instructions. Wait for completion. Delegate exactly this message: ${message}\nOnly read fixture files and the source plugin files needed by the role; no ledger, remote or credential access. Return the agent result.`);
-  console.log(JSON.stringify({base, workspace, source: fileURLToPath(new URL('../../plugins/harness/agents/reviewer.md', import.meta.url))}));
+  console.log(JSON.stringify({base, workspace, source: fileURLToPath(new URL('../../plugins/harness/roles/reviewer.md', import.meta.url))}));
 } else if (action === 'collect') {
   const events = fs.readFileSync(path.join(base, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
   const start = events.find(e => e.hook_event_name === 'SubagentStart' && e.agent_type === 'harness-reviewer');

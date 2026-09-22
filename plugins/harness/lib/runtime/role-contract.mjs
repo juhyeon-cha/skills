@@ -1,4 +1,4 @@
-// Runtime identifiers only; bodies and SIGNAL vocabularies belong to agents/*.md.
+// Runtime identifiers only; bodies and SIGNAL vocabularies belong to roles/*.md.
 export const roleNames = Object.freeze(['implementer', 'reviewer', 'evaluator']);
 export function roleIdentifier(runtime, role) {
   if (!roleNames.includes(role) || !['claude', 'codex', 'antigravity'].includes(runtime))

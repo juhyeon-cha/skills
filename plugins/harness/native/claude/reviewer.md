@@ -1,0 +1,5 @@
+---
+name: reviewer
+description: Supervisor that reviews the code quality of a task's changes. Does not compare against completion criteria.
+---
+<!-- HARNESS_ROLE_INSTRUCTIONS -->

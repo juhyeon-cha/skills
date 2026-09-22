@@ -6,6 +6,7 @@ import {createHash} from 'node:crypto';
 import {spawn, spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {loadRole} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {previousRoleArtifact} from './fixtures/previous-role-artifact.mjs';
 
 const plugin = fileURLToPath(new URL('../../plugins/harness/', import.meta.url));
 const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'delegation-resume-')));
@@ -57,6 +58,28 @@ const finish = (value, begun) => {
     tool: 'collaboration.list_agents', value: {agents: [{agent_name: child,
       agent_status: {completed: 'SIGNAL: MATCH\nfixture only'}}]}}});
 };
+
+// Complete a genuine pre-split call using its original immutable code. The new
+// canonical body hash cannot retroactively certify or rewrite that evidence.
+const previousRoot = path.join(temp, 'previous-artifact');
+const prior = await previousRoleArtifact(previousRoot);
+const previousCli = path.join(previousRoot, 'scripts/delegation.mjs');
+const priorCall = call('previous-artifact-session', 'previous-artifact-call', {
+  sourceHash: prior.roles.loadRole('evaluator', previousRoot).sha256,
+});
+assert.notEqual(priorCall.sourceHash, loadRole('evaluator', plugin).sha256);
+const priorBegin = run('begin', priorCall, 0, previousCli);
+const priorChild = `/root/${priorBegin.dispatch.task_name}`;
+run('bind', {call: priorCall, observation: observed({task_name: priorChild})}, 0, previousCli);
+run('complete', {call: priorCall, head, observation: {source: 'parent-tool-return',
+  tool: 'collaboration.list_agents', value: {agents: [{agent_name: priorChild,
+    agent_status: {completed: 'SIGNAL: MATCH\nprevious artifact fixture'}}]}}}, 0, previousCli);
+assert.equal(run('audit', context(priorCall), 0, previousCli).status, 'OBSERVED');
+const priorRecords = ['call', 'dispatch', 'binding', 'outcome'].map(kind => fs.readFileSync(record(priorCall, kind)));
+assert.match(run('begin', priorCall, 1).reason, /role source hash drift/);
+assert.match(run('audit', context(priorCall), 1).calls[0].reason, /role source hash drift/);
+assert.deepEqual(['call', 'dispatch', 'binding', 'outcome'].map(kind => fs.readFileSync(record(priorCall, kind))), priorRecords);
+assert.equal(run('audit', context(priorCall), 0, previousCli).status, 'OBSERVED');
 
 const old = call('old-session', 'datadescr-eval-01');
 const failure = fail(old);

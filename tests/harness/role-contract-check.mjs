@@ -28,7 +28,11 @@ try {
         check(!/^model\s*=/m.test(text), 'native role inherits configured model');
         check(!/^model_reasoning_effort\s*=/m.test(text), 'native role inherits configured effort');
         check(JSON.parse(/^developer_instructions = (.+)$/m.exec(text)[1]) === loadRole(role).body.replaceAll('${CLAUDE_PLUGIN_ROOT}', fs.realpathSync(root)), 'generated body single source');
-      } else check(entry.file === entry.source, 'Claude source reference');
+      } else {
+        check(entry.source === path.join(root, 'roles', `${role}.md`), 'canonical role source');
+        check(entry.file === path.join(root, 'agents', `${role}.md`), 'Claude generated artifact');
+        check(entry.file !== entry.source, 'source and discovery artifact are distinct');
+      }
       const request = {role, task: 'fixture#1', sessionId: 'session', parentAgentId: 'parent', implementerIds: ['author'], previousAgentIds: [], message: 'fixture delegation'};
       const call = roleCall(registration, request);
       const events = ['SubagentStart', 'PreToolUse', 'SubagentStop'].map(hook_event_name => ({hook_event_name, session_id: call.sessionId, agent_type: call.identifier, agent_id: 'child', last_assistant_message: `SIGNAL: ${loadRole(role).signals[0]}\nresult`}));

@@ -5,6 +5,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {pluginRoot, inspectDistribution, generateDistribution, readJson, hookWiring} from '../../plugins/harness/lib/distribution.mjs';
 import {registerRoles, verifyRegistration} from '../../plugins/harness/lib/runtime/roles.mjs';
+import {installationPlan} from '../../plugins/harness/lib/runtime/parity-install.mjs';
 
 const temp = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'distribution-check-')));
 let count = 0;
@@ -14,6 +15,40 @@ try {
   const copy = path.join(temp, 'harness'); fs.cpSync(pluginRoot, copy, {recursive: true});
   check(inspectDistribution(copy).hash === baseline.hash, 'relocation keeps content identity');
   check(generateDistribution(copy).hash === baseline.hash, 'generation has no self-referential drift');
+  const validRegistration = registerRoles('claude', undefined, copy);
+  const rejectedArtifact = () => {
+    for (const action of [() => inspectDistribution(copy), () => registerRoles('claude', undefined, copy),
+      () => verifyRegistration(validRegistration),
+      () => installationPlan({source: copy, destination: path.join(temp, 'stage'), surface: 'claude-cli'})]) {
+      assert.throws(action); count++;
+    }
+  };
+  for (const relative of ['roles/reviewer.md', 'agents/reviewer.md',
+    'native/claude/reviewer.md', 'native/codex/reviewer.toml', 'native/antigravity/reviewer.md']) {
+    const file = path.join(copy, relative), before = fs.readFileSync(file);
+    fs.unlinkSync(file); rejectedArtifact();
+    check(!fs.existsSync(file), `validation does not regenerate missing ${relative}`);
+    fs.writeFileSync(file, before);
+    const unexpected = path.join(path.dirname(file), 'unexpected' + path.extname(file));
+    fs.writeFileSync(unexpected, before); rejectedArtifact(); fs.unlinkSync(unexpected);
+  }
+  for (const relative of ['roles/reviewer.md', 'agents/reviewer.md', 'native/claude/reviewer.md']) {
+    const file = path.join(copy, relative), before = fs.readFileSync(file);
+    fs.appendFileSync(file, '\nchanged\n'); rejectedArtifact();
+    check(fs.readFileSync(file, 'utf8').endsWith('\nchanged\n'), 'validation leaves stale input/output untouched');
+    fs.writeFileSync(file, before);
+  }
+  for (const runtime of ['claude', 'codex', 'antigravity']) {
+    const file = path.join(copy, 'native', runtime, `reviewer.${runtime === 'codex' ? 'toml' : 'md'}`);
+    const before = fs.readFileSync(file, 'utf8');
+    fs.writeFileSync(file, before.replace(/reviewer/g, 'implementer')); rejectedArtifact();
+    fs.writeFileSync(file, before);
+    fs.appendFileSync(file, '\n# Native-only setting comment\n');
+    if (runtime === 'claude') generateDistribution(copy);
+    check(inspectDistribution(copy).hash !== baseline.hash, `${runtime} native bytes enter artifact hash`);
+    fs.writeFileSync(file, before);
+    if (runtime === 'claude') generateDistribution(copy);
+  }
   const markers = path.join(copy, '.in_use');
   const marker = path.join(markers, '12345');
   const samePayload = () => {
@@ -72,12 +107,14 @@ try {
     } finally { fs[method] = original; }
   }
   fs.rmSync(markers, {recursive: true}); samePayload();
-  for (const relative of ['ordinary.txt', '.hidden', 'lib/.in_use/12345', 'lib/distribution.mjs', 'agents/reviewer.md', 'hooks/session-context.md', '.claude-plugin/plugin.json']) {
+  for (const relative of ['ordinary.txt', '.hidden', 'lib/.in_use/12345', 'lib/distribution.mjs', 'roles/reviewer.md', 'hooks/session-context.md', '.claude-plugin/plugin.json']) {
     const file = path.join(copy, relative);
     const before = fs.existsSync(file) ? fs.readFileSync(file) : null;
     fs.mkdirSync(path.dirname(file), {recursive: true}); fs.appendFileSync(file, '\n');
+    if (relative.startsWith('roles/')) generateDistribution(copy);
     check(inspectDistribution(copy).hash !== baseline.hash, `payload change detected: ${relative}`);
     if (before === null) fs.unlinkSync(file); else fs.writeFileSync(file, before);
+    if (relative.startsWith('roles/')) generateDistribution(copy);
   }
   const claude = readJson(path.join(copy, '.claude-plugin/plugin.json'));
   const codex = readJson(path.join(copy, '.codex-plugin/plugin.json'));

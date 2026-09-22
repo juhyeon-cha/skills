@@ -42,7 +42,7 @@ direct argv execution. Native source ownership is:
 | Responsibility | Single source and runtime projection |
 |---|---|
 | Policy and context | `hooks/session-context.md`; native `lib/runtime/session-context.mjs` emits it |
-| Role bodies and identity | `agents/*.md`; `lib/runtime/roles.mjs` generates Codex registrations and verifies receipts; Claude reads the same bodies |
+| Role bodies and identity | `roles/*.md` owns instructions and SIGNAL; `native/<runtime>/` owns provider settings; `lib/runtime/roles.mjs` assembles and verifies native artifacts; Claude discovers generated `agents/*.md`. Before changing settings or diagnosing their origin, read [roles.md](roles.md#edit-and-inspect-role-settings) |
 | Skill bodies | `skills/*/SKILL.md`; both manifests reference this directory, with duplicate names rejected |
 | Hook registry and transport | `lib/hook-definitions.json` generates `hooks/hooks.json` and `hooks/codex.json`; `scripts/hook.mjs` dispatches native handlers |
 | Guard, Stop and logs | `lib/guard/guard.mjs`, `lib/runtime/stop.mjs`, `lib/guard/guard-log.mjs`; legacy entrypoints delegate |

@@ -1,8 +1,12 @@
 # Runtime role execution
 
-Canonical role instructions remain in `agents/`. Claude references those plugin
-agents, Codex projects them as native TOML, and Antigravity projects Markdown
-with `subagent: true`, `mainAgent: false`, supported tools and `model: inherit`.
+For source ownership, native assembly and read-only configuration diagnosis,
+follow [Edit and inspect role settings](roles.md#edit-and-inspect-role-settings).
+Runtime declarations retain their own syntax and semantics: Claude frontmatter,
+Codex TOML and Antigravity frontmatter are not mutually interchangeable.
+Preserving a provider-specific field does not establish that the selected
+runtime version supports or enforces it. Generic collaboration does not load
+those declarations; its execution contract remains [roles.md](roles.md).
 The [official CLI discovery documentation](https://antigravity.google/docs/cli/subagents/)
 and [official subagent schema](https://antigravity.google/docs/subagents) are the
 primary contracts. The CLI's observed tool result parser is intentionally narrow:

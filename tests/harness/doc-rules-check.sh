@@ -35,7 +35,7 @@
 #       한국어·영어 대안을 함께 든다 — 스캔 대상에 영어 문서가 섞여도 계속 보게 하려는
 #       것이다. **그 영어 낱말의 단일 소유는 WAIT_TRIGGER·WAIT_TOKENS 자신이다** — 문서에
 #       같은 목록을 두지 않는다(두면 어긋나고, 어긋난 쪽을 따른 줄을 이 검사가 못 본다).
-#   R-DUP 스캔 대상은 글롭(skills/*/SKILL.md · agents/*.md)으로 판다 —
+#   R-DUP 스캔 대상은 글롭(skills/*/SKILL.md · roles/*.md)으로 판다 —
 #       새 스킬·새 역할의 기본값이 "검사됨" 이다. 원천은 R-DATE·R-BEAD 와 같은 상시 로드
 #       모집단이다. 손으로 적힌 것은 임계값 RDUP_MIN 하나뿐이고, 그 값을 그렇게 고른
 #       실측 근거(임계값별 적중과 오탐의 정체)는 그 검사의 주석이 든다. 글롭 뒤에 **언어
@@ -512,9 +512,8 @@ WAIT_ANCHOR="## 사람 대기"
 # 여기가 단일 소유다** — 문서에 같은 목록을 다시 적지 않는다.
 WAIT_TRIGGER='사람 대기|human wait'
 # 화이트리스트. 각 항목은 ERE 이고, 단일 소유 절이 **전부** 들고 있어야 한다.
-# 영어 대안을 함께 든 항목이 셋 있다 — 신호 이름이 아니라 서술어라 번역에서 낱말이
-# 통째로 바뀌는 것들이다. 나머지 넷은 SCREAMING_SNAKE 식별자·고유명사라 번역을 타지
-# 않는다. **쓸 영어 표기의 단일 소유가 여기다** — 번역하는 쪽이 읽을 자리이고, 문서에
+# 영어 대안을 함께 든 항목이 둘 있다 — 신호 이름이 아니라 서술어라 번역에서 낱말이
+# 통째로 바뀌는 것들이다. 나머지는 owner 표의 식별자 또는 정확한 신호 문구를 따른다. **쓸 영어 표기의 단일 소유가 여기다** — 번역하는 쪽이 읽을 자리이고, 문서에
 # 같은 목록을 두면 두 목록이 어긋난다.
 # 한계(확인한 것): 역방향 단언은 한국어 대안이 표 행에 걸려 성립하므로 영어 대안이 늘어도
 # 흔들리지 않는다 — 뒤집어 말하면 **영어 표기 쪽은 역방향으로 단언되지 않는다.** 오타가
@@ -524,7 +523,7 @@ WAIT_TOKENS=(
   'DECISION_NEEDED'
   'DEVIATION'
   'SCOPE_EXCESS'
-  '상한 초과|limit exceeded'
+  'retry progress exhausted or explicit user budget reached'
   'actor claim'
   '목록에 없는 값|목록 밖 값|unlisted value|not in the list'
   '종결 미완|cycle close incomplete'
@@ -542,7 +541,7 @@ check_rwait() {
 
   # 스캔 대상은 글롭에서 파생한다. 새 규칙 문서·새 스킬·새 역할 정의의 기본값이 "검사됨" 이다.
   files=$( { echo "$BLOCK"
-             for p in skills/*/SKILL.md agents/*.md; do
+             for p in skills/*/SKILL.md roles/*.md; do
                [[ -f "$p" ]] && echo "$p"
              done
            } | sort -u )
@@ -557,7 +556,7 @@ check_rwait() {
   fi
 
   # 대상 단언 — 검사가 무엇을 보는지 못박는다. 파생이 조용히 좁아지는 것을 잡는다.
-  for k in "$BLOCK" "$WAIT_OWNER" "agents/implementer.md"; do
+  for k in "$BLOCK" "$WAIT_OWNER" "roles/implementer.md"; do
     if ! printf '%s\n' "${flist[@]}" | grep -qxF -- "$k"; then
       echo "✗ R-WAIT — 스캔 대상에 '$k' 가 없다 (${#flist[@]}건 파생). 파생이 좁아졌다"
       return 1
@@ -645,7 +644,7 @@ check_rwait() {
 # 이 스토리가 문서에 대해 반복해 도달한 결론이 "값을 옮기지 말고 자리를 가리켜라" 이고
 # (harness-dg0.6.17 · harness-dg0.6.30 · harness-dg0.6.40), 이 검사는 그 결론의 강제다.
 #
-# 대상(스캔): 스킬 본문 `skills/*/SKILL.md` 과 역할 정의 `agents/*.md` 전수.
+# 대상(스캔): 스킬 본문 `skills/*/SKILL.md` 과 역할 정의 `roles/*.md` 전수.
 #   글롭에서 판다 — 새 스킬·새 역할의 기본값이 "검사됨" 이다(극성 반전).
 # 원천: 상시 로드 문서 집합(always_loaded_derive). R-DATE·R-BEAD 와 **같은 모집단**이고
 #   그 파생의 뿌리·근거·한계는 그 함수의 주석이 든다 — 여기에 다시 적지 않는다.
@@ -749,7 +748,7 @@ check_rdup() {
   always_loaded_derive || return 1
 
   # 스캔 대상은 글롭에서 판다. 상시 로드 문서와 겹치는 것은 자기 대조라 뺀다.
-  for p in skills/*/SKILL.md agents/*.md; do
+  for p in skills/*/SKILL.md roles/*.md; do
     [[ -f "$p" ]] || continue
     printf '%s\n' "${ALWAYS_LOADED[@]}" | grep -qxF -- "$p" && continue
     tlist+=("$p")
@@ -763,7 +762,7 @@ check_rdup() {
   # 대상 단언 — 글롭 파생(tlist)이 무엇을 물고 있는지 못박는다. 개수만으로는 대상 교체를
   # 못 잡는다. 원천(주입 블록)도 대상도 영어 문서이므로 언어로 스캔 집합을 줄이지 않는다 —
   # 문자열 동일성 검사는 언어와 무관하게 글롭 전수를 본다.
-  for k in "skills/develop/SKILL.md" "agents/implementer.md" "agents/evaluator.md"; do
+  for k in "skills/develop/SKILL.md" "roles/implementer.md" "roles/evaluator.md"; do
     if ! printf '%s\n' "${tlist[@]}" | grep -qxF -- "$k"; then
       echo "✗ R-DUP — 스캔 대상에 '$k' 가 없다 (${#tlist[@]}건 파생). 파생이 좁아졌다"
       return 1
