@@ -5,6 +5,9 @@ description: Bootstrap evidence-linked documents from code or goals, classify ch
 
 # Refresh knowledge
 
+For shared goals across repositories, cross-repository impact comparisons, or permission-aware
+managed search/wiki reads, read [multi-repository relations](references/multi-repo.md).
+
 For local event requests, repeated foreground polling, host model receipts, operator stop/resume,
 or automation failure recovery, read [local automation](references/automation.md). It owns the
 host loop around the project CLI; keep its execution evidence separate from document completion.
