@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "repositories": {
+    "svc-producer": {
+      "path": "/private/tmp/stage5-work/live/code-first/producer-relocated",
+      "url": "https://producer.invalid/example",
+      "scope": [
+        "app.py"
+      ],
+      "project": "/private/tmp/stage5-work/live/code-first/producer-project"
+    },
+    "svc-consumer": {
+      "path": "/private/tmp/stage5-work/live/code-first/consumer",
+      "url": "https://consumer.invalid/example",
+      "scope": [
+        "app.py"
+      ],
+      "project": "/private/tmp/stage5-work/live/code-first/consumer-project"
+    }
+  },
+  "principals": {
+    "operator": {
+      "manage": true,
+      "repositories": {
+        "svc-producer": [
+          "source",
+          "query",
+          "publish"
+        ],
+        "svc-consumer": [
+          "source",
+          "query",
+          "publish"
+        ]
+      },
+      "goals": [
+        "contract-total"
+      ]
+    },
+    "reader": {
+      "manage": false,
+      "repositories": {
+        "svc-producer": [
+          "source",
+          "query",
+          "publish"
+        ],
+        "svc-consumer": [
+          "source",
+          "query",
+          "publish"
+        ]
+      },
+      "goals": [
+        "contract-total"
+      ]
+    },
+    "producer-only": {
+      "manage": false,
+      "repositories": {
+        "svc-producer": [
+          "source",
+          "query",
+          "publish"
+        ]
+      },
+      "goals": [
+        "contract-total"
+      ]
+    }
+  },
+  "checks": {
+    "producer-total": {
+      "repositories": [
+        "svc-producer"
+      ],
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "-c",
+        "from app import emit; assert emit() == {'total': 10}; print('producer total=10 verified')"
+      ],
+      "cwd_repository": "svc-producer"
+    },
+    "consumer-total": {
+      "repositories": [
+        "svc-consumer"
+      ],
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "-c",
+        "from app import parse; assert parse({'total': 10}) == 10; print('consumer total verified')"
+      ],
+      "cwd_repository": "svc-consumer"
+    },
+    "exchange-total": {
+      "repositories": [
+        "svc-producer",
+        "svc-consumer"
+      ],
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "/private/tmp/stage5-work/live/code-first/integration.py"
+      ],
+      "cwd_repository": "svc-producer"
+    }
+  }
+}

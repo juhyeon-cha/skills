@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "after": "d9c59b8818187754672256dd953e56cebbd892b7",
+  "before": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+  "context": "/private/tmp/stage5-work/live/code-first/consumer-project/runs/947b1d1b1ad94276c55cbccd4401b840431d711728069fc416acbceadb85fdc2/context.json",
+  "next_action": "resume",
+  "packet": "/private/tmp/stage5-work/live/code-first/consumer-project/runs/947b1d1b1ad94276c55cbccd4401b840431d711728069fc416acbceadb85fdc2/7611aae2a5ad9fa9059591ce31d4e90f9bcf9bf81f099cc37b00f37f59667ee3/packet.json",
+  "phase": "ready",
+  "review": {
+    "id": "7b5feab022568d314ef8f9b2ddae256760c4ef37fe5e452aaeb6ecdf2523e9dc",
+    "path": "/private/tmp/stage5-work/live/code-first/consumer-project/runs/947b1d1b1ad94276c55cbccd4401b840431d711728069fc416acbceadb85fdc2/7611aae2a5ad9fa9059591ce31d4e90f9bcf9bf81f099cc37b00f37f59667ee3/review-7b5feab022568d314ef8f9b2ddae256760c4ef37fe5e452aaeb6ecdf2523e9dc.json"
+  },
+  "run": "947b1d1b1ad94276c55cbccd4401b840431d711728069fc416acbceadb85fdc2"
+}

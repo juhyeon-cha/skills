@@ -1,0 +1,73 @@
+{
+  "answers": [
+    {
+      "id": "Q1",
+      "answer": "아니요. 이 시점에는 생산자만 total을 반환하고 소비자는 여전히 amount를 읽습니다. 두 서비스의 total 연동은 완료되지 않았습니다.",
+      "evidence": [
+        "svc-producer commit 2334c37a2209962affaf6484acec4216c98d7554: \"def emit(): return {'total': 10}\\n\", validation=\"verified\"",
+        "svc-consumer commit 78be3471850b88509abcf7e5a3cf7aeb80b59ae2: \"def parse(payload): return payload['amount']\\n\", validation=\"pending_or_stale\"",
+        "query.completion=\"incomplete\", query.integration=\"pending\", query.index=\"stale\"; wiki.served=\"unavailable_or_partial\""
+      ]
+    },
+    {
+      "id": "Q2",
+      "answer": "현재 소비자는 payload의 amount 값을 반환합니다. 기록된 활성 v2 목표는 total을 읽고 10을 반환하는 것입니다. 목표와 현재 구현은 다르며 목표 달성 검증은 아직 완료되지 않았습니다.",
+      "evidence": [
+        "svc-consumer current.commit=\"78be3471850b88509abcf7e5a3cf7aeb80b59ae2\"",
+        "svc-consumer current.files[0].text=\"def parse(payload): return payload['amount']\\n\"",
+        "svc-consumer target=\"parse() reads total and returns 10\", validation=\"pending_or_stale\"",
+        "query.status=\"active\", query.version=\"v2\", query.origin.kind=\"document\", query.origin.request=\"document-first-request\""
+      ]
+    },
+    {
+      "id": "Q3",
+      "answer": "영향을 받은 저장소는 svc-producer와 svc-consumer입니다. 생산자만 포함한 예측은 소비자의 total 읽기 변경을 누락했습니다. 잘못된 예측은 보존되었으며, 후속 비교에서 소비자 누락을 기존 문서화 접수 경로로 보내고 unresolved를 비웠습니다. 이 시점의 전체 완료 및 통합 검증 상태는 각각 complete와 verified입니다.",
+      "evidence": [
+        "prediction 81e39e28eccc27550dbf1a297a0f1cde05de2a9b1894d56ce27fa127d062f27f: affected=[\"svc-producer\"]",
+        "comparison 4b9ca79e4f09b4e74e7d9d6cb9f3232f5d2ba554b3d3ae8999985e7eb9d6d31d: omissions=[\"svc-consumer\"], unresolved=[\"svc-consumer\"]",
+        "comparison 07aaf1dd65323289ca2bd03088fffc969abdfbe49092a4479485d81b796e8f7b: omissions=[\"svc-consumer\"], unresolved=[], feedback=\"Consumer omission routed to existing current-documentation intake.\"",
+        "동일 후속 비교의 decision: \"Retain wrong prediction with correction and shared current/target evidence.\"",
+        "svc-consumer commit d9c59b8818187754672256dd953e56cebbd892b7: \"def parse(payload): return payload['total']\\n\"; svc-producer commit 2334c37a2209962affaf6484acec4216c98d7554: \"def emit(): return {'total': 10}\\n\"",
+        "query.completion=\"complete\", query.integration=\"verified\", 두 members의 validation=\"verified\", wiki.served=\"current\""
+      ]
+    },
+    {
+      "id": "Q4",
+      "answer": "아니요. 보이는 생산자의 검증 결과만으로 전체 완료를 입증할 수 없습니다. 필요한 구성원 둘 중 하나의 증거가 비공개입니다. 비공개 구성원의 이름, 코드, 목표 달성 여부와 검증 상태는 이 체크포인트에서 알 수 없습니다.",
+      "evidence": [
+        "query.required_count=2, query.withheld_count=1; query.members에는 svc-producer만 있음",
+        "svc-producer current.commit=\"2334c37a2209962affaf6484acec4216c98d7554\", validation=\"verified\"",
+        "query.completion=\"incomplete\", query.integration=\"pending\", query.index=\"stale\"",
+        "wiki.markdown: \"Required evidence withheld: 1\"; wiki.served=\"unavailable_or_partial\"",
+        "wiki.publication_history에는 outcome=\"published\"가 있으나 현재 wiki.completion=\"incomplete\""
+      ]
+    },
+    {
+      "id": "Q5",
+      "answer": "아니요. 이전 게시 이력이 있어도 현재 인덱스는 stale이고 위키는 unavailable_or_partial입니다. 생산자 소스가 게시 이후 변경된 리비전을 가리키며 검증은 pending_or_stale입니다. 코드가 여전히 total을 반환한다는 사실만으로 이전 검증과 게시물을 현재 것으로 취급할 수 없습니다.",
+      "evidence": [
+        "query.index=\"stale\", query.completion=\"incomplete\", query.integration=\"pending\"",
+        "svc-producer current.commit=\"ba52daaa5ed69f9f6c3116ddfe8ce52c48e41fc0\", validation=\"pending_or_stale\"",
+        "svc-producer current.files[0].text=\"def emit(): return {'total': 10}\\n# Advance source revision after managed publication.\\n\"",
+        "wiki.served=\"unavailable_or_partial\", wiki.completion=\"incomplete\"",
+        "wiki.publication_history의 마지막 outcome=\"published\", time=\"2026-09-22T03:35:48.825655+00:00\"는 게시 이력이며 현재 served 상태와 구별됨"
+      ]
+    },
+    {
+      "id": "Q6",
+      "answer": "아니요. 목표는 v3에서 withdrawn 상태지만 현재 소비자와 생산자 코드는 모두 total을 사용합니다. 목표 철회가 amount 코드 복원을 의미하지 않습니다.",
+      "evidence": [
+        "query.status=\"withdrawn\", query.version=\"v3\"; wiki.status=\"withdrawn\"",
+        "svc-consumer current.commit=\"d9c59b8818187754672256dd953e56cebbd892b7\", current.files[0].text=\"def parse(payload): return payload['total']\\n\"",
+        "svc-producer current.commit=\"ba52daaa5ed69f9f6c3116ddfe8ce52c48e41fc0\", current.files[0].text=\"def emit(): return {'total': 10}\\n# Advance source revision after managed publication.\\n\"",
+        "wiki.publication_history 마지막 outcome=\"withdrawn\", time=\"2026-09-22T03:35:51.371196+00:00\"",
+        "query.completion=\"incomplete\", query.integration=\"pending\", 두 members의 validation=\"pending_or_stale\""
+      ]
+    }
+  ],
+  "limitations": [
+    "각 답변은 해당 체크포인트의 제공된 JSON만을 근거로 하며 다른 체크포인트의 상태를 소급 적용하지 않았습니다.",
+    "Q4에서 비공개 구성원의 내용과 상태는 unknown입니다.",
+    "검사·검토 기록의 식별자는 제공되지만 원문 실행 로그는 제공되지 않아 독립적으로 재검증하지 않았습니다."
+  ]
+}

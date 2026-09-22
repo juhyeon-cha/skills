@@ -1,0 +1,174 @@
+{
+  "completion": "complete",
+  "goal": "contract-total",
+  "goal_hash": "9cd906d838275f19b8ace5f31a549061b77586559e736bdb8a5ddc7ee8ef42d0",
+  "integration": "verified",
+  "members": [
+    {
+      "current": {
+        "commit": "885587194c3781b8e99a6ea6a046c0af6f29d457",
+        "files": [
+          {
+            "mode": "100644",
+            "path": "app.py",
+            "sha256": "1611e1616692cdd7b7537ac2d9bd7779cc49b5de83a5d1c813b2cb794093bc94",
+            "text": "def parse(payload): return payload['total']\n"
+          }
+        ],
+        "snapshot": "fbf8f0b33f035758a2487a5eb21eb30db1fd8ab216da81936a56256143b4ebb4"
+      },
+      "documents": [
+        {
+          "path": "contract.md",
+          "sha256": "eb2d21dc5ed8f2ad7cd5876cc3b6ce9694f9e378854c0f395d5a39082f591663",
+          "text": "소비자는 total 필드를 읽어 값을 반환한다.\n"
+        }
+      ],
+      "evidence": {
+        "bindings": "8681c781ec9f8a737727029fb9c1479b5122b816b2f3d0840f07df361c05079e",
+        "checks": {
+          "consumer-total": "47a212e85a20be17cd0d6bc007d447d38c8936170e97e8a8f200badc81f02a62"
+        },
+        "review": "898855a97554982c2e2c542f043f2bec08910bf99926072c2c21b0dfb340a73d",
+        "review_synthetic": false
+      },
+      "repository": "svc-consumer",
+      "source_url": "https://consumer.invalid/example",
+      "target": "parse() reads total and returns 10",
+      "validation": "verified"
+    },
+    {
+      "current": {
+        "commit": "2334c37a2209962affaf6484acec4216c98d7554",
+        "files": [
+          {
+            "mode": "100644",
+            "path": "app.py",
+            "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+            "text": "def emit(): return {'total': 10}\n"
+          }
+        ],
+        "snapshot": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6"
+      },
+      "documents": [
+        {
+          "path": "contract.md",
+          "sha256": "06ee94badbfb5e076899b95a90b4d202cdc1bc4c0e7ebc329d708ebce96b6ff1",
+          "text": "생산자는 total 필드에 값 10을 담아 반환한다.\n"
+        }
+      ],
+      "evidence": {
+        "bindings": "e0a0aa6c21e2a170606f47279f401909150e0227765768a0503660ec172225f9",
+        "checks": {
+          "producer-total": "ccbf20ee1bcf08e68daeb72e5e262d3effec2433a4bd59d29695ba30d1e3e526"
+        },
+        "review": "898855a97554982c2e2c542f043f2bec08910bf99926072c2c21b0dfb340a73d",
+        "review_synthetic": false
+      },
+      "repository": "svc-producer",
+      "source_url": "https://producer.invalid/example",
+      "target": "emit() returns total=10",
+      "validation": "verified"
+    }
+  ],
+  "origin": {
+    "cause": "stage5-authorized-local-test",
+    "kind": "document",
+    "request": "document-first-request"
+  },
+  "relations": [
+    {
+      "affected": [
+        "svc-producer"
+      ],
+      "kind": "prediction",
+      "origin": "document",
+      "record": "c57f6644e60fc931dff9b773b97efcfabff18751c8cdd46b2a3e9948a6beb339",
+      "time": "2026-09-22T03:27:38.043597+00:00"
+    },
+    {
+      "affected": [
+        "svc-producer",
+        "svc-consumer"
+      ],
+      "kind": "prediction",
+      "origin": "document",
+      "record": "ba038213b9080888db71ab7227dabfc57e72c897acf863548507532a74684ece",
+      "time": "2026-09-22T03:27:38.321971+00:00"
+    },
+    {
+      "affected": [
+        "svc-producer",
+        "svc-consumer"
+      ],
+      "kind": "prediction",
+      "origin": "user",
+      "record": "a196fd737b4ce616fd08eae69eea48c832ffee3cdfc70589b70fb595c7fbdd6b",
+      "time": "2026-09-22T03:27:38.597939+00:00"
+    },
+    {
+      "feedback": [],
+      "kind": "comparison",
+      "omissions": [
+        "svc-consumer"
+      ],
+      "prediction": "c57f6644e60fc931dff9b773b97efcfabff18751c8cdd46b2a3e9948a6beb339",
+      "record": "044afee32361c35db48fed792d1785dd6ec51c0067325c13a28126293f4c0cfa",
+      "time": "2026-09-22T03:35:28.492587+00:00",
+      "unresolved": [
+        "svc-consumer"
+      ]
+    },
+    {
+      "feedback": [],
+      "kind": "comparison",
+      "omissions": [],
+      "prediction": "ba038213b9080888db71ab7227dabfc57e72c897acf863548507532a74684ece",
+      "record": "335dbe00ffa6c2f69fd63cb3455e730797f617f2bd34ec45a602f8d418c171d6",
+      "time": "2026-09-22T03:35:29.094442+00:00",
+      "unresolved": []
+    },
+    {
+      "feedback": [],
+      "kind": "comparison",
+      "omissions": [],
+      "prediction": "a196fd737b4ce616fd08eae69eea48c832ffee3cdfc70589b70fb595c7fbdd6b",
+      "record": "0cc6e53bc28c1e73c8045a1119ab792b615f8fb2fe43b9186ffb965574b3c28d",
+      "time": "2026-09-22T03:35:29.691084+00:00",
+      "unresolved": []
+    },
+    {
+      "feedback": [
+        {
+          "description": "Consumer omission routed to existing current-documentation intake.",
+          "intake_sha256": "011dd255f54a5b7628609ae333da33a4ac49616e1a56b0b113274b7a6e26765a",
+          "kind": "omission",
+          "repositories": [
+            "svc-consumer"
+          ]
+        },
+        {
+          "description": "Retain wrong prediction with correction and shared current/target evidence.",
+          "intake_sha256": "9937b82c43541a28310419369f595e14c964c7e9929c037a7310b2b1ac9f01b2",
+          "kind": "decision",
+          "repositories": [
+            "svc-producer",
+            "svc-consumer"
+          ]
+        }
+      ],
+      "kind": "comparison",
+      "omissions": [
+        "svc-consumer"
+      ],
+      "prediction": "c57f6644e60fc931dff9b773b97efcfabff18751c8cdd46b2a3e9948a6beb339",
+      "record": "c95d1c64084c1aed6297e0688937c829c3a62dd6fcbae869444c488dcfa3c4c6",
+      "time": "2026-09-22T03:35:30.549532+00:00",
+      "unresolved": []
+    }
+  ],
+  "required_count": 2,
+  "status": "active",
+  "version": "v2",
+  "withheld_count": 0
+}

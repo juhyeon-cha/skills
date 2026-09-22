@@ -1,0 +1,14 @@
+{
+  "started_at": "2026-09-22T03:41:23.946214+00:00",
+  "prompt_sha256": "6462b31733490e56237f9912bb22cdbad1d6256dace1447a799b0791d2a980ef",
+  "inputs": {
+    "comparison-checkpoints.json": "f4070fb6e9583af17c5ef7505e7a740be7bf09edc11118b59352bbd22760852a",
+    "comparison-baseline-reader-input.json": "b0ad37888d1957e38486e89d9365549631b5160b15410769ab30325786f82367",
+    "comparison-candidate-reader-input.json": "c7a08ee6b8d82da9b96cd51c267c0e1c1968a133839c98e6baff17692f4778d8",
+    "comparison-baseline-reader-raw.json": "78995b33a3f204954788034ab681eff6d04257ff12fa32f5d7c50fdf39f0fbc2",
+    "comparison-candidate-reader-raw.json": "21866611ce493d0c00492424ed3dd1ab2289389a10af00c4f82478973a3808c6"
+  },
+  "usage_tokens": null,
+  "money": null,
+  "synthetic": false
+}

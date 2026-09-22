@@ -1,0 +1,54 @@
+{
+  "baseline": [
+    {
+      "id": "Q1",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q2",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q3",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q4",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q5",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q6",
+      "missing_literal_identifiers": []
+    }
+  ],
+  "candidate": [
+    {
+      "id": "Q1",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q2",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q3",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q4",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q5",
+      "missing_literal_identifiers": []
+    },
+    {
+      "id": "Q6",
+      "missing_literal_identifiers": []
+    }
+  ]
+}

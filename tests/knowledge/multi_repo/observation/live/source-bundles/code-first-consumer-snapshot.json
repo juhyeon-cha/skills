@@ -1,0 +1,7 @@
+{
+  "revision": "d9c59b8818187754672256dd953e56cebbd892b7",
+  "app": "def parse(payload): return payload['total']\n",
+  "check": "from app import parse\nassert parse({'total': 10}) == 10\n",
+  "status": "",
+  "bundle_sha256": "6d4fb69f20467c2bb78a75847d1099e15201b779ba300b5cf45440e28568820b"
+}

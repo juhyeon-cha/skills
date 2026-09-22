@@ -1,0 +1,8 @@
+{
+  "members": {
+    "svc-consumer": "failed",
+    "svc-producer": "published"
+  },
+  "outcome": "partial",
+  "withheld_count": 0
+}

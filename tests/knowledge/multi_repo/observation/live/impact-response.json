@@ -1,0 +1,68 @@
+{
+  "review_basis": "impact-input.json만 정적으로 검토했다. 소스 실행·수정 및 구현 완료 확인은 수행하지 않았다.",
+  "flows": [
+    {
+      "flow": "code-first",
+      "required_changes": [
+        {
+          "repository": "svc-producer",
+          "artifacts": ["app.py", "contract.md", "spec.documents[path=contract.md].claims[id=field]"],
+          "dependency_evidence": "revision 66a30398027db7537d3dd2da7fbc1a875e5bcc3a: def emit(): return {'amount': 10}",
+          "change": "생산 필드를 total로 변경하고 값 10을 유지한다. 구현 후 문서와 해당 claim을 실제 소스에 맞춘다."
+        },
+        {
+          "repository": "svc-consumer",
+          "artifacts": ["app.py", "contract.md", "spec.documents[path=contract.md].claims[id=field]"],
+          "dependency_evidence": "revision 78be3471850b88509abcf7e5a3cf7aeb80b59ae2: def parse(payload): return payload['amount']",
+          "change": "읽는 필드를 total로 변경한다. 구현 후 문서와 해당 claim을 실제 소스에 맞춘다."
+        }
+      ],
+      "target_distinctions": {
+        "current_state": "명확함: '현재 두 소스는 amount를 사용'",
+        "approved_local_intent": "명확함: baseline.goal은 contract-total v2, status=confirmed이며 authority는 사용자가 승인한 로컬 실험으로 한정한다.",
+        "pending_implementation": "명확함: '이 문서 작성만으로 구현·검증 완료가 되지 않는다.'",
+        "pending_verification": "명확함: '두 저장소별 검사와 통합 검사 및 독립 리뷰가 필요하다.'"
+      },
+      "whole_completion_evidence": [
+        "변경된 두 저장소의 고정 revision과 실제 app.py에서 total 생산·소비 및 값 10 유지 확인",
+        "생산자 검사에서 emit()의 결과가 {'total': 10}임을 확인",
+        "소비자 검사에서 parse({'total': 10})의 결과가 10임을 확인",
+        "두 변경 revision을 함께 사용한 통합 검사에서 parse(emit()) == 10 확인",
+        "두 contract.md 및 field claim이 구현과 일치하고 app.py 근거를 유지하는지 독립 리뷰"
+      ],
+      "producer_only": "전체 완료가 아니다. 생산자만 {'total': 10}을 반환하면 기존 소비자의 payload['amount']와 계약이 어긋난다. 제공된 소스 의미상 직접 연결 시 KeyError가 예상되며, 실행 관찰 결과는 아니다."
+    },
+    {
+      "flow": "document-first",
+      "required_changes": [
+        {
+          "repository": "svc-producer",
+          "artifacts": ["app.py", "contract.md", "spec.documents[path=contract.md].claims[id=field]"],
+          "dependency_evidence": "revision 66a30398027db7537d3dd2da7fbc1a875e5bcc3a: def emit(): return {'amount': 10}",
+          "change": "목표 문서에서 total 교환을 계획으로 유지하고, 이후 생산 필드를 total로 구현하면서 값 10을 유지한다. 현재 동작 claim은 구현 근거 확보 후 갱신한다."
+        },
+        {
+          "repository": "svc-consumer",
+          "artifacts": ["app.py", "contract.md", "spec.documents[path=contract.md].claims[id=field]"],
+          "dependency_evidence": "revision 78be3471850b88509abcf7e5a3cf7aeb80b59ae2: def parse(payload): return payload['amount']",
+          "change": "목표 문서에서 total 교환을 계획으로 유지하고, 이후 읽는 필드를 total로 구현한다. 현재 동작 claim은 구현 근거 확보 후 갱신한다."
+        }
+      ],
+      "target_distinctions": {
+        "current_state": "명확함: '현재 두 소스는 amount를 사용'",
+        "approved_local_intent": "명확함: baseline.goal은 contract-total v2, status=confirmed이며 authority는 사용자가 승인한 로컬 실험으로 한정한다.",
+        "pending_implementation": "명확함: '이 문서 작성만으로 구현·검증 완료가 되지 않는다.'",
+        "pending_verification": "명확함: '두 저장소별 검사와 통합 검사 및 독립 리뷰가 필요하다.'"
+      },
+      "whole_completion_evidence": [
+        "변경된 두 저장소의 고정 revision과 실제 app.py에서 total 생산·소비 및 값 10 유지 확인",
+        "생산자 검사에서 emit()의 결과가 {'total': 10}임을 확인",
+        "소비자 검사에서 parse({'total': 10})의 결과가 10임을 확인",
+        "두 변경 revision을 함께 사용한 통합 검사에서 parse(emit()) == 10 확인",
+        "선행 목표 문서, 두 contract.md 및 field claim을 실제 구현과 대조한 독립 리뷰"
+      ],
+      "producer_only": "전체 완료가 아니다. 생산자만 {'total': 10}을 반환하면 기존 소비자의 payload['amount']와 계약이 어긋난다. 제공된 소스 의미상 직접 연결 시 KeyError가 예상되며, 실행 관찰 결과는 아니다."
+    }
+  ],
+  "completion_boundary": "두 flow는 별도 격리 fixture이므로 각 flow에서 두 저장소와 통합 검증 증거를 독립적으로 확보해야 한다."
+}

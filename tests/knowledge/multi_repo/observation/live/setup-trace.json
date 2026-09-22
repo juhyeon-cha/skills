@@ -1,0 +1,306 @@
+[
+  {
+    "argv": [
+      "git",
+      "init",
+      "-q"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.016213042195886374
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.name",
+      "Stage5 fixture"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.00731587503105402
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.email",
+      "fixture@example.invalid"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.007065082900226116
+  },
+  {
+    "argv": [
+      "git",
+      "add",
+      "app.py",
+      "check.py"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.011186417192220688
+  },
+  {
+    "argv": [
+      "git",
+      "commit",
+      "-qm",
+      "baseline amount"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.020472167059779167
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/producer",
+    "exit_code": 0,
+    "stdout": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a\n",
+    "stderr": "",
+    "elapsed_seconds": 0.00715275015681982
+  },
+  {
+    "argv": [
+      "git",
+      "init",
+      "-q"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.012859208043664694
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.name",
+      "Stage5 fixture"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.007591166999191046
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.email",
+      "fixture@example.invalid"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.00772158382460475
+  },
+  {
+    "argv": [
+      "git",
+      "add",
+      "app.py",
+      "check.py"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.02158595807850361
+  },
+  {
+    "argv": [
+      "git",
+      "commit",
+      "-qm",
+      "baseline amount"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.025999790988862514
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/code-first/consumer",
+    "exit_code": 0,
+    "stdout": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2\n",
+    "stderr": "",
+    "elapsed_seconds": 0.006579750217497349
+  },
+  {
+    "argv": [
+      "git",
+      "init",
+      "-q"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.012246749829500914
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.name",
+      "Stage5 fixture"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.006996290758252144
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.email",
+      "fixture@example.invalid"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.007500499952584505
+  },
+  {
+    "argv": [
+      "git",
+      "add",
+      "app.py",
+      "check.py"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.008661750238388777
+  },
+  {
+    "argv": [
+      "git",
+      "commit",
+      "-qm",
+      "baseline amount"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.019849250093102455
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/producer",
+    "exit_code": 0,
+    "stdout": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a\n",
+    "stderr": "",
+    "elapsed_seconds": 0.006859458051621914
+  },
+  {
+    "argv": [
+      "git",
+      "init",
+      "-q"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.011956208851188421
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.name",
+      "Stage5 fixture"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.007248457986861467
+  },
+  {
+    "argv": [
+      "git",
+      "config",
+      "user.email",
+      "fixture@example.invalid"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.008872583974152803
+  },
+  {
+    "argv": [
+      "git",
+      "add",
+      "app.py",
+      "check.py"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.010049249976873398
+  },
+  {
+    "argv": [
+      "git",
+      "commit",
+      "-qm",
+      "baseline amount"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/consumer",
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "",
+    "elapsed_seconds": 0.02258708281442523
+  },
+  {
+    "argv": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/private/tmp/stage5-work/live/document-first/consumer",
+    "exit_code": 0,
+    "stdout": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2\n",
+    "stderr": "",
+    "elapsed_seconds": 0.007868750020861626
+  }
+]

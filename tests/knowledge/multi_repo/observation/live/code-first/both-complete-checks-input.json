@@ -1,0 +1,8 @@
+{
+  "goal": "contract-total",
+  "checks": [
+    "producer-total",
+    "consumer-total",
+    "exchange-total"
+  ]
+}

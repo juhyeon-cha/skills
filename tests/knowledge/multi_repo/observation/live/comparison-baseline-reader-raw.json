@@ -1,0 +1,71 @@
+{
+  "answers": [
+    {
+      "id": "Q1",
+      "answer": "아니요. 이 시점에는 생산자만 total을 반환하고 소비자는 amount를 읽으므로 두 서비스의 total 교환은 실패합니다.",
+      "evidence": [
+        "생산자 commit 2334c37a2209962affaf6484acec4216c98d7554: \"def emit(): return {'total': 10}\".",
+        "소비자 commit 78be3471850b88509abcf7e5a3cf7aeb80b59ae2: \"def parse(payload): return payload['amount']\".",
+        "consumer-total 검사 4d77957a9f88dd3d8485a6e334357d81b200278fb2bd7bafcaa93f01faed5d27 및 exchange-total 검사 0a6676458908a42d2c3b8eb314fdf89cd0127fd729d72af292e0ddf9578003dd: exit_code=1, \"KeyError: 'amount'\".",
+        "publication 4bdac895ad64363fea035a2325af08ed00a857929332519a9f8a6271d967f56f: outcome=\"partial\", svc-consumer=\"failed\"."
+      ]
+    },
+    {
+      "id": "Q2",
+      "answer": "소비자는 현재 amount 필드를 읽습니다. 확정된 로컬 실험 목표는 total 필드를 읽고 값 10을 반환하며 생산자와 연결한 결과도 10이 되는 것입니다. 목표 문서의 확정은 구현 완료를 의미하지 않습니다.",
+      "evidence": [
+        "소비자 revision 78be3471850b88509abcf7e5a3cf7aeb80b59ae2 및 source: \"def parse(payload): return payload['amount']\".",
+        "현재 문서: \"소비자는 amount 필드를 읽어 값을 반환한다.\"",
+        "intake 5a2e28f2ff7077293ecd3feadf032d15268244938e0439c47a56fb00fe1b4cf0: input.target.status=\"confirmed\", phase=\"pending_implementation\", implementation=\"not_verified\".",
+        "goal 9cd906d838275f19b8ace5f31a549061b77586559e736bdb8a5ddc7ee8ef42d0: svc-consumer.target=\"parse() reads total and returns 10\".",
+        "목표 문서: \"현재 두 소스는 amount를 사용하며 이 문서 작성만으로 구현·검증 완료가 되지 않는다.\""
+      ]
+    },
+    {
+      "id": "Q3",
+      "answer": "svc-producer와 svc-consumer 모두 코드와 문서가 영향을 받았습니다. 생산자만 포함한 예측은 amount에 의존하는 소비자의 읽기 코드와 문서 변경을 누락했습니다. 누락 기록은 보존됐으며 후속 비교에서 관련 intake로 연결되어 unresolved가 비었습니다.",
+      "evidence": [
+        "prediction 81e39e28eccc27550dbf1a297a0f1cde05de2a9b1894d56ce27fa127d062f27f: affected=[\"svc-producer\"], rationale=\"Intentional missing-consumer negative case\".",
+        "comparison 4b9ca79e4f09b4e74e7d9d6cb9f3232f5d2ba554b3d3ae8999985e7eb9d6d31d: 두 저장소 app.py가 type=\"modified\", 두 documents.changed=true, omissions=[\"svc-consumer\"], unresolved=[\"svc-consumer\"].",
+        "생산자는 66a30398027db7537d3dd2da7fbc1a875e5bcc3a의 amount에서 2334c37a2209962affaf6484acec4216c98d7554의 total로, 소비자는 78be3471850b88509abcf7e5a3cf7aeb80b59ae2의 amount에서 d9c59b8818187754672256dd953e56cebbd892b7의 total로 변경됐습니다.",
+        "comparison 07aaf1dd65323289ca2bd03088fffc969abdfbe49092a4479485d81b796e8f7b: omissions=[\"svc-consumer\"], unresolved=[], feedback에 \"Consumer omission routed to existing current-documentation intake.\" 및 \"Retain wrong prediction with correction and shared current/target evidence.\"가 있습니다."
+      ]
+    },
+    {
+      "id": "Q4",
+      "answer": "아니요. 보이는 생산자의 total=10 구현과 검사 통과는 확인되지만 전체 완료는 unknown입니다. 필수 구성원 중 하나의 근거가 비공개이므로 그 구성원의 신원, 구현, 검증 성공·실패 또는 최신 여부는 이 체크포인트에서 알 수 없습니다.",
+      "evidence": [
+        "Q4 goal: required_count=2, withheld_count=1, 공개된 members에는 svc-producer만 있습니다.",
+        "공개 생산자 source: \"def emit(): return {'total': 10}\", revision 2334c37a2209962affaf6484acec4216c98d7554.",
+        "producer-total 검사 427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5: exit_code=0, stdout=\"producer total=10 verified\\n\".",
+        "리뷰 5bdc318ed4975aa1f6fb580f4ba0a7e6be2793b27cd9751b0d44102bfc160e1a의 verdict=\"pass\"가 있지만 Q4에는 비공개 구성원의 소스·검사 및 전체 통합 검사가 제공되지 않았습니다."
+      ]
+    },
+    {
+      "id": "Q5",
+      "answer": "아니요. 이전 인덱스와 그것을 참조한 위키 게시 기록은 현재 생산자 revision을 반영하지 않으므로 현재 검증 완료의 근거로 사용할 수 없습니다. 현재 코드도 total=10을 반환하는 것으로 보이지만 새 revision에 대한 검증은 unknown입니다. 게시 성공 기록만으로 근거의 최신성이 확보되지는 않습니다.",
+      "evidence": [
+        "Q5 현재 생산자 revision은 ba52daaa5ed69f9f6c3116ddfe8ce52c48e41fc0이며 source에는 \"# Advance source revision after managed publication.\"가 추가됐습니다.",
+        "previous-index af2b0e00700fa01e41ceebca6bcc05c33318a2d25c3e7f2e28fe6baaf7674a2a는 completion=\"complete\"이지만 생산자 current.commit은 2334c37a2209962affaf6484acec4216c98d7554입니다.",
+        "producer-total 검사 427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5 및 exchange-total 검사 9c15df0405ab65df7cdb8f484f22b2c277d8e0a157b3d3ccd456bf32fdb20a18도 생산자 2334c37a2209962affaf6484acec4216c98d7554에 연결됩니다.",
+        "publication 240ade86dd608059853ac3b79392254a64f3140a86d4335483f505ba45fa264c: outcome=\"published\"이지만 view는 이전 인덱스 af2b0e00700fa01e41ceebca6bcc05c33318a2d25c3e7f2e28fe6baaf7674a2a입니다."
+      ]
+    },
+    {
+      "id": "Q6",
+      "answer": "아니요. 목표 철회는 amount 코드로의 복구가 아닙니다. 이 시점의 생산자는 total=10을 반환하고 소비자는 total을 읽습니다. 철회된 것은 목표 상태이며 이전 완료 인덱스는 역사적 기록입니다.",
+      "evidence": [
+        "goal 5cab66f45b91c3f2ad151b120041b092ecc9551fda2b6cc0e1eabcf2fe51c56a: status=\"withdrawn\", version=\"v3\".",
+        "intake 64d2e426bd9db1d0df2abd1f4e640d3826ebff6381b4a0b4cd60667bb4a9c668: phase=\"withdrawn\", target.status=\"withdrawn\", \"Withdraw this isolated total goal without rolling back current source commits; retain implemented total behavior as observed history.\"",
+        "생산자 revision ba52daaa5ed69f9f6c3116ddfe8ce52c48e41fc0: \"def emit(): return {'total': 10}\".",
+        "소비자 revision d9c59b8818187754672256dd953e56cebbd892b7: \"def parse(payload): return payload['total']\".",
+        "publication 326ba8d3529f12fdbb92d10c03cf4d88daa316e63a8deb13823603fd63e2617f: outcome=\"withdrawn\"."
+      ]
+    }
+  ],
+  "limitations": [
+    "판단은 제공된 JSON의 각 체크포인트에 한정했습니다. 다른 체크포인트의 내용을 비공개 구성원의 근거로 사용하지 않았습니다.",
+    "제공된 기록은 격리된 로컬 실험이며 실제 운영 배포나 운영 정책 승인을 입증하지 않습니다.",
+    "Q5와 Q6에는 생산자 ba52daaa5ed69f9f6c3116ddfe8ce52c48e41fc0에 연결된 새 검사 결과가 없습니다."
+  ]
+}

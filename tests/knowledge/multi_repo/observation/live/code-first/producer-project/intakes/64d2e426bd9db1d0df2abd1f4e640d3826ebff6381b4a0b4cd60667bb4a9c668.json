@@ -1,0 +1,73 @@
+{
+  "deployment": "not_verified",
+  "document_quality": "not_evaluated",
+  "id": "64d2e426bd9db1d0df2abd1f4e640d3826ebff6381b4a0b4cd60667bb4a9c668",
+  "implementation": "not_verified",
+  "input": {
+    "current": {
+      "code": "code",
+      "description": "The pinned current producer uses total; independent consumer evidence is retained in this flow."
+    },
+    "differences": [
+      {
+        "description": "Withdraw this isolated total goal without rolling back current source commits; retain implemented total behavior as observed history.",
+        "kind": "behavior",
+        "sources": [
+          "code",
+          "user"
+        ]
+      }
+    ],
+    "intent": "behavior_change",
+    "origin": "user",
+    "rationale": "Authorized isolated S5 scenario only; preserve current code and historical request, never infer production policy approval.",
+    "sources": [
+      {
+        "authority": "user_instruction",
+        "id": "user",
+        "kind": "user",
+        "locator": "conversation:user-stage5-request",
+        "sha256": "4075f5d5e8fef898877c2efd02b99ae4d131724789919765f28b89134cd56fe8",
+        "text": "검증은 격리된 로컬 복수 저장소로 한정해. 코드 선행 변경과 문서 선행 계약 변경을 각각 영향 예측→반영→구현 검증→검색·위키 조회까지 실행해.",
+        "version": "session-01a0c6f1"
+      },
+      {
+        "authority": "observed_implementation",
+        "id": "code",
+        "kind": "code",
+        "locator": "/private/tmp/stage5-work/live/code-first/producer/app.py",
+        "sha256": "60c77426693d25eef2b5cda3b907f00ddc7f12968632e49774e46296e4e31dee",
+        "text": "def emit(): return {'total': 10}\n# Advance source revision after managed publication.\n",
+        "version": "ba52daaa5ed69f9f6c3116ddfe8ce52c48e41fc0"
+      },
+      {
+        "authority": "context",
+        "id": "target-document",
+        "kind": "document",
+        "locator": "/private/tmp/stage5-work/live/code-first/target.md",
+        "sha256": "e111ccd22a0b17604e5d554c29bd83401fe8eb66c763206659cc57b456c8eee2",
+        "text": "로컬 실험 목표 contract-total v2: 생산자와 소비자가 amount 대신 total 필드를 교환한다. 값은 10을 유지한다. 현재 두 소스는 amount를 사용하며 이 문서 작성만으로 구현·검증 완료가 되지 않는다. 두 저장소별 검사와 통합 검사 및 독립 리뷰가 필요하다.\n",
+        "version": "v2"
+      }
+    ],
+    "target": {
+      "acceptance": [
+        "생산자 emit()가 total=10을 반환한다.",
+        "소비자 parse()가 total을 읽는다.",
+        "두 함수를 연결한 결과가 10이다.",
+        "두 저장소 문서·검색·위키가 현재 구현 및 미구현 목표를 구분한다."
+      ],
+      "description": "Withdraw this isolated total goal without rolling back current source commits; retain implemented total behavior as observed history.",
+      "sources": [
+        "code",
+        "user"
+      ],
+      "status": "withdrawn"
+    },
+    "version": 1
+  },
+  "kind": "change-intake",
+  "phase": "withdrawn",
+  "route": "implementation_handoff",
+  "version": 1
+}

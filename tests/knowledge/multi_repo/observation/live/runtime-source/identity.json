@@ -1,0 +1,22 @@
+{
+  "repository_head": "6d64aec55f2cff443792c998e16e7886d5f9d47c",
+  "scripts": {
+    "refresh-scripts/update.py": "aa74e86daa80033866c4ce962a1f7037545725cf85dc4a0ebc03d39954032a3c",
+    "refresh-scripts/intake.py": "36ce12b5ccc368280e65b0c0582c09899a3626df8eeeca5e21118e2a36ada7d6",
+    "refresh-scripts/impact-schema.json": "d19f909987722921fb275c70c9d88ea1de45528a88e44e30b020db58e4dcf873",
+    "refresh-scripts/project_service.py": "3a184514554d02fe865e560fdcfe338cb028e0ed42032aaf9c53ecb92ccd541d",
+    "refresh-scripts/requirements.txt": "756cc9e506ae4ee1a6f6c0507088b5cfc0dc8ba350fb2d2d46f1ffa72033adb6",
+    "refresh-scripts/source_verification.py": "d552cf18f4af5f0d482405d970eca81527f6ba06fe27a7abb6f5b7979b64a52f",
+    "refresh-scripts/cli_contract.py": "ef3b6723d3709be51962704cf50c5f306e6881c26bec1d273ea5eb8343320f8d",
+    "refresh-scripts/workflow-schema.json": "4bb4959e1acfe30fb5d1df4b714fc6db3b8f3cb289d8f23025a66d1593552244",
+    "refresh-scripts/automation.py": "ed4ffd0fb8ae4bc41c3668add3deeb1c7f5e2a6ce6b39e9ba2f14d7a92619cd7",
+    "refresh-scripts/update-schema.json": "f8dc9daa5957b3b270390cde2653fa78bcc44087b7a16fc26c498d4bcd924cb5",
+    "refresh-scripts/cli.py": "0176a4efc28a885344365adec26fe6a24510e837fa6a05f2c903b78a73a63081",
+    "refresh-scripts/multi_repo.py": "5eae8b327ab29501141aa16de2abb606b47df78df6e0267ea1d2ee8d4de5fa07",
+    "refresh-scripts/schema.json": "f4a5331e20ceb5c71336042907a3f93f9affa4042d35b7f62127f04278c0939b",
+    "refresh-scripts/workflow.py": "e06a239d54a3868ce44969d4ea0d73bb030be41d7157379ab2ac9194c50ad2dd",
+    "refresh-scripts/project_store.py": "cd5d522fc09f27225c785402e83abc08d72d27d6714ab5ae46391d96c845f5b0",
+    "refresh-scripts/knowledge.py": "014931e7e62a3c7ce1568c355e86a380bd7f874c41c3a2677aa5d11b0a2c923a",
+    "refresh-scripts/impact.py": "56e3ef1813a4eac562727069dd42607830f14fc91d3f430ad99bce64ce65f24b"
+  }
+}

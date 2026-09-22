@@ -1,0 +1,79 @@
+{
+  "flow": "code-first",
+  "principal": "reader",
+  "checkpoint": "restricted after consumer revocation",
+  "baseline": {
+    "operations": [
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e.json",
+        "bytes": 603,
+        "sha256": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "transformed": true
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/code-first/producer",
+          "rev-parse",
+          "HEAD"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/code-first/producer",
+          "show",
+          "HEAD:app.py"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "/private/tmp/knowledge-contract-venv/bin/python",
+          "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+          "--project",
+          "/private/tmp/stage5-work/live/code-first/producer-project",
+          "status",
+          "--deep"
+        ]
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/producer-docs/contract.md",
+        "bytes": 60,
+        "sha256": "06ee94badbfb5e076899b95a90b4d202cdc1bc4c0e7ebc329d708ebce96b6ff1",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5.json",
+        "bytes": 1070,
+        "sha256": "427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/code-first/multi-state/objects/5bdc318ed4975aa1f6fb580f4ba0a7e6be2793b27cd9751b0d44102bfc160e1a.json",
+        "bytes": 774,
+        "sha256": "5bdc318ed4975aa1f6fb580f4ba0a7e6be2793b27cd9751b0d44102bfc160e1a",
+        "transformed": false
+      }
+    ],
+    "retrieval_operation_count": 7,
+    "supplied_artifacts": 7
+  },
+  "candidate": {
+    "retrieval_operation_count": 2,
+    "supplied_artifacts": 2
+  },
+  "files": {
+    "baseline.json": "27cce0487e12a7afc5d2f2746e0f4b02df67670e8ddbb2f7ba762fc9228dc7e5",
+    "candidate.json": "b03f5cb02f493807d28b9ef16805b8a91e56f5d874c5f6e6299bb7224c504e57"
+  },
+  "limitations": "Preparation retrieval operations and supplied artifact count, not inferred user clicks or thought steps. Intermediate authorization selection/state enumeration excluded from both displayed counts; no runtime-efficiency claim."
+}

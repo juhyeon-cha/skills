@@ -1,0 +1,9 @@
+{
+  "actor": "/root/s5_comparison_candidate_reader",
+  "started_at": "2026-09-22T03:36:14.125318+00:00",
+  "finished_at": "2026-09-22T03:39:34.560680+00:00",
+  "raw_sha256": "21866611ce493d0c00492424ed3dd1ab2289389a10af00c4f82478973a3808c6",
+  "usage_tokens": null,
+  "money": null,
+  "synthetic": false
+}

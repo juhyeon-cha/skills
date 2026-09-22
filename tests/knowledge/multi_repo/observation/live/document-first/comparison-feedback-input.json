@@ -1,0 +1,29 @@
+{
+  "goal": "contract-total",
+  "prediction": "c57f6644e60fc931dff9b773b97efcfabff18751c8cdd46b2a3e9948a6beb339",
+  "feedback": [
+    {
+      "kind": "omission",
+      "repositories": [
+        "svc-consumer"
+      ],
+      "intake": {
+        "path": "/private/tmp/stage5-work/live/document-first/producer-project/intakes/42b06ce1bd7dd19566ee49e2f3dd5056c5ec9fa635d040a6c4789bd18010a011.json",
+        "sha256": "011dd255f54a5b7628609ae333da33a4ac49616e1a56b0b113274b7a6e26765a"
+      },
+      "description": "Consumer omission routed to existing current-documentation intake."
+    },
+    {
+      "kind": "decision",
+      "repositories": [
+        "svc-producer",
+        "svc-consumer"
+      ],
+      "intake": {
+        "path": "/private/tmp/stage5-work/live/document-first/producer-project/intakes/2ecc7797cb584922cb12f8bce8d41d438154a98e5c553f3e1a1a0e4d3712f088.json",
+        "sha256": "9937b82c43541a28310419369f595e14c964c7e9929c037a7310b2b1ac9f01b2"
+      },
+      "description": "Retain wrong prediction with correction and shared current/target evidence."
+    }
+  ]
+}

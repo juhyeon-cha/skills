@@ -1,0 +1,16 @@
+{
+  "documents": [
+    {
+      "path": "contract.md",
+      "claims": [
+        {
+          "id": "field",
+          "text": "소비자는 amount 필드를 읽어 값을 반환한다.",
+          "evidence": [
+            "app.py"
+          ]
+        }
+      ]
+    }
+  ]
+}

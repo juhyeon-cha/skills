@@ -1,0 +1,17 @@
+{
+  "goal": "contract-total",
+  "origin": {
+    "kind": "user",
+    "request": "document-first-request",
+    "cause": "stage5-authorized-local-test",
+    "intake": {
+      "path": "/private/tmp/stage5-work/live/document-first/producer-project/intakes/257bdfafe74b54b5fc31ed37c8df6e4f6e14fb750c850b8d1d7c8564f319aefa.json",
+      "sha256": "0e1dc5e8852c7b29283f725a36bbb796b7c097777c6eaf3bc51fa23825ad7f57"
+    }
+  },
+  "affected": [
+    "svc-producer",
+    "svc-consumer"
+  ],
+  "rationale": "Independent pre-change impact response identifies producer writer and consumer field dependency."
+}

@@ -1,0 +1,126 @@
+{
+  "files_verified": 496,
+  "commands_recorded": 172,
+  "retrieval_operations": [
+    {
+      "question": "Q1",
+      "baseline": 19,
+      "candidate": 2
+    },
+    {
+      "question": "Q2",
+      "baseline": 14,
+      "candidate": 2
+    },
+    {
+      "question": "Q3",
+      "baseline": 25,
+      "candidate": 2
+    },
+    {
+      "question": "Q4",
+      "baseline": 7,
+      "candidate": 2
+    },
+    {
+      "question": "Q5",
+      "baseline": 27,
+      "candidate": 2
+    },
+    {
+      "question": "Q6",
+      "baseline": 28,
+      "candidate": 2
+    }
+  ],
+  "receipt_relationships": [
+    {
+      "group": "producer-doc-review",
+      "actor": "/root/s5_producer_docs",
+      "intent_to_preservation_seconds": 72.259042
+    },
+    {
+      "group": "consumer-doc-review",
+      "actor": "/root/s5_consumer_docs",
+      "intent_to_preservation_seconds": 82.187087
+    },
+    {
+      "group": "partial-review",
+      "actor": "/root/s5_partial_semantic",
+      "intent_to_preservation_seconds": 58.697426
+    },
+    {
+      "group": "full-review",
+      "actor": "/root/s5_full_semantic",
+      "intent_to_preservation_seconds": 87.587539
+    },
+    {
+      "group": "comparison-baseline-reader",
+      "actor": "/root/s5_comparison_baseline_reader",
+      "intent_to_preservation_seconds": 284.997091
+    },
+    {
+      "group": "comparison-candidate-reader",
+      "actor": "/root/s5_comparison_candidate_reader",
+      "intent_to_preservation_seconds": 200.435362
+    },
+    {
+      "group": "comparison-grader",
+      "actor": "/root/s5_comparison_grader",
+      "intent_to_preservation_seconds": 174.490726
+    }
+  ],
+  "boundary": "Recorded bytes and receipt relationships only; semantic judgments remain independent model observations.",
+  "negative_controls": {
+    "byte_corruption_rejected": true,
+    "rehashed_false_completion_rejected": true,
+    "isolated_fixture": "/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/stage5-evidence-negative-bfy1tfst/live"
+  },
+  "model_dispatches": [
+    "baseline-dispatch.json",
+    "baseline-judgment-dispatch.json",
+    "baseline-reader-dispatch.json",
+    "baseline-retry-dispatch.json",
+    "comparison-baseline-reader-dispatch.json",
+    "comparison-candidate-reader-dispatch.json",
+    "comparison-grader-dispatch.json",
+    "consumer-doc-review-dispatch.json",
+    "full-review-dispatch.json",
+    "impact-dispatch.json",
+    "partial-review-dispatch.json",
+    "producer-doc-review-dispatch.json"
+  ],
+  "model_dispatch_count": 12,
+  "time_basis": "Intent record to response preservation, including coordination, waiting and transcription; not provider latency.",
+  "checks": [
+    {
+      "command": "KNOWLEDGE_PYTHON=/private/tmp/knowledge-contract-venv/bin/python bash tests/knowledge/multi-repo-check.sh",
+      "exit_code": 0,
+      "tests": 8,
+      "scope": "Synthetic local CLI, permission rule-removal negative control"
+    },
+    {
+      "command": "KNOWLEDGE_PYTHON=/private/tmp/knowledge-contract-venv/bin/python bash tests/knowledge/source-contract-check.sh",
+      "exit_code": 0,
+      "tests": 67,
+      "scope": "Eight source/project/intake/workflow/compatibility suites"
+    },
+    {
+      "command": "KNOWLEDGE_PYTHON=/private/tmp/knowledge-contract-venv/bin/python bash tests/knowledge/automation-check.sh",
+      "exit_code": 0,
+      "tests": 24,
+      "scope": "Local automation regression"
+    },
+    {
+      "command": "python3 -B tests/knowledge/multi_repo/observation/verify.py",
+      "exit_code": 0,
+      "scope": "Recorded evidence and actual-response/application bindings"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "development_suite_not_run": "Full tests/run-all.sh and unrelated harness/toolkit suites were not run; changed behavior used the targeted suites above. No native Windows/Linux, installed activation, production or provider-authentication claim.",
+  "checker_sha256": "03f70788740e0319623c173f6612020bc469b1ec13295fa90ae6bf9dcf836b3a"
+}

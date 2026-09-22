@@ -1,0 +1,97 @@
+{
+  "after": {
+    "commit": "2334c37a2209962affaf6484acec4216c98d7554",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+        "text": "def emit(): return {'total': 10}\n"
+      }
+    ],
+    "id": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6",
+    "kind": "snapshot",
+    "repository": "svc-producer",
+    "scope": [
+      "app.py"
+    ],
+    "version": 1
+  },
+  "audience": "두 서비스의 계약 변경을 검토하는 개발자",
+  "before": {
+    "commit": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "e30ebbea3f172bf9781dfdb25c9667a7ed128641ea8e3dfe1b9702597e50db58",
+        "text": "def emit(): return {'amount': 10}\n"
+      }
+    ],
+    "id": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+    "kind": "snapshot",
+    "repository": "svc-producer",
+    "scope": [
+      "app.py"
+    ],
+    "version": 1
+  },
+  "bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "field",
+            "text": "생산자는 amount 필드에 값 10을 담아 반환한다."
+          }
+        ],
+        "path": "contract.md",
+        "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295"
+      }
+    ],
+    "id": "6038e6a7c506ec2e3f01262819bc74d8bf705cb6292871bfc3474ac45703ce5e",
+    "kind": "bindings",
+    "snapshot": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+    "version": 1
+  },
+  "documents": [
+    {
+      "path": "contract.md",
+      "text": "생산자는 amount 필드에 값 10을 담아 반환한다.\n"
+    }
+  ],
+  "impact": {
+    "after": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6",
+    "before": "a14e2302ba3de19125b80198765feae63ae25eb101070e90adc389bd5ba347c4",
+    "bindings": "6038e6a7c506ec2e3f01262819bc74d8bf705cb6292871bfc3474ac45703ce5e",
+    "candidates": [
+      {
+        "claims": [
+          {
+            "changes": [
+              {
+                "after": "app.py",
+                "before": "app.py",
+                "type": "modified"
+              }
+            ],
+            "id": "field",
+            "text": "생산자는 amount 필드에 값 10을 담아 반환한다."
+          }
+        ],
+        "path": "contract.md",
+        "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295"
+      }
+    ],
+    "change": "d7854595895ddce61f07851b10aa2ac082f1d360ede76af10cd101cd2b9a8be6",
+    "id": "1e35ed1309659a602c03b98dec2c374972b91721b145fda4fa1712d0dd8b4345",
+    "kind": "impact",
+    "unlinked_changes": [],
+    "version": 1
+  },
+  "intake": null,
+  "purpose": "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다."
+}

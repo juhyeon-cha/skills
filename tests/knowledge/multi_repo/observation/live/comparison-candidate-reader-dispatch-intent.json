@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-09-22T03:36:14.125318+00:00",
+  "prompt_sha256": "7ced16bc98fecb7c42c20c293eb068906ec45cb9a9424d8a3e9b5f7a666761c3",
+  "input": "/private/tmp/stage5-work/live/comparison-candidate-reader-input.json",
+  "input_sha256": "c7a08ee6b8d82da9b96cd51c267c0e1c1968a133839c98e6baff17692f4778d8",
+  "synthetic": false,
+  "usage_tokens": null,
+  "money": null
+}

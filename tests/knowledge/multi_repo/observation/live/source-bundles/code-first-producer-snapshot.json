@@ -1,0 +1,7 @@
+{
+  "revision": "ba52daaa5ed69f9f6c3116ddfe8ce52c48e41fc0",
+  "app": "def emit(): return {'total': 10}\n# Advance source revision after managed publication.\n",
+  "check": "from app import emit\nassert emit() == {'total': 10}\n",
+  "status": "",
+  "bundle_sha256": "77c95030cb5166c1a63599d5d19a5fc2ebd2c4657434a5f50a80a7b18b80589d"
+}

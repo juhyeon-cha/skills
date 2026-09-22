@@ -1,0 +1,103 @@
+{
+  "question": {
+    "id": "Q4",
+    "question": "Does this visible result establish whole completion? What can be said about inaccessible members?"
+  },
+  "principal": "reader",
+  "query": {
+    "completion": "incomplete",
+    "goal": "contract-total",
+    "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+    "index": "stale",
+    "integration": "pending",
+    "members": [
+      {
+        "current": {
+          "commit": "2334c37a2209962affaf6484acec4216c98d7554",
+          "files": [
+            {
+              "mode": "100644",
+              "path": "app.py",
+              "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+              "text": "def emit(): return {'total': 10}\n"
+            }
+          ],
+          "snapshot": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6"
+        },
+        "documents": [
+          {
+            "path": "contract.md",
+            "sha256": "06ee94badbfb5e076899b95a90b4d202cdc1bc4c0e7ebc329d708ebce96b6ff1",
+            "text": "생산자는 total 필드에 값 10을 담아 반환한다.\n"
+          }
+        ],
+        "evidence": {
+          "bindings": "e0a0aa6c21e2a170606f47279f401909150e0227765768a0503660ec172225f9",
+          "checks": {
+            "producer-total": "427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5"
+          },
+          "review": "1c6e595021f96bbc1f4b6734609944bdc46e8f28fbb0599f7f9f291c2756b258",
+          "review_synthetic": false
+        },
+        "repository": "svc-producer",
+        "source_url": "https://producer.invalid/example",
+        "target": "emit() returns total=10",
+        "validation": "verified"
+      }
+    ],
+    "required_count": 2,
+    "status": "active",
+    "version": "v2",
+    "withheld_count": 1
+  },
+  "wiki": {
+    "completion": "incomplete",
+    "goal": "contract-total",
+    "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+    "integration": "pending",
+    "markdown": "# contract-total\n\nTarget version: v2\nCompletion: incomplete\nPublication: unavailable_or_partial\n\n## svc-producer\nValidation: verified\nCurrent commit: 2334c37a2209962affaf6484acec4216c98d7554\nTarget: emit() returns total=10\nRequired evidence withheld: 1\n",
+    "members": [
+      {
+        "current": {
+          "commit": "2334c37a2209962affaf6484acec4216c98d7554",
+          "files": [
+            {
+              "mode": "100644",
+              "path": "app.py",
+              "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+              "text": "def emit(): return {'total': 10}\n"
+            }
+          ],
+          "snapshot": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6"
+        },
+        "evidence": {
+          "bindings": "e0a0aa6c21e2a170606f47279f401909150e0227765768a0503660ec172225f9",
+          "checks": {
+            "producer-total": "427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5"
+          },
+          "review": "1c6e595021f96bbc1f4b6734609944bdc46e8f28fbb0599f7f9f291c2756b258",
+          "review_synthetic": false
+        },
+        "repository": "svc-producer",
+        "source_url": "https://producer.invalid/example",
+        "target": "emit() returns total=10",
+        "validation": "verified"
+      }
+    ],
+    "publication_history": [
+      {
+        "outcome": "partial",
+        "time": "2026-09-22T03:32:00.263669+00:00"
+      },
+      {
+        "outcome": "published",
+        "time": "2026-09-22T03:35:26.826022+00:00"
+      }
+    ],
+    "required_count": 2,
+    "served": "unavailable_or_partial",
+    "status": "active",
+    "version": "v2",
+    "withheld_count": 1
+  }
+}

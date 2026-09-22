@@ -1,0 +1,138 @@
+{
+  "flow": "document-first",
+  "principal": "reader",
+  "checkpoint": "document-first before implementation",
+  "baseline": {
+    "operations": [
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/multi-state/objects/9cd906d838275f19b8ace5f31a549061b77586559e736bdb8a5ddc7ee8ef42d0.json",
+        "bytes": 615,
+        "sha256": "9cd906d838275f19b8ace5f31a549061b77586559e736bdb8a5ddc7ee8ef42d0",
+        "transformed": true
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/producer-project/intakes/5a2e28f2ff7077293ecd3feadf032d15268244938e0439c47a56fb00fe1b4cf0.json",
+        "bytes": 3532,
+        "sha256": "9d8117fec5babb5e2e60230ec7d59e62c2aaab4bc497cea58515768454c9d3b5",
+        "transformed": false
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/document-first/producer",
+          "rev-parse",
+          "HEAD"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/document-first/producer",
+          "show",
+          "HEAD:app.py"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "/private/tmp/knowledge-contract-venv/bin/python",
+          "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+          "--project",
+          "/private/tmp/stage5-work/live/document-first/producer-project",
+          "status",
+          "--deep"
+        ]
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/producer-docs/contract.md",
+        "bytes": 61,
+        "sha256": "b9ab19c08f284c8a24012e63e22934cd1d699a7a9c725f9f8d987740f9176295",
+        "transformed": false
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/document-first/consumer",
+          "rev-parse",
+          "HEAD"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "git",
+          "-C",
+          "/private/tmp/stage5-work/live/document-first/consumer",
+          "show",
+          "HEAD:app.py"
+        ]
+      },
+      {
+        "operation": "command",
+        "argv": [
+          "/private/tmp/knowledge-contract-venv/bin/python",
+          "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+          "--project",
+          "/private/tmp/stage5-work/live/document-first/consumer-project",
+          "status",
+          "--deep"
+        ]
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/consumer-docs/contract.md",
+        "bytes": 58,
+        "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/multi-state/objects/c57f6644e60fc931dff9b773b97efcfabff18751c8cdd46b2a3e9948a6beb339.json",
+        "bytes": 2645,
+        "sha256": "c57f6644e60fc931dff9b773b97efcfabff18751c8cdd46b2a3e9948a6beb339",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/multi-state/objects/ba038213b9080888db71ab7227dabfc57e72c897acf863548507532a74684ece.json",
+        "bytes": 2714,
+        "sha256": "ba038213b9080888db71ab7227dabfc57e72c897acf863548507532a74684ece",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/multi-state/objects/a196fd737b4ce616fd08eae69eea48c832ffee3cdfc70589b70fb595c7fbdd6b.json",
+        "bytes": 2710,
+        "sha256": "a196fd737b4ce616fd08eae69eea48c832ffee3cdfc70589b70fb595c7fbdd6b",
+        "transformed": false
+      },
+      {
+        "operation": "file-read",
+        "path": "/private/tmp/stage5-work/live/document-first/multi-state/objects/60604e6aa65eaac73f4e082bfb3ea3d75e2ead68b3faf35a0ba80e1e6eb7d5b9.json",
+        "bytes": 1870,
+        "sha256": "60604e6aa65eaac73f4e082bfb3ea3d75e2ead68b3faf35a0ba80e1e6eb7d5b9",
+        "transformed": false
+      }
+    ],
+    "retrieval_operation_count": 14,
+    "supplied_artifacts": 14
+  },
+  "candidate": {
+    "retrieval_operation_count": 2,
+    "supplied_artifacts": 2
+  },
+  "files": {
+    "baseline.json": "08b233a08451c3bb1299603ffa1dac7026e74db8b6c736a330e28c3765e62c01",
+    "candidate.json": "29657cc5ffb0ae9901d7648f82aaa59dee902f0a2a5350aeead6a585677b3a98"
+  },
+  "limitations": "Preparation retrieval operations and supplied artifact count, not inferred user clicks or thought steps. Intermediate authorization selection/state enumeration excluded from both displayed counts; no runtime-efficiency claim."
+}

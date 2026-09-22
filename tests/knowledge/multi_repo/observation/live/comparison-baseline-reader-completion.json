@@ -1,0 +1,9 @@
+{
+  "actor": "/root/s5_comparison_baseline_reader",
+  "started_at": "2026-09-22T03:36:14.123619+00:00",
+  "finished_at": "2026-09-22T03:40:59.120710+00:00",
+  "raw_sha256": "78995b33a3f204954788034ab681eff6d04257ff12fa32f5d7c50fdf39f0fbc2",
+  "usage_tokens": null,
+  "money": null,
+  "synthetic": false
+}

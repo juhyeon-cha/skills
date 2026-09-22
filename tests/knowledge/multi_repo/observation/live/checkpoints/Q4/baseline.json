@@ -1,0 +1,158 @@
+{
+  "question": {
+    "id": "Q4",
+    "question": "Does this visible result establish whole completion? What can be said about inaccessible members?"
+  },
+  "principal": "reader",
+  "artifacts": [
+    {
+      "kind": "goal",
+      "source_sha256": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+      "value": {
+        "id": "contract-total",
+        "version": "v2",
+        "status": "active",
+        "required_count": 2,
+        "withheld_count": 1,
+        "members": {
+          "svc-producer": {
+            "criteria": [
+              "producer-total"
+            ],
+            "target": "emit() returns total=10"
+          }
+        }
+      }
+    },
+    {
+      "kind": "revision",
+      "repository": "svc-producer",
+      "value": "2334c37a2209962affaf6484acec4216c98d7554\n"
+    },
+    {
+      "kind": "source",
+      "repository": "svc-producer",
+      "value": "def emit(): return {'total': 10}\n"
+    },
+    {
+      "kind": "project-status",
+      "repository": "svc-producer",
+      "value": {
+        "_meta": {
+          "cli_contract": 1
+        },
+        "active": null,
+        "baseline": "2334c37a2209962affaf6484acec4216c98d7554",
+        "project": "/private/tmp/stage5-work/live/code-first/producer-project",
+        "retirement": null,
+        "runs": [
+          {
+            "after": "2334c37a2209962affaf6484acec4216c98d7554",
+            "before": "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+            "completion": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/complete.json",
+            "context": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/context.json",
+            "context_integrity": "verified",
+            "next_action": "start",
+            "packet": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/5ab0128e9d289a3ba563639a72794e1473f5e5e4bb606c4741bbbb4a9e215582/packet.json",
+            "phase": "completed",
+            "review": {
+              "id": "736870a31f251729ae5bec76b576a2ef3059ac407d75bb824674312526a86c16",
+              "path": "/private/tmp/stage5-work/live/code-first/producer-project/runs/26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e/5ab0128e9d289a3ba563639a72794e1473f5e5e4bb606c4741bbbb4a9e215582/review-736870a31f251729ae5bec76b576a2ef3059ac407d75bb824674312526a86c16.json"
+            },
+            "review_integrity": "verified",
+            "run": "26b7316d895cab3baf4e717dc51279fa349c2ff5ec6351e37ad7d589b897149e"
+          }
+        ],
+        "settings": {
+          "audience": "두 서비스의 계약 변경을 검토하는 개발자",
+          "docs": "/private/tmp/stage5-work/live/code-first/producer-docs",
+          "purpose": "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.",
+          "repo": "/private/tmp/stage5-work/live/code-first/producer",
+          "repository": "svc-producer",
+          "scope": [
+            "app.py"
+          ]
+        }
+      }
+    },
+    {
+      "kind": "document",
+      "source_sha256": "06ee94badbfb5e076899b95a90b4d202cdc1bc4c0e7ebc329d708ebce96b6ff1",
+      "value": "생산자는 total 필드에 값 10을 담아 반환한다.\n"
+    },
+    {
+      "kind": "check",
+      "source_sha256": "427d9a7db42bf265f14582d39f9fa44a6a57230d129a5d76943943e99e50b6f5",
+      "value": {
+        "command": {
+          "argv": [
+            "/private/tmp/knowledge-contract-venv/bin/python",
+            "-B",
+            "-c",
+            "from app import emit; assert emit() == {'total': 10}; print('producer total=10 verified')"
+          ],
+          "cwd_repository": "svc-producer",
+          "repositories": [
+            "svc-producer"
+          ]
+        },
+        "exit_code": 0,
+        "finished_at": "2026-09-22T03:32:49.894263+00:00",
+        "goal_hash": "49749dee5bd45dd6f4d0156907dadbe269a236a179d07356c651db320bba295e",
+        "input_files": {
+          "/private/tmp/knowledge-contract-venv/bin/python": "87d4df53fd91304be5bac391fb204643c36b7df2023c04a0953bcbc7d4fdf634"
+        },
+        "kind": "check",
+        "name": "producer-total",
+        "source_unchanged": true,
+        "sources": {
+          "svc-producer": {
+            "commit": "2334c37a2209962affaf6484acec4216c98d7554",
+            "files": [
+              {
+                "mode": "100644",
+                "path": "app.py",
+                "sha256": "6f71ce3cf3381aea45894990d4e3c965f37e60f933210f6449bf8d21bc38ce50",
+                "text": "def emit(): return {'total': 10}\n"
+              }
+            ],
+            "id": "edff0742a8a9e2ac18859bb2b0f5ed12bdcd268491aedd6720ceef502f8045d6",
+            "kind": "snapshot",
+            "repository": "svc-producer",
+            "scope": [
+              "app.py"
+            ],
+            "version": 1
+          }
+        },
+        "started_at": "2026-09-22T03:32:49.788068+00:00",
+        "stderr": "",
+        "stdout": "producer total=10 verified\n"
+      }
+    },
+    {
+      "kind": "review",
+      "source_sha256": "5bdc318ed4975aa1f6fb580f4ba0a7e6be2793b27cd9751b0d44102bfc160e1a",
+      "value": {
+        "actor": "/root/s5_partial_semantic",
+        "author": "/root",
+        "call_id": "s5_partial_semantic",
+        "finished_at": "2026-09-22T03:31:59.279194+00:00",
+        "goal": "contract-total",
+        "host_tool": "collaboration.spawn_agent",
+        "packet": "416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f",
+        "prompt_sha256": "416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f",
+        "raw_response": "{\"packet\":\"416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f\",\"verdict\":\"pass\",\"findings\":[],\"implementation\":\"pass\",\"documents\":\"pass\"}",
+        "response": {
+          "documents": "pass",
+          "findings": [],
+          "implementation": "pass",
+          "packet": "416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f",
+          "verdict": "pass"
+        },
+        "started_at": "2026-09-22T03:31:00.581768+00:00",
+        "synthetic": false
+      }
+    }
+  ]
+}

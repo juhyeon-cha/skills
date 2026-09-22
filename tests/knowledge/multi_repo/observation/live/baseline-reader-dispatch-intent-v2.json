@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-09-22T03:36:14.123619+00:00",
+  "prompt_sha256": "b351ecf2f48c721f7f80c6e9fccd88e4c0f6d07522e8cc4e45276d62225d1dd1",
+  "input": "/private/tmp/stage5-work/live/baseline-reader-input.json",
+  "input_sha256": "b0ad37888d1957e38486e89d9365549631b5160b15410769ab30325786f82367",
+  "synthetic": false,
+  "usage_tokens": null,
+  "money": null
+}

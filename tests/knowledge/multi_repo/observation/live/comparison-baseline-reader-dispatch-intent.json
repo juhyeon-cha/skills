@@ -1,0 +1,9 @@
+{
+  "started_at": "2026-09-22T03:36:14.123619+00:00",
+  "prompt_sha256": "af348b0659facbc250ace4b110355b59b3efe04746c4a6e48e488b2bb6320a25",
+  "input": "/private/tmp/stage5-work/live/comparison-baseline-reader-input.json",
+  "input_sha256": "b0ad37888d1957e38486e89d9365549631b5160b15410769ab30325786f82367",
+  "synthetic": false,
+  "usage_tokens": null,
+  "money": null
+}

@@ -1,0 +1,12 @@
+{
+  "reason": "Prospective CLI host schema now requires explicit visible goals. Original host bytes retained as each host-v1.json; sources unchanged and no multi-repo commands executed.",
+  "frozen_at": "2026-09-22T03:03:06.590743+00:00",
+  "files": {
+    "code-first/host.json": "c49ce7b69512c8625038002c92f645344146d2ee97e1e5a6ad60bab2b1cce0e0",
+    "code-first/goal.json": "cf8f5248427382a53eec6b021928cd2cad6929cbbd4745bd4b4ed1afd15ba424",
+    "code-first/integration.py": "13e3fcb05fe8a6e55af550e1b7a8500a0c78f567b11e4ea33b3d163d72819388",
+    "document-first/host.json": "c8b7204d19722794fa9da42c499f1cb749ffd4961aadc1aaaaabe186a3ad398d",
+    "document-first/goal.json": "f8472abd9b017c1fa20748b569016122e2092dd6506d4d9de6563fd23588b429",
+    "document-first/integration.py": "35fb9329ea2504411b4b6b8ee4faa69580e2441faa1552d2a24aea3a19c7a263"
+  }
+}

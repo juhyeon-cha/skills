@@ -1,0 +1,118 @@
+{
+  "after": {
+    "commit": "d9c59b8818187754672256dd953e56cebbd892b7",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "1611e1616692cdd7b7537ac2d9bd7779cc49b5de83a5d1c813b2cb794093bc94",
+        "text": "def parse(payload): return payload['total']\n"
+      }
+    ],
+    "id": "ebe115c25ce9b304cbae503ac63831e46af12db95f87ed69b6925b9881727241",
+    "kind": "snapshot",
+    "repository": "svc-consumer",
+    "scope": [
+      "app.py"
+    ],
+    "version": 1
+  },
+  "audience": "두 서비스의 계약 변경을 검토하는 개발자",
+  "before": {
+    "commit": "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "885e631634b9eccee8fe54a1c97574f5edcf74537fb5df0f5636b4fa9b9d6e51",
+        "text": "def parse(payload): return payload['amount']\n"
+      }
+    ],
+    "id": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+    "kind": "snapshot",
+    "repository": "svc-consumer",
+    "scope": [
+      "app.py"
+    ],
+    "version": 1
+  },
+  "bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "field",
+            "text": "소비자는 amount 필드를 읽어 값을 반환한다."
+          }
+        ],
+        "path": "contract.md",
+        "sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69"
+      }
+    ],
+    "id": "c4135719d52db2219a96861ae35086a27a738c039af8078afea5d42d2708194a",
+    "kind": "bindings",
+    "snapshot": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+    "version": 1
+  },
+  "id": "7611aae2a5ad9fa9059591ce31d4e90f9bcf9bf81f099cc37b00f37f59667ee3",
+  "kind": "review-packet",
+  "plan": {
+    "after": "ebe115c25ce9b304cbae503ac63831e46af12db95f87ed69b6925b9881727241",
+    "before": "118c4922132bc5e5b53c224b2be7367cb0c7cc17b01f24c0d3e1604fc27c55a6",
+    "bindings": "c4135719d52db2219a96861ae35086a27a738c039af8078afea5d42d2708194a",
+    "decisions": {
+      "claims": [
+        {
+          "action": "replace",
+          "evidence": [
+            "app.py"
+          ],
+          "id": "field",
+          "path": "contract.md",
+          "reason": "Approved isolated target implementation changes the exchanged field; describe pinned current source, not deployment.",
+          "text": "소비자는 total 필드를 읽어 값을 반환한다."
+        }
+      ],
+      "impact": "fa1b6e4f25509bb49525fc67c4f5b84d58417ed9d412e9185d98211c1b10274b",
+      "unlinked": []
+    },
+    "documents": [
+      {
+        "after_sha256": "eb2d21dc5ed8f2ad7cd5876cc3b6ce9694f9e378854c0f395d5a39082f591663",
+        "after_text": "소비자는 total 필드를 읽어 값을 반환한다.\n",
+        "before_sha256": "7621ac17da3638a50a80515d2a365d6e934d4cdecc87bab6f0b10afa3b651b69",
+        "before_text": "소비자는 amount 필드를 읽어 값을 반환한다.\n",
+        "path": "contract.md"
+      }
+    ],
+    "id": "84707aac2771999543c6e48077a6bdcc86a3a4455e6093f47d269fa4ef4851a6",
+    "kind": "update-plan",
+    "next_bindings": {
+      "documents": [
+        {
+          "claims": [
+            {
+              "evidence": [
+                "app.py"
+              ],
+              "id": "field",
+              "text": "소비자는 total 필드를 읽어 값을 반환한다."
+            }
+          ],
+          "path": "contract.md",
+          "sha256": "eb2d21dc5ed8f2ad7cd5876cc3b6ce9694f9e378854c0f395d5a39082f591663"
+        }
+      ],
+      "id": "f510305f414553064502b1ee365c060b5b1578b57537891b1c86b6cc364563c5",
+      "kind": "bindings",
+      "snapshot": "ebe115c25ce9b304cbae503ac63831e46af12db95f87ed69b6925b9881727241",
+      "version": 1
+    },
+    "version": 1
+  },
+  "purpose": "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.",
+  "version": 1
+}

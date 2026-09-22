@@ -1,0 +1,166 @@
+[
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/code-first/producer-project",
+      "init",
+      "--repo",
+      "/private/tmp/stage5-work/live/code-first/producer",
+      "--docs",
+      "/private/tmp/stage5-work/live/code-first/producer-docs",
+      "--repository",
+      "svc-producer",
+      "--baseline",
+      "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+      "--path",
+      "app.py",
+      "--spec",
+      "/private/tmp/stage5-work/live/code-first/producer-spec.json",
+      "--audience",
+      "두 서비스의 계약 변경을 검토하는 개발자",
+      "--purpose",
+      "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다."
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"baseline\": \"66a30398027db7537d3dd2da7fbc1a875e5bcc3a\", \"phase\": \"initialized\", \"project\": \"/private/tmp/stage5-work/live/code-first/producer-project\"}\n",
+    "stderr": "",
+    "elapsed_seconds": 0.1884571248665452
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/code-first/producer-project",
+      "status"
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"active\": null, \"baseline\": \"66a30398027db7537d3dd2da7fbc1a875e5bcc3a\", \"project\": \"/private/tmp/stage5-work/live/code-first/producer-project\", \"retirement\": null, \"runs\": [], \"settings\": {\"audience\": \"두 서비스의 계약 변경을 검토하는 개발자\", \"docs\": \"/private/tmp/stage5-work/live/code-first/producer-docs\", \"purpose\": \"현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.\", \"repo\": \"/private/tmp/stage5-work/live/code-first/producer\", \"repository\": \"svc-producer\", \"scope\": [\"app.py\"]}}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/code-first/consumer-project",
+      "init",
+      "--repo",
+      "/private/tmp/stage5-work/live/code-first/consumer",
+      "--docs",
+      "/private/tmp/stage5-work/live/code-first/consumer-docs",
+      "--repository",
+      "svc-consumer",
+      "--baseline",
+      "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+      "--path",
+      "app.py",
+      "--spec",
+      "/private/tmp/stage5-work/live/code-first/consumer-spec.json",
+      "--audience",
+      "두 서비스의 계약 변경을 검토하는 개발자",
+      "--purpose",
+      "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다."
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"baseline\": \"78be3471850b88509abcf7e5a3cf7aeb80b59ae2\", \"phase\": \"initialized\", \"project\": \"/private/tmp/stage5-work/live/code-first/consumer-project\"}\n",
+    "stderr": "",
+    "elapsed_seconds": 0.1652906253002584
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/code-first/consumer-project",
+      "status"
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"active\": null, \"baseline\": \"78be3471850b88509abcf7e5a3cf7aeb80b59ae2\", \"project\": \"/private/tmp/stage5-work/live/code-first/consumer-project\", \"retirement\": null, \"runs\": [], \"settings\": {\"audience\": \"두 서비스의 계약 변경을 검토하는 개발자\", \"docs\": \"/private/tmp/stage5-work/live/code-first/consumer-docs\", \"purpose\": \"현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.\", \"repo\": \"/private/tmp/stage5-work/live/code-first/consumer\", \"repository\": \"svc-consumer\", \"scope\": [\"app.py\"]}}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/document-first/producer-project",
+      "init",
+      "--repo",
+      "/private/tmp/stage5-work/live/document-first/producer",
+      "--docs",
+      "/private/tmp/stage5-work/live/document-first/producer-docs",
+      "--repository",
+      "svc-producer",
+      "--baseline",
+      "66a30398027db7537d3dd2da7fbc1a875e5bcc3a",
+      "--path",
+      "app.py",
+      "--spec",
+      "/private/tmp/stage5-work/live/document-first/producer-spec.json",
+      "--audience",
+      "두 서비스의 계약 변경을 검토하는 개발자",
+      "--purpose",
+      "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다."
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"baseline\": \"66a30398027db7537d3dd2da7fbc1a875e5bcc3a\", \"phase\": \"initialized\", \"project\": \"/private/tmp/stage5-work/live/document-first/producer-project\"}\n",
+    "stderr": "",
+    "elapsed_seconds": 0.2346045421436429
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/document-first/producer-project",
+      "status"
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"active\": null, \"baseline\": \"66a30398027db7537d3dd2da7fbc1a875e5bcc3a\", \"project\": \"/private/tmp/stage5-work/live/document-first/producer-project\", \"retirement\": null, \"runs\": [], \"settings\": {\"audience\": \"두 서비스의 계약 변경을 검토하는 개발자\", \"docs\": \"/private/tmp/stage5-work/live/document-first/producer-docs\", \"purpose\": \"현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.\", \"repo\": \"/private/tmp/stage5-work/live/document-first/producer\", \"repository\": \"svc-producer\", \"scope\": [\"app.py\"]}}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/document-first/consumer-project",
+      "init",
+      "--repo",
+      "/private/tmp/stage5-work/live/document-first/consumer",
+      "--docs",
+      "/private/tmp/stage5-work/live/document-first/consumer-docs",
+      "--repository",
+      "svc-consumer",
+      "--baseline",
+      "78be3471850b88509abcf7e5a3cf7aeb80b59ae2",
+      "--path",
+      "app.py",
+      "--spec",
+      "/private/tmp/stage5-work/live/document-first/consumer-spec.json",
+      "--audience",
+      "두 서비스의 계약 변경을 검토하는 개발자",
+      "--purpose",
+      "현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다."
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"baseline\": \"78be3471850b88509abcf7e5a3cf7aeb80b59ae2\", \"phase\": \"initialized\", \"project\": \"/private/tmp/stage5-work/live/document-first/consumer-project\"}\n",
+    "stderr": "",
+    "elapsed_seconds": 0.19485258357599378
+  },
+  {
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "/Users/juhyeon/.harness-workspace/skills/.claude/worktrees/skills-388/plugins/toolkit/skills/refresh-knowledge/scripts/knowledge.py",
+      "--project",
+      "/private/tmp/stage5-work/live/document-first/consumer-project",
+      "status"
+    ],
+    "exit_code": 0,
+    "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"active\": null, \"baseline\": \"78be3471850b88509abcf7e5a3cf7aeb80b59ae2\", \"project\": \"/private/tmp/stage5-work/live/document-first/consumer-project\", \"retirement\": null, \"runs\": [], \"settings\": {\"audience\": \"두 서비스의 계약 변경을 검토하는 개발자\", \"docs\": \"/private/tmp/stage5-work/live/document-first/consumer-docs\", \"purpose\": \"현재 필드와 앞으로 변경할 목표를 혼동하지 않고 판단한다.\", \"repo\": \"/private/tmp/stage5-work/live/document-first/consumer\", \"repository\": \"svc-consumer\", \"scope\": [\"app.py\"]}}\n",
+    "stderr": ""
+  }
+]

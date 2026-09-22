@@ -1,0 +1,11 @@
+{
+  "started_at": "2026-09-22T03:31:00.581768+00:00",
+  "prompt_sha256": "55721b113a8847abfc4130063689cf39ab2fed33c1c99b76766de8dd094e34e0",
+  "packets": {
+    "code-first": "/private/tmp/stage5-work/live/code-first/multi-state/objects/416c17670e8f7f6b5905097b6b45ab0f3013e4679b707f2e5220cd63e5090b9f.json",
+    "document-first": "/private/tmp/stage5-work/live/document-first/multi-state/objects/0afe0d62d038757d9d1bd0e1c6a0fe1cadb0138460e50b74356632b5e3112133.json"
+  },
+  "synthetic": false,
+  "usage_tokens": null,
+  "money": null
+}
