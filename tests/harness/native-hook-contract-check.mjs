@@ -78,9 +78,10 @@ try {
     assert.equal((await judge(event(`rg --pre sh ${shellPath(main)}`))).code, 0);
     assert.equal((await judge(event(`cat ${shellPath(main)}; rm -rf ${shellPath(main)}`))).code, 2);
   });
-  await check('unknown role, invalid event and malformed patch are UNREACHED', async () => {
+  await check('unknown roles use common safeguards; invalid events and malformed patches are UNREACHED', async () => {
     assert.equal((await judge({...event('echo ok'), agent_id: 'unidentified'})).code, 0);
-    for (const input of [null, [], {}, {...event('touch output'), agent_id: 'unidentified'}, event('touch output', 'unknown'), {...event('not a patch'), tool_name: 'apply_patch'}]) { const result = await judge(input); assert.equal(result.code, 2); assert.match(result.stderr, /UNREACHED/); }
+    for (const input of [{...event('touch output'), agent_id: 'unidentified'}, event('touch output', 'unknown')]) assert.equal((await judge(input)).code, 0);
+    for (const input of [null, [], {}, {...event('not a patch'), tool_name: 'apply_patch'}]) { const result = await judge(input); assert.equal(result.code, 2); assert.match(result.stderr, /UNREACHED/); }
   });
   await check('PowerShell lexer preserves drive/UNC/Korean spaces and denies dynamic read exemption', () => {
     const drive = String.raw`C:\한글 폴더\a.txt`, unc = String.raw`\\server\share\공백 경로.txt`;

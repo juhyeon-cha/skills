@@ -95,8 +95,8 @@ skills, three agents and one hook group; that is format evidence, not loading.
 The [hook contract](https://antigravity.google/docs/hooks) maps context to
 PreInvocation, guard to PreToolUse and continuation to Stop. No native subagent
 events are invented. The [execution adapter](runtime-execution.md) normalizes
-these envelopes into shared policy and requires external parent attestation
-before mutations. Its fixtures do not establish live loading; diagnosis still
+these envelopes into shared policy. External parent attestation is an optional
+identity mechanism; ordinary local tools retain common protections without it. Its fixtures do not establish live loading; diagnosis still
 requires provider observations and never promotes a hook transport exit alone.
 
 For Codex, [plugin development](https://developers.openai.com/plugins/build/plugins)

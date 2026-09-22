@@ -6,7 +6,7 @@ const absolute = value => text(value) && path.isAbsolute(value);
 const integer = value => Number.isSafeInteger(value) && value >= 0;
 
 // Provider envelope, not a fabricated Claude SubagentStart/Stop event.
-// Contract: https://antigravity.google/docs/hooks. Unknown tools fail closed;
+// Contract: https://antigravity.google/docs/hooks. Opaque tools use host permissions;
 // asynchronous execution and child identity need their own observed contracts.
 export function antigravityEvent(id, raw) {
   if (!object(raw) || !text(raw.conversationId) || !Array.isArray(raw.workspacePaths) ||
@@ -44,8 +44,8 @@ export function antigravityEvent(id, raw) {
       event.cwd = path.resolve(args.Cwd);
       event.harness_workspace = path.resolve(raw.workspacePaths[0]);
     } else if (name === 'invoke_subagent') {
-      if (!Array.isArray(args.Subagents) || args.Subagents.length !== 1)
-        throw new Error('one registered subagent per invocation required');
+      if (!Array.isArray(args.Subagents) || !args.Subagents.length || args.Subagents.some(child => !object(child)))
+        throw new Error('nonempty subagent request array required');
       event.tool_name = 'Agent';
       event.subagents = args.Subagents;
     } else if (name === 'send_message') {
@@ -58,7 +58,7 @@ export function antigravityEvent(id, raw) {
       event.tool_name = 'Read'; event.tool_input = {};
     } else if (name === 'list_permissions') {
       event.tool_name = 'Read'; event.tool_input = {};
-    } else throw new Error(`Antigravity tool contract UNREACHED: ${name}`);
+    } // Unrecognized effects remain subject to host permissions.
   } else throw new Error('unsupported Antigravity hook; native child lifecycle is not available');
   return event;
 }

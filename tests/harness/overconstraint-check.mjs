@@ -7,7 +7,7 @@ import {isReadonlySearch} from '../../plugins/harness/lib/guard/operations.mjs';
 import {registerRoles, verifyRegistration, projectRole} from '../../plugins/harness/lib/runtime/roles.mjs';
 import {inspectDistribution, generateDistribution} from '../../plugins/harness/lib/distribution.mjs';
 import {fileURLToPath} from 'node:url';
-import {resolveState} from '../../plugins/harness/lib/runtime/state.mjs';
+import {resolveState, enableContinuation} from '../../plugins/harness/lib/runtime/state.mjs';
 import {evaluateStop} from '../../plugins/harness/lib/runtime/stop.mjs';
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'overconstraint-'));
@@ -125,14 +125,17 @@ try {
     env, rootFinder: async () => repo,
     ledger: async () => ({code: 0, stdout: JSON.stringify(rows)}),
   });
+  assert.deepEqual((await stop()).outcomes, ['NOTICE']);
+  assert.equal(fs.existsSync(scope.stopLog), false);
+  enableContinuation(scope);
   let result = await stop();
   assert.deepEqual(result.outcomes, ['SCOPE_FAIL']);
   assert.equal(result.stdout, ''); assert.match(result.stderr, /completion not established/);
   fs.writeFileSync(scope.actorRecovery, JSON.stringify(record));
   fs.writeFileSync(scope.actors, '{broken');
   result = await stop();
-  assert.deepEqual(result.outcomes, ['SCOPE_RECOVERED', 'NOTICE']);
-  assert.equal(result.stdout, '');
+  assert.deepEqual(result.outcomes, ['SCOPE_RECOVERED', 'BLOCK']);
+  assert.equal(JSON.parse(result.stdout).decision, 'block');
   assert.deepEqual(JSON.parse(fs.readFileSync(scope.actors)), record);
   for (const changed of [
     {...record, runtime: 'codex'}, {...record, repoKey: 'other'}, {...record, sessionId: 'other'},

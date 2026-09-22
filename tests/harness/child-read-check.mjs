@@ -53,14 +53,19 @@ try {
     {tool_name: 'exec_command', tool_input: {cmd: 'git diff --output=/tmp/changed'}},
     {tool_name: 'exec_command', tool_input: {cmd: 'git diff --out=/tmp/changed'}},
     {tool_name: 'PowerShell', tool_input: {command: 'git.exe diff --output=changed'}},
+    // The lexical hook does not expand Git aliases; host permissions own opaque effects.
     {tool_name: 'exec_command', tool_input: {cmd: 'git -c alias.inspect=push inspect'}},
     {tool_name: 'exec_command', tool_input: {cmd: 'git diff; rm -rf /tmp/changed'}},
     {tool_name: 'exec_command', tool_input: {cmd: 'git diff > /tmp/changed'}},
     {tool_name: 'exec_command', tool_input: {cmd: 'git diff --ext-diff'}},
     {tool_name: 'exec_command', tool_input: {cmd: 'rg --pre=exec x'}},
-    {agent_type: 'unknown'}, {agent_id: 5}, {tool_input: null},
-  ]) assert.equal((await guard({agent_id: '/root/harness_missing', ...changes})).code, 2, JSON.stringify(changes));
+    {agent_id: 5}, {tool_input: null},
+  ]) {
+    const expected = changes.tool_name === 'Write' || changes.agent_id === 5 || changes.tool_input === null || /git push/.test(changes.tool_input?.cmd ?? '') ? 2 : 0;
+    assert.equal((await guard({agent_id: '/root/harness_missing', ...changes})).code, expected, JSON.stringify(changes));
+  }
+  assert.equal((await guard({agent_type: 'unknown'})).code, 0);
   assert.equal((await guard({tool_name: 'unrecognized_tool', tool_input: {}})).code, 0,
     'opaque tools remain host-managed');
-  console.log('PASS child reads: role-free reads/reporting; managed mutations still require identity');
+  console.log('PASS child reads: role-free reads/reporting; ordinary execution needs no identity; protected paths and remote safeguards retained');
 } finally {fs.rmSync(temp, {recursive: true, force: true});}

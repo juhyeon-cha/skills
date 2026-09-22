@@ -15,8 +15,8 @@ recognized mistakes and record observations; their passing result does not prove
 that arbitrary commands are safe.
 
 `lib/hook-definitions.json` registers context, guard, workspace, Stop and role
-observations. Stop is advisory unless continued execution was explicitly enabled
-for this session. Generated Claude/Codex transports share the policy; actual
+observations. Stop performs no ledger polling or Stop-log writing unless continued execution
+was explicitly enabled for this session. Generated Claude/Codex transports share the policy; actual
 runtime firing is verified separately from direct handler tests.
 
 ## 1. Hook rules — `lib/guard/guard.mjs` (PreToolUse)
@@ -28,8 +28,9 @@ opaque scripts and dynamic commands. User approval rules apply regardless of
 whether the hook recognizes an action.
 
 For ordinary versus managed child classification, consult
-[Runtime role contract](roles.md#standalone-investigation-and-review). Absence of
-a harness role does not prohibit ordinary execution. Classification retains the
+[Tool boundaries](roles.md#tool-boundaries). Ordinary/default roles require no
+inventory or provider-metadata lookup. Recognized native roles retain concrete
+role restrictions. Absence of a harness role does not prohibit execution. Classification retains the
 child identity, so child-scoped rules below still apply; a passing hook neither
 grants host permissions nor establishes user approval.
 
@@ -39,9 +40,9 @@ grants host permissions nor establishes user approval.
 | `r_main_shell` | Shell operations | Check literal output redirects and recognized file-command targets, plus effects declared by exact common commands. A source path, quoted body or arbitrary script argument alone is not a write. |
 | `r_task_create` | Children | Keep user-task creation with the parent; host authorization still applies. |
 | `r_remote` | Children | Reject recognized remote writes; the parent remains responsible for user authorization. |
-| `r_grader_write` | Independent reviewers/evaluators | Keep the reviewed repository unchanged. Scratch files outside it remain available. |
-| `r_grader_shell` | Independent reviewers/evaluators | Reject Git/ledger mutations and common state/preparation writes. |
-| `r_impl_bd` | Implementers | Restrict ledger writes to implementation state and summaries; completion stays with the orchestrator. |
+| `r_grader_write` | Recognized native reviewers/evaluators | Keep the reviewed repository unchanged. Scratch files outside it remain available. |
+| `r_grader_shell` | Recognized native reviewers/evaluators | Reject Git/ledger mutations and common state/preparation writes. |
+| `r_impl_bd` | Recognized native implementers | Restrict ledger writes to implementation state and summaries; completion stays with the orchestrator. |
 | `r_bd_root` | Children | Require explicit ledger coordinates for mutations. |
 
 POSIX shell targets are derived from output redirects and literal operands of
@@ -62,9 +63,8 @@ request remote reflection. See [Commands](commands.md) for invocation and
 [Runtime state](state.md) for session-scoped state.
 
 The selected verification path comes from `verify-code`, not tool-hook success.
-Low-risk work can complete with local checks and acceptance evidence. Independent
-review remains required for its risk categories and explicit repository/user
-requirements.
+Low-risk work can complete with local checks and acceptance evidence. Use independent review for a concrete risk or an explicit repository/user
+requirement; no fixed reviewer/evaluator chain is required.
 
 Additional tool effect classifications live in `lib/guard/tool-contract.mjs`.
 Questions, waits, task reads and project listings are role-independent. Task
@@ -95,7 +95,7 @@ The rule "Correction preservation" (`harness:develop` "운영 규율" — when o
 
 **Conclusion: the ledger tool is not append-only.** Several subcommands edit or delete notes — `update --notes` · `edit --notes` · `sql` (direct UPDATE/DELETE) · `delete` · `import` · `restore --apply` — plus `compact`·`flatten`·`gc`·`prune`·`purge`, which shrink history. **Only `note` is append-only**, and its own help says so (`--append-notes` shorthand).
 
-**Event preservation is a procedural rule.** State and summary records are deliberately mutable; decisions and reversals remain event notes under section 1. For subagents all of the above is already blocked — `r_impl_bd` permits implementer event notes and mutable state/summary records; structural writes remain blocked, and `r_grader_shell` narrows the grader's ledger calls to reads. Both are exemption-list style, so a new ledger subcommand defaults to "blocked". The negative control is `tests/harness/guard-check.sh` ⑬.
+**Event preservation is a procedural rule.** State and summary records are deliberately mutable; decisions and reversals remain event notes under section 1. For recognized native role subagents the structural mutations above are blocked — `r_impl_bd` permits implementer event notes and mutable state/summary records; structural writes remain blocked, and `r_grader_shell` narrows the grader's ledger calls to reads. Both are exemption-list style, so a new ledger subcommand defaults to "blocked". The negative control is `tests/harness/guard-check.sh` ⑬.
 
 **Not blocked:**
 
@@ -132,11 +132,11 @@ The rule "Correction preservation" (`harness:develop` "운영 규율" — when o
 | Check | Sees | Wired where | Run condition |
 |---|---|---|---|
 | `board-check.sh` | **Ledger structure** — sprint ID format · `rail:` labels ↔ the rail registry · `sprint:` labels ↔ the sprint registry both ways (+status) · label inheritance and ancestor existence of sprint descendants · acceptance of sprint tasks. **Both registries come from the adapter** (`ledger.sh rails`·`sprints`); this check opens no registry file, so what backs them is the backend's business — `beads` reads the root's `rails.json`·`sprints.json`, `github`·`notion` derive them from the ledger itself. Does not look at projections | `tests/run-all.sh` · cycle close in a target repo (`harness:develop` "사이클 종결" step 1) | the ledger through `scripts/ledger.sh`, at the root `lib/harness-root.sh` prints; root or `.harness.json` not found → rc≠0, never a silent skip |
-| `ledger-check.sh` | **The ledger is ahead of its remote** — the silent-loss path. Goes through `ledger.sh sync-check [--push]`: in write mode (`LEDGER_CHECK_PUSH=1`) the `beads` backend runs `bd dolt push` instead of blocking, **recounts the tracking refs**, and blocks only if still ahead; without the switch it reflects nothing and only says so. On `github`·`notion` there is nothing to reflect, so it is `원격 반영 대상 없음` and rc 0 | cycle close in a target repo (read mode, before and after the explicit ledger reflection) · the skills repo's `tests/run-all.sh` exempts it (remote dependence). **Write mode (`LEDGER_CHECK_PUSH=1`) has no automatic caller** — the harness-root push hook that set it is gone, so reflecting is the orchestrator's explicit step | on `beads`: `dolt`, an embedded ledger, and a Dolt remote; otherwise fail-open with a warning. **A pass phrase says `건너뜀` or `앞서 있음(반영하지 않음 — 쓰기 모드 아님)` when nothing was judged** — never `확인됨` |
+| `ledger-check.sh` | **The ledger is ahead of its remote** — the silent-loss path. Goes through `ledger.sh sync-check [--push]`: in write mode (`LEDGER_CHECK_PUSH=1`) the `beads` backend runs `bd dolt push` instead of blocking, **recounts the tracking refs**, and blocks only if still ahead; without the switch it reflects nothing and only says so. On `github`·`notion` there is nothing to reflect, so it is `원격 반영 대상 없음` and rc 0 | optional delivery diagnosis in a target repo (read mode; verify an explicit reflection afterward) · the skills repo's `tests/run-all.sh` exempts it (remote dependence). **Write mode (`LEDGER_CHECK_PUSH=1`) has no automatic caller** — the harness-root push hook that set it is gone, so reflecting is the orchestrator's explicit step | on `beads`: `dolt`, an embedded ledger, and a Dolt remote; otherwise fail-open with a warning. **A pass phrase says `건너뜀` or `앞서 있음(반영하지 않음 — 쓰기 모드 아님)` when nothing was judged** — never `확인됨` |
 | `guardrail-check.mjs` | S1 policy with positive/negative controls · S2 generated hook wiring · S5 executable sources · S6 ledger sync fixtures · S7 Stop paths | `tests/run-all.sh` via the compatibility wrapper | Node and Git, temporary offline fixtures. Missing runtime or unreached assertions fail; fixture success does not prove live hook activation |
-| `rules-check.sh` | Static assertions **on the ledger** — R5 one `repo:` label per task · R-ACC acceptance of started tasks · **S22** two actors in one (story, repo) worktree · **S24** an open story whose children are all terminal. Which read zero items as failure and which fall back is written in the script's header | `setup` 1.5·2·3, and `tests/run-all.sh` during development | the ledger through `scripts/ledger.sh` at the root `lib/harness-root.sh` prints (resolved from the caller's cwd). **S22 counts worktrees of the repo the run stands in only** — with no fixed clone location the harness cannot see another repo's worktrees, so a row for another `repo:` label is reported and not judged; running the gate in each repo covers the whole set. The assertions on the **plugin tree** (R-REM · C6 · R-DATE · R-BEAD · R-WAIT · R-DUP · R-BUDGET) are not here — they judge an artifact that can only change before release, so they live in the skills repo as `tests/harness/doc-rules-check.sh` |
+| `rules-check.sh` | Ledger diagnostics — R5 rejects ambiguous task repository coordinates; R-ACC missing acceptance, **S22** possible actor/phase conflicts and **S24** open stories with terminal children are advisory. Investigate actual concurrent writers before conflicting work; a diagnostic alone does not prove a collision. Which read zero items as failure and which fall back is written in the script's header | `setup` 1.5·2·3, and `tests/run-all.sh` during development | the ledger through `scripts/ledger.sh` at the root `lib/harness-root.sh` prints (resolved from the caller's cwd). **S22 counts worktrees of the repo the run stands in only** — with no fixed clone location the harness cannot see another repo's worktrees, so a row for another `repo:` label is reported and not judged; running the gate in each repo covers the whole set. The assertions on the **plugin tree** (R-REM · C6 · R-DATE · R-BEAD · R-WAIT · R-DUP · R-BUDGET) are not here — they judge an artifact that can only change before release, so they live in the skills repo as `tests/harness/doc-rules-check.sh` |
 | `workspace-check.sh` | Read-only Git identity and repository config of the supplied workspace (default: cwd) | `tests/run-all.sh`, or manually before entry | All backends; no ledger or remote calls. Roundtrip and failure fixtures live in the source repository’s `tests/harness/workspace-contract-check.sh` |
-| `transcript-check.sh` | Required invocation inventory and runtime transcript observations — source-derived A9, partial coverage, token availability and role/tool aggregates. [Runtime observations](transcripts.md) owns formats and limits | retrospective 1-2; not a commit gate over private runtime data | Node; explicit scoped inventory or the Claude directory adapter. Missing/unfinished/unsupported evidence gives UNREACHED, rc 2. `--self-check` keeps A9 negative controls |
+| `transcript-check.sh` | Opt-in managed invocation inventory and runtime transcript observations — source-derived A9, partial coverage, token availability and role/tool aggregates. [Runtime observations](transcripts.md) owns formats and limits | retrospective 1-2; not a commit gate over private runtime data | Node; explicit scoped inventory or the Claude directory adapter. Missing/unfinished/unsupported evidence gives UNREACHED, rc 2. `--self-check` keeps A9 negative controls |
 
 **The development-time checks are not in this table.** Every check that hits plugin code with a fixture lives in the skills repo under `tests/` and never ships — the list, with the same four columns, is that repo's `docs/development.md`. A check is in this table only if an installed copy runs it.
 
@@ -213,7 +213,7 @@ The survey (`harness-uhy.1.2 note`) sorted 54 candidates into **fit 30 / unfit 1
 3. **Is `bd note` append-only** (R10)? → **Answered. Section 1-2 — no.**
 4. **Does `bd` have other spellings of `-C`** (A4)? → **Answered.** The `r_bd_root` row lists `-C`·`--directory`·`--db`.
 5. **Can "is this check inverted-polarity" be decided statically** (R11)? No general method found.
-6. **Role-separation observations (R7).** The Claude adapter joins Agent/Task invocation identity with child attribution; ordinary workflow verifies native outcomes against hook role/instance chains. This supplies identity evidence, not a blanket judgment of every natural-language role-separation rule.
+6. **Role-separation observations (R7).** The Claude adapter joins Agent/Task invocation identity with child attribution; opt-in managed workflow verifies native outcomes against hook role/instance chains. This supplies identity evidence, not a blanket judgment of every natural-language role-separation rule.
 
 **One place is misaligned the other way.** Secret-file handling (X1) has **a gate and no rule sentence** — the deny 10 came first. The survey judged "what protects `.env` today is not a rule but an accident."
 

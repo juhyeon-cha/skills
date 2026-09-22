@@ -39,12 +39,12 @@ try {
   git('-C', main, 'worktree', 'add', '-qb', 'fixture-work', work); git('init', '--bare', '-q', bare);
   git('-C', work, 'remote', 'add', 'origin', bare);
   const agEnv = envFor('antigravity');
-  await check('actual wrapper context/read before external parent registration; mutation denied', async () => {
+  await check('actual wrapper context and local work before external parent registration; protected writes denied', async () => {
     const context = hook('context', invocation); assert.equal(context.status, 0, context.stderr);
     const injected = JSON.parse(context.stdout).injectSteps[0].ephemeralMessage;
     assert.match(injected, /HARNESS_STATE_JSON/); assert.match(injected, /antigravity/);
     assert.equal(hook('guard', envelope('view_file', {AbsolutePath: path.join(work, '.harness.json')})).status, 0);
-    const denied = hook('guard', envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')}));
+    const denied = hook('guard', envelope('write_to_file', {TargetFile: path.join(main, 'blocked.txt')}));
     assert.equal(denied.status, 0); assert.equal(JSON.parse(denied.stdout).decision, 'deny');
     const state = await scopeFor('antigravity');
     const rows = fs.readFileSync(state.events, 'utf8').trim().split('\n').map(line => JSON.parse(line));
@@ -59,22 +59,23 @@ try {
       assert.equal(guardCode(envelope('write_to_file', {TargetFile: target})), 2);
     assert.equal(guardCode(envelope('run_command', {CommandLine: 'node state.mjs parent-register', Cwd: work})), 2);
   });
-  await check('parent registration scope/source/child negative controls cannot promote actors', async () => {
+  await check('invalid parent records do not gate local work or grant remote authority', async () => {
     const state = await scopeFor('antigravity');
     const file = path.join(state.session, 'antigravity-parent.json'), original = fs.readFileSync(file, 'utf8');
     for (const mutate of [r => r.sessionId = 'other', r => r.workspace = main, r => r.source.hash = 'stale', r => r.kind = 'child']) {
       const record = JSON.parse(original); mutate(record); fs.writeFileSync(file, JSON.stringify(record));
-      assert.equal(guardCode(envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')})), 2);
+      assert.equal(guardCode(envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')})), 0);
     }
     fs.writeFileSync(file, '{');
-    assert.equal(guardCode(envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')})), 2, 'internal identity read error delivers native deny');
+    assert.equal(guardCode(envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')})), 0, 'identity read error does not gate ordinary work');
+    assert.equal(guardCode(envelope('run_command', {CommandLine: 'git push origin HEAD', Cwd: work})), 2);
     fs.writeFileSync(file, original);
     const child = await scopeFor('antigravity', 'child'); fs.mkdirSync(child.session, {recursive: true});
     fs.writeFileSync(child.actors, JSON.stringify({runtime: 'antigravity', repoKey: child.repoKey, sessionId: 'child',
       claims: [{actor: 'mine', evidence: 'ledger-show'}]}));
     assert.equal(readActors(child).status, 'VERIFIED');
-    assert.equal(guardCode(envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')}, {conversationId: 'child'})), 2);
-    assert.equal(guardCode(envelope('run_command', {CommandLine: 'echo fixture', Cwd: main})), 2);
+    assert.equal(guardCode(envelope('write_to_file', {TargetFile: path.join(work, 'allowed.txt')}, {conversationId: 'child'})), 0);
+    assert.equal(guardCode(envelope('run_command', {CommandLine: 'echo fixture', Cwd: main})), 0);
   });
   await check('registration requires wrapper-observed current source and exact worktree', async () => {
     const state = await scopeFor('antigravity', 'provenance');
@@ -108,12 +109,16 @@ try {
     fs.appendFileSync(path.join(copy, 'hooks/session-context.md'), '\nChanged fixture source.\n');
     await assert.rejects(registerAntigravityParent(copiedState, inspectDistribution(copy).hash, copy), /context not observed/);
   });
-  await check('malformed/ambiguous/unsupported provider envelopes fail closed with native deny', () => {
-    for (const input of [null, {}, envelope('unknown', {}), envelope('run_command', {CommandLine: 'pwd'}),
+  await check('malformed known provider envelopes deny; opaque tools and ordinary delegation remain host-managed', () => {
+    for (const input of [null, {}, envelope('run_command', {CommandLine: 'pwd'}),
       envelope('write_to_file', {TargetFile: 'relative'}), envelope('view_file', {AbsolutePath: main}, {workspacePaths: [work, main]}),
-      envelope('manage_task', {Action: 'send_input', Input: 'rm -rf canary'}), envelope('invoke_subagent', {})]) {
-      assert.equal(guardCode(input), 2);
+      envelope('invoke_subagent', {})]) {
+      assert.equal(guardCode(input), 2, JSON.stringify(input));
     }
+    assert.equal(guardCode(envelope('unknown', {})), 0);
+    assert.equal(guardCode(envelope('manage_task', {Action: 'send_input', Input: 'opaque process input'})), 0);
+    assert.equal(guardCode(envelope('invoke_subagent', {Subagents: [{Prompt: 'one'}, {Prompt: 'two'}]})), 0);
+    assert.equal(guardCode(envelope('run_command', {CommandLine: "bash -c 'echo fixture'", Cwd: work}, {conversationId: 'unregistered'})), 0);
     assert.throws(() => antigravityEvent('role-start', invocation));
   });
   // M4's child identity resolver is synthetic here, never native role evidence.
@@ -158,7 +163,7 @@ try {
       const denied = await judge(runtime, eventFor(runtime, 'shell', 'git push origin HEAD:refs/heads/canary'));
       assert.equal(denied.code, 2); assert.equal(denied.rule, 'r_remote');
       const status = await judge(runtime, eventFor(runtime, 'shell', 'git status --porcelain')); assert.equal(status.code, 0, status.stderr);
-      assert.equal((await judge(runtime, {...eventFor(runtime, 'file', path.join(work, 'a')), tool_name: 'future_unclassified_tool'})).code, 2);
+      assert.equal((await judge(runtime, {...eventFor(runtime, 'file', path.join(work, 'a')), tool_name: 'future_unclassified_tool'})).code, 0);
     }
     assert.equal(run('git', ['--git-dir', bare, 'show-ref']).status, 1, 'no remote ref was written');
   });
@@ -184,7 +189,8 @@ try {
       const event = runtime === 'antigravity' ? antigravityEvent('stop', {...invocation, conversationId: 'stop', fullyIdle: true, executionNum: 0, terminationReason: 'NO_TOOL_CALL'}) : {cwd: work, session_id: 'stop'};
       const options = {env: envFor(runtime), rootFinder: async () => main,
         ledger: async (_args, coordinates) => {assert.equal(coordinates.root, main); return {code: 0, stdout: JSON.stringify([{actor: 'mine', notes: ''}, {actor: 'other', notes: ''}])};}};
-      assert.deepEqual((await evaluateStop(event, options)).outcomes, ['NOTICE']);
+      assert.deepEqual((await evaluateStop(event, {...options, ledger: async () => {throw Error('default must not poll ledger');}})).outcomes, ['NOTICE']);
+      assert.equal(fs.existsSync(scope.stopLog), false);
       enableContinuation(scope);
       for (let i = 0; i < MAX_BLOCKS; i++) {
         const result = await evaluateStop(event, options); assert.deepEqual(result.outcomes, ['BLOCK']);
@@ -194,6 +200,7 @@ try {
       assert.deepEqual((await evaluateStop(event, options)).outcomes, ['GAVE_UP']);
       cancelSession(scope); assert.deepEqual((await evaluateStop(event, options)).outcomes, ['CANCEL']);
       assert.equal(isCancelled(await scopeFor(runtime, 'another')), false);
+      enableContinuation(await scopeFor(runtime, 'oracle'));
       const oracleEvent = {...event, session_id: 'oracle'};
       assert.deepEqual((await evaluateStop(oracleEvent, {...options, ledger: async () => ({code: 19})})).outcomes, ['ORACLE_FAIL']);
       const corrupted = JSON.parse(fs.readFileSync(scope.actors, 'utf8')); corrupted.runtime = 'wrong'; fs.writeFileSync(scope.actors, JSON.stringify(corrupted));
@@ -201,13 +208,14 @@ try {
     }
     assert.equal(new Set(sessions).size, 3);
     const common = antigravityEvent('stop', {...invocation, fullyIdle: false, executionNum: 1, terminationReason: 'NO_TOOL_CALL'});
+    enableContinuation(await scopeFor('antigravity', common.session_id));
     assert.deepEqual((await evaluateStop(common, {env: agEnv})).outcomes, ['RUNTIME_BUSY']);
     assert.deepEqual((await evaluateStop({...common, runtime_error: 'fixture failure'}, {env: agEnv})).outcomes, ['RUNTIME_ERROR']);
   });
   await check('allow control rejects a copied all-blocked guard mutation', async () => {
     const copy = path.join(temp, 'mutant'); fs.cpSync(root, copy, {recursive: true});
     const file = path.join(copy, 'lib/guard/guard.mjs'), before = fs.readFileSync(file, 'utf8');
-    const after = before.replace("result = { code: 0, stdout: '', stderr: '', rule };", "result = { code: 2, stdout: '', stderr: 'all blocked mutant', rule };");
+    const after = before.replace("result = { code: 0,", "result = { code: 2,");
     assert.notEqual(before, after); fs.writeFileSync(file, after);
     const mutant = await import(pathToFileURL(file));
     const result = await mutant.evaluateGuard(eventFor('claude', 'file', path.join(work, 'allowed.txt')), {env: envFor('claude')});

@@ -1,123 +1,64 @@
-# Runtime role contract
+# Role guidance and optional runtime contracts
 
-Before delegating in develop, verify-code or verify-implement, use this contract. Role discipline and SIGNAL vocabularies come from `roles/*.md`; the skill still owns result handling and RETRY checkpoints and explicit user budgets.
+## Ordinary delegation
+
+Use ordinary delegation for implementation, review and acceptance by default.
+Supply the repository/worktree, responsibility, relevant requirements and rules,
+and fixed commit range or identified working diff. Inspect the actual returned
+response against that scope. Keep the outcome, commit/diff, checks and limitations;
+the provider-returned child identity is useful for follow-up but no registration,
+begin/bind/complete inventory, role receipt, first-line SIGNAL or session audit is
+required to use meaningful findings or close verified work.
+
+`roles/*.md` retains responsibility guidance and its existing managed-response
+conventions. Those conventions describe role-oriented execution; ordinary
+responsibility prompts need not adopt their SIGNAL or ledger-stage format. This
+choice does not override user instructions, concrete safety constraints or an
+explicit project requirement for a particular role or independent review.
+`verify-code` owns risk-driven verification selection and grader independence.
+
+Reuse a reviewer for a bounded correction when useful, supplying the corrected
+scope and prior findings. Use a fresh reviewer when scope or authorship requires
+it. Missing optional infrastructure is not a reason to halt useful verification.
+Never turn an unavailable audit into a successful audit claim.
 
 ## Standalone investigation and review
 
-Use ordinary delegation for a user-requested investigation or review that does
-not close ledger tasks. Supply the repository, fixed commit range (or identified
-working diff), responsibilities and relevant rules. Keep the provider-returned
-child identity, response and inspected scope with the findings. No story, native
-registration, begin/bind/complete inventory or whole-session audit is required.
-The same independent reviewer can follow up on its findings. The parent can run
-tests that need permissions unavailable to the reviewing child and supply their
-actual results. A standalone report does not authorize ledger close.
+Standalone reviews follow the same ordinary path and finish with findings. They
+do not require a story or create authority for ledger writes or task closure.
+The parent may run checks unavailable to the child and supply actual results.
 
-Ordinary children carry no harness role policy. The guard still applies common
-workspace, runtime-state, remote-write and ledger-coordinate protections; host
-permissions and user authorization govern execution beyond those recognized
-effects. An opaque Python command is not proof of a write or a role claim.
-Reserve child path components beginning with `harness_` for managed delegation:
-`begin` generates that namespace. A managed child or its descendant must resolve
-its inventory; missing, corrupt or terminal evidence cannot become an ordinary
-child. Explicit role claims retain their role validation.
+## Tool boundaries
 
-The remaining sections govern delegated role execution. Local verification selected
-by verify-code requires no delegation inventory or role receipt.
+Ordinary child execution does not need delegation-inventory or provider-metadata
+lookup. A default or unidentified role remains ordinary; child-scoped workspace,
+runtime-state, remote-write and ledger-coordinate protections still apply.
+Recognized native roles retain their concrete tool restrictions. Prompts and
+registration alone do not establish host permission enforcement. Use runtime
+permissions when an actual read-only boundary is required and verify that boundary
+before claiming it. A passing hook is not proof of safety or user authorization.
 
-## Select the execution contract
+## Select an optional managed contract
 
-Roles define responsibilities and permission boundaries; native role registration
-is an optional execution mechanism. On `codex` / `collaboration`, use ordinary
-children with canonical role instructions through the generic protocol in
-[Runtime observations](transcripts.md#generic-parent-observations). The orchestrator
-selects this path without a separate user decision; its default policy is
-`permission: prompt-only`. Use native roles when available and useful, or when
-the user explicitly requires native execution. Record the selected path in the
-task execution-<role> summary before delegation.
+Choose managed/native auditing when the user or project requires it, or when its
+invocation history is useful to a concrete investigation. Its commands remain
+strict: invalid identity, stale sources, failed completion and missing observations
+cannot be reported as successful managed evidence. Record an attempted audit's
+actual status without making it a universal completion prerequisite.
 
-When native execution is unavailable, the orchestrator may select the generic
-path automatically unless the user requires native execution or enforced role
-permissions. Preserve a failed native attempt as failed; finish or interrupt its
-child before starting a fresh generic call. Never relabel a failed native result
-as OBSERVED. An explicit enforcement requirement remains unavailable on this
-provider and follows develop's human wait.
+For managed Codex collaboration, follow
+[Generic parent observations](transcripts.md#generic-parent-observations).
+`delegation.mjs capability` and `doctor.mjs delegation` inspect declared capability;
+the default permission is prompt-only and unsupported requested enforcement is
+unavailable. `OBSERVED` describes parent-observed execution, not semantic quality,
+registered native identity, model usage or enforced role permissions.
 
-`delegation.mjs capability <capability.json>` and `doctor.mjs delegation
-<capability.json>` consume the same capability function as generic begin. The JSON
-contains `runtime`, `provider`, and `permission`; require exit 0 and AVAILABLE.
-Omitting permission selects prompt-only; explicit unsupported values are rejected.
-`automaticNativeFallback` reports policy eligibility, not an executed fallback or
-authorization to override a user's native requirement. This diagnoses availability,
-not execution, hook activation or role loading.
-Doctor's native `check` retains its separate static/loaded/live judgments.
-
-Ordinary file reads, recognized read-only shell commands and internal collaboration
-reporting do not require role registration, a delegation inventory or metadata
-lookup. A passing read is permission to inspect, not role or completion evidence.
-For managed writes and commands outside that read subset, use the active
-SessionStart `data` and `sessionId` in the call, and the assigned canonical
-worktree as `repository`. Codex can deliver a
-thread UUID as `agent_id` and the built-in `default` profile as `agent_type`.
-For that shape, the guard uses the local CLI's App Server `initialize` →
-`initialized` → metadata-only `thread/read` protocol. It requires the exact UUID,
-matching `source.subAgent.thread_spawn.parent_thread_id` and canonical
-`agent_path`, and no custom role claim. It does not parse rollout files, resume a
-thread, request a model turn, or correlate children by timing. Missing metadata,
-an unavailable CLI, timeout or schema mismatch denies the tool. The CLI must read
-the same local Codex state as the active session; remote-only state is unavailable.
-The legacy canonical-path hook shape without `agent_type` remains supported.
-An ordinary canonical child path requires no inventory or state coordinates.
-UUID/default hooks use the metadata path to distinguish ordinary children from
-the reserved managed namespace; metadata failure remains UNREACHED, rather than
-guessing that a possibly managed child is ordinary.
-For managed children, the guard resolves the active dispatch in that session's inventory, checks
-role source, repository identity and any binding, and applies its assigned policy
-without filling in native identity. Persisted dispatch permits the
-first tool before bind returns; bind is still mandatory for result consumption.
-Unknown, mismatched, corrupt or terminal records deny role-dependent execution. Hook cwd may be
-the main checkout or a linked tree of the same Git repository. Missing hook
-identity or different state coordinates remain UNREACHED; do not search other
-sessions or copy inventories to make them match.
-
-An outcome written by complete ends the role-dependent permission window, including REJECTED.
-The parent must complete interrupted calls as rejected. A completed reviewer can
-be reused through a linked retry below; an interrupted child uses a fresh call and child.
-The guard cannot observe provider termination before the parent records it.
-These local checks do not establish provider permission enforcement: the same OS
-user can alter local records, and unobserved tools are outside the guard's reach.
-
-For the selected generic path, require exit 0 and `status: OBSERVED` from complete
-before handling the canonical role's SIGNAL. It attests parent-observed child
-identity and completion with `permission: prompt-only`, `enforcement: unavailable`
-and `nativeRoleEvidence: unavailable`; tool and token measurements are unknown.
-Supply the canonical role file by path as the child's instructions. Those prompts
-remain role discipline, but their prohibitions have no verified enforcement here.
-An OBSERVED evaluator MATCH can ground close in this generic path.
-It is not native REACHED, registered-role evidence or proof of semantic acceptance.
-
-Both paths preserve the calling skill's SIGNAL handling and persisted RETRY checkpoints and explicit user budgets.
-Each grader is independent of the parent and all implementation authors. When
-separate reviewer and evaluator calls are required, their children are distinct.
-Combined verification uses one evaluator as defined by `verify-code` "Verification path".
-For a fix review, reuse the independent reviewer when its earlier invocation
-completed and its context remains useful. Preserve the original review scope,
-earlier findings and a new result for the corrected head. Generic managed calls
-use `retryOf` and `reuseChild: true` as `transcripts.md` describes; a fresh child
-remains available. Keep earlier IDs as history, not a blanket ban on reuse.
-Native protocols that cannot isolate a new invocation use a fresh child or the
-generic path unless the user explicitly requires native execution.
-
-When an evaluator cannot start, reassess the verification path first. To link
-a fresh independent attempt to a failure in another session, consult
-[Cross-session independent evaluator recovery](transcripts.md#cross-session-independent-evaluator-recovery)
-for the supported scope, verified failure reference and capacity-wait procedure.
-
-Upsert the call and validated outcome with `ledger summary <task ID> execution-<role> --file <file>`, keeping private runtime
-identities and response evidence in the parent-owned local inventory when needed.
-PENDING, REJECTED, UNAVAILABLE and native UNREACHED never authorize signal handling
-or close. Preserve the task and failed evidence. For native unavailability, apply
-the execution-path selection above; otherwise use develop's human-wait procedure.
+For native audit, use Register, Call and Result below and the native observation
+procedure in [transcripts.md](transcripts.md). `REACHED` attests the validated
+observation contract, not correctness. An explicitly required native or enforced
+contract remains required when unavailable; choose another ordinary path only
+when the requirement permits it. Cross-session recovery is optional and described
+in [transcripts.md](transcripts.md#cross-session-independent-evaluator-recovery).
 
 ## Edit and inspect role settings
 
@@ -145,7 +86,7 @@ Keep the Codex marker on its own top-level line, with no existing
 Build Claude `agents/<role>.md` with `distribution.mjs generate` and check the
 artifact with `distribution.mjs check`; those files are generated discovery
 artifacts. For deployment and re-registration after either source changes,
-follow [installation.md](installation.md). Generic collaboration reads the
+follow [installation.md](installation.md). Managed generic collaboration reads the
 canonical role body and uses its dispatch options; native templates, including
 sandbox settings, do not configure that path.
 
@@ -183,7 +124,7 @@ verification and current-session observations for those separate questions.
 
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/roles.mjs register claude` to describe the existing Claude plugin roles. It validates and references the generated Claude files without rewriting them; Claude plugin registration is unchanged. For Codex, run `register codex <absolute native agents directory>` and save its JSON output as a registration receipt. Use one discovery scope: `<repo>/.codex/agents` or `<CODEX_HOME>/agents`. The generator assembles the selected native template with the role body and resolves its plugin-root pointers. Native declarations and generic Model selection below remain separate.
 
-Run `verify <registration.json>` before use. Missing files, changed sources, altered generated files and duplicate native names in that directory fail. Also check the runtime's discovered roles for duplicate identifiers from other scopes; the directory check cannot enumerate a runtime's effective configuration. Generated files are projections: after an update, review and remove the old generated files, then regenerate from the new install and replace the receipt. Keep the old install and receipt together for rollback. Never maintain generated role prose by hand.
+Run `verify <registration.json>` before claiming verified native registration. Missing files, changed sources, altered generated files and duplicate native names in that directory fail. Also check the runtime's discovered roles for duplicate identifiers from other scopes; the directory check cannot enumerate a runtime's effective configuration. Generated files are projections: after an update, review and remove the old generated files, then regenerate from the new install and replace the receipt. Keep the old install and receipt together for rollback. Never maintain generated role prose by hand.
 
 Owned projections still require exact bytes and source hashes. For other TOML files, the directory verifier reads the top-level name for collisions; the runtime validates unrelated fields. It distinguishes comments, quoted and multiline strings, arrays and inline tables so their contents cannot supply a false name. Dotted paths and fields after the first table header are not top-level scalar names. Names use single-line basic/literal strings, with bare or quoted keys and TOML escapes including `\uXXXX` and `\UXXXXXXXX`. Duplicate names, unreadable name values and unfinished strings or containers produce UNREACHED. Unrelated numeric, boolean, array, multiline instruction and table values do not prevent registration.
 
@@ -210,9 +151,8 @@ Sources: [OpenAI subagents](https://learn.chatgpt.com/docs/agent-configuration/s
 [models](https://learn.chatgpt.com/docs/models),
 [hooks](https://learn.chatgpt.com/docs/hooks), and
 [App Server](https://learn.chatgpt.com/docs/app-server).
-Generate the protocol schema with the installed CLI as the App Server guide
-describes; optional `agent_path` may be absent in another client version, which
-leaves generic hook identity UNREACHED.
+Provider metadata schemas may differ across clients. Ordinary execution does
+not require App Server metadata resolution.
 
 ## Call (native)
 
@@ -220,20 +160,25 @@ Save a request JSON containing `role`, `task` (the task or batch unit), `message
 
 Before native invocation, persist the required call with `workflow.mjs begin` as [Runtime observations](transcripts.md) specifies. It uses `roleCall` and records the observation boundary; standalone `roles.mjs call` validates a request but does not persist that inventory. Invoke the runtime's native delegate tool with the returned call's `identifier` and `message`: Claude uses `harness:<role>`, Codex uses `harness-<role>`. Record the returned child and invocation IDs before waiting. The CLI does not spawn a model or prove runtime loading. A generic child instructed to read a role file is not evidence of custom-role registration.
 
-For a retry, follow verify-code's persisted RETRY procedure before creating a new call. Native evidence requires a fresh child when the provider cannot isolate a new invocation. Use the generic linked-retry path to reuse a reviewer. Evaluator/reviewer IDs must differ from the parent and every implementation author.
+For a managed retry, create a new call while retaining the earlier result. Native evidence requires a fresh child when the provider cannot isolate a new invocation. Use the generic linked-retry path to reuse a reviewer. Evaluator/reviewer IDs must differ from the parent and every implementation author.
 
 ## Result (native)
 
-Use `workflow.mjs complete-native` with the actual native return recorded by the orchestrator, following [Runtime observations](transcripts.md). It loads ordinary events after begin, checks invocation ownership, and calls the existing `roleResult` contract. Require rc 0 and `status: REACHED` before handling its `signal` through the calling skill. The adapter checks ordered Start → tool → Stop events from the same session, role and instance, and the Stop result's first line against the current source role's vocabulary. Upsert call, outcome and result paths with `ledger summary <task ID> execution-<role> --file <file>` so identity and scope survive re-entry. These are evidence records, not an authenticated audit service: only the orchestrator supplies native returns, never a child's summary. `roles.mjs result` remains a direct contract inspector for explicit fixtures/probes; it does not replace ordinary inventory or its observation boundary.
+Use `workflow.mjs complete-native` with the actual native return recorded by the orchestrator, following [Runtime observations](transcripts.md). It loads ordinary events after begin, checks invocation ownership, and calls the existing `roleResult` contract. Require rc 0 and `status: REACHED` before claiming a successful native audit result. The adapter checks ordered Start → tool → Stop events from the same session, role and instance, and the Stop result's first line against the current source role's vocabulary. Upsert call, outcome and result paths with `ledger summary <task ID> execution-<role> --file <file>` so identity and scope survive re-entry. These are evidence records, not an authenticated audit service: only the orchestrator supplies native returns, never a child's summary. `roles.mjs result` remains a direct contract inspector for explicit fixtures/probes; it does not replace managed inventory or its observation boundary.
 
 Supply one invocation per child instance: exactly one Start and one Stop, with all tool starts between them. Repeated Start/Stop or tool starts after Stop make the result UNREACHED, including an unfinished follow-up after an earlier successful verdict. Use a fresh child and call for another judgment instead of combining responses from a reused instance.
 
-Missing identity, missing/unregistered SIGNAL, interrupted execution, stale registration and self-judgment produce `UNREACHED`: the standalone `roles.mjs` inspector returns rc 1; the ordinary `workflow.mjs` consumer returns rc 2. Preserve the task and failed evidence; native unavailability follows execution-path selection above, while identity or result-integrity failures follow develop's human-wait procedure. For independent verification, an independently reached evaluator MATCH grounds close; the explicit human scope-excess decision in verify-implement remains its own branch. A parent-written SIGNAL cannot replace required delegated judgment. The local
-verification path records checks and acceptance directly, without a role SIGNAL.
+Missing identity, missing/unregistered SIGNAL, interrupted execution, stale registration and self-judgment produce `UNREACHED`: the standalone `roles.mjs` inspector returns rc 1; the managed `workflow.mjs` consumer returns rc 2. Preserve failed evidence. A failed optional audit does not invalidate
+an ordinary review or authorize a success claim about the native contract.
+When the user requires that contract, resolve its failure before claiming that
+requirement met. Acceptance and close follow verify-implement's outcome comparison.
 
-The existing guard owns file/Git/ledger permissions through the common identity mapping. Role prompts and generated registration alone are not enforcement: disabled or unidentified hooks invalidate the runtime capability prerequisite. Transcript layouts are not used by this contract.
+Native role prompts and generated registration alone are not enforcement;
+verify actual hook activation and permission behavior when making such a claim.
+Storage is owned by [Runtime state](state.md); [Runtime observations](transcripts.md)
+owns optional audit consumers and transcript decoders. Missing association fails
+that audit without becoming a prerequisite for ordinary task completion.
 
-Ordinary paths and immutable storage are owned by [Runtime state](state.md); [Runtime observations](transcripts.md) owns their workflow consumer and optional transcript decoders. Missing ordinary call/outcome association is UNREACHED. Doctor evidence remains diagnostic.
 # Runtime parity adapters
 
 The [runtime role execution contract](runtime-roles.md) describes capability

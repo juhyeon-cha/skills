@@ -457,76 +457,20 @@ check_rbead() {
   return 0
 }
 
-# ── R-WAIT: 사람 대기 신호 목록의 단일 소유 ──────────────────────────
-# 왜: 목록이 두 곳에 있으면 서로의 부분집합이 아니게 갈라지고, 어느 쪽을 읽느냐로
-# 결론이 달라진다. 실제로 갈라져 있던 상태가 harness-dg0.6.39 의 대상이었고, 한쪽은
-# "모든 신호" 라고 적고도 한 신호를 빠뜨린 채였다.
-#
-# 두 축을 본다. 종전 결함이 정확히 이 둘로 나뉜다.
-#  ① 단일 소유 절이 살아 있고 **신호를 전부 들고 있다.** 빠지면 그 신호를 낸 역할의
-#     결과가 아무도 정하지 않은 채 사라진다. 단언은 절의 **표 행**에 건다 — 절 전체를
-#     보면 산문에 한 번 언급된 것만으로 만족돼, 표에서 신호가 빠져도 통과한다
-#     (실측: 표에서 SCOPE_EXCESS 행을 지운 사본이 rc=0 으로 통과했다).
-#  ② 그 절 **밖에서 목록을 다시 적은 줄이 없다.** 다시 적히는 순간 갈라짐이 시작된다.
-#
-# 후보 판정 — 한 줄에 "사람 대기" 가 있고 그 줄이 신호를 **둘 이상** 나열할 때만
-# 발동한다. 신호 하나를 처리하는 줄(develop 의 DECISION_NEEDED 처리 등)은 집합을
-# 정의하는 것이 아니라 받은 신호를 분배하는 자리라 후보가 아니다.
-#
-# 한계(확인한 것):
-#  · 다른 낱말로 적은 나열("사람에게 간다")과, 표로 쪼개 한 줄에 신호가 하나씩만
-#    오는 나열은 못 본다. 종전에 갈라졌던 두 자리가 둘 다 한 줄 나열이라 그 형태를
-#    잡는 것이 이 검사의 대상이고, 그 밖의 형태는 잡지 않는다.
-#    이 한계는 실물 2건과 겹친다(두 자리는 harness-g88o.3.2 의 영어화 뒤 문면이다):
-#    verify-implement/SKILL.md 의 "DEVIATION · DECISION_NEEDED or a value that is not
-#    in the list → report to the user and wait" 와 verify-code/SKILL.md 의
-#    "DECISION_NEEDED or a value that is not in the list → safe exit" 는
-#    신호를 둘 이상 들지만 1단 검색어(WAIT_TRIGGER)가 없어 안 잡힌다. 둘 다
-#    자기 역할의 SIGNAL 값을 분배하는 자리라 고칠 대상이 아니고(단일 소유 절이 그
-#    사실을 적는다), 면제표에 등재할 수도 없다 — 후보에 오르지 않으므로 역방향 단언이
-#    0건으로 죽는다. 낱말을 늘려 잡으면 이 둘이 오탐으로 들어온다.
-#  · 면제 앵커는 파일 한정이 아니라 후보 줄 전역의 부분문자열이다(R-REM 과 같다).
-#    역방향 단언은 ≥1건만 보므로 과소만 잡고 과폭은 못 잡는다.
-#  · WAIT_TOKENS 는 화이트리스트라 *토큰→표* 방향만 단언된다. 표에 행을 더하고 여기
-#    등재하지 않으면 그 신호만으로 이뤄진 절 밖 나열이 조용히 통과한다(새 신호의
-#    기본값이 "검사 안 됨" — 극성 반전 규율과 어긋나는 방향이다). 그래도 이쪽을 고른
-#    것은, 표에서 토큰을 파생하면 ① 단언이 "표가 표를 든다" 가 되어 공허해지기
-#    때문이다. 두 방향 중 하나만 살아남으며 지금 것이 의미 있는 쪽이다 — 뒤집지 마라.
-#  · **언어 교차**: 이 검사는 스캔 대상의 문면을 낱말로 판다. 대상에 영어 문서가 섞이면
-#    한국어 낱말만으로는 그 파일이 후보에 오르지 않고, 그 침묵이 통과로 읽힌다. 그래서
-#    1단 검색어와 서술어 토큰 셋에 영어 대안을 함께 든다. 그 영어 낱말을 안 쓰는 번역은
-#    다시 안 보이게 되므로 **낱말의 단일 소유는 아래 WAIT_TRIGGER·WAIT_TOKENS 자신이다.**
-#    WAIT_OWNER 의 절이 드는 것은 신호 *목록*이고 낱말의 영어 표기까지는 들지 않는다 —
-#    한때 그 절에도 같은 목록을 두었으나 두 목록이 곧 어긋났고(문서 셋 vs 여기 넷), 문서
-#    쪽을 따른 번역의 줄을 이 검사가 못 보게 된다. 번역하는 쪽은 여기를 읽는다.
-#
-# 부정 대조군(이 검사가 죽었는지): RWAIT_SCAN_EXTRA 에 파일 경로 하나를 주면 스캔 대상에
-#   더해진다(R-DUP 의 RDUP_SCAN_EXTRA 와 같은 규약). 영어 스킬 사본에 신호 둘 이상을 한 줄에
-#   나열한 줄을 주입해 그 경로로 주면 그 사본의 경로:줄을 지목하며 rc 1 이어야 한다.
-#   트리 안의 skills/ 에 사본을 두지 않아도 되게 하려는 것이 이 통로의 목적이다.
+# ── R-WAIT: human decision boundaries have one owner ─────────────────
+# Assert concrete decision/approval conditions in prose, not a mandatory SIGNAL
+# table. The scan catches same-line lists using the declared phrases; paraphrases
+# and lists split across lines remain outside this textual check.
+# RWAIT_SCAN_EXTRA adds a fixture for the duplicate-owner negative control.
 WAIT_OWNER="skills/develop/SKILL.md"
 WAIT_ANCHOR="## 사람 대기"
-# 1단 검색어. 스캔 대상에 영어 문서가 섞이면 한국어 낱말만으로는 후보가 0건이 되고,
-# 그 0건은 "나열이 없다" 가 아니라 "안 봤다" 다. 그래서 영어 표기를 함께 든다 — ERE 이고
-# grep -i 로 쓰므로 대소문자는 가리지 않는다. **영어 문서가 이 절을 가리킬 때 쓸 낱말은
-# 여기가 단일 소유다** — 문서에 같은 목록을 다시 적지 않는다.
 WAIT_TRIGGER='사람 대기|human wait'
-# 화이트리스트. 각 항목은 ERE 이고, 단일 소유 절이 **전부** 들고 있어야 한다.
-# 영어 대안을 함께 든 항목이 둘 있다 — 신호 이름이 아니라 서술어라 번역에서 낱말이
-# 통째로 바뀌는 것들이다. 나머지는 owner 표의 식별자 또는 정확한 신호 문구를 따른다. **쓸 영어 표기의 단일 소유가 여기다** — 번역하는 쪽이 읽을 자리이고, 문서에
-# 같은 목록을 두면 두 목록이 어긋난다.
-# 한계(확인한 것): 역방향 단언은 한국어 대안이 표 행에 걸려 성립하므로 영어 대안이 늘어도
-# 흔들리지 않는다 — 뒤집어 말하면 **영어 표기 쪽은 역방향으로 단언되지 않는다.** 오타가
-# 나면 그 표기를 쓴 줄을 조용히 못 보게 된다. 실측 근거는 부정 대조군(아래 RWAIT_SCAN_EXTRA)
-# 이고, 그것이 이 표기가 실제로 잡는다는 것을 재는 유일한 자리다.
 WAIT_TOKENS=(
-  'DECISION_NEEDED'
-  'DEVIATION'
-  'SCOPE_EXCESS'
-  'retry progress exhausted or explicit user budget reached'
-  'actor claim'
-  '목록에 없는 값|목록 밖 값|unlisted value|not in the list'
-  '종결 미완|cycle close incomplete'
+  'ambiguous scope'
+  'accepted scope changes'
+  'explicitly required permissions or runtime'
+  'conflicting live writer'
+  'explicit user budget reached'
 )
 # 면제 — 앵커 문자열. 고칠 수 없거나 고쳐서는 안 되는 자리만 사유와 함께 등재한다.
 # 지금은 없다 — 플러그인 트리에는 docs/ 의 실측 기록이 없다.
@@ -548,7 +492,7 @@ check_rwait() {
   while IFS= read -r p; do [[ -n "$p" ]] && flist+=("$p"); done <<< "$files"
   [[ -n "${RWAIT_SCAN_EXTRA:-}" ]] && flist+=("$RWAIT_SCAN_EXTRA")
   local probe; probe="$(mktemp)"
-  printf 'probe line: human wait — DECISION_NEEDED · DEVIATION\n' > "$probe"
+  printf 'probe line: human wait — ambiguous scope · accepted scope changes\n' > "$probe"
   flist+=("$probe")
   if [[ "${#flist[@]}" -lt 2 ]]; then
     echo "✗ R-WAIT — 스캔 대상 파생이 ${#flist[@]}건이다. 글롭이 죽었으면 잔존 0 은 '위반 없음' 이 아니라 '안 봤음' 이다"
@@ -557,7 +501,7 @@ check_rwait() {
 
   # 대상 단언 — 검사가 무엇을 보는지 못박는다. 파생이 조용히 좁아지는 것을 잡는다.
   for k in "$BLOCK" "$WAIT_OWNER" "roles/implementer.md"; do
-    if ! printf '%s\n' "${flist[@]}" | grep -qxF -- "$k"; then
+    if ! printf '%s\n' "${flist[@]}" | grep -xF -- "$k" >/dev/null; then
       echo "✗ R-WAIT — 스캔 대상에 '$k' 가 없다 (${#flist[@]}건 파생). 파생이 좁아졌다"
       return 1
     fi
@@ -573,14 +517,10 @@ check_rwait() {
     echo "✗ R-WAIT — 단일 소유 절이 비어 있다. 앵커만 남고 본문이 사라지면 목록이 없는 것과 같다"
     return 1
   fi
-  rows=$(printf '%s\n' "$sec" | grep '^| ' | grep -v '^|---')
-  if [[ "$(printf '%s' "$rows" | grep -c .)" -lt 2 ]]; then
-    echo "✗ R-WAIT — 단일 소유 절에 신호 표가 없다. 표를 다른 형태로 바꿨으면 이 파생을 고쳐라 (안 고치면 목록이 비어도 통과한다)"
-    return 1
-  fi
+  rows="$sec"
   for t in "${WAIT_TOKENS[@]}"; do
-    if ! printf '%s\n' "$rows" | grep -qE -- "$t"; then
-      echo "✗ R-WAIT 단일 소유 절의 표가 신호 '$t' 를 들고 있지 않다 — 목록에서 빠지면 그 신호를 낸 역할의 결과가 아무도 정하지 않은 채 사라진다"
+    if ! printf '%s\n' "$rows" | grep -E -- "$t" >/dev/null; then
+      echo "✗ R-WAIT 단일 소유 절이 조건 '$t' 를 들고 있지 않다 — 필요한 사람의 결정을 생략할 수 있다"
       f=1
     fi
   done
@@ -593,16 +533,16 @@ check_rwait() {
     body=${line#*:}; body=${body#*:}
     cnt=0
     for t in "${WAIT_TOKENS[@]}"; do
-      printf '%s' "$body" | grep -qE -- "$t" && cnt=$((cnt+1))
+      printf '%s' "$body" | grep -E -- "$t" >/dev/null && cnt=$((cnt+1))
     done
     [[ "$cnt" -ge 2 ]] || continue
     # 단일 소유 절의 줄은 정의라 후보에서 뺀다 — 그 절이 목록을 드는 유일한 자리다.
-    if [[ "$fpath" == "$WAIT_OWNER" ]] && printf '%s\n' "$sec" | grep -qxF -- "$body"; then continue; fi
+    if [[ "$fpath" == "$WAIT_OWNER" ]] && printf '%s\n' "$sec" | grep -xF -- "$body" >/dev/null; then continue; fi
     cand="${cand}${line}"$'\n'
   done <<< "$(grep -nHiE -- "$WAIT_TRIGGER" "${flist[@]}" 2>/dev/null)"
 
   # 패턴 자기 시험 — 합성 줄이 후보에 올라야 한다. 그 뒤 잔존에서 뺀다.
-  if ! printf '%s' "$cand" | grep -qF -- "$probe:"; then
+  if ! printf '%s' "$cand" | grep -F -- "$probe:" >/dev/null; then
     echo "✗ R-WAIT 나열 패턴이 죽었다 — 신호 둘을 한 줄에 나열한 합성 줄이 후보에 오르지 않는다. 절 밖 나열 0줄이 '위반 없음' 이 아니라 '안 봤음' 이 된다"
     rm -f "$probe"; return 1
   fi

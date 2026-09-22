@@ -215,10 +215,12 @@ export async function checkRules(options = {}) {
     acc = judgeAcceptance(rows),
     s22 = judgeS22(rows, scope, byId),
     s24 = judgeS24(rows, byId);
-  const errors = [...r5.errors, ...acc.errors, ...s22.errors, ...s24.errors];
+  const errors = r5.errors;
+  const warnings = [...acc.errors, ...s22.errors, ...s24.errors];
   const output = [
     `원장 루트: ${context.root}`,
     ...errors.map((line) => `✗ ${line}`),
+    ...warnings.map((line) => `⚠ Advisory: ${line}`),
     ...s22.messages.map((line) => `  · ${line}`),
   ];
   if (!r5.errors.length) output.push(`✓ R5 태스크 repo: 라벨 정확히 1개 (대상 ${r5.covered}건)`);

@@ -1,10 +1,15 @@
-# Runtime observations and ordinary outcomes
+# Optional managed observations and audit
 
 `lib/transcripts/` owns format-specific decoding. `lib/transcript.mjs` owns A9 and retrospective aggregation; role names and SIGNAL vocabularies come from the existing role modules and `roles/*.md`. `lib/runtime/workflow.mjs` connects the ordinary session store to `roleCall`/`roleResult`. The ledger remains task state and acceptance authority. A retrospective report never closes work.
 
-## Ordinary native delegation
+This document is for explicitly selected managed auditing or retrospective
+measurement. Ordinary implementation, review and acceptance use [roles.md](roles.md)
+and require none of these commands. A failed audit remains failed; it does not
+invalidate independently obtained ordinary findings or block unrelated work.
 
-For the native contract selected in [roles.md](roles.md), use this path before every required implementation/review/evaluation, including a retry. Save the SessionStart `HARNESS_STATE_JSON` object as `scope.json`: `runtime`, `repository`, `sessionId`, and the observed absolute `data` directory. The workflow resolver passes that directory explicitly; hook environment inheritance is unnecessary. Save the registered role receipt and the request described in [roles.md](roles.md), adding a unique `callId`.
+## Managed native delegation
+
+For an explicitly selected native audit, use this path for each invocation being audited, including a retry. Save the SessionStart `HARNESS_STATE_JSON` object as `scope.json`: `runtime`, `repository`, `sessionId`, and the observed absolute `data` directory. The workflow resolver passes that directory explicitly; hook environment inheritance is unnecessary. Save the registered role receipt and the request described in [roles.md](roles.md), adding a unique `callId`.
 
 ```text
 node <plugin>/scripts/workflow.mjs begin <scope.json> <registration.json> <request.json>
@@ -18,7 +23,7 @@ Invoke the actual registered native role and wait using the runtime's native too
 node <plugin>/scripts/workflow.mjs complete-native <scope.json> <registration.json> <call-id> <native-outcome.json>
 ```
 
-Completion loads ordinary hook observations after begin. It rejects changed/truncated history, mismatched session/role/instance, interrupted results and different native/hook SIGNALs, and delegates role discipline to `roleResult`. A session-wide completion lock prevents one native call or child instance from satisfying two inventories. Immutable outcome and result records preserve UNREACHED as well as REACHED; a retry needs a fresh call and child through the existing RETRY procedure. Keep the inventory rather than overwriting a failed attempt. A missing or failed result is exit 2; require REACHED before the calling skill handles its signal.
+Completion loads ordinary hook observations after begin. It rejects changed/truncated history, mismatched session/role/instance, interrupted results and different native/hook SIGNALs, and delegates role discipline to `roleResult`. A session-wide completion lock prevents one native call or child instance from satisfying two inventories. Immutable outcome and result records preserve UNREACHED as well as REACHED; a retry needs a fresh call and child with prior evidence retained. Keep the inventory rather than overwriting a failed attempt. A missing or failed result is exit 2; require REACHED before claiming a successful native audit.
 
 This is local evidence handling, not authentication of native tool returns. The orchestrator owns their provenance. A manually written completed flag does not prove execution, and stored files do not protect against same-user tampering. The hook chain is an additional necessary observation, not a replacement for that responsibility. Raw response bodies are used for validation and are not copied into the outcome store; only identity, status, format and first-line SIGNAL persist there.
 
@@ -36,9 +41,9 @@ the original tool returns locally so a grader can compare their provenance.
    `callId`, `role`, `task`, `sourceHash`, `commitScope`, `implementerIds`,
    `previousAgentIds`, and optional `permission: "prompt-only"` (the default). Optional `modelOptions` follows roles.md. Obtain sourceHash
    from `loadRole(role, pluginRoot).sha256` in `lib/runtime/roles.mjs`. Use the actual
-   parent session identity. For guarded execution, take `data` and `sessionId`
-   from the active SessionStart context as [roles.md](roles.md) requires; an
-   arbitrary inventory directory cannot be discovered by the hook.
+   parent session identity. For scoped audit records, take `data` and `sessionId`
+   from the actual SessionStart context; an arbitrary directory does not establish
+   the same session identity.
    Implementation scope is `{mode: "implementation", base, branch}` with the clean
    starting HEAD. Grader scope is `{mode: "fixed", base, head, branch}` pinned before
    dispatch. Use full commit SHAs. Populate author and earlier child IDs from records.
@@ -61,7 +66,7 @@ the original tool returns locally so a grader can compare their provenance.
    `agent_name` and `agent_status`; a completed status is `{completed: <full response>}`.
    Obtain a new completion snapshot after this invocation finishes; never reuse the
    previous turn's completed snapshot. Use the real returned body, not the child's account of a tool result. Require rc 0
-   and OBSERVED before handling its signal. Running/interrupted status, missing body,
+   and OBSERVED before claiming its managed outcome. Running/interrupted status, missing body,
    wrong SIGNAL, identity/source/commit mismatch and duplicate completion reject.
 5. Run `audit <context.json>` with only version, runtime, provider, repository, data,
    sessionId and parentAgentId from the call. It reads every call in this inventory;
@@ -73,8 +78,7 @@ the original tool returns locally so a grader can compare their provenance.
    execution-history check, not acceptance; an OBSERVED CHANGES_REQUESTED is not LGTM.
 
 All commands take exactly an action and one JSON file. Failed validation returns
-nonzero; PENDING is not completion. A retry needs a new call linked with `retryOf: <prior callId>` under the
-existing progress/budget rule. The prior call must be terminal, with the same
+nonzero; PENDING is not completion. A retry needs a new call linked with `retryOf: <prior callId>` with earlier evidence retained and explicit user budgets respected. The prior call must be terminal, with the same
 task, role, repository and base; a fixed head may advance to a descendant.
 Unlinked calls cannot resolve a failure. Failed or interrupted execution uses
 a fresh child. A completed reviewer can use `reuseChild: true`: begin returns
@@ -86,9 +90,8 @@ Complete consumes a new response through the same list_agents observation;
 old results are never renamed or overwritten. A native-only requirement keeps
 its native observation boundary.
 
-Branch, HEAD and cleanliness are checked at begin and complete. Binding and
-tool permission checks retain identity and repository checks without repeating
-those mutable-tree checks. A result for the wrong or dirty final tree is rejected. Keep all
+Branch, HEAD and cleanliness are checked at begin and complete. Binding retains identity and repository checks without repeating
+those mutable-tree checks. Ordinary tool execution does not depend on this inventory. A result for the wrong or dirty final tree is rejected. Keep all
 request/outcome files and the actual observation source for re-entry and grading.
 The immutable outcomes store signal and response hash rather than the full body.
 

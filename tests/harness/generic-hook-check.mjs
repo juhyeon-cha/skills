@@ -47,7 +47,7 @@ try {
     {tool_name: 'apply_patch', tool_input: {command: `*** Begin Patch\n*** Add File: ${worktree}/ordinary.txt\n+allowed\n*** End Patch`}},
     {tool_name: 'collaborationspawn_agent', tool_input: {task_name: 'nested', message: 'Inspect locally'}},
   ]) assert.equal((await ordinaryGuard(action)).code, 0, JSON.stringify(action));
-  assert.equal((await ordinaryGuard({agent_type: 'unknown'})).code, 2);
+  assert.equal((await ordinaryGuard({agent_type: 'unknown'})).code, 0);
   assert.equal((await ordinaryGuard({agent_type: 'harness-reviewer', tool_name: 'Write',
     tool_input: {file_path: path.join(worktree, 'blocked.txt')}})).code, 2,
   'a native role claim still selects its restrictions');
@@ -67,56 +67,43 @@ try {
   for (const childPath of ['/root/harness_missing', '/root/harness_missing/nested']) {
     const reply = structuredClone(ordinaryMetadata);
     reply.thread.source.subAgent.thread_spawn.agent_path = childPath;
-    assert.equal((await ordinaryGuard({}, reply)).code, 2, 'managed namespace cannot lose its inventory');
+    assert.equal((await ordinaryGuard({}, reply)).code, 0, 'managed names do not require inventory for ordinary tools');
   }
-  // Prove both sides of the classification gate using changed source copies.
-  const classification = "if (!child.split('/').some(part => part.startsWith('harness_'))) return null;";
-  for (const [label, replacement, childPath, expected] of [
-    ['restore-blanket-denial', '', '/root/generic_probe', 2],
-    ['disable-managed-boundary', 'return null;', '/root/harness_missing', 0],
-  ]) {
-    const copy = path.join(temp, label);
-    fs.cpSync(plugin, copy, {recursive: true});
-    const source = path.join(copy, 'lib/runtime/delegation.mjs');
-    const original = fs.readFileSync(source, 'utf8');
-    assert.ok(original.includes(classification));
-    fs.writeFileSync(source, original.replace(classification, replacement));
-    assert.notEqual(fs.readFileSync(source, 'utf8'), original);
-    const mutant = await import(pathToFileURL(path.join(copy, 'lib/guard/guard.mjs')));
-    const reply = structuredClone(ordinaryMetadata);
-    reply.thread.source.subAgent.thread_spawn.agent_path = childPath;
-    const result = await mutant.evaluateGuard(ordinary, {pluginRoot: copy, env, readThread: async () => reply});
-    assert.equal(result.code, expected, label + ': ' + result.stderr);
-    if (expected === 2) assert.match(result.stderr, /child role is unidentified/);
-  }
+  // The default guard must not consult metadata, even when the runtime is offline.
+  let metadataReads = 0;
+  assert.equal((await evaluateGuard(ordinary, {pluginRoot: plugin, env,
+    readThread: async () => { metadataReads++; throw Error('offline'); }})).code, 0);
+  assert.equal(metadataReads, 0);
+  // A restored metadata gate must be detected by the ordinary-child control.
+  const copy = path.join(temp, 'metadata-gate-mutant');
+  fs.cpSync(plugin, copy, {recursive: true});
+  const source = path.join(copy, 'lib/guard/guard.mjs');
+  const original = fs.readFileSync(source, 'utf8');
+  const anchor = 'event = normalizeHookEvent(raw, { env });';
+  assert.ok(original.includes(anchor));
+  fs.writeFileSync(source, original.replace(anchor, "throw new Error('restored metadata gate');"));
+  const mutant = await import(pathToFileURL(source));
+  assert.equal((await mutant.evaluateGuard(ordinary, {pluginRoot: copy, env})).code, 2);
   const call = { version: 1, runtime: 'codex', provider: 'collaboration', repository: worktree, data: env.HARNESS_DATA_DIR, sessionId: 'generic-session', parentAgentId: '/root', callId: 'read-review', role: 'reviewer', task: 'fixture#1', sourceHash: loadRole('reviewer', plugin).sha256, commitScope: { mode: 'fixed', base: head, head, branch: 'worktree-fixture' }, implementerIds: ['/root/author'], previousAgentIds: [], permission: 'prompt-only' };
   const pending = await beginDelegation(call, { root: plugin, env });
   assert.equal(pending.status, 'PENDING');
   const child = `/root/${pending.dispatch.task_name}`;
   // Hook cwd is the parent session checkout; the call is bound to its linked tree.
-  // A command outside the read exemption exercises the role-dependent path.
-  // Ordinary reads are covered by child-read-check and need no inventory.
+  // Commands remain executable before and after explicit audit binding.
   const event = { tool_name: 'Bash', cwd: repo, session_id: call.sessionId, agent_id: child, tool_input: { command: 'node --version' } };
   const guard = (changes = {}) => evaluateGuard({ ...event, ...changes }, { pluginRoot: plugin, env });
   const beforeBind = await guard();
   const bound = await bindDelegation({ call, observation: { source: 'parent-tool-return', tool: 'collaboration.spawn_agent', value: { task_name: child } } }, { root: plugin, env });
   assert.equal(bound.status, 'PENDING');
   const afterBind = await guard();
-  if (process.argv.includes('--baseline')) {
-    for (const result of [beforeBind, afterBind]) {
-      assert.equal(result.code, 2);
-      assert.match(result.stderr, /child role is unidentified/);
-    }
-    assert.equal((await guard({ agent_type: 'harness-reviewer' })).code, 0);
-    console.log('PASS baseline: begin/bind PENDING; generic command rejected before and after bind; native command allowed');
-  } else {
+  {
     assert.equal(pending.dispatch.model, undefined);
     assert.equal(pending.dispatch.reasoning_effort, undefined);
     assert.equal(pending.dispatch.fork_turns, undefined);
     assert.equal(beforeBind.code, 0, beforeBind.stderr);
     assert.equal(afterBind.code, 0, afterBind.stderr);
-    // Codex 0.154.0 actual hook shape: UUID + default profile. The tool path
-    // comes from App Server metadata, not from time ordering or child prose.
+    // Codex UUID/default metadata, including malformed or absent metadata,
+    // must not select permissions for an ordinary tool call.
     const nativeEvent = { ...event, agent_id: '01a093ff-1e5b-7302-9ed5-8ba5379852bb', agent_type: 'default' };
     const metadata = { thread: { id: nativeEvent.agent_id, source: { subAgent: { thread_spawn: {
       parent_thread_id: call.sessionId, depth: 1, agent_path: child, agent_role: null,
@@ -124,7 +111,7 @@ try {
     const nativeGuard = (changes = {}, reply = metadata) => evaluateGuard({ ...nativeEvent, ...changes }, {
       pluginRoot: plugin, env, readThread: async () => reply,
     });
-    assert.equal((await nativeGuard()).code, 0, 'UUID/default resolves via authoritative path');
+    assert.equal((await nativeGuard()).code, 0, 'UUID/default needs no metadata');
     for (const edit of [
       r => { r.thread.id = 'different'; },
       r => { r.thread.source.subAgent.thread_spawn.parent_thread_id = 'foreign'; },
@@ -134,16 +121,30 @@ try {
       r => { r.thread.source = 'cli'; },
     ]) {
       const reply = structuredClone(metadata); edit(reply);
-      assert.equal((await nativeGuard({}, reply)).code, 2);
+      assert.equal((await nativeGuard({}, reply)).code, 0);
     }
-    assert.equal((await nativeGuard({ agent_id: child })).code, 2, 'default requires runtime UUID');
-    assert.equal((await evaluateGuard(nativeEvent, { pluginRoot: plugin, env, readThread: async () => { throw Error('offline'); } })).code, 2);
-    assert.equal((await nativeGuard({ tool_name: 'Write', tool_input: { file_path: path.join(worktree, 'blocked.txt') } })).code, 2);
-    assert.equal((await nativeGuard({ tool_name: 'Bash', tool_input: { command: 'git commit -m blocked' } })).code, 2);
+    assert.equal((await nativeGuard({ agent_id: child })).code, 0, 'default does not require runtime UUID');
+    assert.equal((await evaluateGuard(nativeEvent, { pluginRoot: plugin, env, readThread: async () => { throw Error('offline'); } })).code, 0);
+    assert.equal((await nativeGuard({ tool_name: 'Write', tool_input: { file_path: path.join(worktree, 'blocked.txt') } })).code, 0);
+    assert.equal((await nativeGuard({ tool_name: 'Bash', tool_input: { command: 'git commit -m blocked' } })).code, 0);
     const hook = spawnSync(process.execPath, [path.join(plugin, 'hooks/guard.mjs')], { env: { ...env, CLAUDE_PLUGIN_ROOT: plugin }, input: JSON.stringify(event), encoding: 'utf8' });
     assert.equal(hook.status, 0, hook.stderr);
+    const doctor = path.join(temp, 'doctor'); fs.mkdirSync(doctor);
+    for (const challenge of ['{broken', JSON.stringify({expires: 0})]) {
+      fs.writeFileSync(path.join(doctor, 'challenge.json'), challenge);
+      for (const [tool_input, expected] of [[{command: 'node --version'}, 0], [{command: 'git push origin HEAD'}, 2]]) {
+        const observed = spawnSync(process.execPath, [path.join(plugin, 'scripts/hook.mjs'), 'guard', '--runtime', 'codex'], {
+          env: {...env, CLAUDE_PLUGIN_ROOT: plugin, HARNESS_DOCTOR_DIR: doctor},
+          input: JSON.stringify({...event, hook_event_name: 'PreToolUse', tool_input}), encoding: 'utf8',
+        });
+        assert.equal(observed.status, expected, observed.stderr);
+        assert.match(observed.stderr, /diagnostic|doctor/i);
+        if (expected === 2) assert.match(observed.stderr, /remote|push/i);
+      }
+    }
+
     assert.equal((await guard({ cwd: worktree })).code, 0);
-    for (const changes of [{ session_id: 'foreign' }, { session_id: undefined }, { agent_type: 'unknown' }]) assert.equal((await guard(changes)).code, 2);
+    for (const changes of [{ session_id: 'foreign' }, { session_id: undefined }, { agent_type: 'unknown' }]) assert.equal((await guard(changes)).code, 0);
     assert.equal((await guard({agent_id: '/root/unregistered'})).code, 0);
     assert.equal((await guard({agent_id: '/root/unregistered', harness_policy_role: 'harness:reviewer'})).code, 0);
     assert.equal((await ordinaryGuard()).code, 0, 'unrelated managed inventory does not enroll ordinary children');
@@ -156,7 +157,7 @@ try {
       const original = fs.readFileSync(target, 'utf8');
       try {
         fs.writeFileSync(target, edit(JSON.parse(original)));
-        assert.equal((await guard()).code, 2, `${suffix} corruption must fail closed`);
+        assert.equal((await guard()).code, 0, `${suffix} corruption is not execution authority`);
         assert.equal((await ordinaryGuard()).code, 0, 'unrelated corrupt records do not enroll ordinary children');
         assert.equal((await guard({tool_name: 'Read', tool_input: {file_path: path.join(worktree, '.harness.json')}})).code, 0,
           'corrupt role evidence must not block inspection');
@@ -173,30 +174,30 @@ try {
     fs.mkdirSync(foreign);
     const initialized = spawnSync('git', ['init', '-q', foreign], { env, encoding: 'utf8' });
     assert.equal(initialized.status, 0, initialized.stderr);
-    assert.equal((await guard({ cwd: foreign })).code, 2, 'other repository cannot borrow inventory');
-    assert.equal((await evaluateGuard(event, { pluginRoot: plugin, env: { ...env, HARNESS_DATA_DIR: path.join(temp, 'foreign-data') } })).code, 2);
+    assert.equal((await guard({ cwd: foreign })).code, 0, 'ordinary commands need no inventory');
+    assert.equal((await evaluateGuard(event, { pluginRoot: plugin, env: { ...env, HARNESS_DATA_DIR: path.join(temp, 'foreign-data') } })).code, 0);
     assert.equal((await guard({ agent_type: 'harness-reviewer' })).code, 0);
     for (const changes of [
       { tool_name: 'Write', tool_input: { file_path: path.join(worktree, 'blocked.txt'), content: 'no' } },
       { tool_name: 'Bash', tool_input: { command: 'git commit -m forbidden' } },
       { tool_name: 'Bash', tool_input: { command: 'ledger.mjs note fixture#1 forbidden' } },
     ]) {
-      assert.equal((await guard(changes)).code, 2);
+      assert.equal((await guard(changes)).code, changes.tool_name === 'Write' || changes.tool_input.command.startsWith('git commit') ? 0 : 2);
       assert.equal((await guard({ ...changes, agent_type: 'harness-reviewer' })).code, 2);
     }
     const outcome = await completeDelegation({ call, head, observation: { source: 'parent-tool-return', tool: 'collaboration.list_agents', value: { agents: [{ agent_name: child, agent_status: { completed: 'SIGNAL: UNREACHED' } }] } } }, { root: plugin, env });
     assert.equal(outcome.status, 'REJECTED');
-    assert.equal((await guard()).code, 2);
+    assert.equal((await guard()).code, 0);
     assert.equal((await guard({tool_name: 'Read', tool_input: {file_path: path.join(worktree, '.harness.json')}})).code, 0,
-      'terminal result ends role permission, not inspection');
-    assert.equal((await nativeGuard()).code, 2, 'UUID cannot revive a terminal call');
+      'terminal audit still permits inspection');
+    assert.equal((await nativeGuard()).code, 0, 'terminal audit does not end ordinary execution');
     const successfulCall = { ...call, callId: 'successful-review' };
     const successful = await beginDelegation(successfulCall, { root: plugin, env });
     const successfulChild = `/root/${successful.dispatch.task_name}`;
     await bindDelegation({ call: successfulCall, observation: { source: 'parent-tool-return', tool: 'collaboration.spawn_agent', value: { task_name: successfulChild } } }, { root: plugin, env });
     const accepted = await completeDelegation({ call: successfulCall, head, observation: { source: 'parent-tool-return', tool: 'collaboration.list_agents', value: { agents: [{ agent_name: successfulChild, agent_status: { completed: 'SIGNAL: LGTM' } }] } } }, { root: plugin, env });
     assert.equal(accepted.status, 'OBSERVED');
-    assert.equal((await guard({ agent_id: successfulChild })).code, 2, 'successful completion also ends execution');
+    assert.equal((await guard({ agent_id: successfulChild })).code, 0, 'successful audit does not end ordinary execution');
     const implementation = { ...call, callId: 'implementation', role: 'implementer', sourceHash: loadRole('implementer', plugin).sha256, commitScope: { mode: 'implementation', base: head, branch: 'worktree-fixture' }, implementerIds: [] };
     const impl = await beginDelegation(implementation, { root: plugin, env });
     const implChild = `/root/${impl.dispatch.task_name}`;
@@ -205,7 +206,7 @@ try {
     fs.writeFileSync(path.join(worktree, 'dirty.txt'), 'implementation in progress');
     assert.equal((await guard(write)).code, 0, 'implementation dirty tree remains executable');
     assert.equal((await guard({ agent_id: implChild, tool_name: 'Bash', tool_input: { command: 'git push origin HEAD' } })).code, 2);
-    console.log('PASS generic hook: ordinary children allowed; managed corrupt/terminal evidence and common protections retained; 2 classification mutations verified');
+    console.log('PASS generic hook: ordinary children allowed; audit records do not authorize execution; native and common protections retained; restored gate mutation verified');
   }
 } finally {
   fs.rmSync(temp, { recursive: true, force: true });
