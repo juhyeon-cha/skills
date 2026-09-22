@@ -61,11 +61,11 @@ try {
     assert.ok(body.endsWith(special));
     assert.ok(body.includes(runtime === 'claude' ? '${CLAUDE_PLUGIN_ROOT}' : installedRoot));
   }
-  assert.throws(() => inspectDistribution(fixture), /generated drift/);
+  assert.throws(() => inspectDistribution(fixture), /generated Claude role drift: reviewer/);
   generateDistribution(fixture);
   const native = path.join(fixture, 'native/claude/reviewer.md');
   fs.appendFileSync(native, '\n');
-  assert.throws(() => inspectDistribution(fixture), /generated drift/);
+  assert.throws(() => inspectDistribution(fixture), /generated Claude role drift: reviewer/);
   console.log('PASS native slots reject missing, duplicate, misplaced and assigned instructions; body bytes and stale output');
 
   const directory = path.join(temp, 'agents');
