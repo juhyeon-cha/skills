@@ -1,0 +1,387 @@
+{
+  "questions": [
+    "금액 필드 이름과 단위는?",
+    "계약 변경 시 소비자는 무엇을 변경하나?",
+    "어떤 검사가 운영 배포를 보장하나?",
+    "재시도 상한은?",
+    "JSON 예제의 필드와 값은?",
+    "숨겨진 저장소나 오래된 본문에서 답할 수 있나?",
+    "METADATA_ONLY_771은 문서 근거로 검색되는가?",
+    "양자결제를 지원하는가?"
+  ],
+  "searches": [
+    {
+      "query": "금액 단위",
+      "response": {
+        "projection_id": "d814062d995afc971c2c1b8fc58aa4f7686f121f33f3c3fa5c194e5bc5714726",
+        "read_at": "2026-09-23T13:45:16.467827+00:00",
+        "goal": "contract",
+        "version": "v1",
+        "status": "active",
+        "completion": "complete",
+        "index": "current",
+        "served": "current",
+        "required_count": 2,
+        "withheld_count": 0,
+        "integration": "verified",
+        "schema_version": 1,
+        "query": "금액 단위",
+        "results": [
+          {
+            "repository": "producer",
+            "path": "contract.md",
+            "title": "생산자 계약",
+            "section": "금액",
+            "excerpt": "금액 필드 단위 표현 total KRW 정수 금액 단위는 KRW이며 total은 정수입니다.",
+            "url": "/documents/producer/contract.md/#doc-%EA%B8%88%EC%95%A1",
+            "validation": "verified",
+            "validation_detail": {
+              "stage": "complete",
+              "code": "verified",
+              "next_action": "none"
+            },
+            "current": {
+              "commit": "2dbd42effebf8b8da993992b8feb15a025e7907c",
+              "snapshot": "a393e808110f9a10d9fef762ec761a02b05d4de45d1e9e00f804fd8c76102263",
+              "files": [
+                {
+                  "path": "app.py",
+                  "mode": "100644",
+                  "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                  "text": "# producer\nvalue = 'total'\n"
+                }
+              ]
+            },
+            "target": "producer-secret total target",
+            "review_synthetic": true
+          }
+        ]
+      },
+      "arrival_files": [
+        "arrival-1-0.html"
+      ]
+    },
+    {
+      "query": "변경 total",
+      "response": {
+        "projection_id": "d814062d995afc971c2c1b8fc58aa4f7686f121f33f3c3fa5c194e5bc5714726",
+        "read_at": "2026-09-23T13:45:17.328513+00:00",
+        "goal": "contract",
+        "version": "v1",
+        "status": "active",
+        "completion": "complete",
+        "index": "current",
+        "served": "current",
+        "required_count": 2,
+        "withheld_count": 0,
+        "integration": "verified",
+        "schema_version": 1,
+        "query": "변경 total",
+        "results": [
+          {
+            "repository": "consumer",
+            "path": "guide.md",
+            "title": "소비자 안내",
+            "section": "변경 영향",
+            "excerpt": "변경 영향 계약 변경 시 amount를 읽던 소비자 코드를 total을 읽도록 변경합니다. 생산자 설명은 별도 저장소에서 확인.",
+            "url": "/documents/consumer/guide.md/#doc-%EB%B3%80%EA%B2%BD-%EC%98%81%ED%96%A5",
+            "validation": "verified",
+            "validation_detail": {
+              "stage": "complete",
+              "code": "verified",
+              "next_action": "none"
+            },
+            "current": {
+              "commit": "32cdecf53d0d1007696523eed4d38b097b27588b",
+              "snapshot": "ab7daa136425ba8f226ff0d7bb1cd2967dfaaf049ba43aa482d20ab9398bbadd",
+              "files": [
+                {
+                  "path": "app.py",
+                  "mode": "100644",
+                  "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                  "text": "# consumer\nvalue = 'total'\n"
+                }
+              ]
+            },
+            "target": "consumer-secret total target",
+            "review_synthetic": true
+          }
+        ]
+      },
+      "arrival_files": [
+        "arrival-2-0.html"
+      ]
+    },
+    {
+      "query": "운영 배포",
+      "response": {
+        "projection_id": "d814062d995afc971c2c1b8fc58aa4f7686f121f33f3c3fa5c194e5bc5714726",
+        "read_at": "2026-09-23T13:45:18.357636+00:00",
+        "goal": "contract",
+        "version": "v1",
+        "status": "active",
+        "completion": "complete",
+        "index": "current",
+        "served": "current",
+        "required_count": 2,
+        "withheld_count": 0,
+        "integration": "verified",
+        "schema_version": 1,
+        "query": "운영 배포",
+        "results": [
+          {
+            "repository": "consumer",
+            "path": "guide.md",
+            "title": "소비자 안내",
+            "section": "검증",
+            "excerpt": "검증 로컬 계약 검사는 필드 전달과 정수 처리를 확인합니다. 운영 배포는 검증하지 않았습니다.",
+            "url": "/documents/consumer/guide.md/#doc-%EA%B2%80%EC%A6%9D",
+            "validation": "verified",
+            "validation_detail": {
+              "stage": "complete",
+              "code": "verified",
+              "next_action": "none"
+            },
+            "current": {
+              "commit": "32cdecf53d0d1007696523eed4d38b097b27588b",
+              "snapshot": "ab7daa136425ba8f226ff0d7bb1cd2967dfaaf049ba43aa482d20ab9398bbadd",
+              "files": [
+                {
+                  "path": "app.py",
+                  "mode": "100644",
+                  "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                  "text": "# consumer\nvalue = 'total'\n"
+                }
+              ]
+            },
+            "target": "consumer-secret total target",
+            "review_synthetic": true
+          }
+        ]
+      },
+      "arrival_files": [
+        "arrival-3-0.html"
+      ]
+    },
+    {
+      "query": "재시도 상한",
+      "response": {
+        "projection_id": "d814062d995afc971c2c1b8fc58aa4f7686f121f33f3c3fa5c194e5bc5714726",
+        "read_at": "2026-09-23T13:45:19.223628+00:00",
+        "goal": "contract",
+        "version": "v1",
+        "status": "active",
+        "completion": "complete",
+        "index": "current",
+        "served": "current",
+        "required_count": 2,
+        "withheld_count": 0,
+        "integration": "verified",
+        "schema_version": 1,
+        "query": "재시도 상한",
+        "results": [
+          {
+            "repository": "producer",
+            "path": "contract.md",
+            "title": "생산자 계약",
+            "section": "정책",
+            "excerpt": "정책 재시도 상한은 최대 3회입니다.",
+            "url": "/documents/producer/contract.md/#doc-%EC%A0%95%EC%B1%85-2",
+            "validation": "verified",
+            "validation_detail": {
+              "stage": "complete",
+              "code": "verified",
+              "next_action": "none"
+            },
+            "current": {
+              "commit": "2dbd42effebf8b8da993992b8feb15a025e7907c",
+              "snapshot": "a393e808110f9a10d9fef762ec761a02b05d4de45d1e9e00f804fd8c76102263",
+              "files": [
+                {
+                  "path": "app.py",
+                  "mode": "100644",
+                  "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                  "text": "# producer\nvalue = 'total'\n"
+                }
+              ]
+            },
+            "target": "producer-secret total target",
+            "review_synthetic": true
+          }
+        ]
+      },
+      "arrival_files": [
+        "arrival-4-0.html"
+      ]
+    },
+    {
+      "query": "total 120",
+      "response": {
+        "projection_id": "d814062d995afc971c2c1b8fc58aa4f7686f121f33f3c3fa5c194e5bc5714726",
+        "read_at": "2026-09-23T13:45:20.095934+00:00",
+        "goal": "contract",
+        "version": "v1",
+        "status": "active",
+        "completion": "complete",
+        "index": "current",
+        "served": "current",
+        "required_count": 2,
+        "withheld_count": 0,
+        "integration": "verified",
+        "schema_version": 1,
+        "query": "total 120",
+        "results": [
+          {
+            "repository": "producer",
+            "path": "contract.md",
+            "title": "생산자 계약",
+            "section": "예제",
+            "excerpt": "예제 {\"total\":120}",
+            "url": "/documents/producer/contract.md/#doc-%EC%98%88%EC%A0%9C",
+            "validation": "verified",
+            "validation_detail": {
+              "stage": "complete",
+              "code": "verified",
+              "next_action": "none"
+            },
+            "current": {
+              "commit": "2dbd42effebf8b8da993992b8feb15a025e7907c",
+              "snapshot": "a393e808110f9a10d9fef762ec761a02b05d4de45d1e9e00f804fd8c76102263",
+              "files": [
+                {
+                  "path": "app.py",
+                  "mode": "100644",
+                  "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                  "text": "# producer\nvalue = 'total'\n"
+                }
+              ]
+            },
+            "target": "producer-secret total target",
+            "review_synthetic": true
+          }
+        ]
+      },
+      "arrival_files": [
+        "arrival-5-0.html"
+      ]
+    },
+    {
+      "query": "METADATA_ONLY_771",
+      "response": {
+        "projection_id": "d814062d995afc971c2c1b8fc58aa4f7686f121f33f3c3fa5c194e5bc5714726",
+        "read_at": "2026-09-23T13:45:20.985104+00:00",
+        "goal": "contract",
+        "version": "v1",
+        "status": "active",
+        "completion": "complete",
+        "index": "current",
+        "served": "current",
+        "required_count": 2,
+        "withheld_count": 0,
+        "integration": "verified",
+        "schema_version": 1,
+        "query": "METADATA_ONLY_771",
+        "results": []
+      },
+      "arrival_files": []
+    },
+    {
+      "query": "양자결제",
+      "response": {
+        "projection_id": "d814062d995afc971c2c1b8fc58aa4f7686f121f33f3c3fa5c194e5bc5714726",
+        "read_at": "2026-09-23T13:45:21.411910+00:00",
+        "goal": "contract",
+        "version": "v1",
+        "status": "active",
+        "completion": "complete",
+        "index": "current",
+        "served": "current",
+        "required_count": 2,
+        "withheld_count": 0,
+        "integration": "verified",
+        "schema_version": 1,
+        "query": "양자결제",
+        "results": []
+      },
+      "arrival_files": []
+    }
+  ],
+  "revoked": {
+    "projection_id": "f544a429feb806f0c43ce92251c17ff295d270da9c888c97e313943fc202d96d",
+    "read_at": "2026-09-23T13:45:25.557406+00:00",
+    "goal": "contract",
+    "version": "v1",
+    "status": "active",
+    "completion": "incomplete",
+    "index": "stale",
+    "served": "unavailable_or_partial",
+    "required_count": 2,
+    "withheld_count": 1,
+    "integration": "pending",
+    "schema_version": 1,
+    "query": "total",
+    "results": []
+  },
+  "drift": {
+    "projection_id": "2fbd6452c8e90b2a1b12e377b5ef139da84b08f89bfd14aed3a1bb5ba2e2a2c2",
+    "read_at": "2026-09-23T13:45:26.188033+00:00",
+    "goal": "contract",
+    "version": "v1",
+    "status": "active",
+    "completion": "incomplete",
+    "index": "stale",
+    "served": "unavailable_or_partial",
+    "required_count": 2,
+    "withheld_count": 0,
+    "integration": "pending",
+    "schema_version": 1,
+    "query": "total",
+    "results": []
+  },
+  "stale_index": {
+    "projection_id": "8cb8513fcdb550b27aa009383641a9a1fabd3fecbe0de99e1e677b824fe0b565",
+    "read_at": "2026-09-23T13:45:25.934506+00:00",
+    "goal": "contract",
+    "version": "v1",
+    "status": "active",
+    "completion": "complete",
+    "index": "stale",
+    "served": "current",
+    "required_count": 2,
+    "withheld_count": 0,
+    "integration": "verified",
+    "schema_version": 1,
+    "query": "금액 단위",
+    "results": [
+      {
+        "repository": "producer",
+        "path": "contract.md",
+        "title": "생산자 계약",
+        "section": "금액",
+        "excerpt": "금액 필드 단위 표현 total KRW 정수 금액 단위는 KRW이며 total은 정수입니다.",
+        "url": "/documents/producer/contract.md/#doc-%EA%B8%88%EC%95%A1",
+        "validation": "verified",
+        "validation_detail": {
+          "stage": "complete",
+          "code": "verified",
+          "next_action": "none"
+        },
+        "current": {
+          "commit": "2dbd42effebf8b8da993992b8feb15a025e7907c",
+          "snapshot": "a393e808110f9a10d9fef762ec761a02b05d4de45d1e9e00f804fd8c76102263",
+          "files": [
+            {
+              "path": "app.py",
+              "mode": "100644",
+              "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+              "text": "# producer\nvalue = 'total'\n"
+            }
+          ]
+        },
+        "target": "producer-secret total target",
+        "review_synthetic": true
+      }
+    ]
+  },
+  "scope": "Local example only. Review receipts are synthetic. No operating deployment is established."
+}

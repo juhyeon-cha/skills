@@ -10,3 +10,4 @@ if [[ -z "${WIKI_MARKDOWN_IT_MODULE:-}" ]]; then
   printf 'External dependency runtime retained: %s\n' "$runtime"
 fi
 "${KNOWLEDGE_PYTHON:-python3}" "$TEST_DIR/test_reader.py"
+"${KNOWLEDGE_PYTHON:-python3}" "$TEST_DIR/test_search.py"

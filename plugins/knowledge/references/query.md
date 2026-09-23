@@ -8,6 +8,9 @@ For an answer that must match the live browser, use `multi_repo.py read` with th
 input and follow [managed reader](reader.md). Cite its projection ID and read time; preserve its
 stricter publication/body boundary. The older `query` command retains its query-only permission
 semantics and may expose more evidence than the managed reader. Do not combine their bodies.
+For document/section retrieval from a running local reader, use the
+[search contract](reader.md#search-documents-and-evidence-sections) and follow result links to the
+full grounds. Preserve the returned status when a literal search has no matches.
 
 For one known project inspect `knowledge.py --project PATH status` or `status --run ID` as needed.
 For registered relations use `multi_repo.py --state PATH --host HOST --principal PRINCIPAL query

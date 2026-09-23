@@ -1,0 +1,213 @@
+{
+  "created_at": "2026-09-23T13:45:26.188947+00:00",
+  "url": "http://127.0.0.1:54664",
+  "fixture": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-68axa5fz",
+  "baseline_commit": "13550c1eb8c9f52d8b123c6cbc43abeed57e915c",
+  "requests": [
+    {
+      "route": "/api/search?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "query-1.json",
+      "status": 200,
+      "elapsed_ms": 427.219791803509,
+      "bytes": 1160,
+      "sha256": "250374504e46beee5f79ace87bf7676d7bf7f015e82b4305df35542e568092ef"
+    },
+    {
+      "route": "/documents/producer/contract.md/",
+      "file": "arrival-1-0.html",
+      "status": 200,
+      "elapsed_ms": 430.91154191643,
+      "bytes": 13796,
+      "sha256": "13a235765382391aa979c267577db62e80703b168b241ed8af3af2ae8b39c9c6"
+    },
+    {
+      "route": "/api/search?q=%EB%B3%80%EA%B2%BD%20total",
+      "file": "query-2.json",
+      "status": 200,
+      "elapsed_ms": 429.7737502492964,
+      "bytes": 1237,
+      "sha256": "3fff567d45c4df3c8c8123f84b7cca1e76a3fd7bc1aa90bb27c0b8861aa4e59f"
+    },
+    {
+      "route": "/documents/consumer/guide.md/",
+      "file": "arrival-2-0.html",
+      "status": 200,
+      "elapsed_ms": 432.86087503656745,
+      "bytes": 13634,
+      "sha256": "c253813972299e7aa09b5563a3d6faeca50b71209d1fb2bd37a57625e0936100"
+    },
+    {
+      "route": "/api/search?q=%EC%9A%B4%EC%98%81%20%EB%B0%B0%ED%8F%AC",
+      "file": "query-3.json",
+      "status": 200,
+      "elapsed_ms": 594.9110421352088,
+      "bytes": 1185,
+      "sha256": "a52908a94f2cb618b61df830d7ccb486af056a7059482970431b6358ca8a1781"
+    },
+    {
+      "route": "/documents/consumer/guide.md/",
+      "file": "arrival-3-0.html",
+      "status": 200,
+      "elapsed_ms": 431.61908397451043,
+      "bytes": 13634,
+      "sha256": "28ff3c40b8a38c91b1fa708bc3e50352cf9c3b37c4f445b25112deb29c035fde"
+    },
+    {
+      "route": "/api/search?q=%EC%9E%AC%EC%8B%9C%EB%8F%84%20%EC%83%81%ED%95%9C",
+      "file": "query-4.json",
+      "status": 200,
+      "elapsed_ms": 438.4605409577489,
+      "bytes": 1116,
+      "sha256": "11465443b13d29d75f8d8bbfe3420a5ceb3e67ecfe51fb74e84990eaf14d4b47"
+    },
+    {
+      "route": "/documents/producer/contract.md/",
+      "file": "arrival-4-0.html",
+      "status": 200,
+      "elapsed_ms": 431.8635002709925,
+      "bytes": 13796,
+      "sha256": "52bd817421cb3e1d1a3cce21cb1569f7d43530ca3c1e9cca8090541af4d4b3ea"
+    },
+    {
+      "route": "/api/search?q=total%20120",
+      "file": "query-5.json",
+      "status": 200,
+      "elapsed_ms": 440.46341674402356,
+      "bytes": 1081,
+      "sha256": "b2c170f6c0a4e9ff83691ad9530ae8bcee8c2f9cfa99b7bebe8d0735533912fc"
+    },
+    {
+      "route": "/documents/producer/contract.md/",
+      "file": "arrival-5-0.html",
+      "status": 200,
+      "elapsed_ms": 436.1896659247577,
+      "bytes": 13796,
+      "sha256": "a46181d377457c518203675cf8a589f1a5fa3d89819d7f49aa4800d90e17d0af"
+    },
+    {
+      "route": "/api/search?q=METADATA_ONLY_771",
+      "file": "query-6.json",
+      "status": 200,
+      "elapsed_ms": 447.36391631886363,
+      "bytes": 391,
+      "sha256": "cfedaeb58de5551cb620a1ad1351c9d3b91b2859747c5366006959cb730da0e8"
+    },
+    {
+      "route": "/api/search?q=%EC%96%91%EC%9E%90%EA%B2%B0%EC%A0%9C",
+      "file": "query-7.json",
+      "status": 200,
+      "elapsed_ms": 425.65658409148455,
+      "bytes": 386,
+      "sha256": "8411a11866b8f6d4fa32b56f17d2e383ad54a6d01dd0a33748cd6d55bc9a94d6"
+    },
+    {
+      "route": "/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "baseline-0.html",
+      "status": 200,
+      "elapsed_ms": 380.991792306304,
+      "bytes": 3049,
+      "sha256": "0a7eefd694e9633edf6c0e79475e8725a4af292af45db60ca71c459888234d1a"
+    },
+    {
+      "route": "/search/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "candidate-0.html",
+      "status": 200,
+      "elapsed_ms": 427.51712491735816,
+      "bytes": 3721,
+      "sha256": "a61e2ce2c3a1345872f429abe2c694a4e997896a58cdfafa7c89ed28d013f080"
+    },
+    {
+      "route": "/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "baseline-1.html",
+      "status": 200,
+      "elapsed_ms": 387.28070817887783,
+      "bytes": 3049,
+      "sha256": "a1c12a9b7c83562734f7584c086735f17ee752c923b45d720feeb29a3c0c6ab8"
+    },
+    {
+      "route": "/search/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "candidate-1.html",
+      "status": 200,
+      "elapsed_ms": 409.555833786726,
+      "bytes": 3721,
+      "sha256": "b62083d8324a87bb089f945c005ebbe5625916142539074b784a392ee6348085"
+    },
+    {
+      "route": "/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "baseline-2.html",
+      "status": 200,
+      "elapsed_ms": 367.10783326998353,
+      "bytes": 3049,
+      "sha256": "f9767225a777dffdde2ac97b27ded75a076fc88408ed12fc340cacf3723f1a24"
+    },
+    {
+      "route": "/search/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "candidate-2.html",
+      "status": 200,
+      "elapsed_ms": 404.8133338801563,
+      "bytes": 3721,
+      "sha256": "f71813ccbe999b5efa075b641bbc6993edec79b601c1cd0b54764a8eeda967e4"
+    },
+    {
+      "route": "/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "baseline-3.html",
+      "status": 200,
+      "elapsed_ms": 378.7805000320077,
+      "bytes": 3049,
+      "sha256": "d963e0ae7f34b08be1177d4b46f2f620dcfec0214956c4731b508085adddde4b"
+    },
+    {
+      "route": "/search/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "candidate-3.html",
+      "status": 200,
+      "elapsed_ms": 428.6843747831881,
+      "bytes": 3721,
+      "sha256": "79362e2766f0eb8f750b5f5282a2b89a628b51d8f9afd9dbcbf82c166534fa32"
+    },
+    {
+      "route": "/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "baseline-4.html",
+      "status": 200,
+      "elapsed_ms": 377.5554168969393,
+      "bytes": 3049,
+      "sha256": "c35144feb3171766225314f3c998d41df2f77cb2600d6653b1a869fe68da5936"
+    },
+    {
+      "route": "/search/?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "candidate-4.html",
+      "status": 200,
+      "elapsed_ms": 431.7667498253286,
+      "bytes": 3721,
+      "sha256": "3cbfd328b35efd73e12abf921961b961c64cb18be97c735c371e2adc43ae94ab"
+    },
+    {
+      "route": "/api/search?q=total",
+      "file": "revoked.json",
+      "status": 200,
+      "elapsed_ms": 99.54966604709625,
+      "bytes": 393,
+      "sha256": "29301f72f727b1d9181624b7c46373d14847361d41c554697eb3248769f678c0"
+    },
+    {
+      "route": "/api/search?q=%EA%B8%88%EC%95%A1%20%EB%8B%A8%EC%9C%84",
+      "file": "stale-index.json",
+      "status": 200,
+      "elapsed_ms": 426.04283383116126,
+      "bytes": 1158,
+      "sha256": "b7e394b42b4c6dbe919e2699ee7e877eab1c571b154751c6ff6428135c8b7645"
+    },
+    {
+      "route": "/api/search?q=total",
+      "file": "drift.json",
+      "status": 200,
+      "elapsed_ms": 203.56687484309077,
+      "bytes": 393,
+      "sha256": "ee3fc135ff76ff37dc06676ee5f663c039f94fe374d10d81517d0ac104768e2d"
+    }
+  ],
+  "model_tokens": null,
+  "model_cost": null,
+  "review_receipts": "synthetic",
+  "browser_observed": false,
+  "independent_model_observed": false
+}

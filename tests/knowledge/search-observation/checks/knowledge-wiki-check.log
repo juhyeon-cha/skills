@@ -1,0 +1,42 @@
+✔ arbitrary routes intro,notes (157.470542ms)
+✔ arbitrary routes guide,release,proof,faq (170.432375ms)
+✔ reject missing source (43.134ms)
+✔ reject missing home (43.900875ms)
+✔ reject missing evidence (46.959125ms)
+✔ reject empty pages (42.877709ms)
+✔ reject duplicate id (44.174459ms)
+✔ reject path escape (41.384875ms)
+✔ reject broken link (47.026584ms)
+✔ reject broken anchor (44.109291ms)
+✔ reject protocol relative (44.543625ms)
+✔ reject orphan (46.464708ms)
+✔ reject symlink (44.968041ms)
+✔ reject noncanonical path ./overview.md (43.122333ms)
+✔ reject noncanonical path sub/../overview.md (40.41775ms)
+✔ reject noncanonical path sub//one.md (41.204334ms)
+✔ reject noncanonical path /overview.md (40.463459ms)
+✔ reject noncanonical path C:\one.md (40.747458ms)
+✔ reject malformed evidence true (40.7275ms)
+✔ reject malformed evidence null (42.252375ms)
+✔ reject malformed evidence [] (42.859541ms)
+✔ reject malformed evidence {"reviewStatus":true} (41.500208ms)
+✔ reject malformed evidence {"liveStatus":{"pass":true}} (43.712125ms)
+✔ reject malformed evidence {"reviewStatus":" "} (41.723875ms)
+✔ reject malformed evidence {"liveStatus":""} (41.222542ms)
+✔ canonical nested Markdown and textual status round trip (78.738625ms)
+✔ raw HTML and dangerous links stay inert (46.803333ms)
+✔ reject tamper overview.md (79.050458ms)
+✔ reject tamper manifest.json (80.314083ms)
+✔ reject tamper index.html (81.882375ms)
+✔ reject tamper search-index.json (80.810709ms)
+✔ partial output has no completion receipt and cannot serve (123.582958ms)
+✔ copied plugin executes without repository dependencies (80.654416ms)
+✔ loopback serves routes and custom 404, confines files (119.534ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2156.750917

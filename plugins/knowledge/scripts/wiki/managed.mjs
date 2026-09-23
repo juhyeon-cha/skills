@@ -14,6 +14,28 @@ const md = new MarkdownIt({html: false, linkify: false});
 const input = JSON.parse(fs.readFileSync(0, "utf8"));
 const pages = input.map(p => ({...p, ...parseDocument(md, p.text)}));
 
+// Search the displayed text, never link destinations or renderer metadata.
+function visibleText(tokens) {
+  return tokens.map(t => t.children ? visibleText(t.children)
+    : ['text', 'code_inline'].includes(t.type) ? t.content
+    : ['softbreak', 'hardbreak'].includes(t.type) ? ' ' : '').join('');
+}
+function sections(page) {
+  let section = {id: '', title: '', text: ''};
+  const result = [section];
+  for (const [i, token] of page.tokens.entries()) {
+    if (token.type === 'heading_open') {
+      const h = page.headings.find(h => 'doc-' + h.id === token.attrGet('id'));
+      section = {id: 'doc-' + h.id, title: visibleText(page.tokens[i + 1].children || []), text: ''};
+      result.push(section);
+    }
+    if (token.type === 'inline') section.text += visibleText(token.children || []) + ' ';
+    if (['fence', 'code_block'].includes(token.type)) section.text += token.content + ' ';
+  }
+  return result.map(s => ({...s, text: s.text.replace(/\s+/gu, ' ').trim()}))
+    .filter(s => s.title || s.text);
+}
+
 function resolve(href, page) {
   if (!href || /[\u0000-\u0020\\]/.test(href) || href.startsWith("//")) return null;
   if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
@@ -56,5 +78,6 @@ for (const page of pages) {
 }
 process.stdout.write(JSON.stringify(pages.map(p => ({
   url: p.url, title: p.headings[0]?.title || p.path,
+  search_title: sections(p).find(s => s.id)?.title || '', sections: sections(p),
   headings: p.headings.map(h => ({...h, id: "doc-" + h.id})), html: md.renderer.render(p.tokens, md.options, {}),
 }))));
