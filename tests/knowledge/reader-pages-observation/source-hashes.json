@@ -1,0 +1,10 @@
+{
+  "plugins/knowledge/scripts/reader.py": "802d8c5fc49820f8a6014f20c7fea14d2fd23178b803c643d1f4271aa4f13a48",
+  "plugins/knowledge/scripts/reader.css": "07b1538365fb205dd9e7630e038053f3c762560e891db3112f35a72a1e36e2cc",
+  "plugins/knowledge/scripts/wiki/managed.mjs": "f7c0ab96665d34ae3d73df71000b8a98a3de8c8046f79ff4998d5a7e76dbb3a3",
+  "plugins/knowledge/scripts/wiki/markdown.mjs": "decf644943c3c6bc87554aaf8c504568795681139fb1234730d86e6a8d08f860",
+  "plugins/knowledge/scripts/wiki/build.mjs": "f00edbff3a9a91e05bafce448952df400801116aea5ee3dfb652a5c2bc135ce3",
+  "tests/knowledge/multi_repo/reading_fixture.py": "9a06ce88c51bce12f7a25f664f6c613d931c3f56e577a950f0db5504b746f5f8",
+  "tests/knowledge/multi_repo/reading_preview.py": "3eb7282441cf71870ee125adcddc1179f7d934f5e48cd13cfd652b97db6d2411",
+  "tests/knowledge/multi_repo/test_reader.py": "899dc36a8a36125a2e392b3a147a35f92495928323726d0e0b63eb226c69dc81"
+}

@@ -1,0 +1,32 @@
+{
+  "host_tool": "collaboration.spawn_agent",
+  "agent": "/root/reader_pages_reader",
+  "kind": "actual independent reader response; not a fixture review receipt",
+  "input": "questions.md plus public complete/partial/revoked/drift/withdrawn HTML/JSON and parent browser-observations.md; no implementation or expected answers",
+  "answers": {
+    "Q1": "필드명 total, 의미 금액 합계, 예시 {\"total\":120}. complete/2.html 표·코드와 3.html, 5.json의 producer·consumer 문서. partial consumer 현재 구현은 amount.",
+    "Q2": "이동 가능. complete/2.html의 /documents/producer/guide.md/#doc-%EA%B2%80%EC%A6%9D와 complete/3.html 해당 제목 및 부모 브라우저 클릭 기록.",
+    "Q3": "운영 배포를 증명하지 않는다. complete/3.html과 4.html의 로컬 검증 한계, review_synthetic:true 시험용 응답을 구분.",
+    "Q4": "전체 미완료. partial/0.html producer 검증, consumer 검사 기록 없음, 통합 대기 및 5.json completion incomplete. 최신 색인·부분 게시가 완료는 아니다.",
+    "Q5": "새 요청으로 consumer 본문을 받을 수 없다. 부모 HTTP 404/no-store 관측. 브라우저는 ERR_BLOCKED_BY_CLIENT라 404 안내 렌더링은 주장 불가. revoked 결과로 필수 2 중 비공개 1·전체 미완료만 알 수 있고 숨은 현재 본문/검증/원인은 알 수 없다. 이미 받은 바이트 회수 아님.",
+    "Q6": "drift/withdrawn의 문서 요청은 404, 예전 본문 미제공. 각각 observations.json 및 2/3.html, 5.json의 served unavailable_or_partial와 index stale. drift 문서 근거 불일치, withdrawn 목표 v2 철회. 과거 게시 이력은 현재 제공 의미 아님."
+  },
+  "response_preservation": "Actual returned answer summarized by parent; full response remains in task conversation.",
+  "parent_comparison_to_frozen_answers": {
+    "Q1": "MET",
+    "Q2": "MET",
+    "Q3": "MET",
+    "Q4": "MET",
+    "Q5": "MET",
+    "Q6": "MET"
+  },
+  "limitations": "Reader inspected files only; browser and HTTP were not independently rerun. Model identity/token/cost/latency not supplied.",
+  "model_tokens": null,
+  "model_cost": null,
+  "final_public_input_recheck": {
+    "agent": "/root/reader_pages_reader",
+    "host_tool": "collaboration.followup_task",
+    "input": "final-complete public HTML/JSON/observations only",
+    "actual_response_summary": "Q1 total/금액 합계/{\"total\":120}; Q2 encoded link and target heading with HTTP200; Q3 local validation only and review_synthetic:true. All Q1–Q3 judgments maintained. No browser rerun or implementation/expected-answer reads."
+  }
+}

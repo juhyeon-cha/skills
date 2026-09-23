@@ -1,0 +1,56 @@
+{
+  "case": "complete",
+  "created_at": "2026-09-23T10:08:00.511794+00:00",
+  "fixture": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-v2h7yw_g",
+  "url": "http://127.0.0.1:50013",
+  "requests": [
+    {
+      "route": "/",
+      "status": 200,
+      "elapsed_ms": 405.8309579268098,
+      "file": "0.html",
+      "sha256": "4c59c2bd4832f6723a1da1dad0863639961df46689562db829a94d07a1488037"
+    },
+    {
+      "route": "/repositories/producer/",
+      "status": 200,
+      "elapsed_ms": 452.87120901048183,
+      "file": "1.html",
+      "sha256": "b1d827913a7806b6da20ff4b574605722df8300c7b9fa119a0104b431b7e2c2b"
+    },
+    {
+      "route": "/documents/producer/contract.md/",
+      "status": 200,
+      "elapsed_ms": 453.5447498783469,
+      "file": "2.html",
+      "sha256": "f9bde130597a0d7772be959fca0ad64ff2da990a64d446dedb50a59fecee207c"
+    },
+    {
+      "route": "/documents/producer/guide.md/",
+      "status": 200,
+      "elapsed_ms": 459.53604206442833,
+      "file": "3.html",
+      "sha256": "1e7a6f10180572846bbe4d167954c5a7a6c975df910533e8d2a17e89bbcb1911"
+    },
+    {
+      "route": "/evidence/",
+      "status": 200,
+      "elapsed_ms": 416.1167498677969,
+      "file": "4.html",
+      "sha256": "bfbab469cc1fdaab6c8265161767d36e1cccf235be90e211f6db62c9e87fc105"
+    },
+    {
+      "route": "/api/read",
+      "status": 200,
+      "elapsed_ms": 404.2219161055982,
+      "file": "5.json",
+      "sha256": "4952b187b45d8f3c87bc9102f6fc503ab8734e77a629404495e82d7d2500209a"
+    }
+  ],
+  "review_receipts": "synthetic test doubles",
+  "browser_observed": false,
+  "independent_model_observed": false,
+  "model_tokens": null,
+  "model_cost": null,
+  "scope": "Local Git/HTTP execution only; browser and independent responses are separate evidence."
+}

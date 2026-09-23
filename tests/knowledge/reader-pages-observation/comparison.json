@@ -1,0 +1,33 @@
+{
+  "same_projection_id": "c8ca14c5bc90365078b2349a7bcb865ebf2467dd4cf9bb439b891f0722442fee",
+  "same_canonical_inputs": true,
+  "baseline": {
+    "pre_document": 2,
+    "table": 0,
+    "render_ms": 0.03629177808761597
+  },
+  "candidate": {
+    "pre_document": 0,
+    "table": 1,
+    "render_ms": 46.48891696706414
+  },
+  "scope": "One Python render vs one Python+Node render on identical authorized projection; no human-speed or HTTP benchmark claim",
+  "states": [
+    {
+      "case": "partial",
+      "exit": 0
+    },
+    {
+      "case": "revoked",
+      "exit": 0
+    },
+    {
+      "case": "drift",
+      "exit": 0
+    },
+    {
+      "case": "withdrawn",
+      "exit": 0
+    }
+  ]
+}

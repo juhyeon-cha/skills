@@ -1,0 +1,3 @@
+M0 MATCH. 독립 evaluator /root/reader_pages_m0가 기존 소스와 별도 메모리 실험으로 제목·표·중복 anchor, 허용된 상대 링크, 미허용/없는 anchor 비활성, HTML/위험 scheme 차단을 확인했다. 기준 6be4fe05cf006c8d94291f31aebb31cb7c8e783b, linked worktree /private/tmp/skills-knowledge-reader-pages.
+Node v24.18.0 / markdown-it 14.3.0 기존 runtime. 부모 모듈 로드 후 파싱 약 5ms, Node 시작 포함 5회 총 222.639125ms. 독립 evaluator의 별도 3회 시작/로드/렌더는 38.951/39.572/39.810ms. 모델 요금/tokens 미제공. 없는 module은 exit 1 stdout 0 bytes.
+제품 전제: 현재 Store.reading의 허용된 text/path만 renderer 입력. 저장소+문서 경로 식별, percent/상대 경로/anchor 검사, link open/close 동시 비활성, 매 요청 재권한 판정, 이미지 및 외부 리소스 비활성, runtime 실패/timeout 시 fail closed. 정적 build 전체를 live에서 호출하지 않는다. 제품 보안·HTTP·사용성 완료를 판정하지 않았으며 후속 구현에서 고정 reader-ac.md로 검증한다.

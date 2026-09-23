@@ -1,0 +1,27 @@
+{
+  "runtime": "v24.18.0",
+  "markdownIt": "14.3.0",
+  "inputs": [
+    "# 결제 계약\n\n## 금액\n\n| 필드 | 의미 |\n| --- | --- |\n| total | 합계 |\n\n## 금액\n\n[동일](#금액) [설명](guide.md#호출) [미허용](private.md)\n\n<script>alert(1)</script>\n\n[x](javascript:alert(1)) [x](data:text/html,evil)\n\n```json\n{\"total\": 120}\n```",
+    "# 설명\n\n## 호출\n\n검증된 호출 설명"
+  ],
+  "html": "<h1 id=\"결제-계약\">결제 계약</h1>\n<h2 id=\"금액\">금액</h2>\n<table>\n<thead>\n<tr>\n<th>필드</th>\n<th>의미</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>total</td>\n<td>합계</td>\n</tr>\n</tbody>\n</table>\n<h2 id=\"금액-2\">금액</h2>\n<p><a href=\"#%EA%B8%88%EC%95%A1\">동일</a> <a href=\"/documents/guide/#호출\">설명</a> <span>미허용</a></p>\n<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>\n<p>[x](javascript:alert(1)) [x](data:text/html,evil)</p>\n<pre><code class=\"language-json\">{&quot;total&quot;: 120}\n</code></pre>\n",
+  "links": [
+    "#%EA%B8%88%EC%95%A1",
+    "guide.md#%ED%98%B8%EC%B6%9C",
+    "private.md"
+  ],
+  "headings": [
+    "결제-계약",
+    "금액",
+    "금액-2"
+  ],
+  "elapsed_ms": 4.5454159999999995,
+  "scope": "throwaway token experiment; not production markup (matching link-close handling still required), not HTTP authorization or independent semantic judgment",
+  "questions": [
+    true,
+    true,
+    "Node and explicitly selected existing markdown-it module required; subprocess failures must be fail-closed"
+  ],
+  "model_usage": null
+}

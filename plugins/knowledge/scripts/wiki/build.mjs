@@ -1,5 +1,6 @@
 /** Build reader pages and search from one pinned Markdown snapshot. */
 import fs from "node:fs";
+import { parseDocument } from "./markdown.mjs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -99,27 +100,7 @@ const pages = manifest.pages.map((p) => {
   need(!paths.has(absolute), "Duplicate source");
   paths.add(absolute);
   const body = fs.readFileSync(absolute, "utf8"),
-    tokens = md.parse(body, {}),
-    headings = [],
-    anchors = new Set();
-  for (let i = 0; i < tokens.length; i++) {
-    const t = tokens[i];
-    if (t.type === "heading_open") {
-      const title = tokens[i + 1].content;
-      let base =
-          title
-            .toLowerCase()
-            .replace(/[^\p{L}\p{N}\s-]/gu, "")
-            .trim()
-            .replace(/\s+/g, "-") || "section",
-        anchor = base,
-        n = 1;
-      while (anchors.has(anchor)) anchor = base + "-" + ++n;
-      anchors.add(anchor);
-      t.attrSet("id", anchor);
-      headings.push({ title, id: anchor, level: Number(t.tag.slice(1)) });
-    }
-  }
+    { tokens, headings, anchors } = parseDocument(md, body);
   return {
     ...p,
     absolute,

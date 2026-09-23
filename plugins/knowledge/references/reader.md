@@ -3,7 +3,9 @@
 Use this for a live local reading website or an agent answer that must match it. Reuse the
 [relation host boundary](multi-repo.md#establish-the-host-boundary): the host selects the state,
 principal and goal. This is a single local host session, not multi-user authentication.
-It requires the existing Python runtime from [project setup](project.md), with no new dependency.
+Use the Python runtime from [project setup](project.md). The browser also requires Node 20+
+and the prepared pinned Markdown runtime from [wiki setup](knowledge-wiki.md#render-the-reviewed-body).
+Reuse a prepared user-owned runtime; the reader never installs dependencies.
 
 ## Agent result
 
@@ -68,7 +70,8 @@ Observable diagnostic changes between the two computations reject the read as `R
 
 ## Browser result
 
-Start the foreground server using the same state/host/principal and goal:
+Set `WIKI_MARKDOWN_IT_MODULE` to the absolute module directory of the prepared Markdown runtime
+(or pass `--markdown-it`). Start the foreground server using the same state/host/principal and goal:
 
 ```sh
 "$PYTHON" "$KNOWLEDGE_ROOT/scripts/reader.py" --state /absolute/relations \
@@ -76,11 +79,34 @@ Start the foreground server using the same state/host/principal and goal:
 ```
 
 Open the printed `http://127.0.0.1:PORT` URL. Port 0 selects an available port. The server provides
-an overview, permitted repository pages, evidence/publication history, and `/api/read` JSON.
+an overview, permitted repository document catalogues, individual document pages,
+evidence/publication history, and `/api/read` JSON.
 Every page/API request derives the same public read contract; the projection ID allows comparison
 with a CLI read while inputs are unchanged. Search filters only the permitted result and leaves
 overall completion unchanged. Repository ID, code commit, target, validation and URL are distinct.
 Repository local paths and private state files are not served.
+
+Document URLs encode repository ID and the entire canonical document path as separate segments:
+`/documents/ENCODED_REPOSITORY/ENCODED_PATH/`. Use catalogue links rather than constructing filesystem
+paths. Each request resolves the URL against the fresh permitted projection; an unavailable body
+returns 404 even when that URL was previously readable. Rendering preserves the canonical text
+and the API projection. It does not author, summarize or approve content.
+
+The text-only Markdown bridge shares heading parsing with the static renderer. It receives only
+this request's permitted document paths/text and route identities, never repository/state paths.
+Document pages render headings, tables and fenced code, with a local heading navigation list.
+Relative links resolve only within the same repository's permitted document set; absolute managed
+document routes must also exist in that set of permitted pages. Heading targets must exist.
+Unresolved references become non-clickable text without looking for or reading the target.
+HTML is inert, images become alt text, and protocol-relative/unsafe links are inactive. Explicit
+HTTP(S)/mailto links remain links; the reader fetches no external resources. The Node process is
+not an OS sandbox; use a trusted runtime. Missing runtime, timeout or rendering failure fails
+closed without cached-body fallback. Node startup is paid on document/catalogue requests; no
+cross-request rendered body cache is kept.
+
+Completion, membership and first-blocker diagnostics remain visible. Commit/hash/raw review detail
+is under disclosure controls; fixture review receipts remain explicitly marked as test responses.
+This separation changes presentation, not the evidence or permission boundary.
 
 The server binds only loopback and fixes identity/goal at startup. Browser parameters cannot
 select a principal, host file or goal. Host/Origin checks, escaped text, a restrictive content

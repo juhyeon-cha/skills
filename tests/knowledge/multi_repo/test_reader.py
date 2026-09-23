@@ -2,16 +2,20 @@
 import copy
 import http.client
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
 import threading
+import tempfile
+import shutil
 import unittest
 from unittest.mock import patch
 
 from test_multi_repo import Fixture, SCRIPTS
 from multi_repo import Store
-from reader import make_server
+from reader import make_server, render, document_url, markdown_pages
+from reading_fixture import published_fixture
 
 
 class ReaderTests(unittest.TestCase):
@@ -84,6 +88,7 @@ class ReaderTests(unittest.TestCase):
                 value=json.loads(raw)
                 self.assertEqual(value['completion'], 'complete' if case == 'complete' else 'incomplete')
                 self.assertEqual(value['served'], 'current' if case == 'complete' else 'unavailable_or_partial')
+                self.assertEqual(self.request(port, '/documents/producer/contract.md/')[0], 200 if case == 'complete' else 404)
                 page=self.request(port, '/')[2]
                 self.assertIn(value['projection_id'],page)
                 if case != 'complete':
@@ -127,8 +132,97 @@ class ReaderTests(unittest.TestCase):
         view=f.call('reading',{'goal':'contract'},'reader')
         next(m for m in view['members'] if m['repository']=='producer')['documents'][0]['text']='<img src=x onerror=alert(1)>'
         from reader import render
-        html=render(view,'/repositories/producer/')
+        html=render(view,'/documents/producer/contract.md/')
         self.assertNotIn('<img',html);self.assertIn('&lt;img',html)
+
+    def test_document_routes_markup_and_reauthorization(self):
+        f = published_fixture(); port = self.serve(f)
+        url = '/documents/producer/contract.md/'
+        view = f.call('reading', {'goal': 'contract'}, 'reader')
+        status, headers, html = self.request(port, url)
+        self.assertEqual(status, 200)
+        self.assertIn(view['projection_id'], html)
+        for value in ('<table>', '<code class="language-json">', 'id="doc-금액-2"',
+                      '/documents/producer/guide.md/#doc-%EA%B2%80%EC%A6%9D',
+                      '<span class="unavailable-link"', 'aria-label="이 문서의 목차"'):
+            self.assertIn(value, html)
+        self.assertNotIn('href="private.md"', html)
+        self.assertIn('href="' + url + '"', self.request(port, '/repositories/producer/')[2])
+        self.assertNotIn('<table>', self.request(port, '/repositories/producer/')[2])
+        evidence = self.request(port, '/evidence/')[2]
+        self.assertIn('<details class="technical"><summary>검토 기록 상세', evidence)
+        self.assertIn('시험용 응답', evidence)
+        self.assertIn('운영 배포를 증명하지 않습니다', evidence)
+        # Already visited URLs cannot bypass a fresh permission or source decision.
+        for rights in (['source', 'query'], ['source', 'publish'], []):
+            f.host['principals']['reader']['repositories']['producer'] = rights; f.persist()
+            status, _, html = self.request(port, url)
+            self.assertEqual(status, 404)
+            self.assertNotIn('total', html)
+        f.host['principals']['reader']['repositories']['producer'] = ['source', 'query', 'publish']; f.persist()
+        self.assertEqual(self.request(port, url)[0], 200)
+        docs = f.root / ('producer-reading-docs-' + f.revisions['producer'])
+        original = (docs/'contract.md').read_text()
+        (docs/'contract.md').write_text('Unreviewed body')
+        self.assertEqual(self.request(port, url)[0], 404)
+        (docs/'contract.md').write_text(original)
+        self.assertEqual(self.request(port, url)[0], 200)
+        f.goal.update(version='v2', status='withdrawn', origin=f.origin('user','withdrawn')); f.call('set_goal', f.goal)
+        self.assertEqual(self.request(port, url)[0], 404)
+        for bad in ('/documents/producer/../host.json/', '/documents/producer/%2e%2e%2fhost.json/',
+                    '/documents/producer/%ZZ/', '/documents/absent/contract.md/'):
+            self.assertEqual(self.request(port, bad)[0], 404)
+
+    def test_markdown_link_boundary_and_runtime_failure(self):
+        module = os.environ['WIKI_MARKDOWN_IT_MODULE']
+        docs = [
+            {'repository': 'a', 'path': 'dir/계약 문서.md', 'url': document_url('a', 'dir/계약 문서.md'),
+             'text': '# main\n\n## 금액\n\n## 금액\n\n'
+                     '[허용](../guide.md#검증) [중복](#금액-2) [없는절](#missing) '
+                     '[탈출](../../secret.md) [잘못](%ZZ.md) [망](//evil.invalid) '
+                     '[다른저장소](../../b/guide.md) [외부](https://example.invalid) '
+                     '[위험](javascript:alert(1)) [데이터](data:text/html,evil)\n\n'
+                     '<script>alert(1)</script> ![대체](https://evil.invalid/image)\n'},
+            {'repository': 'a', 'path': 'guide.md', 'url': document_url('a', 'guide.md'), 'text': '# 안내\n\n## 검증'},
+            {'repository': 'b', 'path': 'guide.md', 'url': document_url('b', 'guide.md'), 'text': '# 다른 안내'},
+        ]
+        docs[1]['text'] += '\n\n[인코딩된 문서 주소](' + docs[0]['url'] + '#금액)'
+        pages = markdown_pages(docs, module)
+        self.assertIn(docs[0]['url'] + '#doc-%EA%B8%88%EC%95%A1', pages[1]['html'])
+        html = pages[0]['html']
+        for expected in ('/documents/a/guide.md/#doc-%EA%B2%80%EC%A6%9D', '#doc-%EA%B8%88%EC%95%A1-2',
+                         'id="doc-main"', 'https://example.invalid', '&lt;script&gt;', '[이미지: 대체]'):
+            self.assertIn(expected, html)
+        for unsafe in ('<script>', '<img', 'href="javascript:', 'href="data:', 'href="//', '/documents/b/', 'src='):
+            self.assertNotIn(unsafe, html)
+        self.assertEqual(html.count('<span '), html.count('</span>'))
+        with self.assertRaises(ValueError): markdown_pages([], None)
+        with self.assertRaises(subprocess.CalledProcessError): markdown_pages([], '/missing-runtime')
+        f = published_fixture(); port = self.serve(f)
+        for error in (subprocess.TimeoutExpired('node',10), ValueError('bad-output'), OSError('private-path')):
+            with patch('reader.markdown_pages', side_effect=error):
+                status, _, html = self.request(port, '/documents/producer/contract.md/')
+                self.assertEqual(status, 503)
+                self.assertNotIn('private-path', html)
+                self.assertNotIn('total', html)
+        with patch('reader.subprocess.run', return_value=type('R', (), {'stdout':'{}'})()):
+            with self.assertRaises(ValueError): markdown_pages(docs, module)
+
+    def test_link_repository_boundary_negative_control(self):
+        module = os.environ['WIKI_MARKDOWN_IT_MODULE']
+        docs = [{'repository':'a','path':'contract.md','url':document_url('a','contract.md'),
+                 'text':'[다른 저장소 문서](guide.md)'},
+                {'repository':'b','path':'guide.md','url':document_url('b','guide.md'),'text':'# hidden target'}]
+        self.assertNotIn('/documents/b/', markdown_pages(docs, module)[0]['html'])
+        scratch = Path(tempfile.mkdtemp(prefix='knowledge-link-negative-'))
+        source = (SCRIPTS/'wiki/managed.mjs').read_text()
+        needle = 'p.repository === page.repository && '
+        self.assertEqual(source.count(needle), 1)
+        (scratch/'managed.mjs').write_text(source.replace(needle, ''))
+        shutil.copyfile(SCRIPTS/'wiki/markdown.mjs', scratch/'markdown.mjs')
+        result = subprocess.run(['node',str(scratch/'managed.mjs'),module], input=json.dumps(docs),
+                                capture_output=True,text=True,check=True)
+        self.assertIn('/documents/b/guide.md/', json.loads(result.stdout)[0]['html'])
 
     def test_change_during_read_fails_closed(self):
         f=self.complete(); store=Store(f.root/'state',f.host_path,'reader')

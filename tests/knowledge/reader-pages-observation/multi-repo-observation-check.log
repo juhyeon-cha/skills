@@ -1,0 +1,74 @@
+{
+  "files_verified": 496,
+  "commands_recorded": 172,
+  "retrieval_operations": [
+    {
+      "question": "Q1",
+      "baseline": 19,
+      "candidate": 2
+    },
+    {
+      "question": "Q2",
+      "baseline": 14,
+      "candidate": 2
+    },
+    {
+      "question": "Q3",
+      "baseline": 25,
+      "candidate": 2
+    },
+    {
+      "question": "Q4",
+      "baseline": 7,
+      "candidate": 2
+    },
+    {
+      "question": "Q5",
+      "baseline": 27,
+      "candidate": 2
+    },
+    {
+      "question": "Q6",
+      "baseline": 28,
+      "candidate": 2
+    }
+  ],
+  "receipt_relationships": [
+    {
+      "group": "producer-doc-review",
+      "actor": "/root/s5_producer_docs",
+      "intent_to_preservation_seconds": 72.259042
+    },
+    {
+      "group": "consumer-doc-review",
+      "actor": "/root/s5_consumer_docs",
+      "intent_to_preservation_seconds": 82.187087
+    },
+    {
+      "group": "partial-review",
+      "actor": "/root/s5_partial_semantic",
+      "intent_to_preservation_seconds": 58.697426
+    },
+    {
+      "group": "full-review",
+      "actor": "/root/s5_full_semantic",
+      "intent_to_preservation_seconds": 87.587539
+    },
+    {
+      "group": "comparison-baseline-reader",
+      "actor": "/root/s5_comparison_baseline_reader",
+      "intent_to_preservation_seconds": 284.997091
+    },
+    {
+      "group": "comparison-candidate-reader",
+      "actor": "/root/s5_comparison_candidate_reader",
+      "intent_to_preservation_seconds": 200.435362
+    },
+    {
+      "group": "comparison-grader",
+      "actor": "/root/s5_comparison_grader",
+      "intent_to_preservation_seconds": 174.490726
+    }
+  ],
+  "boundary": "Recorded bytes and receipt relationships only; semantic judgments remain independent model observations."
+}

@@ -244,6 +244,7 @@ test("partial output has no completion receipt and cannot serve", () => {
   const dir = path.join(f.temp, "partial");
   fs.mkdirSync(dir);
   fs.copyFileSync(path.join(scripts, "build.mjs"), path.join(dir, "build.mjs"));
+  fs.copyFileSync(path.join(scripts, "markdown.mjs"), path.join(dir, "markdown.mjs"));
   assert.notEqual(build(f, dir).status, 0);
   assert(fs.existsSync(path.join(f.output, "index.html")));
   assert(!fs.existsSync(path.join(f.output, "build-receipt.json")));
