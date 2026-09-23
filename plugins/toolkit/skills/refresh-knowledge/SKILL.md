@@ -5,6 +5,9 @@ description: Bootstrap evidence-linked documents from code or goals, classify ch
 
 # Refresh knowledge
 
+For a human-facing web wiki derived from shared knowledge documents, read
+[knowledge wiki](references/knowledge-wiki.md) before designing pages or rendering outputs.
+
 For shared goals across repositories, cross-repository impact comparisons, or permission-aware
 managed search/wiki reads, read [multi-repository relations](references/multi-repo.md).
 
