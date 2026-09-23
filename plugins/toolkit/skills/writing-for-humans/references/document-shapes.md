@@ -12,6 +12,24 @@ Choose a starting point that fits the reader's task. These sequences are ingredi
 
 Do not invent an approval request for an update that needs no decision. Do not create commitments when deadlines or owners have not been supplied. Long-lived documents need links for tracing sources and decision status; short messages focus on immediate impact and action.
 
+## Organize explanations around the reader's questions
+
+For knowledge and handoffs that readers consult selectively, use consequential work
+questions as section headings. Prefer “취소 요청을 다시 보내도 되는가?” to a topic
+label such as “호출 계약”. Keep subject terms in the question so it remains searchable.
+Use declarative headings when a required format or continuous argument reads better;
+do not turn every paragraph into an FAQ.
+
+Answer the question in the opening sentence or short paragraph, including the
+condition or uncertainty that changes the answer. Follow with the mechanism, example
+and checked evidence as needed. A reader stopping after the opening must not mistake
+a conditional guarantee for an unconditional one. An unresolved answer should identify
+the missing decision and its consequence before the supporting detail.
+
+Order questions along the reader's work. For a long multi-reader explanation, provide
+a short linked reading route only where it helps readers choose their starting point;
+keep answers in their owning sections instead of duplicating them in an overview.
+
 ## Build understanding before adding detail
 
 For knowledge or explanations, establish the reader's missing context: who encounters
@@ -49,6 +67,16 @@ Fictional collaboration memo:
 > - BE: 시간 초과 뒤 재요청 시 중복 저장 가능성을 확인해야 합니다.
 
 Retain only relevant roles in the actual document. Roles are listed here because their handoff points differ. If they do not differ, a shared paragraph is sufficient.
+
+When a consequential scenario crosses roles, follow the same starting state and event
+through their explanations. State what each role needs from another and the shared
+decision or observable result that connects them. Link the canonical contract rather
+than retelling the whole scenario for every role. A compact handoff table is useful
+when readers need to compare dependencies; prose is sufficient for one handoff.
+Distinguish source-backed agreements from proposed coordination questions. Identify
+the relevant functions without inventing assigned owners, approved scope or deadlines.
+The reader should be able to explain how their action enables the next role's work,
+not just list four independent responsibilities.
 
 If the primary reader is a PO and developers are secondary readers, keep the investment decision in the body and detailed contracts in a linked specification. For a development handoff, keep contracts in the body and include only the necessary product context beforehand. Multiple audiences are not a reason to merge every reference into the body.
 

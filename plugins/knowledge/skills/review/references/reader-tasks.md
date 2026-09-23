@@ -36,7 +36,9 @@ reduction in the acceptance bar.
 
 When authoring, apply the writing skill's document-shape guidance to establish missing
 business context, choose the reader's organizing perspective and explain supported
-mechanisms and boundary scenarios. For flowcharts, cards or other visual explanations,
+mechanisms and boundary scenarios. For selectively consulted knowledge or cross-role
+handoffs, also apply its question-first structure and shared-scenario guidance.
+For flowcharts, cards or other visual explanations,
 read that skill's visual guidance and establish the target's rendering support before
 choosing syntax. For the managed or static knowledge wiki, read the supported subset
 in [managed reader](../../../references/reader.md#browser-result) or
