@@ -548,19 +548,22 @@ sys.exit(knowledge.main())
         self.assertEqual(self.command('retire', '--reason-file', reason, '--successor', self.root / 'new-contract')['phase'], 'retired')
 
     def test_missing_skill_dependency_blocks_before_mutation(self):
-        isolated = self.root / 'incomplete-toolkit'
-        shutil.copytree(self.installed, isolated)
-        # Move, rather than destroy, a required fixture dependency.
-        required = isolated / 'skills/review/SKILL.md'
-        required.rename(required.with_suffix('.missing'))
-        original = self.cli_path
-        self.cli_path = isolated / 'scripts/knowledge.py'
-        try:
-            self.assertIn('DEPENDENCY_UNREACHED', self.command('doctor', ok=False).stderr)
-            self.assertIn('DEPENDENCY_UNREACHED', self.command('start', '--rev', self.commit(2), ok=False).stderr)
-            self.assertEqual(self.command('status')['runs'], [])
-        finally:
-            self.cli_path = original
+        revision = self.commit(2)
+        for relative in ('skills/review/SKILL.md', 'skills/review/references/reader-tasks.md'):
+            with self.subTest(dependency=relative):
+                isolated = self.root / ('incomplete-' + Path(relative).stem)
+                shutil.copytree(self.installed, isolated)
+                # Move, rather than destroy, a required fixture dependency.
+                required = isolated / relative
+                required.rename(required.with_suffix('.missing'))
+                original = self.cli_path
+                self.cli_path = isolated / 'scripts/knowledge.py'
+                try:
+                    self.assertIn('DEPENDENCY_UNREACHED', self.command('doctor', ok=False).stderr)
+                    self.assertIn('DEPENDENCY_UNREACHED', self.command('start', '--rev', revision, ok=False).stderr)
+                    self.assertEqual(self.command('status')['runs'], [])
+                finally:
+                    self.cli_path = original
 
     def test_sqlite_json_dependency_blocks_before_project_creation(self):
         self.assertEqual(self.command('doctor')['sqlite_json'], 'verified')

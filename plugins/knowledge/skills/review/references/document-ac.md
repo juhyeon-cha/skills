@@ -22,6 +22,9 @@ acceptance must be actionable. Implementation and deployment remain pending with
 
 ## Freeze inputs
 
+For knowledge generation or changed reader content, use [reader tasks](reader-tasks.md)
+to derive questions and check coverage for each requested reader and shared rule.
+
 Before writing or observing responses, freeze AC IDs, applicable classes, reader/context,
 questions, required propositions, source/decision versions, scope, exclusions with reasons, and
 expected handling of unknown information. Record exact document and role-input bytes with hashes.

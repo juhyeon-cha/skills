@@ -78,6 +78,14 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
 | `knowledge:operate` | 자동화·저장소 관계 설정과 실행·복구 |
 
 작성에는 별도로 설치한 `toolkit:writing-for-humans`를 사용합니다.
+첫 지식을 만들 때는 독자와 읽은 뒤 할 일을 함께 지정합니다. 예를 들어
+“주문 취소를 FE의 화면 구현, BE의 계약 구현, 기획의 예외 정책 판단,
+PO의 범위·성과 판단에 필요한 지식으로 구성해줘”라고 요청할 수 있습니다.
+FE만 요청하면 해당 업무에 필요한 내용만 구성합니다.
+[독자별 지식 기준](plugins/knowledge/skills/review/references/reader-tasks.md)에 따라
+필수 질문·근거·답변 위치를 연결하고, 공통 정책 변경 시 관련 설명도 함께 검토합니다.
+코드에서 확인되는 동작과 결정 자료가 필요한 정책·목표를 구분하며,
+근거가 없는 내용은 미확인 사항과 그로 인해 막히는 판단으로 남깁니다.
 에이전트와 같은 근거·상태를 웹에서 읽으려면 [관리형 읽기 화면](plugins/knowledge/references/reader.md)을 사용합니다.
 화면은 요청마다 권한을 확인하며, 기존 정적 위키는 생성 당시 스냅샷으로 유지됩니다.
 [전환 안내](plugins/knowledge/references/transition.md)와 [후속 고도화 계획](docs/initiatives/code-driven-knowledge/plugin-evolution.md)을 확인하세요.

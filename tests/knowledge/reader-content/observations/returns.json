@@ -1,0 +1,33 @@
+{
+  "/root/content_review": {
+    "timestamp": "2026-09-23T14:36:28.016Z",
+    "message_id": "amsg_01a0ceb2-51f0-7692-8771-fab9e2ad55ab",
+    "file": "review-return.md",
+    "sha256": "409e9306f0c3ae41f29d7e9b18ef2704cd2cc31c62f6a6db9cb6f72d29d37198"
+  },
+  "/root/content_author": {
+    "timestamp": "2026-09-23T14:39:36.743Z",
+    "message_id": "amsg_01a0ceb5-3327-7e11-8508-04482b6acfbd",
+    "file": "author-return.md",
+    "sha256": "6805b5359cb71897df4ba1a0d357e067b22e26fe404b649b9860d7cdf432c425"
+  },
+  "/root/reader_b": {
+    "timestamp": "2026-09-23T14:42:40.669Z",
+    "message_id": "amsg_01a0ceb8-019d-7a22-92ce-88ff093f9361",
+    "file": "reader-b.json",
+    "sha256": "82483ea4b7d0ea1201b35a0f51f99c8087ccae32e8b7f427de8dc412ae1f737c"
+  },
+  "/root/reader_a": {
+    "timestamp": "2026-09-23T14:42:40.671Z",
+    "message_id": "amsg_01a0ceb8-019f-7eb2-b2e9-8016478cffdd",
+    "file": "reader-a.json",
+    "sha256": "b1e574cc504c3bebb189b9953314b13064dc3de2e4a36731c1d112dec40937b9"
+  },
+  "acceptance": {
+    "author": "/root/content_review",
+    "timestamp": "2026-09-23T14:45:18.125Z",
+    "message_id": "amsg_01a0ceba-68ad-7b42-b030-81e4d4ece539",
+    "file": "acceptance.md",
+    "sha256": "66eaee3c1e9ff3322ee51750c6997b9c404e1c8e63213f36f6585c64ffbccbf2"
+  }
+}
