@@ -1,5 +1,29 @@
 import { roleName, textOf } from './common.mjs';
 
+// Metadata is never invocation, completion, role or token evidence. Keep the
+// observed non-execution attachment kinds explicit; new kinds remain unknown.
+const messages = new Set(['assistant', 'user', 'system', 'progress', 'queue-operation', 'summary']);
+const metadata = new Set(['file-history-snapshot', 'file-history-delta', 'last-prompt',
+  'custom-title', 'atis-latch', 'bridge-session', 'mode']);
+const attachments = new Set(['hook_success', 'hook_additional_context', 'environment',
+  'model', 'language', 'deferred_tools_delta', 'agent_listing_delta',
+  'mcp_instructions_delta', 'skill_listing', 'auto_mode', 'total_tokens_reminder',
+  'instructions', 'session_context', 'date', 'remote_session_change',
+  'prompt_snapshot', 'queued_command']);
+function recordKind(record) {
+  if (messages.has(record.type)) return 'message';
+  if (metadata.has(record.type) ||
+      (record.type === 'attachment' && attachments.has(record.attachment?.type))) {
+    // A familiar metadata label cannot hide a new evidence-bearing envelope.
+    if (['message', 'toolUseResult', 'attributionAgent'].some(key => key in record))
+      return 'ambiguous';
+    return 'metadata';
+  }
+  return 'unsupported';
+}
+const recordLabel = record => record.type === 'attachment'
+  ? `attachment:${record.attachment?.type ?? 'missing'}` : String(record.type);
+
 // Claude Code 2.1 JSONL: Agent/Task tool_use inventory, toolUseResult and
 // task-notification completion, explicit child attributionAgent identity.
 export function decodeClaude(parent, childRecords, sessionId) {
@@ -7,19 +31,13 @@ export function decodeClaude(parent, childRecords, sessionId) {
   const errors = [];
   const children = new Map();
   for (const record of parent) {
-    if (
-      ![
-        'assistant',
-        'user',
-        'system',
-        'progress',
-        'file-history-snapshot',
-        'queue-operation',
-        'summary',
-      ].includes(record.type)
-    )
-      errors.push('unsupported Claude record type');
     if (record.sessionId && record.sessionId !== sessionId) errors.push('Claude session mismatch');
+    const kind = recordKind(record);
+    if (kind === 'metadata') continue;
+    if (kind !== 'message') {
+      errors.push(`${kind} Claude record type: ${recordLabel(record)}`);
+      continue;
+    }
     for (const block of Array.isArray(record.message?.content) ? record.message.content : []) {
       if (
         record.type === 'assistant' &&
@@ -83,15 +101,9 @@ export function decodeClaude(parent, childRecords, sessionId) {
     try {
       if (!call.agentId) throw new Error('child identity missing');
       const child = childRecords(call.agentId);
-      if (
-        child.some(
-          (record) =>
-            !['assistant', 'user', 'system', 'progress', 'queue-operation', 'summary'].includes(
-              record.type,
-            ),
-        )
-      )
-        throw new Error('unsupported child transcript record');
+      const unknown = child.filter(record => !['message', 'metadata'].includes(recordKind(record)));
+      if (unknown.length)
+        throw new Error(`unsupported child transcript record: ${[...new Set(unknown.map(recordLabel))].join(', ')}`);
       const identities = new Set(
         child
           .filter((record) => record.attributionAgent)
@@ -125,5 +137,5 @@ export function decodeClaude(parent, childRecords, sessionId) {
   }
   if (!calls.size)
     errors.push('invocation inventory empty; completion records are not the population');
-  return { format: 'claude-code-2.1-jsonl', calls: [...calls.values()], errors };
+  return { format: 'claude-code-2.1-jsonl', calls: [...calls.values()], errors: [...new Set(errors)] };
 }
