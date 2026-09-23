@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 
 from common import digest
-from observations import safe_path
+from observations import safe_path, require
 
 STATUS = {'current': '현재 가져온 근거와 일치 · 독립 검토 기록 있음',
           'unreviewed': '독립 검토 대기', 'stale': '근거 변경 · 설명 갱신 필요',
@@ -26,7 +26,13 @@ def label(value):
     return str(value).replace('\\', '\\\\').replace('[', '\\[').replace(']', '\\]').replace('\n', ' ').replace('\r', ' ')
 
 
-def export(view, output):
+def export(view, output, base_path="/"):
+    scope = view.get('notebook_scope')
+    require(scope is not None and scope['audience'] == view['audience'] and
+            scope['source'] == view['source'], 'export requires a scoped notebook')
+    audience = scope['audience']
+    require(all(d['value']['audience'] == audience for d in view['documents']), 'mixed wiki audiences')
+    title = '제품 사용 지식' if audience == 'user' else '제품 개발 지식'
     output = safe_path(output)
     files = {}
     pages = []
@@ -42,10 +48,10 @@ def export(view, output):
 
     page('home', '무엇을 하려 하나요?', '# 무엇을 하려 하나요?\n\n'
          '이 지식은 선택한 출처의 로컬 스냅샷입니다. 문서별 제품 버전과 근거 상태를 확인하세요.\n\n'
-         '- [설치한 제품으로 작업하기](user.md)\n- [제품 자체를 개발하기](developer.md)\n'
+         '- [' + title + '](' + audience + '.md)\n'
          '- [추가한 메모와 이전 지식](notes.md)\n- [근거와 수집 상태](evidence.md)\n')
     areas = {'usage': '제품 사용', 'development': '제품 개발', 'domain': '대상 시스템 지식'}
-    for audience, title in (('user', '설치한 제품으로 작업하기'), ('developer', '제품 자체를 개발하기')):
+    for audience, title in ((audience, title),):
         rows = [d for d in view['documents'] if d['value']['audience'] == audience]
         text = '# ' + title + '\n\n'
         if not rows:
@@ -86,7 +92,7 @@ def export(view, output):
         evidence += '\n## ' + label(row['value']['title']) + '\n\n' + literal(json.dumps(row, ensure_ascii=False, indent=2))
     evidence += '\n## 보존된 이력 식별자\n\n' + literal(json.dumps(view['history'], ensure_ascii=False, indent=2))
     page('evidence', '근거와 수집 상태', evidence, '입력 자료 · 의미 정확성 검토 아님', 'evidence')
-    manifest = {'title': '축적한 지식', 'revision': digest(view), 'home': 'home', 'evidencePage': 'evidence', 'pages': pages}
+    manifest = {'basePath': base_path, 'title': title, 'revision': digest(view), 'home': 'home', 'evidencePage': 'evidence', 'pages': pages}
     # A new directory only. Manifest is written last; interrupted exports are never complete inputs.
     output.mkdir(parents=True, exist_ok=False)
     for path, text in files.items():

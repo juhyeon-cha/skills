@@ -206,6 +206,7 @@ print(json.dumps(state['after' if (base / 'collected').exists() else 'before']))
 
     @unittest.skipUnless(os.environ.get('WIKI_MARKDOWN_IT_MODULE'), 'markdown-it runtime not supplied')
     def test_installed_copy_builds_wiki_outside_source_checkout(self):
+        self.run_cli('init', '--source', SOURCE, '--audience', 'user')
         _, doc, _ = self.seed()
         installed = self.base / 'installed-knowledge'
         shutil.copytree(CLI.parent.parent, installed)
@@ -221,6 +222,34 @@ print(json.dumps(state['after' if (base / 'collected').exists() else 'before']))
         self.run_cli('wiki', '--source', SOURCE, '--output', output,
                      '--node', shutil.which('node'), '--markdown-it',
                      os.environ['WIKI_MARKDOWN_IT_MODULE'], code=1, error=True)
+
+    @unittest.skipUnless(os.environ.get('WIKI_MARKDOWN_IT_MODULE'), 'markdown-it runtime not supplied')
+    def test_stable_entry_keeps_last_success_on_build_failure_and_refuses_other_scope(self):
+        self.run_cli('init', '--source', SOURCE, '--audience', 'user')
+        self.seed()
+        publication = self.base / 'wiki'
+        args = ('wiki', '--source', SOURCE, '--publish', publication,
+                '--node', shutil.which('node'), '--markdown-it', os.environ['WIKI_MARKDOWN_IT_MODULE'])
+        self.run_cli(*args, '--output', publication / 'first')
+        index = json.loads((publication / 'first/site/search-index.json').read_text())
+        self.assertTrue(all(p['url'].startswith('/first/site/') for p in index['pages']))
+        html = (publication / 'first/site/index.html').read_text()
+        self.assertIn('href="/first/site/style.css"', html)
+        self.assertIn('src="/first/site/search.js"', html)
+        before = (publication / 'index.html').read_bytes()
+        self.run_cli(*args, '--output', publication / '..' / 'outside', code=1, error=True)
+        self.assertFalse((self.base / 'outside').exists())
+        self.assertEqual((publication / 'index.html').read_bytes(), before)
+        self.assertIn(b'first/site/index.html', before)
+        self.run_cli(*args, '--output', publication / 'broken', '--node', sys.executable,
+                     code=1, error=True)
+        self.assertEqual((publication / 'index.html').read_bytes(), before)
+        self.run_cli(*args, '--output', publication / 'second')
+        self.assertIn(b'second/site/index.html', (publication / 'index.html').read_bytes())
+        scope = publication / 'scope.json'
+        scope.write_text(json.dumps(dict(version=1, source=SOURCE, audience='developer')))
+        self.run_cli(*args, '--output', publication / 'foreign', code=1, error=True)
+        self.assertFalse((publication / 'foreign').exists())
 
 
 if __name__ == '__main__':

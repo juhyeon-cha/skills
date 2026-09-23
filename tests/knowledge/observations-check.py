@@ -241,12 +241,11 @@ class NotebookChecks(unittest.TestCase):
         self.run_cli('get', '--id', 'absent', '--source', 'sap:test', success=False)
 
     def test_export_preserves_scope_and_refuses_overwrite(self):
+        self.run_cli('init', '--source', 'sap:test', '--audience', 'user')
         first = self.observe()
         doc = self.append('document', self.document([first]))['id']
         self.review(doc)
-        foreign = self.observe(source='sap:other')
-        self.append('document', {**self.document([foreign], source='sap:other'),
-                                 'body': 'FOREIGN_SOURCE_SENTINEL'})
+        self.append('observe', self.observation(source='sap:other'), success=False)
         self.append('note', dict(source='sap:test', object='ZORDER', author='owner',
                                 body='```\n<script>note</script>\n````', origin='manual'))
         output = self.base / 'wiki-inputs'
@@ -271,6 +270,7 @@ class NotebookChecks(unittest.TestCase):
     @unittest.skipUnless(os.environ.get('WIKI_MARKDOWN_IT_MODULE'),
                          'WIKI_MARKDOWN_IT_MODULE not supplied; actual wiki renderer not executed')
     def test_export_builds_real_wiki_with_inert_notes_and_document_visuals(self):
+        self.run_cli('init', '--source', 'sap:test', '--audience', 'user')
         first = self.observe()
         body = ('> [!FLOW] 순서\n>\n> 1. 관측\n> 2. 검토\n\n'
                 '> [!CARDS] 독자\n>\n> - **사용자**: 제품 사용\n> - **개발자**: 제품 개발\n')
@@ -296,6 +296,71 @@ class NotebookChecks(unittest.TestCase):
         rendered = (site / ('p-' + doc) / 'index.html').read_text(encoding='utf-8')
         self.assertIn('wiki-flow', rendered)
         self.assertIn('wiki-cards', rendered)
+
+    def test_scope_rejects_cross_purpose_source_and_rebinding_without_changing_records(self):
+        self.run_cli('init', '--source', 'sap:test', '--audience', 'user')
+        self.assertFalse(self.run_cli('init', '--source', 'sap:test', '--audience', 'user')['created'])
+        first = self.observe()
+        self.append('document', self.document([first]))
+        before = (self.project / 'observations.sqlite').read_bytes()
+        self.append('document', self.document([first], audience='developer'), success=False)
+        self.append('observe', self.observation(source='other'), success=False)
+        self.run_cli('init', '--source', 'sap:test', '--audience', 'developer', success=False)
+        self.read('--audience', 'developer', success=False)
+        self.run_cli('get', '--source', 'other', '--id', first, success=False)
+        self.assertEqual((self.project / 'observations.sqlite').read_bytes(), before)
+        self.assertEqual(self.read()['audience'], 'user')
+
+    def test_personal_notes_have_one_original_and_survive_recollection_and_export(self):
+        personal = self.base / 'personal'
+        self.run_cli('init', '--source', 'sap:test', '--audience', 'user', '--notes', str(personal))
+        self.run_cli('init', '--source', 'sap:test', '--audience', 'developer', '--notes', str(personal),
+                     project=self.base / 'developer', success=False)
+        self.assertFalse((self.base / 'developer' / 'scope.json').exists())
+        self.observe()
+        note = dict(source='sap:test', object='ZORDER', author='owner', body='MY-PERSONAL-NOTE', origin='manual')
+        identity = self.append('note', note)['id']
+        self.assertFalse(self.append('note', note)['created'])
+        original = personal / (identity + '.json')
+        before = original.read_bytes()
+        with sqlite3.connect(self.project / 'observations.sqlite') as db:
+            self.assertEqual(db.execute("SELECT count(*) FROM records WHERE kind='note'").fetchone()[0], 0)
+        self.observe(day=2)
+        self.assertEqual(self.read()['notes'][0]['id'], identity)
+        self.assertEqual(self.run_cli('get', '--source', 'sap:test', '--id', identity)['value'], note)
+        output = self.base / 'wiki'
+        self.run_cli('export', '--source', 'sap:test', '--output', str(output))
+        self.assertIn('MY-PERSONAL-NOTE', (output / 'notes.md').read_text())
+        self.assertEqual(original.read_bytes(), before)
+        original.write_text(json.dumps({**note, 'source': 'other'}))
+        self.read(success=False)
+
+    def test_unscoped_notebook_cannot_be_relabelled_or_published(self):
+        self.observe()
+        self.run_cli('init', '--source', 'sap:test', '--audience', 'user', success=False)
+        output = self.base / 'mixed-wiki'
+        self.run_cli('export', '--source', 'sap:test', '--audience', 'user',
+                     '--output', str(output), success=False)
+        self.assertFalse(output.exists())
+
+    def test_each_wiki_has_only_its_own_documents_notes_evidence_and_history(self):
+        for audience in ('user', 'developer'):
+            self.project = self.base / audience
+            self.run_cli('init', '--source', 'sap:test', '--audience', audience)
+            observation = {**self.observation(), 'body': audience + '-EVIDENCE'}
+            evidence = self.append('observe', observation)['id']
+            self.append('document', {**self.document([evidence], audience=audience),
+                                     'body': audience + '-DOCUMENT'})
+            self.append('note', dict(source='sap:test', object='ZORDER', author='owner',
+                                    body=audience + '-NOTE', origin='manual'))
+            out = self.base / (audience + '-wiki')
+            self.run_cli('export', '--source', 'sap:test', '--output', str(out))
+            text = '\n'.join(p.read_text() for p in out.iterdir())
+            other = 'developer' if audience == 'user' else 'user'
+            for kind in ('EVIDENCE', 'DOCUMENT', 'NOTE'):
+                self.assertIn(audience + '-' + kind, text)
+                self.assertNotIn(other + '-' + kind, text)
+            self.assertFalse((out / (other + '.md')).exists())
 
     def test_legacy_markdown_note_is_preserved_and_repeat_import_is_idempotent(self):
         self.observe()

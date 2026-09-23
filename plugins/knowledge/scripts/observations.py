@@ -71,9 +71,90 @@ def validate(kind, value):
 
 
 def safe_path(path):
+    require('..' not in Path(path).parts, 'parent traversal is unsupported in notebook paths')
     path = Path(path).absolute()
     require(not any(p.is_symlink() for p in (path, *path.parents)), 'symlink notebook paths are unsupported')
     return path
+
+
+def notebook_scope(root, required=False):
+    file = safe_path(root) / 'scope.json'
+    safe_path(file)
+    if not file.exists():
+        require(not required, 'wiki needs a scoped notebook; initialize a separate user or developer notebook')
+        return None
+    scope = json.loads(file.read_text(encoding='utf-8'))
+    shape(scope, ('version', 'source', 'audience'), ('notes',))
+    strings(scope, ('source',))
+    require(scope['version'] == 1 and scope['audience'] in AUDIENCES, 'invalid notebook scope')
+    if 'notes' in scope:
+        require(isinstance(scope['notes'], str) and Path(scope['notes']).is_absolute(), 'notes path must be absolute')
+        safe_path(scope['notes'])
+    return scope
+
+
+def initialize(root, source, audience, notes=None):
+    require(isinstance(source, str) and bool(source.strip()) and audience in AUDIENCES, 'invalid notebook scope')
+    root = safe_path(root)
+    scope = {'version': 1, 'source': source, 'audience': audience}
+    if notes is not None:
+        require(Path(notes).is_absolute(), 'notes path must be absolute')
+        scope['notes'] = str(safe_path(notes))
+    existing = notebook_scope(root)
+    if existing:
+        require(existing == scope, 'notebook scope cannot change')
+        return {**scope, 'created': False, 'root': str(root)}
+    require(not (root / 'observations.sqlite').exists(),
+            'preserve the unscoped notebook; initialize a new directory and explicitly select records to copy')
+    if notes is not None:
+        require(safe_path(notes) != root, 'personal notes must use a separate directory')
+        notes_scope(scope, create=True)
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    with (root / 'scope.json').open('x', encoding='utf-8') as file:
+        file.write(json.dumps(scope, ensure_ascii=False, indent=2))
+    return {**scope, 'created': True, 'root': str(root)}
+
+
+def check_scope(root, source=None, audience=None):
+    scope = notebook_scope(root)
+    if scope:
+        require(source is None or source == scope['source'], 'notebook source mismatch')
+        require(audience is None or audience == scope['audience'], 'notebook audience mismatch')
+    return scope
+
+
+def notes_scope(scope, create=False):
+    directory = safe_path(scope['notes'])
+    owner = safe_path(directory / '.notebook-scope')
+    expected = {k: scope[k] for k in ('version', 'source', 'audience')}
+    if owner.exists():
+        require(json.loads(owner.read_text(encoding='utf-8')) == expected, 'personal notes scope mismatch')
+    else:
+        require(create, 'personal notes scope is missing')
+        require(not directory.exists() or not any(directory.glob('*.json')),
+                'preserve existing unscoped note files; select a new personal note directory')
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        with owner.open('x', encoding='utf-8') as file:
+            file.write(json.dumps(expected, ensure_ascii=False))
+    return directory
+
+
+def personal_notes(root, rows):
+    scope = notebook_scope(root)
+    if not scope or 'notes' not in scope:
+        return []
+    directory = notes_scope(scope)
+    result = []
+    known = latest_observations(rows)
+    for file in sorted(directory.glob('*.json')):
+        safe_path(file)
+        value = json.loads(file.read_text(encoding='utf-8'))
+        validate('note', value)
+        identity = digest({'kind': 'note', 'value': value})
+        require(file.stem == identity and value['source'] == scope['source'] and
+                (value['source'], value['object']) in known, 'personal note scope or identity mismatch')
+        result.append({'id': identity, 'kind': 'note', 'value': value})
+    return result
 
 
 @contextmanager
@@ -100,6 +181,11 @@ def database(root, write=False, create=False):
         require(db.execute('PRAGMA application_id').fetchone()[0] == APPLICATION and
                 db.execute('PRAGMA user_version').fetchone()[0] == 1,
                 'unsupported notebook database; preserve it and use a new directory')
+        scope = notebook_scope(root)
+        if scope:
+            require(all(r['value'].get('source', scope['source']) == scope['source'] and
+                        (r['kind'] != 'document' or r['value']['audience'] == scope['audience'])
+                        for r in records(db)), 'notebook contains records outside its declared scope')
         yield db
         if write:
             db.commit()
@@ -158,7 +244,21 @@ def document_state(document, rows):
 
 def append(root, kind, value):
     validate(kind, value)
+    scope = check_scope(root, value.get('source'), value.get('audience'))
     identity = digest({'kind': kind, 'value': value})
+    if kind == 'note' and scope and 'notes' in scope:
+        with database(root) as db:
+            rows = records(db)
+        require((value['source'], value['object']) in latest_observations(rows), 'note needs a known source/object')
+        existing = personal_notes(root, rows)
+        if any(r['id'] == identity for r in existing):
+            return {'id': identity, 'kind': kind, 'created': False}
+        directory = safe_path(scope['notes'])
+        directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        file = safe_path(directory / (identity + '.json'))
+        with file.open('x', encoding='utf-8') as handle:
+            handle.write(json.dumps(value, ensure_ascii=False, indent=2))
+        return {'id': identity, 'kind': kind, 'created': True}
     with database(root, True, create=kind == 'observation') as db:
         rows = records(db)
         by_id = {r['id']: r for r in rows}
@@ -196,12 +296,20 @@ def append(root, kind, value):
 
 def read(root, source, audience=None, area=None, product_version=None, query=None):
     require(bool(source), 'explicit source is required')
+    scope = check_scope(root, source, audience)
+    if scope:
+        audience = scope['audience']
     if audience is not None:
         require(audience in AUDIENCES, 'invalid audience')
     if area is not None:
         require(area in AREAS, 'invalid area')
     with database(root) as db:
         rows = records(db)
+    rows += personal_notes(root, rows)
+    if scope:
+        require(all(r['value'].get('source', source) == source and
+                    (r['kind'] != 'document' or r['value']['audience'] == audience) for r in rows),
+                'notebook contains records outside its declared scope')
     selected = [r for r in rows if r['kind'] != 'review' and r['value']['source'] == source]
     latest_docs = {}
     for row in selected:
@@ -215,7 +323,7 @@ def read(root, source, audience=None, area=None, product_version=None, query=Non
         terms = query.casefold().split()
         documents = [d for d in documents if all(t in (d['value']['title'] + ' ' + d['value']['body']).casefold() for t in terms)]
     current = latest_observations(selected)
-    return {'source': source, 'audience': audience, 'area': area, 'product_version': product_version,
+    return {'notebook_scope': scope, 'source': source, 'audience': audience, 'area': area, 'product_version': product_version,
             'documents': documents,
             'observations': list(current.values()),
             'notes': [r for r in selected if r['kind'] == 'note'],
@@ -225,12 +333,17 @@ def read(root, source, audience=None, area=None, product_version=None, query=Non
 
 def register_commands(parser):
     sub = parser.add_subparsers(dest='notebook_command', required=True)
+    init = sub.add_parser('init')
+    init.add_argument('--notes', type=Path, help='Canonical personal note directory, outside the notebook DB')
+    init.add_argument('--source', required=True)
+    init.add_argument('--audience', choices=sorted(AUDIENCES), required=True)
     refresh = sub.add_parser('refresh-sap')
     refresh.add_argument('--plan', type=Path, required=True)
     refresh.add_argument('--output', type=Path, required=True)
     wiki = sub.add_parser('wiki')
     wiki.add_argument('--source', required=True)
     wiki.add_argument('--output', type=Path, required=True)
+    wiki.add_argument('--publish', type=Path, help='Stable wiki root containing this new output directory')
     wiki.add_argument('--node', required=True)
     wiki.add_argument('--markdown-it', type=Path, required=True)
     get = sub.add_parser('get')
@@ -258,15 +371,19 @@ def register_commands(parser):
 
 def execute(args):
     command = args.notebook_command
+    if command == 'init':
+        return initialize(args.project, args.source, args.audience, args.notes)
     if command == 'refresh-sap':
         from sap_refresh import refresh
         return refresh(args.project, args.plan, args.output)
     if command == 'wiki':
         from sap_refresh import wiki
-        return wiki(args.project, args.source, args.output, args.node, args.markdown_it)
+        return wiki(args.project, args.source, args.output, args.node, args.markdown_it, args.publish)
     if command == 'get':
+        check_scope(args.project, args.source)
         with database(args.project) as db:
             rows = records(db)
+        rows += personal_notes(args.project, rows)
         match = next((r for r in rows if r['id'] == args.id and r['kind'] != 'review'
                       and r['value']['source'] == args.source), None)
         require(match is not None, 'record not found in selected source')

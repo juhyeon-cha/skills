@@ -25,8 +25,28 @@ need a Git clone or SAP credentials. Writing and independent semantic review sti
 require the actual host writer/reviewer capabilities. Missing capabilities leave
 drafts unreviewed. The CLI never calls a model or invents a review.
 
-Use a user-owned notebook directory outside plugin caches, legacy knowledge and
-SAP databases. Keep each source explicit. A SAP graph source UUID is not the tenant
+Use a user-owned notebook directory outside plugin caches and separate from SAP
+DB files and existing generated pages. For SAP, obtain the canonical notebook,
+wiki and personal-note paths from `sap-harness knowledge paths --tenant TENANT
+--source SOURCE_UUID`; its existing vault knowledge base is the storage owner.
+Initialize each new notebook with one immutable purpose and source before import:
+
+```sh
+python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook init \
+  --source SOURCE_UUID --audience user --notes ABSOLUTE_PERSONAL_DIRECTORY
+```
+
+`--notes` makes that directory the canonical store for append-only note JSON files;
+the notebook DB does not duplicate their bodies. Wiki builds read those files.
+Back up both locations together. Preserve unrelated files there. Without `--notes`,
+notes stay in the notebook DB. Use separate directories for every purpose/source.
+Product-development knowledge belongs in the developer repository's managed Git
+knowledge workflow. A separate `developer` notebook can hold explicitly selected
+local evidence, but must never publish into the user wiki.
+
+Existing unscoped notebooks remain readable; they cannot be relabeled or published.
+Select records explicitly into a new scoped notebook, including note selection;
+never infer the audience of a legacy note. Keep each source explicit. A SAP graph source UUID is not the tenant
 alias; `observation.source_id` and the exported object ID select its identity.
 A database rebuild that assigns new IDs requires an explicit new source; this
 notebook does not infer equivalence across rebuilt databases.
@@ -146,12 +166,13 @@ python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook get --
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook export --source SOURCE_ID --output NEW_CONTENT
 ```
 
-Filters select explanations; notes and observations stay visible for the explicitly
-selected source. Search is literal text matching, not semantic retrieval. Omit
+Filters select explanations within the notebook purpose; notes and observations
+stay visible for that source. A scoped notebook rejects other sources/audiences
+on reads, writes and refreshes. Search is literal text matching, not semantic retrieval. Omit
 filters deliberately to see all purposes/versions for that source. No match does
 not establish missing SAP behavior. History IDs can be retrieved with `get`.
 
-Export creates new static-wiki inputs with user/developer entry pages, document
+Export requires a scoped notebook and creates only its audience entry page, document
 status/version, evidence and literal notes. Build and serve them using
 [static wiki](knowledge-wiki.md#render-the-reviewed-body). The existing safe renderer
 supports flows/cards. This export is a dated snapshot, not the permission-aware
@@ -238,8 +259,8 @@ knowledge workflow:
 4. Revise only relevant document keys with the latest evidence and `previous` ID.
    Keep product versions distinct. Obtain a real independent review of the exact
    revision; register that actual response. Keep notes and previous revisions.
-5. Rebuild the wiki with the following command, and verify user/developer entry
-   pages, important states and evidence links. Report incomplete work separately.
+5. Rebuild the wiki with the following command, and verify the selected audience entry
+   page, important states and evidence links. Report incomplete work separately.
 
 ## Build from an installed plugin
 
@@ -250,12 +271,18 @@ No repository checkout, npm workspace or Git is needed at execution time.
 
 ```sh
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook wiki \
-  --source SOURCE_UUID --output NEW_WIKI_DIRECTORY \
+  --source SOURCE_UUID --output WIKI_ROOT/snapshots/NEW_BUILD --publish WIKI_ROOT \
   --node /absolute/node --markdown-it /absolute/node_modules/markdown-it
-python -m http.server 8777 --bind 127.0.0.1 --directory NEW_WIKI_DIRECTORY/site
+python -m http.server 8777 --bind 127.0.0.1 --directory WIKI_ROOT
 ```
 
 `wiki` exports, builds and checks local bytes before returning `site` and `index`.
-Use a new output directory on every build; an existing directory is never replaced.
+Use a new output directory on every build; an existing snapshot is never replaced.
+Optional `--publish` creates a scope-bound stable entry at WIKI_ROOT/index.html.
+The new output must be inside that root. Only a successful build/check atomically
+updates the entry; a failed build retains the last success. Keep the failed run
+visible in the task report; the retained page is not evidence that refresh passed.
+Serve only this wiki root, never a parent containing another audience's files.
+The root starts empty or carries the same scope; unrelated existing sites are refused.
 Serve on loopback for browser search, then stop that foreground server when done.
 This does not publish remotely, install dependencies or approve document semantics.
