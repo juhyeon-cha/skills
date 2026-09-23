@@ -6,7 +6,11 @@
     "name": "juhyeon-cha"
   },
   "skills": [
-    "./skills/refresh-knowledge",
-    "./skills/review-knowledge"
+    "./skills/bootstrap",
+    "./skills/update",
+    "./skills/review",
+    "./skills/query",
+    "./skills/wiki",
+    "./skills/operate"
   ]
 }

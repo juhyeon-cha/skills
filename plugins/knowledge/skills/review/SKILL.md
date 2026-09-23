@@ -1,6 +1,6 @@
 ---
-name: review-knowledge
-description: Independently review a knowledge-update packet against pinned source and the reader's task, returning a plan-bound decision. Use before applying a prepared document update; does not author or apply the proposal.
+name: review
+description: Independently judge a prepared knowledge update or document acceptance bundle against pinned evidence and the reader task. Return a bound verdict; does not author, apply or publish documents.
 ---
 
 # Review knowledge

@@ -124,7 +124,7 @@ class AutomationTests(unittest.TestCase):
         self.assertEqual(self.auto('next')['pending']['role'], 'reviewer')
         with patch.dict(os.environ, KNOWLEDGE_WRITER_SKILL=''):
             reviewer = self.review()
-        self.assertIn(str(SCRIPTS.parent / 'skills/review-knowledge/SKILL.md'), reviewer['prompt'])
+        self.assertIn(str(SCRIPTS.parent / 'skills/review/SKILL.md'), reviewer['prompt'])
         self.assertEqual(self.auto('next')['phase'], 'completed')
 
     def test_code_duplicate_new_request_and_unchanged_effect(self):

@@ -12,7 +12,7 @@ import sys
 import uuid
 
 sys.dont_write_bytecode = True
-from automation import digest, environment, goal_order, now
+from common import digest, environment, goal_order, now
 from cli import capture, canonical, compare as source_compare, sha
 from impact import verify_bindings, document_bytes
 from intake import classify, obj, array, NONEMPTY

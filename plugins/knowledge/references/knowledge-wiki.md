@@ -8,9 +8,9 @@ plugin and repository-specific documents and manifests in the target repository.
 ## Establish the reading task
 
 Name the reader, the decisions they must make, and the source revision. Inspect existing
-knowledge and its evidence before choosing page boundaries. Use the writing dependency
-in the parent skill to organize pages around reader tasks, with an entry page, contextual
-links, and a separate evidence page. Choose the number of pages from those tasks.
+knowledge and its evidence before choosing page boundaries. If authoring is needed, use `knowledge:bootstrap` for first documents or `knowledge:update`
+for existing documents. Their writing workflow owns page organization and independent review.
+Resume rendering from reviewed canonical input.
 
 Keep three kinds of material distinct:
 
@@ -26,7 +26,7 @@ when every sentence on the page is true.
 
 ## Render the reviewed body
 
-Follow the parent skill's independent document review before treating knowledge as reviewed.
+Confirm independent document review through `knowledge:review` before treating knowledge as reviewed.
 Derive page bodies and search text from the same canonical input. Preserve relative links
 for direct document readers and resolve them to valid routes and heading anchors in HTML.
 Keep navigation, summaries, and visible status labels consistent with the body.
@@ -104,7 +104,7 @@ not semantic review, atomic publication, live verification or currentness.
 ## Evaluate reading and change propagation
 
 For document acceptance and reader evaluation, read and apply the existing
-[document acceptance contract](../skills/review-knowledge/references/document-ac.md).
+[document acceptance contract](../skills/review/references/document-ac.md).
 Use the shared Markdown as the document input and link failed and repaired versions to their
 actual responses. That contract owns freezing, role separation, judgment, and rerun requirements.
 

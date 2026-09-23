@@ -5,7 +5,7 @@ from pathlib import Path
 PLUGIN_ROOT = Path(__file__).resolve().parent.parent
 CONTRACTS = PLUGIN_ROOT / 'contracts'
 REFERENCES = PLUGIN_ROOT / 'references'
-REVIEW_SKILL = PLUGIN_ROOT / 'skills/review-knowledge'
+REVIEW_SKILL = PLUGIN_ROOT / 'skills/review'
 
 
 def writer_skill():

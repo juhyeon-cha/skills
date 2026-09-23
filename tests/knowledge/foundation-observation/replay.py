@@ -163,7 +163,7 @@ knowledge.main()
         wording = command('intake', '--input', save('intake-wording.json', request))
         assert wording['phase'] == 'no_code_work'
         assert command('intake-status', '--intake', wording['intake'])['document_quality'] == 'not_evaluated'
-        dependency = installed / 'skills/review-knowledge/SKILL.md'
+        dependency = installed / 'skills/review/SKILL.md'
         dependency.rename(dependency.with_suffix('.held'))
         assert 'DEPENDENCY_UNREACHED' in command('start', '--rev', third, expected=1)['stderr']
         dependency.with_suffix('.held').rename(dependency)
