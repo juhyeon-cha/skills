@@ -19,29 +19,41 @@ export function roleCapabilities(runtime, role, options) {
     throw new Error('observed available tools required');
   const missing = required.filter(tool => !options.availableTools.includes(tool));
   if (missing.length) throw new Error(`required role tools missing: ${missing.join(', ')}`);
+  const request = options.modelOptions === undefined ? {} : options.modelOptions;
+  if (!request || typeof request !== 'object' || Array.isArray(request) ||
+      Object.keys(request).some(key => !['model', 'reasoning_effort', 'availableModels'].includes(key)))
+    throw new Error('model options invalid');
+  const {model: selected, reasoning_effort: effort} = request;
+  const nested = request.availableModels;
+  // Preserve the existing Claude capability input while sharing the nested form
+  // with explain. Reject conflicting observations instead of choosing one silently.
+  const legacy = runtime === 'claude' ? options.availableModels : undefined;
+  for (const available of [nested, legacy])
+    if (available !== undefined && (!Array.isArray(available) ||
+        available.some(value => typeof value !== 'string' || !value.trim())))
+      throw new Error('available models invalid');
+  if (nested !== undefined && legacy !== undefined &&
+      JSON.stringify([...new Set(nested)].sort()) !== JSON.stringify([...new Set(legacy)].sort()))
+    throw new Error('conflicting availableModels: use modelOptions.availableModels');
+  const available = nested ?? legacy;
+  if (selected !== undefined && (typeof selected !== 'string' || !selected.trim()))
+    throw new Error('requested model invalid');
   let model;
   if (runtime === 'codex') {
-    const request = options.modelOptions ?? {};
-    if (typeof request !== 'object' || Array.isArray(request) ||
-        Object.keys(request).some(key => !['model', 'reasoning_effort', 'availableModels'].includes(key)))
-      throw new Error('model options invalid');
-    const {model: selected, reasoning_effort: effort, availableModels: available} = request;
-    if (available !== undefined && (!Array.isArray(available) || available.some(value => typeof value !== 'string' || !value)))
-      throw new Error('available models invalid');
-    if (selected !== undefined && (typeof selected !== 'string' || !selected.trim())) throw new Error('requested model invalid');
-    if (effort !== undefined && (typeof effort !== 'string' || !effort.trim() || !selected)) throw new Error('requested effort requires a model');
+    if (effort !== undefined && (typeof effort !== 'string' || !effort.trim() || !selected))
+      throw new Error('requested effort requires a model');
     if (selected && available && !available.includes(selected)) throw new Error('requested model unavailable');
     model = selected ? {model: selected, ...(effort ? {reasoning_effort: effort} : {})} : {};
-  }
-  else {
-    const selected = options.modelOptions?.model ?? 'inherit';
-    const models = runtime === 'antigravity' ? ['inherit', 'flash', 'pro'] : options.availableModels;
-    if (typeof selected !== 'string' || !selected ||
-        (selected !== 'inherit' && (!Array.isArray(models) || !models.includes(selected))))
-      throw new Error('requested model unavailable');
-    if (options.modelOptions?.reasoning_effort !== undefined)
-      throw new Error('requested effort has no supported runtime mapping');
-    model = {model: selected};
+  } else {
+    const choice = selected ?? 'inherit';
+    if (effort !== undefined) throw new Error('requested effort has no supported runtime mapping');
+    if (choice !== 'inherit') {
+      if (runtime === 'claude' && available === undefined)
+        throw new Error('modelOptions.availableModels required for an explicit Claude model');
+      const models = runtime === 'antigravity' ? ['flash', 'pro'] : available;
+      if (!models.includes(choice)) throw new Error('requested model unavailable');
+    }
+    model = {model: choice};
   }
   return {runtime, role, requiredTools: required, model, evidence: 'capability-check',
     nativeLoaded: false, enforcement: 'unverified'};

@@ -18,18 +18,8 @@ export function explainRole(input, root = plugin) {
     throw new Error('unsupported runtime/execution');
   if (typeof installedRoot !== 'string' || !path.isAbsolute(installedRoot))
     throw new Error('absolute installedRoot required');
-  if (modelOptions !== undefined) {
-    if (!modelOptions || typeof modelOptions !== 'object' || Array.isArray(modelOptions) ||
-        Object.keys(modelOptions).some(key => !['model', 'reasoning_effort', 'availableModels'].includes(key)))
-      throw new Error('model options invalid');
-    if (modelOptions.availableModels !== undefined && (!Array.isArray(modelOptions.availableModels) ||
-        modelOptions.availableModels.some(value => typeof value !== 'string' || !value)))
-      throw new Error('available models invalid');
-    if (modelOptions.model !== undefined && (typeof modelOptions.model !== 'string' || !modelOptions.model.trim()))
-      throw new Error('requested model invalid');
-    roleCapabilities(runtime, role, {availableTools: requiredRoleTools(runtime, role),
-      availableModels: modelOptions.availableModels, modelOptions});
-  }
+  if (modelOptions !== undefined)
+    roleCapabilities(runtime, role, {availableTools: requiredRoleTools(runtime, role), modelOptions});
   const projection = projectRole(runtime, role, root, installedRoot);
   return {
     runtime, role, execution,

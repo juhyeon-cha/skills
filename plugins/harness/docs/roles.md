@@ -10,11 +10,11 @@ the provider-returned child identity is useful for follow-up but no registration
 begin/bind/complete inventory, role receipt, first-line SIGNAL or session audit is
 required to use meaningful findings or close verified work.
 
-`roles/*.md` retains responsibility guidance and its existing managed-response
-conventions. Those conventions describe role-oriented execution; ordinary
-responsibility prompts need not adopt their SIGNAL or ledger-stage format. This
-choice does not override user instructions, concrete safety constraints or an
-explicit project requirement for a particular role or independent review.
+Native implementer, reviewer and evaluator roles also support standalone requests
+and ledger-backed assignments. Before acting, each role reads
+[role-execution.md](role-execution.md), which owns assignment selection, workspace
+checks, authorization and evidence rules. Ledger steps apply to assigned ledger
+work; SIGNAL formatting applies when requested or when native auditing is selected.
 `verify-code` owns risk-driven verification selection and grader independence.
 
 Reuse a reviewer for a bounded correction when useful, supplying the corrected
