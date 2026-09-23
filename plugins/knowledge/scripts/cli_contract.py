@@ -20,7 +20,7 @@ STALE_DOCUMENT SUCCESSOR UNSUPPORTED_FILE
 """.split())
 OWNERS = frozenset(('knowledge.py', 'cli.py', 'impact.py', 'intake.py', 'project_service.py',
                     'project_store.py', 'source_verification.py', 'update.py', 'workflow.py', 'package_paths.py',
-                    'observations.py', 'sap_observations.py', 'observation_wiki.py'))
+                    'observations.py', 'sap_observations.py', 'observation_wiki.py', 'sap_refresh.py'))
 
 
 def encode(value):

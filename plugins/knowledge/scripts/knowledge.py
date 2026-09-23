@@ -117,7 +117,7 @@ def main():
                       'review': review, 'resume': resume, 'status': status,
                       'terminate': terminate, 'retire': retire}[args.command](args, project)
         print(encode(result))
-        return 0
+        return 1 if command == 'notebook' and result.get('ok') is False else 0
     except Exception as error:
         print(failure(error, command), file=sys.stderr)
         return 2 if isinstance(error, UsageError) else 1

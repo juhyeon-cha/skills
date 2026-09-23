@@ -166,7 +166,96 @@ versions or symlink paths fail rather than migrate or overwrite. Preserve an
 interrupted first initialization and choose a new directory after diagnosis.
 An interrupted export has no final manifest; retain it and retry a new output path.
 
-This first path handles explicit local exports and user-triggered updates. It does
-not schedule collection, connect to SAP, install the plugin, migrate existing DBs,
+Imports handle explicit local exports. The authorized recollection branch below
+uses the SAP CLI to connect. It does not schedule collection, install the plugin, migrate existing DBs,
 or add a server-side multi-user service. Keep runtime availability, successful local
 import, independent document judgment and real SAP completeness separate.
+
+## Recollect and close a SAP knowledge task
+
+Use this branch when the user authorizes SAP recollection. Keep that authorization
+scoped to a named source and object list. A saved plan is configuration, not new
+permission. Use `toolkit:writing-for-humans` to turn findings into reader actions;
+job title alone does not choose between product usage and product development.
+
+Create a private plan outside plugin caches with this exact shape:
+
+```json
+{
+  "version": 1,
+  "cli": ["/absolute/node", "/absolute/installed/sap-harness.js"],
+  "producer_version": "ACTUAL_INSTALLED_BUILD",
+  "db": "/absolute/existing/graph.sqlite",
+  "source": "REGISTERED_SOURCE_UUID",
+  "tenant": "SELECTED_TENANT",
+  "level": "SELECTED_READONLY_LEVEL",
+  "objects": [{"id": "OBJECT_UUID", "type": "DDLS", "name": "I_PLANT"}]
+}
+```
+
+A directly executable installed CLI uses a one-element `cli` array. No shell
+fragments or credentials belong in this plan. Source registration and initial
+collection use SAP Harness's installed `graph` commands. New builds can resolve
+an object export by `graph show-id --name I_PLANT --type DDLS --source SOURCE_UUID
+--db DATABASE`; use the returned owner ID. Older builds require an existing ID.
+Read-only target levels are configured names, not the literal word `readonly`.
+SAP Harness selects the readonly target for `graph source` and `graph collect`.
+
+```sh
+python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook refresh-sap \
+  --plan PLAN.json --output NEW_RUN_DIRECTORY
+```
+
+This runs one bounded refresh (1–20 selected objects), imports newer complete or
+partial observations and writes `collection.json` plus `handoff.json`. It never
+registers a new source implicitly. When only the exporting product version changes,
+it preserves an otherwise identical old observation with its original producer
+attribution; a new collection records the new version. It validates all local identities before
+collection; SAP Harness validates the observed server/client and connection before
+its DB writer opens. Commands use argument arrays. SAP owns SSO and may open its
+login browser; a 180-second command timeout stops the run for human attention.
+There is no background scheduler. Repeating the command is an explicit new run.
+For a recurring request, use the host's scheduler with the same approved plan,
+failures stopping for attention, and the authorization's requested interval.
+
+Read both the exit code and report. Exit 1 with `ok: false` can still include a
+successfully imported partial observation. A failed connection with no newer
+observation is `collection_unverified`; the prior complete evidence remains only
+the last imported evidence. Do not report it as a successful live refresh. Do not
+retry authentication automatically. Preserve interrupted output directories and
+use a new one. The notebook's `sap-refresh.lock` prevents another refresh writer;
+after a crash, confirm no process is active before explicitly removing that lock.
+
+For each completed SAP investigation or implementation task within this authorized
+knowledge workflow:
+
+1. Retain the useful finding as a source/object note, including unresolved meaning.
+2. Run the configured refresh when its selected evidence may have changed. Inspect
+   `collection.json` before the writer handoff; an incomplete run remains visible.
+3. Compare each handoff document's exact old/new evidence. Inspect field labels,
+   deprecation/successor annotations, uncollected targets and limits before writing
+   an explanation. A stable structure hash is not proof of unchanged business data.
+4. Revise only relevant document keys with the latest evidence and `previous` ID.
+   Keep product versions distinct. Obtain a real independent review of the exact
+   revision; register that actual response. Keep notes and previous revisions.
+5. Rebuild the wiki with the following command, and verify user/developer entry
+   pages, important states and evidence links. Report incomplete work separately.
+
+## Build from an installed plugin
+
+The notebook CLI needs Python 3.10+ with SQLite. Wiki rendering also needs Node and
+MarkdownIt available as a module directory; resolve them through the host runtime
+or install the documented wiki dependencies with the user's approved package setup.
+No repository checkout, npm workspace or Git is needed at execution time.
+
+```sh
+python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook wiki \
+  --source SOURCE_UUID --output NEW_WIKI_DIRECTORY \
+  --node /absolute/node --markdown-it /absolute/node_modules/markdown-it
+python -m http.server 8777 --bind 127.0.0.1 --directory NEW_WIKI_DIRECTORY/site
+```
+
+`wiki` exports, builds and checks local bytes before returning `site` and `index`.
+Use a new output directory on every build; an existing directory is never replaced.
+Serve on loopback for browser search, then stop that foreground server when done.
+This does not publish remotely, install dependencies or approve document semantics.

@@ -62,7 +62,11 @@ def export(view, output):
         value = doc['value']
         text = '# ' + label(value['title']) + '\n\n**' + STATUS[doc['status']] + '**\n\n'
         text += '적용 제품 버전: ' + label(value['product_version']) + '\n\n읽은 뒤 할 일: ' + label(value['purpose']) + '\n\n'
-        text += value['body'] + '\n\n[근거·수집 상태](evidence.md) · [메모](notes.md)\n'
+        body = value['body']
+        heading = '# ' + value['title'] + '\n'
+        if body.startswith(heading):
+            body = body[len(heading):].lstrip('\n')
+        text += body + '\n\n[근거·수집 상태](evidence.md) · [메모](notes.md)\n'
         page('p-' + doc['id'], value['title'], text, STATUS[doc['status']])
     notes = '# 추가한 메모와 이전 지식\n\n메모는 사용자 기록입니다. 검토된 사실이나 현재 동작으로 자동 승격하지 않습니다.\n'
     for row in view['notes']:

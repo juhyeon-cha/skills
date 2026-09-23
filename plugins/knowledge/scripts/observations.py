@@ -225,6 +225,14 @@ def read(root, source, audience=None, area=None, product_version=None, query=Non
 
 def register_commands(parser):
     sub = parser.add_subparsers(dest='notebook_command', required=True)
+    refresh = sub.add_parser('refresh-sap')
+    refresh.add_argument('--plan', type=Path, required=True)
+    refresh.add_argument('--output', type=Path, required=True)
+    wiki = sub.add_parser('wiki')
+    wiki.add_argument('--source', required=True)
+    wiki.add_argument('--output', type=Path, required=True)
+    wiki.add_argument('--node', required=True)
+    wiki.add_argument('--markdown-it', type=Path, required=True)
     get = sub.add_parser('get')
     get.add_argument('--id', required=True)
     get.add_argument('--source', required=True)
@@ -250,6 +258,12 @@ def register_commands(parser):
 
 def execute(args):
     command = args.notebook_command
+    if command == 'refresh-sap':
+        from sap_refresh import refresh
+        return refresh(args.project, args.plan, args.output)
+    if command == 'wiki':
+        from sap_refresh import wiki
+        return wiki(args.project, args.source, args.output, args.node, args.markdown_it)
     if command == 'get':
         with database(args.project) as db:
             rows = records(db)
