@@ -24,16 +24,38 @@ Claude/Codex native evidence follows the
 Antigravity accepts only its documented `inherit`, `flash` and `pro` model tiers.
 A different explicit model or unmapped reasoning effort fails without substitution.
 Codex uses its existing exact explicit-model contract. Claude explicit model names
-require `availableModels`; omission inherits. The capability check never translates
-a user's requested model into another provider's model.
+require `modelOptions.availableModels`; omitting `modelOptions.model` inherits.
+The capability check never translates a requested model into another model.
+
+Both `explain` and `capabilities` accept the same `modelOptions` object:
+
+```json
+{"model":"chosen-model","availableModels":["chosen-model"]}
+```
+
+Place it beside `runtime` and `role`. `explain` additionally requires
+`execution: "native"`; `capabilities` requires observed `availableTools`.
+For Codex, an explicit effort uses `modelOptions.reasoning_effort` and requires
+`modelOptions.model`. The `explain` output's `observed.reasoningEffort` is an
+observation field, not an input key, and remains `unknown` without runtime evidence.
+Codex checks an explicit model against `availableModels` when supplied; that
+optional list is required for explicit Claude models. Antigravity uses its fixed
+tiers and accepts no reasoning-effort mapping.
+
+Existing Claude `capabilities` callers may supply top-level `availableModels`.
+Use the nested form for new inputs. If both locations are present, their model
+sets must agree. Missing observations, malformed input and a model absent from
+the observed list produce distinct diagnostics. These commands inspect requests;
+they neither dispatch a model nor establish runtime availability or enforcement.
 
 ## Antigravity parent observations
 
 For the opt-in managed Antigravity protocol, use `node <plugin-root>/scripts/antigravity-role.mjs begin|bind|activate|complete <input.json>`
-from the registered parent or external operator. Child shell tools cannot enroll
-identities through this command. The guard checks normalized literal argv,
-including quoted paths and composed literal commands. Common guarded effects
-remain protected; an opaque script is not automatically a registration claim. All inputs carry `runtime:
+from the registered parent or external operator. Only the parent or operator may
+enroll identities; children must leave enrollment to them. The enrollment-specific guard checks the literal
+`parent-register` token in the command string; it does not resolve shell expansion
+or attest arbitrary script effects. Common workspace, state and remote protections
+still apply. This token check is not proof of enrollment integrity. All inputs carry `runtime:
 "antigravity"`, exact `workspace`, actual `parentId`, `callId`, and explicit `data`.
 The registry is scoped by the actual repository, session, source root and hash.
 It is parent-attested workflow evidence, not an authenticated provider API.

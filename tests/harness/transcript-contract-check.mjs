@@ -37,6 +37,45 @@ try {
   check(audit([invoke('call', 'unknown'), returned()], child()).rc === 2, 'unknown invocation is not repaired by a different child role');
   check(audit([invoke(), returned(), invoke('pending')]).rc === 2, 'normal plus pending is not success');
   check(audit(undefined, [...child(), {type: 'future-record'}]).rc === 2, 'unsupported child format retained');
+  const bookkeeping = [
+    {type: 'custom-title', customTitle: 'fixture'},
+    {type: 'last-prompt', leafUuid: 'leaf'},
+    {type: 'atis-latch', atis: {}},
+    {type: 'bridge-session', bridgeSessionId: 'bridge'},
+    {type: 'mode', mode: 'fixture'},
+    {type: 'file-history-snapshot', snapshot: {}},
+    {type: 'file-history-delta', backup: {}},
+    {type: 'attachment', attachment: {type: 'total_tokens_reminder', text: 'SIGNAL: VIOLATION'}},
+    {type: 'attachment', attachment: {type: 'hook_success', content: 'SIGNAL: VIOLATION'}},
+    {type: 'attachment', attachment: {type: 'environment', snapshot: {}}},
+  ].map(row => ({...row, sessionId: 'session'}));
+  const withMetadata = audit([...bookkeeping, invoke(), returned()], [...bookkeeping, ...child()]);
+  check(withMetadata.rc === 0 && withMetadata.judged === 1, 'observed metadata does not erase a valid call');
+  check(withMetadata.signals.evaluator.MATCH === 1 && !withMetadata.signals.evaluator.VIOLATION,
+    'metadata text cannot supply a SIGNAL');
+  check(audit(bookkeeping, bookkeeping).rc === 2, 'metadata alone is not invocation evidence');
+  check(audit(undefined, bookkeeping).a9.verdicts.EMPTY === 1, 'metadata cannot supply a child response');
+  check(audit([invoke(), returned(), {type: 'custom-title', sessionId: 'wrong'}]).rc === 2,
+    'metadata does not conceal a session mismatch');
+  for (const evidence of [{message: {content: 'SIGNAL: MATCH'}}, {toolUseResult: {agentId: 'child'}},
+    {attributionAgent: 'evaluator'}]) {
+    const ambiguous = {type: 'custom-title', ...evidence};
+    check(audit([invoke(), returned(), ambiguous]).rc === 2, 'metadata cannot conceal parent evidence');
+    check(audit(undefined, [...child(), ambiguous]).rc === 2, 'metadata cannot conceal child evidence');
+  }
+  for (const unknown of [{type: 'future-record'}, {type: 'attachment', attachment: {type: 'future-completion'}}]) {
+    const partial = audit([invoke(), returned(), unknown, unknown]);
+    check(partial.rc === 2 && !partial.complete && partial.judged === 1,
+      'unknown parent record preserves observed subset without certifying completeness');
+    check(partial.unreached.length === 1 && partial.unreached[0].includes('future'),
+      'unknown parent type diagnostic is named and deduplicated');
+    check(audit(undefined, [...child(), unknown]).rc === 2, 'unknown child evidence still blocks its audit');
+  }
+  const mixed = decodeClaude([invoke(), returned(), invoke('other'), returned('other', 'other-child')],
+    id => id === 'child' ? child() : [...child(), {type: 'future-record'}], 'session');
+  const mixedReport = summarize(mixed.calls, mixed.errors);
+  check(mixedReport.population === 2 && mixedReport.judged === 1 && mixedReport.rc === 2,
+    'unsupported child leaves other calls visible and aggregate incomplete');
   const usage = {input_tokens: 2, output_tokens: 3, cache_creation_input_tokens: 0, cache_read_input_tokens: 4};
   const split = [...child('SIGNAL: MATCH', 'evaluator', usage), ...child('SIGNAL: MATCH', 'evaluator', usage)];
   const measured = audit(undefined, split);

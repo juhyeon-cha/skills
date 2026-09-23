@@ -44,6 +44,13 @@ transcript facades remain directly under `lib/`.
 
 ## The development checks — `tests/`
 
+Before running the complete development suite, prepare a Python virtual environment
+with `jsonschema==4.26.0` for the knowledge checks. Select its interpreter with
+`KNOWLEDGE_PYTHON=<venv>/bin/python bash tests/run-all.sh` (use the native interpreter
+path on Windows). Missing dependencies are unexecuted checks, not product failures
+or passes. The dependency contract is
+[Source and change](initiatives/code-driven-knowledge/contracts/source-and-change.md).
+
 For host portability, run `node tests/harness/platform-contract-check.mjs` (or the POSIX `bash tests/harness/platform-contract-check.sh` convenience wrapper). `.github/workflows/platform-contract.yml` runs the identical Node/Git fixture on native macOS, Linux and Windows. It deliberately reports full-product evidence separately; support boundaries are in the shipped [platform contract](../plugins/harness/docs/platforms.md). Existing `.mjs` suites that spawn Bash/jq or script stubs are not implicitly portable. A wrong expected-host argument must fail, so a Windows label cannot certify a POSIX execution.
 
 The workflow separates common policy regression (`policy`, Ubuntu) from actual

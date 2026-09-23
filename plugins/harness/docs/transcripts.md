@@ -42,7 +42,19 @@ Selectors describe narrow adapter contracts, not a guarantee that every runtime 
 
 `bash <plugin>/checks/transcript-check.sh --scope <scope.json> --json` reads every stored required call, including missing/failed outcomes. The scoped inventory is session-wide; preserve failed attempts in its population. Do not filter them away to obtain a passing aggregate.
 
-The existing Claude directory entry remains: `--projects <directory>` (default `~/.claude/projects`), `--session <id>`, `--since <ISO8601|Nd|Nh>`, `--json`. It derives inventory from actual Agent/Task invocations rather than completions alone. Session and time filters intersect; unfinished invocations remain visible even if they began before the window. Completion-only legacy fragments, malformed tails, missing files and unsupported records are UNREACHED. `--self-check` retains the clean/dirty first-line SIGNAL and asynchronous notification controls.
+The existing Claude directory entry remains: `--projects <directory>` (default `~/.claude/projects`), `--session <id>`, `--since <ISO8601|Nd|Nh>`, `--json`. It derives inventory from actual Agent/Task invocations rather than completions alone. Session and time filters intersect; unfinished invocations remain visible even if they began before the window. Completion-only legacy fragments, malformed tails, missing files and unsupported records are UNREACHED.
+
+The Claude decoder separates supported messages from observed non-execution
+metadata: titles, prompt pointers, mode/bridge bookkeeping, file-history records,
+and the explicitly recognized context attachment kinds in `lib/transcripts/claude.mjs`.
+It ignores that metadata for invocation, completion, SIGNAL, tool and token
+evidence. A familiar metadata type carrying message/result/role-attribution fields
+is ambiguous and remains UNREACHED. Unknown types and new attachment kinds also
+remain UNREACHED, with their type named in the diagnostic; repeated identical
+parent diagnostics are reported once per decoded session. Supported calls in a
+mixed population remain visible, while the aggregate stays `complete: false`.
+Metadata support does not repair missing identity, unfinished calls or malformed
+JSON. Explicit native auditing uses the same decoder and retains these failures. `--self-check` retains the clean/dirty first-line SIGNAL and asynchronous notification controls.
 
 The report keeps `signals`, `tools`, `reuse`, and `a9.verdicts`, and adds explicit `population`, per-call `observations`, `complete`, and `unreached`. Exit 0 means complete A9 observation without violations; exit 1 means A9 violations; any required UNREACHED makes the whole report exit 2, even alongside valid observations. `complete: false` means signal/tool counts cover only the observed subset and cannot be quoted as the full denominator. A9 failures and token availability are independent: missing token fields yield `tokens.roles.<role>.status: UNKNOWN`, `total: null`, with `observed_partial` separately labelled. Message IDs deduplicate split-record usage. Parent exec turn usage is never attributed to a child.
 

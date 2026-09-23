@@ -64,7 +64,7 @@ try {
     for (const runtime of ['claude', 'codex', 'antigravity']) for (const role of ['implementer', 'reviewer', 'evaluator']) {
       const availableTools = requiredRoleTools(runtime, role);
       const model = runtime === 'antigravity' ? 'pro' : 'explicit-model';
-      const input = {availableTools, availableModels: [model], modelOptions: {model, ...(runtime === 'codex' ? {availableModels: [model]} : {})}};
+      const input = {availableTools, modelOptions: {model, availableModels: [model]}};
       assert.equal(roleCapabilities(runtime, role, input).model.model, model);
       for (const absent of availableTools)
         assert.throws(() => roleCapabilities(runtime, role, {...input, availableTools: availableTools.filter(tool => tool !== absent)}), /tools missing/);

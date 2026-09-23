@@ -5,6 +5,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import childProcess from 'node:child_process';
 import {syncBuiltinESMExports} from 'node:module';
+import {roleCapabilities, requiredRoleTools} from '../../plugins/harness/lib/runtime/role-capabilities.mjs';
 import {explainRole} from '../../plugins/harness/lib/runtime/role-explanation.mjs';
 import {projectRole, registerRoles} from '../../plugins/harness/lib/runtime/roles.mjs';
 
@@ -128,3 +129,33 @@ fs.writeFileSync(input, '{');
 assert.equal(childProcess.spawnSync(process.execPath, [path.join(root, 'scripts/roles.mjs'), 'explain', input]).status, 1);
 assert.equal(childProcess.spawnSync(process.execPath, [path.join(root, 'scripts/roles.mjs'), 'explain']).status, 1);
 console.log('PASS role explanation: invalid requests/source fail, native requests remain unobserved, CLI is read-only and matches registration');
+
+// Exercise the public CLI shape that previously succeeded in explain but failed
+// in capabilities for Claude. The model object is independent of the projector.
+for (const runtime of ['claude', 'codex', 'antigravity']) {
+  const model = runtime === 'antigravity' ? 'pro' : 'chosen';
+  const modelOptions = {model, availableModels: [model]};
+  const availableTools = requiredRoleTools(runtime, 'reviewer');
+  const request = {runtime, role: 'reviewer', availableTools, modelOptions};
+  fs.writeFileSync(input, JSON.stringify(request));
+  const result = childProcess.spawnSync(process.execPath,
+    [path.join(root, 'scripts/roles.mjs'), 'capabilities', input], {encoding: 'utf8'});
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).model, {model});
+  assert.deepEqual(run({...base, runtime, modelOptions}).report.requested, modelOptions);
+  for (const invalid of [null, [], 'model', {typo: true}, {model: ''},
+    {availableModels: 'chosen'}, {availableModels: [' ']}, {reasoningEffort: 'high'}])
+    assert.throws(() => roleCapabilities(runtime, 'reviewer', {availableTools, modelOptions: invalid}));
+}
+const claudeTools = requiredRoleTools('claude', 'reviewer');
+const capability = options => roleCapabilities('claude', 'reviewer', {availableTools: claudeTools, ...options});
+assert.deepEqual(capability({}).model, {model: 'inherit'});
+assert.deepEqual(capability({availableModels: ['chosen'], modelOptions: {model: 'chosen'}}).model, {model: 'chosen'});
+assert.deepEqual(capability({availableModels: ['b', 'a'],
+  modelOptions: {model: 'a', availableModels: ['a', 'b', 'a']}}).model, {model: 'a'});
+assert.throws(() => capability({modelOptions: {model: 'chosen'}}), /availableModels required/);
+assert.throws(() => capability({modelOptions: {model: 'chosen', availableModels: []}}), /requested model unavailable/);
+assert.throws(() => capability({availableModels: ['other'],
+  modelOptions: {model: 'chosen', availableModels: ['chosen']}}), /conflicting availableModels/);
+assert.throws(() => capability({availableModels: 'chosen', modelOptions: {model: 'chosen'}}), /available models invalid/);
+console.log('PASS shared model input: CLI parity, inheritance, invalid input and distinct observation diagnostics');
