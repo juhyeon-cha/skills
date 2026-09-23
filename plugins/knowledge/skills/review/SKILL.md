@@ -5,6 +5,12 @@ description: Independently judge a prepared knowledge update or document accepta
 
 # Review knowledge
 
+For a non-Git notebook explanation, read
+[notebook review](../../references/notebook.md#write-revise-and-review-an-explanation)
+and [document acceptance](references/document-ac.md). Judge the exact document,
+reader task and imported evidence independently; return its document-bound verdict
+and actual reasons. This route has no Git packet/plan ID. Continue below for Git packets.
+
 Read [the rubric](references/rubric.md) and [the response format](references/response.md).
 For target specifications without code, wording-only edits, or document acceptance evaluation,
 read [the document AC contract](references/document-ac.md) before selecting evidence. Retain its

@@ -5,6 +5,10 @@ description: Build and inspect a local multipage web wiki from reviewed canonica
 
 # Present a knowledge wiki
 
+For a non-Git notebook, use its [static export](../../references/notebook.md#read-and-show-the-knowledge)
+and the shared wiki renderer. Keep draft/stale labels visible; this local snapshot
+is not a managed publication or a live SAP view.
+
 Choose the requested output before acting. For a live local managed reading website, read
 [managed reader](../../references/reader.md) and launch its fixed audience/goal server.
 For an agent answer from the same result, use `knowledge:query`.

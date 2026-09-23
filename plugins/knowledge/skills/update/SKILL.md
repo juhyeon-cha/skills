@@ -5,6 +5,11 @@ description: Update existing knowledge after code, document or user-intent chang
 
 # Update knowledge
 
+For a non-Git observation notebook, follow
+[notebook revisions](../../references/notebook.md#write-revise-and-review-an-explanation):
+import the new evidence, inspect affected explanations, preserve notes/history and
+independently review the new exact document revision. Continue below for Git projects.
+
 ## Inspect and classify
 
 Read [project setup](../../references/project.md) and inspect `status`; for a recorded run,

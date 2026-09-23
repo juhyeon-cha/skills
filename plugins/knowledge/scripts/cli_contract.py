@@ -19,7 +19,8 @@ RUN_NOT_ACTIVE RUN_NOT_FOUND RUN_PHASE RUN_TERMINATED SCOPE SOURCE_MISMATCH SOUR
 STALE_DOCUMENT SUCCESSOR UNSUPPORTED_FILE
 """.split())
 OWNERS = frozenset(('knowledge.py', 'cli.py', 'impact.py', 'intake.py', 'project_service.py',
-                    'project_store.py', 'source_verification.py', 'update.py', 'workflow.py', 'package_paths.py'))
+                    'project_store.py', 'source_verification.py', 'update.py', 'workflow.py', 'package_paths.py',
+                    'observations.py', 'sap_observations.py', 'observation_wiki.py'))
 
 
 def encode(value):

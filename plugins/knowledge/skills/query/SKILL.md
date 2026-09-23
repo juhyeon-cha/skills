@@ -5,6 +5,11 @@ description: Read current knowledge, goals, evidence and partial completion acro
 
 # Query knowledge
 
+For an existing non-Git observation notebook, read
+[notebook retrieval](../../references/notebook.md#read-and-show-the-knowledge).
+Select the explicit source, reader purpose and product version; preserve stale,
+partial and unreviewed states. Do not require Git relations for that route.
+
 Read [query procedure](../../references/query.md) before retrieving results. Resolve the question
 and existing project or relation coordinates, host configuration and host-selected principal.
 Return current implementation, target and verification as separate facts with evidence versions.

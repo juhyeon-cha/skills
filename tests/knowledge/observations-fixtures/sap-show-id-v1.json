@@ -1,0 +1,95 @@
+{
+  "observation": {
+    "id": "object-fixture-1",
+    "source_id": "source-fixture-a",
+    "object_type": "CLAS",
+    "source_key": "CL_EXAMPLE",
+    "name": "CL_EXAMPLE",
+    "profile": "clas-structure-v1",
+    "status": "complete",
+    "structure_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "observed_at": "2026-09-23T08:00:00.000Z",
+    "evidence": {
+      "objectMetadata": {},
+      "elementMetadata": {
+        "method:RUN": {}
+      },
+      "relationMetadata": {},
+      "elementIds": {
+        "method:RUN": "element-fixture-1"
+      },
+      "relationIds": {},
+      "documents": [],
+      "conditions": [],
+      "states": [],
+      "diagnostics": []
+    },
+    "projection_evidence": "{\"objectMetadata\": {}, \"elementMetadata\": {\"method:RUN\": {}}, \"relationMetadata\": {}, \"elementIds\": {\"method:RUN\": \"element-fixture-1\"}, \"relationIds\": {}, \"documents\": [], \"conditions\": [], \"states\": [], \"diagnostics\": []}",
+    "structureSource": "complete",
+    "stale": false
+  },
+  "references": [],
+  "selected": {
+    "id": "object-fixture-1",
+    "system_key": "source-fixture-a",
+    "object_type": "CLAS",
+    "source_key": "CL_EXAMPLE",
+    "name": "CL_EXAMPLE",
+    "object_id": null,
+    "owner_object_id": null,
+    "metadata_version": 1,
+    "kind": "CLAS",
+    "metadataVersion": 1,
+    "metadata": {
+      "visibility": "public"
+    }
+  },
+  "owner": {
+    "id": "object-fixture-1",
+    "system_key": "source-fixture-a",
+    "object_type": "CLAS",
+    "source_key": "CL_EXAMPLE",
+    "name": "CL_EXAMPLE",
+    "object_id": null,
+    "owner_object_id": null,
+    "metadata_version": 1,
+    "kind": "CLAS",
+    "metadataVersion": 1,
+    "metadata": {
+      "visibility": "public"
+    }
+  },
+  "elements": [
+    {
+      "id": "element-fixture-1",
+      "object_id": "object-fixture-1",
+      "owner_object_id": null,
+      "source_key": "method:RUN",
+      "kind": "method",
+      "name": "RUN",
+      "collection_stage": "structure",
+      "parent_element_id": null,
+      "ordinal": null,
+      "metadata_version": 1,
+      "metadataVersion": 1,
+      "metadata": {
+        "declaration": "methods RUN",
+        "visibility": "public"
+      }
+    }
+  ],
+  "relations": [],
+  "effectiveSignatures": [
+    {
+      "methodId": "element-fixture-1",
+      "status": "unresolved",
+      "reason": "class-detail-uncollected",
+      "path": [
+        {
+          "objectId": "object-fixture-1"
+        }
+      ]
+    }
+  ],
+  "collection": []
+}

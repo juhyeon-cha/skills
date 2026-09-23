@@ -94,6 +94,10 @@ FE만 요청하면 해당 업무에 필요한 내용만 구성합니다.
 정적·관리형 위키에 실제 도형과 카드로 표시되고, 원문은 일반 목록으로도 읽을 수 있습니다.
 에이전트와 같은 근거·상태를 웹에서 읽으려면 [관리형 읽기 화면](plugins/knowledge/references/reader.md)을 사용합니다.
 화면은 요청마다 권한을 확인하며, 기존 정적 위키는 생성 당시 스냅샷으로 유지됩니다.
+SAP처럼 Git 밖에서 얻은 자료는 [관측 기반 지식 축적](plugins/knowledge/references/notebook.md)을
+사용합니다. 명시적으로 가져온 객체 근거, 사용자 메모, 독자별 설명과 검토 이력을 보존하고,
+재수집 후 설명의 갱신 필요 여부를 표시합니다. 설치 사용자는 소스 저장소 복제 없이
+설치된 플러그인의 `knowledge.py ... notebook` 경로를 사용할 수 있습니다.
 [전환 안내](plugins/knowledge/references/transition.md)와 [후속 고도화 계획](docs/initiatives/code-driven-knowledge/plugin-evolution.md)을 확인하세요.
 
 ## toolkit 사용법

@@ -49,6 +49,8 @@ def main():
     parser.add_argument('--project', type=Path)
     commands = parser.add_subparsers(dest='command')
     commands.add_parser('doctor')
+    from observations import register_commands
+    register_commands(commands.add_parser('notebook', help='Accumulate local non-Git evidence and purpose-specific knowledge'))
     init = commands.add_parser('init')
     for key in ('repo', 'docs', 'spec'):
         init.add_argument('--' + key, type=Path, required=True)
@@ -85,7 +87,12 @@ def main():
             return 0
         if command is None:
             raise UsageError('a command is required')
-        if args.command == 'doctor':
+        if args.command == 'notebook':
+            if args.project is None:
+                raise ValueError('PROJECT_REQUIRED: supply --project for the local notebook')
+            from observations import execute
+            result = execute(args)
+        elif args.command == 'doctor':
             result = doctor()
         else:
             if args.project is None:
