@@ -1,0 +1,8 @@
+{
+  "name": "knowledge-wiki-runtime",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "markdown-it": "14.3.0"
+  }
+}
