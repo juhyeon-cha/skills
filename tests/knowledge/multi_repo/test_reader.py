@@ -43,6 +43,15 @@ class ReaderTests(unittest.TestCase):
         f.call('publish', {'goal': 'contract', 'audience': 'reader'})
         return f
 
+    def test_shared_visual_stylesheet_is_served(self):
+        f = self.complete(); port = self.serve(f)
+        status, headers, body = self.request(port, '/style.css')
+        self.assertEqual(status, 200)
+        self.assertEqual(headers['Content-Type'], 'text/css; charset=utf-8')
+        shared = (SCRIPTS/'wiki/visuals.css').read_text()
+        self.assertTrue(body.endswith(shared))
+        self.assertEqual(body.count('.wiki-flow-step::'), shared.count('.wiki-flow-step::'))
+
     def test_same_projection_cli_http_and_readonly_state(self):
         f = self.complete(); port = self.serve(f)
         state = f.root/'state/state.json'
@@ -219,7 +228,8 @@ class ReaderTests(unittest.TestCase):
         needle = 'p.repository === page.repository && '
         self.assertEqual(source.count(needle), 1)
         (scratch/'managed.mjs').write_text(source.replace(needle, ''))
-        shutil.copyfile(SCRIPTS/'wiki/markdown.mjs', scratch/'markdown.mjs')
+        for name in ('markdown.mjs', 'visuals.mjs'):
+            shutil.copyfile(SCRIPTS/'wiki'/name, scratch/name)
         result = subprocess.run(['node',str(scratch/'managed.mjs'),module], input=json.dumps(docs),
                                 capture_output=True,text=True,check=True)
         self.assertIn('/documents/b/guide.md/', json.loads(result.stdout)[0]['html'])

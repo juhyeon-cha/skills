@@ -228,6 +228,7 @@ fs.writeFileSync(
 );
 for (const asset of ["search.js", "style.css"])
   fs.copyFileSync(path.join(__dirname, asset), path.join(output, asset));
+fs.appendFileSync(path.join(output, "style.css"), "\n" + fs.readFileSync(path.join(__dirname, "visuals.css"), "utf8"));
 const inputHashes = {
   "manifest.json": hash(raw),
   ...Object.fromEntries(pages.map((p) => [p.path, p.sha256])),

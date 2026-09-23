@@ -100,6 +100,10 @@ symlinks and unlisted Markdown files fail the build. Build into a new output dir
 output is refused. A failed build can leave partial files, so inspect them and choose a new
 output before retrying. Follow the user's deletion boundary for cleanup.
 
+For flowcharts and card grids, use [visual blocks](visual-blocks.md) in the reviewed
+Markdown. They share rendering with the managed reader and keep the same readable list
+content. Mermaid fences remain code; arbitrary HTML cards are outside this supported subset.
+
 The completion receipt binds document, manifest, search and HTML bytes and is written last.
 The checker detects changed bytes and missing outputs. This is local integrity evidence,
 not semantic review, atomic publication, live verification or currentness.

@@ -1,0 +1,16 @@
+/* Shared visual projection; lists retain their semantic reading order. */
+.wiki-visual { margin: 1.8rem 0; padding: 1.2rem; border: 1px solid #b6c6cc; border-radius: 12px; background: #f5f9f8; color: #203637; }
+.wiki-visual .wiki-visual-title { margin: 0 0 1rem; font-weight: 750; font-size: 1.05rem; }
+.wiki-visual .wiki-visual-items { margin: 0; }
+.wiki-flow > .wiki-visual-items { padding-left: 1.65rem; }
+.wiki-flow-step { position: relative; padding: .85rem 1rem; border: 1px solid #a7bfbd; border-radius: 8px; background: #fff; overflow-wrap: anywhere; }
+.wiki-flow-step + .wiki-flow-step { margin-top: 2rem; }
+.wiki-flow-step + .wiki-flow-step::before { content: ''; position: absolute; top: -2rem; left: 1.5rem; height: 1.8rem; border-left: 2px solid #547978; }
+.wiki-flow-step + .wiki-flow-step::after { content: ''; position: absolute; top: -.65rem; left: calc(1.5rem - 4px); width: 7px; height: 7px; border-right: 2px solid #547978; border-bottom: 2px solid #547978; transform: rotate(45deg); }
+.wiki-flow-outcomes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: 1rem; padding-left: 1.25rem; margin-top: 1rem; }
+.wiki-flow-outcomes > li { border-top: 2px solid #547978; padding: .7rem; background: #edf4f3; border-radius: 4px; }
+.wiki-cards > .wiki-visual-items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 1rem; padding-left: 1.25rem; }
+.wiki-card { min-width: 0; padding: 1rem; border: 1px solid #a7bfbd; border-radius: 8px; background: #fff; overflow-wrap: anywhere; }
+.wiki-card > p:first-child, .wiki-flow-step > p:first-child { margin-top: 0; }
+.wiki-card > p:last-child, .wiki-flow-step > p:last-child { margin-bottom: 0; }
+@media (max-width: 520px) { .wiki-visual { padding: .85rem; } .wiki-cards > .wiki-visual-items, .wiki-flow-outcomes { grid-template-columns: minmax(0, 1fr); } }

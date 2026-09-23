@@ -104,6 +104,12 @@ not an OS sandbox; use a trusted runtime. Missing runtime, timeout or rendering 
 closed without cached-body fallback. Node startup is paid on document/catalogue requests; no
 cross-request rendered body cache is kept. Search also pays this per-request Node startup.
 
+For flowcharts and cards, author the supported [visual blocks](visual-blocks.md).
+The shared renderer turns their ordinary Markdown lists into labeled flows or card grids,
+while preserving readable list content for agents and section search. Mermaid fences remain
+code and raw HTML remains inert. Malformed recognized visual blocks fail the render just
+like other rendering failures; they do not bypass the current permitted-body boundary.
+
 ### Search documents and evidence sections
 
 Use `/search/?q=QUERY` in the browser or `/api/search?q=QUERY` for the identical search result

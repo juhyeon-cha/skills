@@ -34,6 +34,14 @@ reduction in the acceptance bar.
 
 ## Compose supported answers
 
+When authoring, apply the writing skill's document-shape guidance to establish missing
+business context, choose the reader's organizing perspective and explain supported
+mechanisms and boundary scenarios. For flowcharts, cards or other visual explanations,
+read that skill's visual guidance and establish the target's rendering support before
+choosing syntax. For the managed or static knowledge wiki, read the supported subset
+in [managed reader](../../../references/reader.md#browser-result) or
+[static wiki](../../../references/knowledge-wiki.md#render-the-reviewed-body).
+
 Give each question an answer location, evidence locator and status in that record.
 Use current behavior, confirmed target, proposal and unresolved as distinct claim
 classes under [document acceptance](document-ac.md#classify-before-judging).
@@ -85,6 +93,9 @@ audience/purpose, with coverage limits stated rather than invented reader requir
 
 For each mandatory question, check that the document lets the reader make the correct
 decision or action, including relevant conditions, exceptions and evidence limits.
+Judge explanatory structure through that action: missing context, an unsupported
+rationale or a visual that hides a branch is a reader defect, not just a style preference.
+Review visual labels and adjacent explanations against the same authority as prose.
 Trace common facts across reader explanations and source classes. A correct BE answer
 does not compensate for an FE failure path omission; a matching code statement does
 not prove an approved policy or product effect.

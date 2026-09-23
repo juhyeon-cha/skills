@@ -1,0 +1,2 @@
+Harness root: /private/tmp/skills-knowledge-reader-content
+Bounded independent reading task, no edits. Read ONLY tests/knowledge/reader-composition/documents/guide.md, no other files or instructions/source/answer keys. Answer in Korean based only on that guide: 1) 어떤 문제를 해결하려 하며 주문 취소와 환불의 경계는 무엇인가? 2) 정상 응답과 응답 유실 때 각각 무엇을 하고 왜 다른가? 3) FE, BE, 기획, PO가 각각 다음에 해야 할 일은 어떻게 다른가? 4) 흐름도와 카드가 각각 설명하는 것은 무엇이며 무엇은 아직 미정/미검증인가? Note anything confusing or unsupported. Return actual concise answers, not a review verdict. Do not access network.

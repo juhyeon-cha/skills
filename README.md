@@ -86,6 +86,10 @@ FE만 요청하면 해당 업무에 필요한 내용만 구성합니다.
 필수 질문·근거·답변 위치를 연결하고, 공통 정책 변경 시 관련 설명도 함께 검토합니다.
 코드에서 확인되는 동작과 결정 자료가 필요한 정책·목표를 구분하며,
 근거가 없는 내용은 미확인 사항과 그로 인해 막히는 판단으로 남깁니다.
+업무 맥락에서 시작해 역할별 다음 행동, 근거 있는 이유, 정상·예외 사례를 설명합니다.
+과정과 결과 분기는 흐름도, 독립적인 범위·결정 사항은 카드로 표현할 수 있습니다.
+[시각 블록 작성법](plugins/knowledge/references/visual-blocks.md)의 Markdown을 사용하면
+정적·관리형 위키에 실제 도형과 카드로 표시되고, 원문은 일반 목록으로도 읽을 수 있습니다.
 에이전트와 같은 근거·상태를 웹에서 읽으려면 [관리형 읽기 화면](plugins/knowledge/references/reader.md)을 사용합니다.
 화면은 요청마다 권한을 확인하며, 기존 정적 위키는 생성 당시 스냅샷으로 유지됩니다.
 [전환 안내](plugins/knowledge/references/transition.md)와 [후속 고도화 계획](docs/initiatives/code-driven-knowledge/plugin-evolution.md)을 확인하세요.

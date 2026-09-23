@@ -1,0 +1,9 @@
+{
+  "tests/knowledge/reader-composition/protocol-wiki.md": "0113c03d971881ed454065e7a39f84014a93ab93fc7b8af3aba0b7b6aef4ef69",
+  "tests/knowledge/reader-composition/protocol.md": "a6cc967b6395e79821e69b386df51de138e1a72588dfbe24e0244efa94e39849",
+  "tests/knowledge/reader-content/questions.json": "b6cb4a4cbfb8fa6df5856394c522c433a4bc862298b653dbab33057140db531e",
+  "tests/knowledge/reader-content/expectations.json": "d8a912fa63baac55c8943f01cba6d5d3cc5bd84438dac39ddd242c7ba1c4c1c4",
+  "tests/knowledge/reader-content/fixture/screen.py": "f5f11cee9e38d28d42fa738a328c300934e731425b3d9d3589b6954d8022e434",
+  "tests/knowledge/reader-content/fixture/service.py": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+  "tests/knowledge/reader-content/fixture/decisions.md": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1"
+}
