@@ -1,0 +1,6 @@
+read의 visible member validation_detail 및 integration_detail은 첫 확인된 차단 단계/code/next_action을 제공한다. 기존 validation/completion/served/index 판정과 query/wiki 출력·저장된 hash/DB형식은 유지한다. 변경전 M0의 같은 fixture에서 legacyquery/wiki 결과가 같고 complete의 index/currentpublication이 유지돼야 한다.
+문서 근거 변경(document_evidence_changed)·문서 반영 대기(documents_pending)·검사 없음(check_pending)·현재 입력의 검사 실패(check_failed)·오래된 검사(check_stale)·독립 검토 대기(review_pending)·소스 미커밋(source_dirty)·근거 불가(evidence_unavailable)를 구분한다. fresh check는 goal/command/input_files/source/source_unchanged 모두 같을 때만 실패를 확정한다. 문서→체크→리뷰의 첫 실패만 반환; 전체 원인/다음단계 성공을 단정하지 않는다. 통합 실패는 member verified와 구분한다.
+source/query/publish 단일철회 시 숨긴 저장소 진단·경로·URL·체크이름/출력/예외가 API/HTML/검색/통합진단에 노출되지 않는다. 부족한권한은 범위만 표시. read중 진단변경(상위pending_or_stale동일)도 READ_CHANGED로 거절. 읽기는 기존 상태/문서를 수정하지 않는다.
+개요/저장소/근거 페이지에 동일한 한국어 원인·다음조치를 표시하고 실제HTTP/CLI 결과 ID 일치 및 실제브라우저 문서변경/검사실패/오래된검사/리뷰대기/통합실패/숨김을 확인한다. 고정질문(첫차단단계? 확인된 사실? 다음조치? 전체완료/본문가능? 숨긴범위?)에 실제 독립모델이 공개 JSON만 보고 답하며 정답은 주입변경·검사입력비교와 대조한다. 시험영수증과 실제모델호출을 구분한다.
+문서 원본복원→검증복구, 실패체크수정→check_stale→재실행→review_pending→독립검토후complete/게시별도 경로를 로컬fixture로 검증한다. 기존 검토 영수증 재사용은 시험fixture에 한정하고 실제 독립 판정을 꾸미지 않는다.
+관련knowledgewrapper와 저장소gate통과, 독립LGTM·별도MATCH, 최종headCI전체통과, PR전달. 운영·설치·릴리스·migration·후속PRmerge 제외. 새로운 모델금액/토큰은 제공된 경우만 기록.

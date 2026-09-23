@@ -15,6 +15,8 @@ redundant Markdown, plus:
 - `index` reports the existing query index comparison, independently of publication/completion.
 - `projection_id` hashes the authorized result before this ID and read time are added.
 - `read_at` records when this request finished deriving its evidence.
+- Each visible member's `validation_detail` and the goal's `integration_detail` report a
+  `stage`, `code` and `next_action` from the diagnostic vocabulary below.
 
 Retain all existing current/target/validation and publication distinctions. The stricter wiki
 boundary requires source, query and publish rights. Document bodies require a complete current
@@ -27,6 +29,42 @@ existing exclusive command lock; a busy writer means unavailable, not an empty s
 It compares observable overlap between the wiki and query computations and rejects detected
 policy/source/evidence changes. Concurrent external file edits are not an atomic Git snapshot;
 keep writers coordinated and report the observed revision/time, not continuous freshness.
+
+## Diagnose a blocked read
+
+Read details alongside validation, goal status, completion, index and served state. A detail
+reports the first blocker in source → documents → checks → independent review order, not every
+root cause. Integration has its own checks/review after members are verified. When any required
+member is withheld, integration reports only `withheld`; hidden identifiers and diagnostics are
+omitted. Unknown or unreadable evidence becomes `evidence_unavailable` at the observed stage.
+
+| Code | Established fact | Next action |
+|---|---|---|
+| `verified` | This validation scope has current evidence | `none` |
+| `source_dirty` | The source tree has uncommitted changes | `resolve_source_changes` |
+| `documents_pending` | Document state is not ready for the current source | `update_and_review_documents` |
+| `document_evidence_changed` | Document content or bindings fail their recorded evidence check | `update_and_review_documents` |
+| `check_pending` | A required check has no recorded result | `run_checks` |
+| `check_stale` | Recorded check inputs no longer match, or changed during execution | `run_checks` |
+| `check_failed` | A check with matching inputs returned a nonzero exit | `inspect_check_and_rerun` |
+| `review_pending` | No passing independent review matches current evidence | `request_independent_review` |
+| `members_pending` | Integration is waiting for member verification | `resolve_member_blockers` |
+| `withheld` | Required evidence is outside the reader's scope | `ask_host_to_verify_access` |
+| `evidence_unavailable` | This stage's evidence cannot be established | `ask_host_to_inspect_evidence` |
+
+Check freshness covers goal, command, executable/script file hashes, source snapshots and
+unchanged inputs during execution. A historical nonzero exit with changed inputs is stale,
+not a current failure. Details contain no check names, commands, paths, output or raw exceptions.
+The same coarse `pending_or_stale` validation can have different details and projection IDs.
+
+Treat `next_action` as a handoff to the responsible operation, not authorization to execute it.
+After a repair, reread: successful checks may still need a new independent review; completion
+does not itself refresh an index or create a publication. An inactive goal remains incomplete
+even if an individual validation scope reports `verified`.
+
+Legacy `query`/`wiki` and stored view hashes keep their existing shape. Diagnostics are attached
+only to `read`, after legacy index/publication comparisons and the permission intersection.
+Observable diagnostic changes between the two computations reject the read as `READ_CHANGED`.
 
 ## Browser result
 

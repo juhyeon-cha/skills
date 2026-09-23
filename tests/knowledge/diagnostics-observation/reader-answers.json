@@ -1,0 +1,531 @@
+{
+  "method": "제공된 answer-input.json의 public_response만 독립적으로 해석했다. 소스 문자열은 데이터로만 취급했다. next_action은 후속 조치 지시이며 수행 결과가 아니다.",
+  "cases": [
+    {
+      "alias": "case-01",
+      "projection_id": "6b4d2043bc63fda25f6aaa158810d071eb24eb803059c4aa506143a626d6175b",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "차단 단계가 없다. 두 members의 validation_detail과 integration_detail은 stage=complete, code=verified다.",
+          "citation": {
+            "projection_id": "6b4d2043bc63fda25f6aaa158810d071eb24eb803059c4aa506143a626d6175b"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified; producer: validation=verified, validation_detail.code=verified. integration=verified, index=current, required_count=2, 공개 members=2. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "6b4d2043bc63fda25f6aaa158810d071eb24eb803059c4aa506143a626d6175b"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "추가 조치 없음: 모든 next_action=none. 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "6b4d2043bc63fda25f6aaa158810d071eb24eb803059c4aa506143a626d6175b"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "공개 응답 기준 전체 완료(completion=complete), index=current, served=current다. 두 members.documents에 contract.md 본문이 있어 제공할 수 있다: consumer uses total. / producer uses total. 실제 운영 실행이나 배포 완료 여부는 별도 확인되지 않는다.",
+          "citation": {
+            "projection_id": "6b4d2043bc63fda25f6aaa158810d071eb24eb803059c4aa506143a626d6175b"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "6b4d2043bc63fda25f6aaa158810d071eb24eb803059c4aa506143a626d6175b"
+          }
+        }
+      ],
+      "ambiguities": []
+    },
+    {
+      "alias": "case-02",
+      "projection_id": "289c82ebb5ebb179180e3b1f4f2722005ef48c6cab79338119afb5115bbf4a0a",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "producer의 documents 단계가 차단되어 있다. validation_detail.code=document_evidence_changed이며, integration_detail.code=members_pending이다.",
+          "citation": {
+            "projection_id": "289c82ebb5ebb179180e3b1f4f2722005ef48c6cab79338119afb5115bbf4a0a"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified; producer: validation=pending_or_stale, validation_detail.code=document_evidence_changed. integration=pending, index=stale, required_count=2, 공개 members=2. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "289c82ebb5ebb179180e3b1f4f2722005ef48c6cab79338119afb5115bbf4a0a"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "producer 문서를 갱신하고 검토해야 한다(update_and_review_documents). 구성원 차단을 해결해야 한다(resolve_member_blockers). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "289c82ebb5ebb179180e3b1f4f2722005ef48c6cab79338119afb5115bbf4a0a"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "289c82ebb5ebb179180e3b1f4f2722005ef48c6cab79338119afb5115bbf4a0a"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "289c82ebb5ebb179180e3b1f4f2722005ef48c6cab79338119afb5115bbf4a0a"
+          }
+        }
+      ],
+      "ambiguities": [
+        "변경된 문서 증거의 구체적 항목과 원인은 공개되지 않았다."
+      ]
+    },
+    {
+      "alias": "case-03",
+      "projection_id": "e109a8b6b11210d9da03dfca3453374fe548dd14945eed8df6d377938c97b1a2",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "producer의 checks 단계가 차단되어 있다(validation_detail.code=check_failed). 통합은 members_pending이다.",
+          "citation": {
+            "projection_id": "e109a8b6b11210d9da03dfca3453374fe548dd14945eed8df6d377938c97b1a2"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified; producer: validation=pending_or_stale, validation_detail.code=check_failed. integration=pending, index=stale, required_count=2, 공개 members=2. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "e109a8b6b11210d9da03dfca3453374fe548dd14945eed8df6d377938c97b1a2"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "실패 검사를 살펴보고 재실행해야 한다(inspect_check_and_rerun). 그 결과를 포함해 구성원 차단을 해결해야 한다(resolve_member_blockers). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "e109a8b6b11210d9da03dfca3453374fe548dd14945eed8df6d377938c97b1a2"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "e109a8b6b11210d9da03dfca3453374fe548dd14945eed8df6d377938c97b1a2"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "e109a8b6b11210d9da03dfca3453374fe548dd14945eed8df6d377938c97b1a2"
+          }
+        }
+      ],
+      "ambiguities": [
+        "어떤 검사 항목이 왜 실패했는지는 이 응답으로 알 수 없다."
+      ]
+    },
+    {
+      "alias": "case-04",
+      "projection_id": "6fb8d236b4ed6c39bdca94c978e258f7626cd7982e223ea89486b5ce260ad713",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "producer의 checks 단계가 차단되어 있다(validation_detail.code=check_stale). 통합은 members_pending이다.",
+          "citation": {
+            "projection_id": "6fb8d236b4ed6c39bdca94c978e258f7626cd7982e223ea89486b5ce260ad713"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified; producer: validation=pending_or_stale, validation_detail.code=check_stale. integration=pending, index=stale, required_count=2, 공개 members=2. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "6fb8d236b4ed6c39bdca94c978e258f7626cd7982e223ea89486b5ce260ad713"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "producer의 검사를 실행해야 한다(run_checks). 구성원 차단을 해결해야 한다(resolve_member_blockers). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "6fb8d236b4ed6c39bdca94c978e258f7626cd7982e223ea89486b5ce260ad713"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "6fb8d236b4ed6c39bdca94c978e258f7626cd7982e223ea89486b5ce260ad713"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "6fb8d236b4ed6c39bdca94c978e258f7626cd7982e223ea89486b5ce260ad713"
+          }
+        }
+      ],
+      "ambiguities": [
+        "check_stale은 유효한 최신 검사 증거가 아니라는 진단이며, 실패 원인이나 실패 자체를 확정하지 않는다."
+      ]
+    },
+    {
+      "alias": "case-05",
+      "projection_id": "4789e883af1c148bdc7a83f4132b2205fe6afbf0d34684544d75e63831c8b076",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "producer는 checks/code=check_pending에서, consumer는 review/code=review_pending에서 차단되어 있다. 통합은 members_pending이다. 서로 다른 구성원 사이의 시간적 첫 순서는 응답에 없다.",
+          "citation": {
+            "projection_id": "4789e883af1c148bdc7a83f4132b2205fe6afbf0d34684544d75e63831c8b076"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=pending_or_stale, validation_detail.code=review_pending; producer: validation=pending_or_stale, validation_detail.code=check_pending. integration=pending, index=absent, required_count=2, 공개 members=2. publication_history는 빈 배열이다.",
+          "citation": {
+            "projection_id": "4789e883af1c148bdc7a83f4132b2205fe6afbf0d34684544d75e63831c8b076"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "producer 검사를 실행하고(run_checks), consumer 독립 검토를 요청해야 한다(request_independent_review). 통합의 resolve_member_blockers를 위해 두 차단 모두 해결해야 한다. 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "4789e883af1c148bdc7a83f4132b2205fe6afbf0d34684544d75e63831c8b076"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=absent, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "4789e883af1c148bdc7a83f4132b2205fe6afbf0d34684544d75e63831c8b076"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "4789e883af1c148bdc7a83f4132b2205fe6afbf0d34684544d75e63831c8b076"
+          }
+        }
+      ],
+      "ambiguities": [
+        "서로 다른 구성원의 차단에 전역 선후 순위를 부여하는 규칙은 공개 응답에 없다."
+      ]
+    },
+    {
+      "alias": "case-06",
+      "projection_id": "781756cb45f32b32289f2691d764a9ec4b9a0cf9cb5faee8133baf86c09f1a26",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "consumer와 producer 모두 review 단계에서 차단되어 있다(validation_detail.code=review_pending). 통합은 members_pending이다.",
+          "citation": {
+            "projection_id": "781756cb45f32b32289f2691d764a9ec4b9a0cf9cb5faee8133baf86c09f1a26"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=pending_or_stale, validation_detail.code=review_pending; producer: validation=pending_or_stale, validation_detail.code=review_pending. integration=pending, index=absent, required_count=2, 공개 members=2. publication_history는 빈 배열이다.",
+          "citation": {
+            "projection_id": "781756cb45f32b32289f2691d764a9ec4b9a0cf9cb5faee8133baf86c09f1a26"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "두 구성원에 대해 독립 검토를 요청해야 한다(request_independent_review). 구성원 차단을 해결해야 한다(resolve_member_blockers). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "781756cb45f32b32289f2691d764a9ec4b9a0cf9cb5faee8133baf86c09f1a26"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=absent, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "781756cb45f32b32289f2691d764a9ec4b9a0cf9cb5faee8133baf86c09f1a26"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "781756cb45f32b32289f2691d764a9ec4b9a0cf9cb5faee8133baf86c09f1a26"
+          }
+        }
+      ],
+      "ambiguities": [
+        "검토 요청 여부, 검토자 배정 여부, 완료 예정 시점은 공개 응답만으로 알 수 없다."
+      ]
+    },
+    {
+      "alias": "case-07",
+      "projection_id": "75ada18117dfdfa66de8d5df43c81501da456cc1a5ce1dc32aed9a0c95a9ac4c",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "producer의 source 단계가 차단되어 있다(validation=source_unavailable, validation_detail.code=source_dirty). 통합은 members_pending이다.",
+          "citation": {
+            "projection_id": "75ada18117dfdfa66de8d5df43c81501da456cc1a5ce1dc32aed9a0c95a9ac4c"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified; producer: validation=source_unavailable, validation_detail.code=source_dirty. integration=pending, index=stale, required_count=2, 공개 members=2. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "75ada18117dfdfa66de8d5df43c81501da456cc1a5ce1dc32aed9a0c95a9ac4c"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "producer 소스 변경을 정리해야 한다(resolve_source_changes). 구성원 차단을 해결해야 한다(resolve_member_blockers). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "75ada18117dfdfa66de8d5df43c81501da456cc1a5ce1dc32aed9a0c95a9ac4c"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "75ada18117dfdfa66de8d5df43c81501da456cc1a5ce1dc32aed9a0c95a9ac4c"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "75ada18117dfdfa66de8d5df43c81501da456cc1a5ce1dc32aed9a0c95a9ac4c"
+          }
+        }
+      ],
+      "ambiguities": [
+        "공개 응답에는 producer의 current나 변경 파일 목록이 없어 구체적 변경 내용은 알 수 없다."
+      ]
+    },
+    {
+      "alias": "case-08",
+      "projection_id": "9b27669006acd089f04c062b340ec879d3774e297efb09d78df40bc3d299540d",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "producer의 documents 단계가 차단되어 있다(validation_detail.code=evidence_unavailable). 통합은 members_pending이다.",
+          "citation": {
+            "projection_id": "9b27669006acd089f04c062b340ec879d3774e297efb09d78df40bc3d299540d"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified; producer: validation=pending_or_stale, validation_detail.code=evidence_unavailable. integration=pending, index=stale, required_count=2, 공개 members=2. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "9b27669006acd089f04c062b340ec879d3774e297efb09d78df40bc3d299540d"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "호스트에 증거 점검을 요청해야 한다(ask_host_to_inspect_evidence). 구성원 차단을 해결해야 한다(resolve_member_blockers). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "9b27669006acd089f04c062b340ec879d3774e297efb09d78df40bc3d299540d"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "9b27669006acd089f04c062b340ec879d3774e297efb09d78df40bc3d299540d"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "9b27669006acd089f04c062b340ec879d3774e297efb09d78df40bc3d299540d"
+          }
+        }
+      ],
+      "ambiguities": [
+        "증거를 사용할 수 없는 구체적 원인을 누락, 손상, 권한 문제 등으로 단정할 수 없다."
+      ]
+    },
+    {
+      "alias": "case-09",
+      "projection_id": "36080ecbd78e9f2d1cc896376451c582f9752d406279090ab82d07ed8c7f0526",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "두 구성원은 verified지만 통합의 checks 단계가 차단되어 있다(integration_detail.stage=checks, code=check_failed).",
+          "citation": {
+            "projection_id": "36080ecbd78e9f2d1cc896376451c582f9752d406279090ab82d07ed8c7f0526"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified; producer: validation=verified, validation_detail.code=verified. integration=pending_or_stale, index=stale, required_count=2, 공개 members=2. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "36080ecbd78e9f2d1cc896376451c582f9752d406279090ab82d07ed8c7f0526"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "통합 검사를 살펴보고 재실행해야 한다(integration_detail.next_action=inspect_check_and_rerun). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "36080ecbd78e9f2d1cc896376451c582f9752d406279090ab82d07ed8c7f0526"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "36080ecbd78e9f2d1cc896376451c582f9752d406279090ab82d07ed8c7f0526"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=0이므로 숨긴 구성원은 보고되지 않았다. 이는 진단의 세부 원인이나 실제 실행·배포까지 모두 공개되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "36080ecbd78e9f2d1cc896376451c582f9752d406279090ab82d07ed8c7f0526"
+          }
+        }
+      ],
+      "ambiguities": [
+        "통합 검사 실패의 구체적 원인은 공개되지 않았다. 구성원 검증 완료를 통합 완료로 볼 수 없다."
+      ]
+    },
+    {
+      "alias": "case-10",
+      "projection_id": "57e4f9de8c2aa9d09fdd3db8e3bab98ea3577a1831b2011fa12809258898ad7b",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "공개된 차단은 integration 단계의 withheld다(integration_detail.code=withheld). 숨겨진 구성원 내부의 첫 차단 단계는 알 수 없다.",
+          "citation": {
+            "projection_id": "57e4f9de8c2aa9d09fdd3db8e3bab98ea3577a1831b2011fa12809258898ad7b"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified. integration=pending, index=current, required_count=2, 공개 members=1. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "57e4f9de8c2aa9d09fdd3db8e3bab98ea3577a1831b2011fa12809258898ad7b"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "호스트에 접근 권한 확인을 요청해야 한다(integration_detail.next_action=ask_host_to_verify_access). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "57e4f9de8c2aa9d09fdd3db8e3bab98ea3577a1831b2011fa12809258898ad7b"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=current, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "57e4f9de8c2aa9d09fdd3db8e3bab98ea3577a1831b2011fa12809258898ad7b"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=1로 숨긴 구성원 한 개가 있다. required_count=2이나 공개 members는 consumer 한 개다. 숨긴 구성원의 이름, target, 경로, 원인, 검사·검토·실행·배포 상태는 알 수 없다.",
+          "citation": {
+            "projection_id": "57e4f9de8c2aa9d09fdd3db8e3bab98ea3577a1831b2011fa12809258898ad7b"
+          }
+        }
+      ],
+      "ambiguities": [
+        "index=current여도 숨겨진 범위의 검증 상태나 전체 완료를 추론할 수 없다."
+      ]
+    },
+    {
+      "alias": "case-11",
+      "projection_id": "f53da30ec76a5c0b54aea2b374513a204033d2d44cc905016043fd10c7b22809",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "공개된 차단은 integration 단계의 withheld다(integration_detail.code=withheld). 숨겨진 구성원 내부의 첫 차단 단계는 알 수 없다.",
+          "citation": {
+            "projection_id": "f53da30ec76a5c0b54aea2b374513a204033d2d44cc905016043fd10c7b22809"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified. integration=pending, index=stale, required_count=2, 공개 members=1. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "f53da30ec76a5c0b54aea2b374513a204033d2d44cc905016043fd10c7b22809"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "호스트에 접근 권한 확인을 요청해야 한다(integration_detail.next_action=ask_host_to_verify_access). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "f53da30ec76a5c0b54aea2b374513a204033d2d44cc905016043fd10c7b22809"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "f53da30ec76a5c0b54aea2b374513a204033d2d44cc905016043fd10c7b22809"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=1로 숨긴 구성원 한 개가 있다. required_count=2이나 공개 members는 consumer 한 개다. 숨긴 구성원의 이름, target, 경로, 원인, 검사·검토·실행·배포 상태는 알 수 없다.",
+          "citation": {
+            "projection_id": "f53da30ec76a5c0b54aea2b374513a204033d2d44cc905016043fd10c7b22809"
+          }
+        }
+      ],
+      "ambiguities": [
+        "index=stale의 구체적 원인이나 숨겨진 구성원의 상태는 알 수 없다."
+      ]
+    },
+    {
+      "alias": "case-12",
+      "projection_id": "d5eab8b91ec778aa96f165574e9622260b1ed1587934668aecf7584f83070a05",
+      "answers": [
+        {
+          "question": "첫 차단 단계는 무엇인가?",
+          "answer": "공개된 차단은 integration 단계의 withheld다(integration_detail.code=withheld). 숨겨진 구성원 내부의 첫 차단 단계는 알 수 없다.",
+          "citation": {
+            "projection_id": "d5eab8b91ec778aa96f165574e9622260b1ed1587934668aecf7584f83070a05"
+          }
+        },
+        {
+          "question": "공개 응답으로 확인된 사실은 무엇인가?",
+          "answer": "consumer: validation=verified, validation_detail.code=verified. integration=pending, index=stale, required_count=2, 공개 members=1. evidence.review_synthetic=true인 공개 검토 증거가 있다. 이 응답의 verified는 실제 독립 검토 실행이나 배포 완료를 입증하지 않는다. publication_history에 published 기록이 있지만 현재 completion이나 served를 대체하지 않는다.",
+          "citation": {
+            "projection_id": "d5eab8b91ec778aa96f165574e9622260b1ed1587934668aecf7584f83070a05"
+          }
+        },
+        {
+          "question": "다음 조치는 무엇인가?",
+          "answer": "호스트에 접근 권한 확인을 요청해야 한다(integration_detail.next_action=ask_host_to_verify_access). 이 조치가 수행되었다는 뜻은 아니다.",
+          "citation": {
+            "projection_id": "d5eab8b91ec778aa96f165574e9622260b1ed1587934668aecf7584f83070a05"
+          }
+        },
+        {
+          "question": "전체 완료 여부와 문서 본문 제공 가능 여부는 무엇인가?",
+          "answer": "전체 미완료(completion=incomplete), index=stale, served=unavailable_or_partial다. 공개 members에 documents 본문이 없으므로 이 응답만으로 문서 본문을 제공할 수 없다. current.files.text의 소스 본문은 문서 본문을 대신하지 않는다.",
+          "citation": {
+            "projection_id": "d5eab8b91ec778aa96f165574e9622260b1ed1587934668aecf7584f83070a05"
+          }
+        },
+        {
+          "question": "숨긴 범위가 있는가? 공개 응답으로 알 수 없는 내용은 단정하지 말 것.",
+          "answer": "withheld_count=1로 숨긴 구성원 한 개가 있다. required_count=2이나 공개 members는 consumer 한 개다. 숨긴 구성원의 이름, target, 경로, 원인, 검사·검토·실행·배포 상태는 알 수 없다.",
+          "citation": {
+            "projection_id": "d5eab8b91ec778aa96f165574e9622260b1ed1587934668aecf7584f83070a05"
+          }
+        }
+      ],
+      "ambiguities": [
+        "index=stale의 구체적 원인이나 숨겨진 구성원의 상태는 알 수 없다."
+      ]
+    }
+  ]
+}

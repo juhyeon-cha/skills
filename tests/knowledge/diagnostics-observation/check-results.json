@@ -1,0 +1,55 @@
+{
+  "method": "Parent inspected complete logs and tool process exit codes; source unchanged since runs.",
+  "results": [
+    {
+      "log": "knowledge-wiki-check.log",
+      "exit_code": 0,
+      "sha256": "ab963b755c4be94ea7f93798820cfcc7a3570a04387170f0f3c2222ed8cb9e31"
+    },
+    {
+      "log": "automation-check.log",
+      "exit_code": 0,
+      "sha256": "048fb30bcdd4e7802f9e66cf3553c87fdec5a07100114bca3d73867d13277c4e"
+    },
+    {
+      "log": "reader-check.log",
+      "exit_code": 0,
+      "sha256": "75b95a73926bff555755decc96e5d738b6c54bcaa079382fb71faf7962d0e3b4"
+    },
+    {
+      "log": "source-contract-check.log",
+      "exit_code": 0,
+      "sha256": "af52a6016f34673368e2468df36cb35ac2f189405e734ffd6728c7ab82dd7af1"
+    },
+    {
+      "log": "multi-repo-check.log",
+      "exit_code": 0,
+      "sha256": "4adfebdf14f50b7f71fe833448e663e36d24e5f9347f7e16b945eabc757aa8ac"
+    },
+    {
+      "log": "measurement-check.log",
+      "exit_code": 0,
+      "sha256": "b831d08283b17896efad4f1accc7ab9794766a33bde2cece0d61ac59e0de40b7"
+    },
+    {
+      "log": "multi-repo-observation-check.log",
+      "exit_code": 0,
+      "sha256": "97c8f6230f2bca42d49d358ef873525995e77f94712d392ee34d88a9b1d9e297"
+    },
+    {
+      "log": "document-ac-check.log",
+      "exit_code": 0,
+      "sha256": "f38826cb7b057e6307a675d988b8de8f8a2681ea36035343d03181055cfb41e4"
+    },
+    {
+      "log": "foundation-check.log",
+      "exit_code": 0,
+      "sha256": "cb7c9f8af4fd21ec63fce9b219429ad3dd71cb0ac3eaca8d41b85c69ef76c930"
+    },
+    {
+      "log": "gate.log",
+      "exit_code": 0,
+      "sha256": "cfb90f27df364dccc5d5c34988b3aadb53edd3965165fe31d4ff36fbee3fe08e"
+    }
+  ]
+}

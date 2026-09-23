@@ -19,6 +19,28 @@ LABELS = {'complete': '완료', 'incomplete': '미완료', 'active': '진행 중
           'stale': '오래됨', 'absent': '없음', 'unavailable_or_partial': '본문 미제공',
           'published': '게시됨', 'partial': '부분 게시', 'failed': '실패'}
 
+DIAGNOSES = {
+    'verified': '이 검증 범위에서 차단 없음', 'source_dirty': '소스에 미커밋 변경이 있음',
+    'documents_pending': '현재 코드에 대한 문서 반영이 대기 중',
+    'document_evidence_changed': '문서와 검토된 근거가 일치하지 않음',
+    'check_pending': '필요한 검사 기록이 없음', 'check_stale': '검사 기록이 현재 입력과 다름',
+    'check_failed': '현재 입력에 대한 검사 실행이 실패함', 'review_pending': '현재 근거에 대한 독립 검토가 필요함',
+    'members_pending': '저장소별 검증이 먼저 필요함', 'withheld': '비공개 필수 근거가 있음',
+    'evidence_unavailable': '이 단계의 근거를 확인할 수 없음',
+}
+ACTIONS = {
+    'none': '이 단계의 추가 조치 없음', 'resolve_source_changes': '소유자가 소스 변경을 정리한 뒤 다시 조회',
+    'update_and_review_documents': '문서와 근거를 확인하고 갱신·검토 절차 진행',
+    'run_checks': '담당자가 현재 입력으로 검사 실행',
+    'inspect_check_and_rerun': '담당자가 검사 실패를 확인·수정하고 다시 실행',
+    'request_independent_review': '현재 근거에 대한 독립 검토 요청',
+    'resolve_member_blockers': '저장소별 차단 원인부터 확인',
+    'ask_host_to_verify_access': '호스트 담당자에게 접근 가능 범위 확인 요청',
+    'ask_host_to_inspect_evidence': '호스트 담당자에게 해당 단계의 근거 확인 요청',
+}
+STAGES = {'source': '소스', 'documents': '문서', 'checks': '검사', 'review': '독립 검토',
+          'integration': '통합', 'complete': '검증 완료'}
+
 
 def esc(value):
     return escape(str(value), quote=True)
@@ -30,6 +52,11 @@ def label(value):
 
 def field(name, value):
     return '<div><dt>' + esc(name) + '</dt><dd>' + value + '</dd></div>'
+
+
+def diagnosis(detail):
+    return '<dl class="facts">' + field('확인 단계', esc(STAGES[detail['stage']])) + field(
+        '진단', esc(DIAGNOSES[detail['code']])) + field('다음 조치', esc(ACTIONS[detail['next_action']])) + '</dl>'
 
 
 def render(view, route, search=''):
@@ -44,6 +71,7 @@ def render(view, route, search=''):
             field('목표 상태', label(view['status'])), field('전체 완료', label(view['completion'])),
             field('필수 저장소', str(view['required_count'])), field('비공개 필수 저장소', str(view['withheld_count'])),
             field('통합 검증', label(view['integration'])), field('문서 제공', label(view['served']))]) + '</dl>'
+        body += '<h2>통합 검증 진단</h2>' + diagnosis(view['integration_detail'])
         body += '<h2>저장소별 현재와 목표</h2><form action="/" method="get"><label for="q">허용된 결과에서 찾기</label><input id="q" name="q" value="' + esc(search) + '"><button>찾기</button></form>'
         matches = [m for m in members if search.casefold() in json.dumps(m, ensure_ascii=False).casefold()]
         body += '<p>표시 ' + str(len(matches)) + ' / 접근 가능 ' + str(len(members)) + '개 · 검색은 전체 완료 판정을 바꾸지 않습니다.</p>'
@@ -53,8 +81,10 @@ def render(view, route, search=''):
         heading = '근거와 확인 범위'
         body = '<dl class="facts">' + field('조회 색인', label(view['index'])) + field('결과 ID', '<code>' + esc(view['projection_id']) + '</code>') + field('목표 근거 ID', '<code>' + esc(view['goal_hash']) + '</code>') + '</dl>'
         body += '<p>색인의 최신성, 문서 제공 여부, 구현 검증은 서로 다른 상태입니다. 로컬 검증은 운영 배포를 증명하지 않습니다.</p>'
+        body += '<h2>통합 검증 진단</h2>' + diagnosis(view['integration_detail'])
         for member in members:
             body += '<article><h2>' + esc(member['repository']) + '</h2>'
+            body += diagnosis(member['validation_detail'])
             evidence = member.get('evidence')
             if evidence:
                 body += '<p>검토 기록: ' + ('시험용 응답' if evidence['review_synthetic'] else '실제 호출에 대한 호스트 기록') + '</p><pre>' + esc(json.dumps(evidence, ensure_ascii=False, indent=2)) + '</pre>'
@@ -77,11 +107,11 @@ def render(view, route, search=''):
             body += '<p>현재 권한·검증·게시 상태에서는 문서 본문을 제공하지 않습니다. 목표 개요와 근거를 확인하세요.</p>'
         for document in member.get('documents', []):
             body += '<article><h3>' + esc(document['path']) + '</h3><pre class="document">' + esc(document['text']) + '</pre></article>'
-    return '''<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>''' + esc(heading) + ''' · 지식 조회</title><link rel="stylesheet" href="/style.css"></head><body><a class="skip" href="#main">본문으로</a><header><strong>KNOWLEDGE</strong><span>현재 근거 조회</span><a href="/">새로 조회</a></header><div class="layout"><aside><p>읽기 안내</p><nav>''' + nav + '''</nav></aside><main id="main"><p class="eyebrow">''' + esc(view['goal']) + ' · 목표 ' + esc(view['version']) + '''</p><h1>''' + esc(heading) + '''</h1><p class="notice">페이지를 요청할 때 권한과 근거를 다시 확인합니다. 이미 읽거나 저장한 내용은 회수되지 않습니다.</p>''' + body + '''<footer><p>조회 시각: ''' + esc(view['read_at']) + '''</p><details><summary>이 화면의 결과 식별자</summary><code>''' + esc(view['projection_id']) + '''</code></details></footer></main></div></body></html>'''
+    return '''<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>''' + esc(heading) + ''' · 지식 조회</title><link rel="stylesheet" href="/style.css"></head><body><a class="skip" href="#main">본문으로</a><header><strong>KNOWLEDGE</strong><span>현재 근거 조회</span><a href="/">새로 조회</a></header><div class="layout"><aside><p>읽기 안내</p><nav>''' + nav + '''</nav></aside><main id="main"><p class="eyebrow">''' + esc(view['goal']) + ' · 목표 ' + esc(view['version']) + '''</p><h1>''' + esc(heading) + '''</h1><p class="notice">페이지를 요청할 때 권한과 근거를 다시 확인합니다. 이미 읽거나 저장한 내용은 회수되지 않습니다.</p><p>진단은 확인 순서상 첫 차단 원인입니다. 다음 조치는 안내이며, 실행·완료·게시를 뜻하지 않습니다.</p>''' + body + '''<footer><p>조회 시각: ''' + esc(view['read_at']) + '''</p><details><summary>이 화면의 결과 식별자</summary><code>''' + esc(view['projection_id']) + '''</code></details></footer></main></div></body></html>'''
 
 
 def member_facts(member):
-    return '<dl class="facts">' + field('저장소 ID', esc(member['repository'])) + field('현재 코드 커밋', '<code>' + esc(member.get('current', {}).get('commit', '확인 불가')) + '</code>') + field('목표', esc(member.get('target', '확인 불가'))) + field('검증', label(member['validation'])) + field('저장소 URL', esc(member.get('source_url', '확인 불가'))) + '</dl>'
+    return '<dl class="facts">' + field('저장소 ID', esc(member['repository'])) + field('현재 코드 커밋', '<code>' + esc(member.get('current', {}).get('commit', '확인 불가')) + '</code>') + field('목표', esc(member.get('target', '확인 불가'))) + field('검증', label(member['validation'])) + field('저장소 URL', esc(member.get('source_url', '확인 불가'))) + '</dl>' + diagnosis(member['validation_detail'])
 
 
 def make_server(state, host, principal, goal, port):

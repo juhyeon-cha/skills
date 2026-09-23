@@ -1,0 +1,134 @@
+[
+  {
+    "case": "document_drift",
+    "url": "http://127.0.0.1:18880",
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-B",
+      "/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py",
+      "--state",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-ujd_ybnn/state",
+      "--host",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-ujd_ybnn/host.json",
+      "--principal",
+      "operator",
+      "--goal",
+      "contract",
+      "--port",
+      "18880"
+    ],
+    "launch_exit_code": 1,
+    "launch_stdout": "",
+    "launch_stderr": "Traceback (most recent call last):\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 186, in <module>\n    main()\n    ~~~~^^\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 175, in main\n    server = make_server(args.state, args.host, args.principal, args.goal, args.port)\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 162, in make_server\n    return HTTPServer(('127.0.0.1', port), Handler)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 457, in __init__\n    self.server_bind()\n    ~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py\", line 148, in server_bind\n    socketserver.TCPServer.server_bind(self)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 478, in server_bind\n    self.socket.bind(self.server_address)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n"
+  },
+  {
+    "case": "fresh_failed_check",
+    "url": "http://127.0.0.1:18881",
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-B",
+      "/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py",
+      "--state",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-23pe6j05/state",
+      "--host",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-23pe6j05/host.json",
+      "--principal",
+      "operator",
+      "--goal",
+      "contract",
+      "--port",
+      "18881"
+    ],
+    "launch_exit_code": 1,
+    "launch_stdout": "",
+    "launch_stderr": "Traceback (most recent call last):\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 186, in <module>\n    main()\n    ~~~~^^\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 175, in main\n    server = make_server(args.state, args.host, args.principal, args.goal, args.port)\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 162, in make_server\n    return HTTPServer(('127.0.0.1', port), Handler)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 457, in __init__\n    self.server_bind()\n    ~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py\", line 148, in server_bind\n    socketserver.TCPServer.server_bind(self)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 478, in server_bind\n    self.socket.bind(self.server_address)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n"
+  },
+  {
+    "case": "stale_failed_check",
+    "url": "http://127.0.0.1:18882",
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-B",
+      "/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py",
+      "--state",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-red2ihfj/state",
+      "--host",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-red2ihfj/host.json",
+      "--principal",
+      "operator",
+      "--goal",
+      "contract",
+      "--port",
+      "18882"
+    ],
+    "launch_exit_code": 1,
+    "launch_stdout": "",
+    "launch_stderr": "Traceback (most recent call last):\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 186, in <module>\n    main()\n    ~~~~^^\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 175, in main\n    server = make_server(args.state, args.host, args.principal, args.goal, args.port)\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 162, in make_server\n    return HTTPServer(('127.0.0.1', port), Handler)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 457, in __init__\n    self.server_bind()\n    ~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py\", line 148, in server_bind\n    socketserver.TCPServer.server_bind(self)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 478, in server_bind\n    self.socket.bind(self.server_address)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n"
+  },
+  {
+    "case": "no_review",
+    "url": "http://127.0.0.1:18883",
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-B",
+      "/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py",
+      "--state",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-17kqdple/state",
+      "--host",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-17kqdple/host.json",
+      "--principal",
+      "operator",
+      "--goal",
+      "contract",
+      "--port",
+      "18883"
+    ],
+    "launch_exit_code": 1,
+    "launch_stdout": "",
+    "launch_stderr": "Traceback (most recent call last):\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 186, in <module>\n    main()\n    ~~~~^^\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 175, in main\n    server = make_server(args.state, args.host, args.principal, args.goal, args.port)\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 162, in make_server\n    return HTTPServer(('127.0.0.1', port), Handler)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 457, in __init__\n    self.server_bind()\n    ~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py\", line 148, in server_bind\n    socketserver.TCPServer.server_bind(self)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 478, in server_bind\n    self.socket.bind(self.server_address)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n"
+  },
+  {
+    "case": "integration_failure",
+    "url": "http://127.0.0.1:18884",
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-B",
+      "/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py",
+      "--state",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-n7jmitc6/state",
+      "--host",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-n7jmitc6/host.json",
+      "--principal",
+      "operator",
+      "--goal",
+      "contract",
+      "--port",
+      "18884"
+    ],
+    "launch_exit_code": 1,
+    "launch_stdout": "",
+    "launch_stderr": "Traceback (most recent call last):\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 186, in <module>\n    main()\n    ~~~~^^\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 175, in main\n    server = make_server(args.state, args.host, args.principal, args.goal, args.port)\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 162, in make_server\n    return HTTPServer(('127.0.0.1', port), Handler)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 457, in __init__\n    self.server_bind()\n    ~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py\", line 148, in server_bind\n    socketserver.TCPServer.server_bind(self)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 478, in server_bind\n    self.socket.bind(self.server_address)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n"
+  },
+  {
+    "case": "revoke_publish",
+    "url": "http://127.0.0.1:18885",
+    "argv": [
+      "/private/tmp/knowledge-contract-venv/bin/python",
+      "-B",
+      "/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py",
+      "--state",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-2iwj16ag/state",
+      "--host",
+      "/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-2iwj16ag/host.json",
+      "--principal",
+      "operator",
+      "--goal",
+      "contract",
+      "--port",
+      "18885"
+    ],
+    "launch_exit_code": 1,
+    "launch_stdout": "",
+    "launch_stderr": "Traceback (most recent call last):\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 186, in <module>\n    main()\n    ~~~~^^\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 175, in main\n    server = make_server(args.state, args.host, args.principal, args.goal, args.port)\n  File \"/private/tmp/skills-knowledge-diagnostics/plugins/knowledge/scripts/reader.py\", line 162, in make_server\n    return HTTPServer(('127.0.0.1', port), Handler)\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 457, in __init__\n    self.server_bind()\n    ~~~~~~~~~~~~~~~~^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/http/server.py\", line 148, in server_bind\n    socketserver.TCPServer.server_bind(self)\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^\n  File \"/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/socketserver.py\", line 478, in server_bind\n    self.socket.bind(self.server_address)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^\nPermissionError: [Errno 1] Operation not permitted\n"
+  }
+]

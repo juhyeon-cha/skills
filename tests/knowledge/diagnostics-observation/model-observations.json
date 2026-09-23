@@ -1,0 +1,22 @@
+{
+  "method": "Actual host agent calls; task IDs are host attribution, not authenticated provider receipts.",
+  "calls": [
+    {
+      "actor": "/root/diagnostics_m0_evaluator",
+      "input": "m0.md + results.json + preserved fixtures",
+      "output": "m0-verdict.json",
+      "independent": true
+    },
+    {
+      "actor": "/root/diagnostics_reader",
+      "input": "answer-input.json only",
+      "output": "reader-answers.json",
+      "independent": true
+    }
+  ],
+  "fixture_review_receipts": "synthetic",
+  "model_id": null,
+  "tokens": null,
+  "cost": null,
+  "latency": "M0 experiment and CLI timings are recorded in results; model latency not measured."
+}

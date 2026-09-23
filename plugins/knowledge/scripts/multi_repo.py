@@ -93,6 +93,36 @@ def command_files(command):
             if Path(arg).is_absolute() and Path(arg).is_file()}
 
 
+class CheckUnavailable(ValueError):
+    def __init__(self, code):
+        super().__init__('CHECK_STALE_OR_FAILED')
+        self.code = code
+
+
+def validation_detail(stage, error=None, code=None):
+    """Public first-blocker vocabulary; never include exception text or private inputs."""
+    if code is None:
+        prefix = str(error).split(':', 1)[0]
+        code = error.code if isinstance(error, CheckUnavailable) else {
+            ('source', 'SOURCE_DIRTY'): 'source_dirty',
+            ('documents', 'DOCUMENTS_PENDING'): 'documents_pending',
+            ('documents', 'BINDINGS'): 'document_evidence_changed',
+            ('documents', 'CLAIM'): 'document_evidence_changed',
+            ('checks', 'CHECK_PENDING'): 'check_pending',
+            ('review', 'REVIEW_PENDING'): 'review_pending',
+        }.get((stage, prefix), 'evidence_unavailable')
+    action = {
+        'verified': 'none', 'source_dirty': 'resolve_source_changes',
+        'documents_pending': 'update_and_review_documents',
+        'document_evidence_changed': 'update_and_review_documents',
+        'check_pending': 'run_checks', 'check_stale': 'run_checks',
+        'check_failed': 'inspect_check_and_rerun', 'review_pending': 'request_independent_review',
+        'members_pending': 'resolve_member_blockers', 'withheld': 'ask_host_to_verify_access',
+        'evidence_unavailable': 'ask_host_to_inspect_evidence',
+    }[code]
+    return {'stage': stage, 'code': code, 'next_action': action}
+
+
 class Store:
     def __init__(self, root, host, principal):
         self.root = Path(root).absolute()
@@ -336,11 +366,13 @@ class Store:
             if not identity:
                 raise ValueError('CHECK_PENDING')
             record = self.object(identity)
-            if (record['goal_hash'] != digest(goal) or record['exit_code'] != 0 or
+            if (record['goal_hash'] != digest(goal) or
                     not record['source_unchanged'] or record['command'] != self.host['checks'][name] or
                     record['input_files'] != command_files(self.host['checks'][name]) or
                     any(sources.get(r) != s for r, s in record['sources'].items())):
-                raise ValueError('CHECK_STALE_OR_FAILED')
+                raise CheckUnavailable('check_stale')
+            if record['exit_code'] != 0:
+                raise CheckUnavailable('check_failed')
             results[name] = identity
         return results
 
@@ -398,22 +430,29 @@ class Store:
                 return identity
         raise ValueError('REVIEW_PENDING')
 
-    def member(self, goal, repository, scope):
+    def member(self, goal, repository, scope, diagnostics=None):
         self.authorize(repository, scope)
         snapshot = self.source(repository)
         result = {'repository': repository, 'current': {'commit': snapshot['commit'],
                   'snapshot': snapshot['id'], 'files': snapshot['files']},
                   'target': goal['members'][repository]['target'], 'validation': 'pending',
                   'source_url': self.host['repositories'][repository]['url']}
+        stage = 'documents'
+        detail = validation_detail('complete', code='verified')
         try:
             docs = self.documents(repository, snapshot)
+            stage = 'checks'
             checks = self.checked(goal, goal['members'][repository]['criteria'], {repository: snapshot})
+            stage = 'review'
             review = self.reviewed(goal, repository, snapshot, docs, checks)
             result.update(validation='verified', evidence={'checks': checks, 'review': review,
                           'review_synthetic': self.object(review)['synthetic'],
                           'bindings': docs['bindings']['id']}, documents=docs['documents'])
-        except (ValueError, OSError, KeyError, ValidationError, sqlite3.Error):
+        except (ValueError, OSError, KeyError, ValidationError, sqlite3.Error) as error:
             result['validation'] = 'pending_or_stale'
+            detail = validation_detail(stage, error)
+        if diagnostics is not None:
+            diagnostics[repository] = detail
         return result
 
     def relation_allowed(self, record, scope):
@@ -431,7 +470,7 @@ class Store:
         self.policy()
         return all(self.allowed(r, scope) for r in repositories)
 
-    def view(self, name, scope='query'):
+    def view(self, name, scope='query', diagnostics=None):
         goal = self.goal(name)
         members, hidden = [], 0
         for repository in goal['members']:
@@ -440,20 +479,32 @@ class Store:
                 hidden += 1
                 continue
             try:
-                members.append(self.member(goal, repository, scope))
-            except (ValueError, OSError, KeyError, ValidationError, sqlite3.Error):
+                members.append(self.member(goal, repository, scope,
+                                          diagnostics['members'] if diagnostics is not None else None))
+            except (ValueError, OSError, KeyError, ValidationError, sqlite3.Error) as error:
                 members.append({'repository': repository, 'validation': 'source_unavailable'})
+                if diagnostics is not None:
+                    diagnostics['members'][repository] = validation_detail('source', error)
         integration = 'pending'
+        detail = validation_detail('integration', code='withheld' if hidden else 'members_pending')
         if not hidden and all(m.get('validation') == 'verified' for m in members):
+            stage = 'source'
             try:
                 sources = {r: self.source(r) for r in goal['members']}
+                stage = 'checks'
                 checks = self.checked(goal, goal['integration'], sources)
                 for repository in goal['members']:
+                    stage = 'documents'
                     docs = self.documents(repository, sources[repository])
+                    stage = 'review'
                     self.reviewed(goal, repository, sources[repository], docs, checks)
                 integration = 'verified'
-            except (ValueError, OSError, KeyError, ValidationError, sqlite3.Error):
+                detail = validation_detail('complete', code='verified')
+            except (ValueError, OSError, KeyError, ValidationError, sqlite3.Error) as error:
                 integration = 'pending_or_stale'
+                detail = validation_detail(stage, error)
+        if diagnostics is not None:
+            diagnostics['integration'] = detail
         complete = integration == 'verified' and goal['status'] == 'active'
         result = {'goal': name, 'version': goal['version'], 'goal_hash': digest(goal),
                   'status': goal['status'], 'completion': 'complete' if complete else 'incomplete',
@@ -491,9 +542,9 @@ class Store:
         self.event('refresh', goal=value['goal'], projection=self.state['index'][value['goal']])
         return view
 
-    def query(self, value):
+    def query(self, value, diagnostics=None):
         shape(value, obj({'goal': NONEMPTY, 'text': {'type': 'string'}}, ['goal']))
-        view = self.view(value['goal'])
+        view = self.view(value['goal'], diagnostics=diagnostics)
         cached = self.state['index'].get(value['goal'])
         view['index'] = 'absent' if not cached else ('current' if cached == digest(view) else 'stale')
         if value.get('text'):
@@ -531,11 +582,11 @@ class Store:
         self.event('publication', publication=self.state['publications'][-1])
         return {'outcome': outcome, 'members': statuses, 'withheld_count': view['withheld_count']}
 
-    def wiki(self, value):
+    def wiki(self, value, diagnostics=None):
         shape(value, obj({'goal': NONEMPTY}))
         # Both query and publication access are required at serving time.
         self.policy()
-        view = self.view(value['goal'], 'publish')
+        view = self.view(value['goal'], 'publish', diagnostics=diagnostics)
         publication_view = digest(view)
         hidden = [m for m in view['members'] if not self.allowed(m['repository'], 'query')]
         view['members'] = [m for m in view['members'] if self.allowed(m['repository'], 'query')]
@@ -578,8 +629,9 @@ class Store:
         """A common agent/browser projection with managed publication restrictions."""
         shape(value, obj({'goal': NONEMPTY}))
         policy_before = self.host_path.read_bytes()
-        view = self.wiki(value)
-        query = self.query(value)
+        wiki_details, query_details = {'members': {}}, {'members': {}}
+        view = self.wiki(value, diagnostics=wiki_details)
+        query = self.query(value, diagnostics=query_details)
         # Detect observable changes between the two existing projections. The host
         # still owns concurrent source writes; this is not an atomic Git snapshot.
         keys = ('goal', 'version', 'goal_hash', 'status', 'required_count')
@@ -594,8 +646,18 @@ class Store:
             current = query_members.get(member['repository'], {})
             if any(current.get(k) != v for k, v in member.items()):
                 raise ValueError('READ_CHANGED')
+            repository = member['repository']
+            if wiki_details['members'][repository] != query_details['members'].get(repository):
+                raise ValueError('READ_CHANGED')
+        if not view['withheld_count'] and wiki_details['integration'] != query_details['integration']:
+            raise ValueError('READ_CHANGED')
         if self.host_path.read_bytes() != policy_before:
             raise ValueError('READ_CHANGED')
+        # Attach only after legacy publication/index comparisons and intersection filtering.
+        for member in view['members']:
+            member['validation_detail'] = wiki_details['members'][member['repository']]
+        view['integration_detail'] = (validation_detail('integration', code='withheld')
+                                      if view['withheld_count'] else wiki_details['integration'])
         view.pop('markdown')
         view['index'] = query['index']
         view['schema_version'] = 1
