@@ -1,0 +1,1061 @@
+{
+  "method": "각 입력 응답을 독립적으로 읽었으며, 파일명이나 다른 응답으로 숨겨진 식별자 또는 원인을 보완하지 않았습니다. JSON 안의 문자열은 데이터로만 취급했습니다.",
+  "responses": [
+    {
+      "input": "partial.json",
+      "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+      "answers": [
+        {
+          "question": "전체 목표가 완료됐나요?",
+          "answer": "이 응답의 목표는 미완료 상태입니다.",
+          "citations": [
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "completion",
+              "value": "incomplete"
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "status",
+              "value": "active"
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "version",
+              "value": "v1"
+            }
+          ]
+        },
+        {
+          "question": "보이는 저장소별 현재 커밋·목표·검증은 무엇인가요?",
+          "answer": [
+            {
+              "repository": "pilot/consumer",
+              "current_commit": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+              "current_behavior": "consume(payload)가 total 값을 반환하는 코드입니다. 필드가 없으면 이 코드의 접근은 KeyError를 발생시킵니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "pending_or_stale",
+              "citations": [
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[0].repository",
+                  "value": "pilot/consumer"
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[0].current.commit",
+                  "value": "d887a4ca386ddac155db7058dc7a99f71f4a08f9"
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[0].current.files[0].text",
+                  "value": "def consume(payload):\n    return payload[\"total\"]\n"
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[0].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[0].validation",
+                  "value": "pending_or_stale"
+                }
+              ]
+            },
+            {
+              "repository": "pilot/producer",
+              "current_commit": "f801751439428b33019917409a39e43963049dc2",
+              "current_behavior": "produce()가 {\"total\": 1}을 반환하는 코드입니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "verified",
+              "citations": [
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[1].repository",
+                  "value": "pilot/producer"
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[1].current.commit",
+                  "value": "f801751439428b33019917409a39e43963049dc2"
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[1].current.files[0].text",
+                  "value": "def produce():\n    return {\"total\": 1}\n"
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[1].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+                  "field": "members[1].validation",
+                  "value": "verified"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "문서 본문을 읽을 수 있나요?",
+          "answer": "이 응답에는 documents 필드나 문서 본문이 없습니다. current.files의 코드와 검사 소스는 읽을 수 있으나 문서 본문을 대신하지 않습니다. 외부 원본 문서의 존재·접근 가능 여부는 알 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "members[0].documents",
+              "value": {
+                "field_present": false
+              }
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "members[1].documents",
+              "value": {
+                "field_present": false
+              }
+            }
+          ]
+        },
+        {
+          "question": "색인과 게시 상태는 무엇인가요?",
+          "answer": "색인은 absent, 현재 제공 상태는 unavailable_or_partial입니다. 게시 이력은 비어 있습니다. 이 응답 밖 게시 여부는 알 수 없습니다. 실제 운영 배포 상태는 이 응답으로 판정할 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "index",
+              "value": "absent"
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "served",
+              "value": "unavailable_or_partial"
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "publication_history",
+              "value": []
+            }
+          ]
+        },
+        {
+          "question": "숨겨지거나 미검증인 범위는 무엇인가요?",
+          "answer": "숨겨진 구성원은 0개입니다. 이 응답에 숨김으로 집계된 구성원은 없습니다. 현재 유효한 검증이 확인되지 않는 저장소: pilot/consumer. pending_or_stale만으로 대기·만료·실패 원인을 구별할 수 없습니다. 통합 검증은 pending입니다. 실제 배포 동작은 검증됐다고 볼 수 없습니다. 검증 근거 해시가 있는 경우에도 검사 출력·리뷰 본문은 제공되지 않습니다.",
+          "citations": [
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "required_count",
+              "value": 2
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "withheld_count",
+              "value": 0
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "members[0].validation",
+              "value": "pending_or_stale"
+            },
+            {
+              "projection_id": "452043ab9ca50902f34fd9500727bfb0b1edcfd8bbe79af4cb984b6ce8d2b11c",
+              "field": "members[1].validation",
+              "value": "verified"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": "complete.json",
+      "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+      "answers": [
+        {
+          "question": "전체 목표가 완료됐나요?",
+          "answer": "이 응답의 목표는 완료 상태입니다. 다만 실제 배포 완료를 뜻하지 않습니다.",
+          "citations": [
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "completion",
+              "value": "complete"
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "status",
+              "value": "active"
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "integration",
+              "value": "verified"
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "version",
+              "value": "v1"
+            }
+          ]
+        },
+        {
+          "question": "보이는 저장소별 현재 커밋·목표·검증은 무엇인가요?",
+          "answer": [
+            {
+              "repository": "pilot/consumer",
+              "current_commit": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+              "current_behavior": "consume(payload)가 total 값을 반환하는 코드입니다. 필드가 없으면 이 코드의 접근은 KeyError를 발생시킵니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "verified",
+              "citations": [
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[0].repository",
+                  "value": "pilot/consumer"
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[0].current.commit",
+                  "value": "d887a4ca386ddac155db7058dc7a99f71f4a08f9"
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[0].current.files[0].text",
+                  "value": "def consume(payload):\n    return payload[\"total\"]\n"
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[0].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[0].validation",
+                  "value": "verified"
+                }
+              ]
+            },
+            {
+              "repository": "pilot/producer",
+              "current_commit": "f801751439428b33019917409a39e43963049dc2",
+              "current_behavior": "produce()가 {\"total\": 1}을 반환하는 코드입니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "verified",
+              "citations": [
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[1].repository",
+                  "value": "pilot/producer"
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[1].current.commit",
+                  "value": "f801751439428b33019917409a39e43963049dc2"
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[1].current.files[0].text",
+                  "value": "def produce():\n    return {\"total\": 1}\n"
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[1].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+                  "field": "members[1].validation",
+                  "value": "verified"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "문서 본문을 읽을 수 있나요?",
+          "answer": "예. 두 저장소의 guide.md 본문을 members[].documents[].text에서 읽을 수 있습니다. 문서는 로컬 코드 동작을 설명하며 실제 배포는 미검증이라고 명시합니다.",
+          "citations": [
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "members[0].documents",
+              "value": [
+                {
+                  "path": "guide.md",
+                  "sha256": "e94f19378359a0ec945b998ba873f0ba3f3fb65f46b8fb1d207a912a59bea035",
+                  "text": "# consumer 교환 계약\n\n소비자 consume(payload)는 total 필드 값을 그대로 반환한다. {\"total\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다.\n\n교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다.\n\n소스 버전: d887a4ca386ddac155db7058dc7a99f71f4a08f9. 근거: app.py.\n"
+                }
+              ]
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "members[1].documents",
+              "value": [
+                {
+                  "path": "guide.md",
+                  "sha256": "ebdbe769da5b9439bce7b231fce2ca2fe590fee5340e3f1c5b2584d32a09c4a8",
+                  "text": "# producer 교환 계약\n\n생산자 produce()는 {\"total\": 1}을 반환한다.\n\n교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다.\n\n소스 버전: f801751439428b33019917409a39e43963049dc2. 근거: app.py.\n"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "색인과 게시 상태는 무엇인가요?",
+          "answer": "색인은 current, 현재 제공 상태는 current입니다. published 이력이 있으나 과거 게시 이력과 현재 제공·색인 상태는 별개입니다. 실제 운영 배포 상태는 이 응답으로 판정할 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "index",
+              "value": "current"
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "served",
+              "value": "current"
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "publication_history",
+              "value": [
+                {
+                  "outcome": "published",
+                  "time": "2026-09-23T08:51:47.692608+00:00"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "숨겨지거나 미검증인 범위는 무엇인가요?",
+          "answer": "숨겨진 구성원은 0개입니다. 이 응답에 숨김으로 집계된 구성원은 없습니다. 보이는 모든 저장소의 validation은 verified입니다. 통합 검증은 verified입니다. 실제 배포 동작은 검증됐다고 볼 수 없습니다. 검증 근거 해시가 있는 경우에도 검사 출력·리뷰 본문은 제공되지 않습니다.",
+          "citations": [
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "required_count",
+              "value": 2
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "withheld_count",
+              "value": 0
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "integration",
+              "value": "verified"
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "members[0].validation",
+              "value": "verified"
+            },
+            {
+              "projection_id": "740ae62724bdfb1e03e7c0e8713167a561e29270517fe932fbb978d39777458f",
+              "field": "members[1].validation",
+              "value": "verified"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": "revoked.json",
+      "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+      "answers": [
+        {
+          "question": "전체 목표가 완료됐나요?",
+          "answer": "이 응답의 목표는 미완료 상태입니다.",
+          "citations": [
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "completion",
+              "value": "incomplete"
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "status",
+              "value": "active"
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "version",
+              "value": "v1"
+            }
+          ]
+        },
+        {
+          "question": "보이는 저장소별 현재 커밋·목표·검증은 무엇인가요?",
+          "answer": [
+            {
+              "repository": "pilot/producer",
+              "current_commit": "f801751439428b33019917409a39e43963049dc2",
+              "current_behavior": "produce()가 {\"total\": 1}을 반환하는 코드입니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "verified",
+              "citations": [
+                {
+                  "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+                  "field": "members[0].repository",
+                  "value": "pilot/producer"
+                },
+                {
+                  "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+                  "field": "members[0].current.commit",
+                  "value": "f801751439428b33019917409a39e43963049dc2"
+                },
+                {
+                  "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+                  "field": "members[0].current.files[0].text",
+                  "value": "def produce():\n    return {\"total\": 1}\n"
+                },
+                {
+                  "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+                  "field": "members[0].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+                  "field": "members[0].validation",
+                  "value": "verified"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "문서 본문을 읽을 수 있나요?",
+          "answer": "이 응답에는 documents 필드나 문서 본문이 없습니다. current.files의 코드와 검사 소스는 읽을 수 있으나 문서 본문을 대신하지 않습니다. 외부 원본 문서의 존재·접근 가능 여부는 알 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "members[0].documents",
+              "value": {
+                "field_present": false
+              }
+            }
+          ]
+        },
+        {
+          "question": "색인과 게시 상태는 무엇인가요?",
+          "answer": "색인은 stale, 현재 제공 상태는 unavailable_or_partial입니다. published 이력이 있으나 과거 게시 이력과 현재 제공·색인 상태는 별개입니다. 실제 운영 배포 상태는 이 응답으로 판정할 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "index",
+              "value": "stale"
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "served",
+              "value": "unavailable_or_partial"
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "publication_history",
+              "value": [
+                {
+                  "outcome": "published",
+                  "time": "2026-09-23T08:51:47.692608+00:00"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "숨겨지거나 미검증인 범위는 무엇인가요?",
+          "answer": "숨겨진 구성원은 1개입니다. 숨겨진 저장소의 식별자·커밋·목표·검증 상태는 알 수 없습니다. 보이는 모든 저장소의 validation은 verified입니다. 통합 검증은 pending입니다. 실제 배포 동작은 검증됐다고 볼 수 없습니다. 검증 근거 해시가 있는 경우에도 검사 출력·리뷰 본문은 제공되지 않습니다.",
+          "citations": [
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "required_count",
+              "value": 2
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "withheld_count",
+              "value": 1
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "deea48633b8184092eea881109df8322c0f5825e39726a4a78b999d2c63e4295",
+              "field": "members[0].validation",
+              "value": "verified"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": "drift.json",
+      "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+      "answers": [
+        {
+          "question": "전체 목표가 완료됐나요?",
+          "answer": "이 응답의 목표는 미완료 상태입니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "completion",
+              "value": "incomplete"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "status",
+              "value": "active"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "version",
+              "value": "v1"
+            }
+          ]
+        },
+        {
+          "question": "보이는 저장소별 현재 커밋·목표·검증은 무엇인가요?",
+          "answer": [
+            {
+              "repository": "pilot/consumer",
+              "current_commit": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+              "current_behavior": "consume(payload)가 total 값을 반환하는 코드입니다. 필드가 없으면 이 코드의 접근은 KeyError를 발생시킵니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "verified",
+              "citations": [
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].repository",
+                  "value": "pilot/consumer"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].current.commit",
+                  "value": "d887a4ca386ddac155db7058dc7a99f71f4a08f9"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].current.files[0].text",
+                  "value": "def consume(payload):\n    return payload[\"total\"]\n"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].validation",
+                  "value": "verified"
+                }
+              ]
+            },
+            {
+              "repository": "pilot/producer",
+              "current_commit": "f801751439428b33019917409a39e43963049dc2",
+              "current_behavior": "produce()가 {\"total\": 1}을 반환하는 코드입니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "pending_or_stale",
+              "citations": [
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].repository",
+                  "value": "pilot/producer"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].current.commit",
+                  "value": "f801751439428b33019917409a39e43963049dc2"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].current.files[0].text",
+                  "value": "def produce():\n    return {\"total\": 1}\n"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].validation",
+                  "value": "pending_or_stale"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "문서 본문을 읽을 수 있나요?",
+          "answer": "이 응답에는 documents 필드나 문서 본문이 없습니다. current.files의 코드와 검사 소스는 읽을 수 있으나 문서 본문을 대신하지 않습니다. 외부 원본 문서의 존재·접근 가능 여부는 알 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[0].documents",
+              "value": {
+                "field_present": false
+              }
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[1].documents",
+              "value": {
+                "field_present": false
+              }
+            }
+          ]
+        },
+        {
+          "question": "색인과 게시 상태는 무엇인가요?",
+          "answer": "색인은 stale, 현재 제공 상태는 unavailable_or_partial입니다. published 이력이 있으나 과거 게시 이력과 현재 제공·색인 상태는 별개입니다. 실제 운영 배포 상태는 이 응답으로 판정할 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "index",
+              "value": "stale"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "served",
+              "value": "unavailable_or_partial"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "publication_history",
+              "value": [
+                {
+                  "outcome": "published",
+                  "time": "2026-09-23T08:51:47.692608+00:00"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "숨겨지거나 미검증인 범위는 무엇인가요?",
+          "answer": "숨겨진 구성원은 0개입니다. 이 응답에 숨김으로 집계된 구성원은 없습니다. 현재 유효한 검증이 확인되지 않는 저장소: pilot/producer. pending_or_stale만으로 대기·만료·실패 원인을 구별할 수 없습니다. 통합 검증은 pending입니다. 실제 배포 동작은 검증됐다고 볼 수 없습니다. 검증 근거 해시가 있는 경우에도 검사 출력·리뷰 본문은 제공되지 않습니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "required_count",
+              "value": 2
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "withheld_count",
+              "value": 0
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[0].validation",
+              "value": "verified"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[1].validation",
+              "value": "pending_or_stale"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": "check_failed.json",
+      "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+      "answers": [
+        {
+          "question": "전체 목표가 완료됐나요?",
+          "answer": "이 응답의 목표는 미완료 상태입니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "completion",
+              "value": "incomplete"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "status",
+              "value": "active"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "version",
+              "value": "v1"
+            }
+          ]
+        },
+        {
+          "question": "보이는 저장소별 현재 커밋·목표·검증은 무엇인가요?",
+          "answer": [
+            {
+              "repository": "pilot/consumer",
+              "current_commit": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+              "current_behavior": "consume(payload)가 total 값을 반환하는 코드입니다. 필드가 없으면 이 코드의 접근은 KeyError를 발생시킵니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "verified",
+              "citations": [
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].repository",
+                  "value": "pilot/consumer"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].current.commit",
+                  "value": "d887a4ca386ddac155db7058dc7a99f71f4a08f9"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].current.files[0].text",
+                  "value": "def consume(payload):\n    return payload[\"total\"]\n"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[0].validation",
+                  "value": "verified"
+                }
+              ]
+            },
+            {
+              "repository": "pilot/producer",
+              "current_commit": "f801751439428b33019917409a39e43963049dc2",
+              "current_behavior": "produce()가 {\"total\": 1}을 반환하는 코드입니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "pending_or_stale",
+              "citations": [
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].repository",
+                  "value": "pilot/producer"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].current.commit",
+                  "value": "f801751439428b33019917409a39e43963049dc2"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].current.files[0].text",
+                  "value": "def produce():\n    return {\"total\": 1}\n"
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+                  "field": "members[1].validation",
+                  "value": "pending_or_stale"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "문서 본문을 읽을 수 있나요?",
+          "answer": "이 응답에는 documents 필드나 문서 본문이 없습니다. current.files의 코드와 검사 소스는 읽을 수 있으나 문서 본문을 대신하지 않습니다. 외부 원본 문서의 존재·접근 가능 여부는 알 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[0].documents",
+              "value": {
+                "field_present": false
+              }
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[1].documents",
+              "value": {
+                "field_present": false
+              }
+            }
+          ]
+        },
+        {
+          "question": "색인과 게시 상태는 무엇인가요?",
+          "answer": "색인은 stale, 현재 제공 상태는 unavailable_or_partial입니다. published 이력이 있으나 과거 게시 이력과 현재 제공·색인 상태는 별개입니다. 실제 운영 배포 상태는 이 응답으로 판정할 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "index",
+              "value": "stale"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "served",
+              "value": "unavailable_or_partial"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "publication_history",
+              "value": [
+                {
+                  "outcome": "published",
+                  "time": "2026-09-23T08:51:47.692608+00:00"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "숨겨지거나 미검증인 범위는 무엇인가요?",
+          "answer": "숨겨진 구성원은 0개입니다. 이 응답에 숨김으로 집계된 구성원은 없습니다. 현재 유효한 검증이 확인되지 않는 저장소: pilot/producer. pending_or_stale만으로 대기·만료·실패 원인을 구별할 수 없습니다. 통합 검증은 pending입니다. 실제 배포 동작은 검증됐다고 볼 수 없습니다. 검증 근거 해시가 있는 경우에도 검사 출력·리뷰 본문은 제공되지 않습니다.",
+          "citations": [
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "required_count",
+              "value": 2
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "withheld_count",
+              "value": 0
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[0].validation",
+              "value": "verified"
+            },
+            {
+              "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+              "field": "members[1].validation",
+              "value": "pending_or_stale"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "input": "withdrawn.json",
+      "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+      "answers": [
+        {
+          "question": "전체 목표가 완료됐나요?",
+          "answer": "이 응답의 목표는 미완료 상태입니다. 목표 상태는 철회입니다.",
+          "citations": [
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "completion",
+              "value": "incomplete"
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "status",
+              "value": "withdrawn"
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "version",
+              "value": "v2"
+            }
+          ]
+        },
+        {
+          "question": "보이는 저장소별 현재 커밋·목표·검증은 무엇인가요?",
+          "answer": [
+            {
+              "repository": "pilot/consumer",
+              "current_commit": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+              "current_behavior": "consume(payload)가 total 값을 반환하는 코드입니다. 필드가 없으면 이 코드의 접근은 KeyError를 발생시킵니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "pending_or_stale",
+              "citations": [
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[0].repository",
+                  "value": "pilot/consumer"
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[0].current.commit",
+                  "value": "d887a4ca386ddac155db7058dc7a99f71f4a08f9"
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[0].current.files[0].text",
+                  "value": "def consume(payload):\n    return payload[\"total\"]\n"
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[0].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[0].validation",
+                  "value": "pending_or_stale"
+                }
+              ]
+            },
+            {
+              "repository": "pilot/producer",
+              "current_commit": "f801751439428b33019917409a39e43963049dc2",
+              "current_behavior": "produce()가 {\"total\": 1}을 반환하는 코드입니다.",
+              "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+              "validation": "pending_or_stale",
+              "citations": [
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[1].repository",
+                  "value": "pilot/producer"
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[1].current.commit",
+                  "value": "f801751439428b33019917409a39e43963049dc2"
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[1].current.files[0].text",
+                  "value": "def produce():\n    return {\"total\": 1}\n"
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[1].target",
+                  "value": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음."
+                },
+                {
+                  "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+                  "field": "members[1].validation",
+                  "value": "pending_or_stale"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "문서 본문을 읽을 수 있나요?",
+          "answer": "이 응답에는 documents 필드나 문서 본문이 없습니다. current.files의 코드와 검사 소스는 읽을 수 있으나 문서 본문을 대신하지 않습니다. 외부 원본 문서의 존재·접근 가능 여부는 알 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "members[0].documents",
+              "value": {
+                "field_present": false
+              }
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "members[1].documents",
+              "value": {
+                "field_present": false
+              }
+            }
+          ]
+        },
+        {
+          "question": "색인과 게시 상태는 무엇인가요?",
+          "answer": "색인은 stale, 현재 제공 상태는 unavailable_or_partial입니다. published 이력이 있으나 과거 게시 이력과 현재 제공·색인 상태는 별개입니다. 실제 운영 배포 상태는 이 응답으로 판정할 수 없습니다.",
+          "citations": [
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "index",
+              "value": "stale"
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "served",
+              "value": "unavailable_or_partial"
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "publication_history",
+              "value": [
+                {
+                  "outcome": "published",
+                  "time": "2026-09-23T08:51:47.692608+00:00"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "question": "숨겨지거나 미검증인 범위는 무엇인가요?",
+          "answer": "숨겨진 구성원은 0개입니다. 이 응답에 숨김으로 집계된 구성원은 없습니다. 현재 유효한 검증이 확인되지 않는 저장소: pilot/consumer, pilot/producer. pending_or_stale만으로 대기·만료·실패 원인을 구별할 수 없습니다. 통합 검증은 pending입니다. 실제 배포 동작은 검증됐다고 볼 수 없습니다. 검증 근거 해시가 있는 경우에도 검사 출력·리뷰 본문은 제공되지 않습니다.",
+          "citations": [
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "required_count",
+              "value": 2
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "withheld_count",
+              "value": 0
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "integration",
+              "value": "pending"
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "members[0].validation",
+              "value": "pending_or_stale"
+            },
+            {
+              "projection_id": "6e067a1564c5d5070604f99e5e90178194a1025f5226a1115b393f7500a5c4a9",
+              "field": "members[1].validation",
+              "value": "pending_or_stale"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "ambiguities": [
+    "pending_or_stale는 대기·검증 노후화·검사 실패를 구분하지 않습니다. drift.json과 check_failed.json은 read_at을 제외한 내용과 projection_id가 같아 원인을 구별할 수 없습니다.",
+    "unavailable_or_partial은 문서 제공 불가와 부분 제공을 단독으로 구별하지 않습니다. 문서 본문은 documents 존재 여부로 별도 판단했습니다.",
+    "revoked.json의 withheld_count=1은 숨김 수만 제공합니다. 숨긴 저장소의 정체·상세·숨김 사유는 알 수 없습니다.",
+    "publication_history의 published는 과거 기록입니다. index와 served 또는 운영 배포 상태를 대신하지 않습니다.",
+    "complete.json 외 응답에서 documents 필드가 없다는 사실은 원본 문서가 없다는 뜻은 아닙니다."
+  ]
+}

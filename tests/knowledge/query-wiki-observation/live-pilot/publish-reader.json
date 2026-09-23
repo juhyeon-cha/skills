@@ -1,0 +1,8 @@
+{
+  "members": {
+    "pilot/consumer": "published",
+    "pilot/producer": "published"
+  },
+  "outcome": "published",
+  "withheld_count": 0
+}

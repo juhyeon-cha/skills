@@ -1,0 +1,6 @@
+{
+  "goal": "exchange",
+  "checks": [
+    "producer-check"
+  ]
+}

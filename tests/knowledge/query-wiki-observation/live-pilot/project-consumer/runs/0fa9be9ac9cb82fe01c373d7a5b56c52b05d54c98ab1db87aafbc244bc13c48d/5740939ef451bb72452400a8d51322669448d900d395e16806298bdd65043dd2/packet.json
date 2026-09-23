@@ -1,0 +1,190 @@
+{
+  "after": {
+    "commit": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "8201d31072f9e3d1fb23ee8370faaeaf1d092388e1de77f649fb32e49ee1723a",
+        "text": "def consume(payload):\n    return payload[\"total\"]\n"
+      },
+      {
+        "mode": "100644",
+        "path": "check.py",
+        "sha256": "8fbb7358ad38177972790100e338703b083105afcb8da0ca269661379310f543",
+        "text": "from app import consume\nassert consume({\"total\": 1}) == 1\ntry:\n    consume({})\nexcept KeyError:\n    pass\nelse:\n    raise AssertionError(\"missing total must fail\")\n"
+      }
+    ],
+    "id": "f4d3aba2bbb884406e0e00460d51c3ec031094d43a91eda2c76104448c66b818",
+    "kind": "snapshot",
+    "repository": "pilot/consumer",
+    "scope": [
+      "app.py",
+      "check.py"
+    ],
+    "version": 1
+  },
+  "audience": "백엔드 개발자",
+  "before": {
+    "commit": "337290f783dc4337012f04c315cd10e9b1b9ec8d",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "4aa46f9a7d19fb08a16f2869fbebd039c1f598ef52a50c08021c0ec669d145db",
+        "text": "def consume(payload):\n    return payload[\"amount\"]\n"
+      },
+      {
+        "mode": "100644",
+        "path": "check.py",
+        "sha256": "0c55ba0491c4024ef45686ca1b77ad51efbe033bfaf6faf1e1daa5bccefa4924",
+        "text": "from app import consume\nassert consume({\"amount\": 1}) == 1\ntry:\n    consume({})\nexcept KeyError:\n    pass\nelse:\n    raise AssertionError(\"missing amount must fail\")\n"
+      }
+    ],
+    "id": "261b8d93f9aeb1ca1e5fd2248e4f043329f93491ccaf4ed542895a971c9caf0b",
+    "kind": "snapshot",
+    "repository": "pilot/consumer",
+    "scope": [
+      "app.py",
+      "check.py"
+    ],
+    "version": 1
+  },
+  "bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "behavior",
+            "text": "소비자 consume(payload)는 amount 필드 값을 그대로 반환한다. {\"amount\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "boundary",
+            "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "version",
+            "text": "소스 버전: 337290f783dc4337012f04c315cd10e9b1b9ec8d. 근거: app.py."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "6ff540d14cc6532ca7c0e8a6659f2e410149316d7e8f2a7af605680f04634cc3"
+      }
+    ],
+    "id": "65f7d923a39b90b1a14ca5ccd5106077236e0aba99f597a4efdb681842cbd00e",
+    "kind": "bindings",
+    "snapshot": "261b8d93f9aeb1ca1e5fd2248e4f043329f93491ccaf4ed542895a971c9caf0b",
+    "version": 1
+  },
+  "id": "5740939ef451bb72452400a8d51322669448d900d395e16806298bdd65043dd2",
+  "kind": "review-packet",
+  "plan": {
+    "after": "f4d3aba2bbb884406e0e00460d51c3ec031094d43a91eda2c76104448c66b818",
+    "before": "261b8d93f9aeb1ca1e5fd2248e4f043329f93491ccaf4ed542895a971c9caf0b",
+    "bindings": "65f7d923a39b90b1a14ca5ccd5106077236e0aba99f597a4efdb681842cbd00e",
+    "decisions": {
+      "claims": [
+        {
+          "action": "replace",
+          "evidence": [
+            "app.py"
+          ],
+          "id": "behavior",
+          "path": "guide.md",
+          "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+          "text": "소비자 consume(payload)는 total 필드 값을 그대로 반환한다. {\"total\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다."
+        },
+        {
+          "action": "keep",
+          "evidence": [
+            "app.py"
+          ],
+          "id": "boundary",
+          "path": "guide.md",
+          "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+          "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+        },
+        {
+          "action": "replace",
+          "evidence": [
+            "app.py"
+          ],
+          "id": "version",
+          "path": "guide.md",
+          "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+          "text": "소스 버전: d887a4ca386ddac155db7058dc7a99f71f4a08f9. 근거: app.py."
+        }
+      ],
+      "impact": "a3b73d2ba219d56b9b23a554134b2ad98af9e29d3a7af828c4f3b3155f629b43",
+      "unlinked": [
+        {
+          "action": "no-document-change",
+          "change": {
+            "after": "check.py",
+            "before": "check.py",
+            "type": "modified"
+          },
+          "reason": "check.py는 app.py 계약에 맞춘 로컬 테스트이며 신규 사용자 동작을 도입하지 않는다."
+        }
+      ]
+    },
+    "documents": [
+      {
+        "after_sha256": "e94f19378359a0ec945b998ba873f0ba3f3fb65f46b8fb1d207a912a59bea035",
+        "after_text": "# consumer 교환 계약\n\n소비자 consume(payload)는 total 필드 값을 그대로 반환한다. {\"total\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다.\n\n교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다.\n\n소스 버전: d887a4ca386ddac155db7058dc7a99f71f4a08f9. 근거: app.py.\n",
+        "before_sha256": "6ff540d14cc6532ca7c0e8a6659f2e410149316d7e8f2a7af605680f04634cc3",
+        "before_text": "# consumer 교환 계약\n\n소비자 consume(payload)는 amount 필드 값을 그대로 반환한다. {\"amount\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다.\n\n교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다.\n\n소스 버전: 337290f783dc4337012f04c315cd10e9b1b9ec8d. 근거: app.py.\n",
+        "path": "guide.md"
+      }
+    ],
+    "id": "e7a36ab78e21017a9c794f0e8be8b7a408726938285a3db92d019be9d2b3525f",
+    "kind": "update-plan",
+    "next_bindings": {
+      "documents": [
+        {
+          "claims": [
+            {
+              "evidence": [
+                "app.py"
+              ],
+              "id": "behavior",
+              "text": "소비자 consume(payload)는 total 필드 값을 그대로 반환한다. {\"total\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다."
+            },
+            {
+              "evidence": [
+                "app.py"
+              ],
+              "id": "boundary",
+              "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+            },
+            {
+              "evidence": [
+                "app.py"
+              ],
+              "id": "version",
+              "text": "소스 버전: d887a4ca386ddac155db7058dc7a99f71f4a08f9. 근거: app.py."
+            }
+          ],
+          "path": "guide.md",
+          "sha256": "e94f19378359a0ec945b998ba873f0ba3f3fb65f46b8fb1d207a912a59bea035"
+        }
+      ],
+      "id": "04e530bc03dae1c68d6ea361073800dc5dfaacc3d250185bfcc859ee37db460c",
+      "kind": "bindings",
+      "snapshot": "f4d3aba2bbb884406e0e00460d51c3ec031094d43a91eda2c76104448c66b818",
+      "version": 1
+    },
+    "version": 1
+  },
+  "purpose": "교환 필드와 예외 및 배포 검증 범위를 판단한다",
+  "version": 1
+}

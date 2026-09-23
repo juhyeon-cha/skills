@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+    "--project",
+    "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+    "intake",
+    "--input",
+    "/private/tmp/knowledge-query-evidence/live-pilot/goal-intake-input.json"
+  ],
+  "started_at": 1790153032.795022,
+  "elapsed_seconds": 0.10445404052734375,
+  "exit_code": 0,
+  "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"intake\": \"9b526284335a9f6fc45dd4f5b31ac535f574b6b39fee5654d9e94626cbbf9812\", \"phase\": \"awaiting_document_update\", \"record\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/intakes/9b526284335a9f6fc45dd4f5b31ac535f574b6b39fee5654d9e94626cbbf9812.json\", \"route\": \"current_documentation\"}\n",
+  "stderr": ""
+}

@@ -148,6 +148,9 @@ This managed read boundary can stop serving revoked or stale content. **An alrea
 JSON/Markdown export cannot revoke itself or be recalled.** Consumers needing current access
 checks must invoke `query`/`wiki` through the trusted host rather than read private objects/indexes.
 
+For a common agent/browser projection use the additive `read` command and
+[managed reader](reader.md). Existing `query` and `wiki` outputs keep their own contracts.
+
 ## Failure and verification boundary
 
 Commands serialize local access with a nonblocking file lock. Immutable objects precede an atomic

@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/multi_repo.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/relations-v2",
+    "--host",
+    "/private/tmp/knowledge-query-evidence/live-pilot/host.json",
+    "--principal",
+    "operator",
+    "review-packet",
+    "--input",
+    "/private/tmp/knowledge-query-evidence/live-pilot/request-whole-review-packet.json"
+  ],
+  "started_at": 1790153371.312532,
+  "elapsed_seconds": 0.2139279842376709,
+  "exit_code": 0,
+  "stdout": "{\"packet\": \"9916bf1ac157095bd42412ed487c3e8978b478d60302577c2b038518b20f6aaa\", \"path\": \"/private/tmp/knowledge-query-evidence/live-pilot/relations-v2/objects/9916bf1ac157095bd42412ed487c3e8978b478d60302577c2b038518b20f6aaa.json\", \"prompt_sha256\": \"9916bf1ac157095bd42412ed487c3e8978b478d60302577c2b038518b20f6aaa\"}\n",
+  "stderr": ""
+}

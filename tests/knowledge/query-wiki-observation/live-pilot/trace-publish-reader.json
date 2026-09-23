@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/multi_repo.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/relations-v2",
+    "--host",
+    "/private/tmp/knowledge-query-evidence/live-pilot/host.json",
+    "--principal",
+    "operator",
+    "publish",
+    "--input",
+    "/private/tmp/knowledge-query-evidence/live-pilot/request-publish-reader.json"
+  ],
+  "started_at": 1790153507.1525278,
+  "elapsed_seconds": 0.5525112152099609,
+  "exit_code": 0,
+  "stdout": "{\"members\": {\"pilot/consumer\": \"published\", \"pilot/producer\": \"published\"}, \"outcome\": \"published\", \"withheld_count\": 0}\n",
+  "stderr": ""
+}

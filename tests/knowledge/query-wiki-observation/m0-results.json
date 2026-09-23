@@ -1,0 +1,1260 @@
+[
+  {
+    "case": "complete",
+    "root": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-k5ey17jz",
+    "query": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "a4354a570e9118f27cb582f1ff6ac854d5232bc98a9f3260b3d539e9ea957a0e",
+      "status": "active",
+      "completion": "complete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "304b2ba730018284750a704e168d62a4ba9398f8",
+            "snapshot": "ea62d9322d7499ded6c7ede3ff81984fd9aac7e5aff4593d3412c6da75da3e76",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "3dda280c6cabd2d973fe5205c8aa9428704b908bcc75e70dce382d197c044691"
+            },
+            "review": "76e1377cd957ccb9a463f19580f543e5af6881c3b3754c9eade35f2a288edcf8",
+            "review_synthetic": true,
+            "bindings": "e378ca3f640f0856a422cc2f673ce8f145fbdfd51fd1453b1c1517e12534e782"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "consumer uses total.",
+              "sha256": "ee5449a1a5334cc84b75ce6098725c7823ebb5e4a62185deba85754674b91074"
+            }
+          ]
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "9339e87aa471d186fa779caab84a7e1cd41e2f8e",
+            "snapshot": "18095ea66d1ac7256ede2d020ea78e9bf34db9b048d715219f7c2c61f7c0666a",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "551278033fc97cc67549b6a983cd22f56e0d76b6b3d906d9c93717deb28f173b"
+            },
+            "review": "76e1377cd957ccb9a463f19580f543e5af6881c3b3754c9eade35f2a288edcf8",
+            "review_synthetic": true,
+            "bindings": "c9fcd9fc748dc307056a31cb429e32ef349014df8bc4e6b358bd70c7639fb0e5"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "producer uses total.",
+              "sha256": "5f7c5bc726bac7ffe6d0401e614b54af52c2705e6920c47cc4befb7dcf6788cb"
+            }
+          ]
+        }
+      ],
+      "integration": "verified",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "index": "current"
+    },
+    "wiki": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "a4354a570e9118f27cb582f1ff6ac854d5232bc98a9f3260b3d539e9ea957a0e",
+      "status": "active",
+      "completion": "complete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "304b2ba730018284750a704e168d62a4ba9398f8",
+            "snapshot": "ea62d9322d7499ded6c7ede3ff81984fd9aac7e5aff4593d3412c6da75da3e76",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "3dda280c6cabd2d973fe5205c8aa9428704b908bcc75e70dce382d197c044691"
+            },
+            "review": "76e1377cd957ccb9a463f19580f543e5af6881c3b3754c9eade35f2a288edcf8",
+            "review_synthetic": true,
+            "bindings": "e378ca3f640f0856a422cc2f673ce8f145fbdfd51fd1453b1c1517e12534e782"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "consumer uses total.",
+              "sha256": "ee5449a1a5334cc84b75ce6098725c7823ebb5e4a62185deba85754674b91074"
+            }
+          ]
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "9339e87aa471d186fa779caab84a7e1cd41e2f8e",
+            "snapshot": "18095ea66d1ac7256ede2d020ea78e9bf34db9b048d715219f7c2c61f7c0666a",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "551278033fc97cc67549b6a983cd22f56e0d76b6b3d906d9c93717deb28f173b"
+            },
+            "review": "76e1377cd957ccb9a463f19580f543e5af6881c3b3754c9eade35f2a288edcf8",
+            "review_synthetic": true,
+            "bindings": "c9fcd9fc748dc307056a31cb429e32ef349014df8bc4e6b358bd70c7639fb0e5"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "producer uses total.",
+              "sha256": "5f7c5bc726bac7ffe6d0401e614b54af52c2705e6920c47cc4befb7dcf6788cb"
+            }
+          ]
+        }
+      ],
+      "integration": "verified",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:21.914639+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "current",
+      "markdown": "# contract\n\nTarget version: v1\nCompletion: complete\nPublication: current\n\n## consumer\nValidation: verified\nCurrent commit: 304b2ba730018284750a704e168d62a4ba9398f8\nTarget: consumer-secret total target\n\ncontract.md\nconsumer uses total.\n## producer\nValidation: verified\nCurrent commit: 9339e87aa471d186fa779caab84a7e1cd41e2f8e\nTarget: producer-secret total target\n\ncontract.md\nproducer uses total.\n"
+    },
+    "candidate": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "a4354a570e9118f27cb582f1ff6ac854d5232bc98a9f3260b3d539e9ea957a0e",
+      "status": "active",
+      "completion": "complete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "304b2ba730018284750a704e168d62a4ba9398f8",
+            "snapshot": "ea62d9322d7499ded6c7ede3ff81984fd9aac7e5aff4593d3412c6da75da3e76",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "3dda280c6cabd2d973fe5205c8aa9428704b908bcc75e70dce382d197c044691"
+            },
+            "review": "76e1377cd957ccb9a463f19580f543e5af6881c3b3754c9eade35f2a288edcf8",
+            "review_synthetic": true,
+            "bindings": "e378ca3f640f0856a422cc2f673ce8f145fbdfd51fd1453b1c1517e12534e782"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "consumer uses total.",
+              "sha256": "ee5449a1a5334cc84b75ce6098725c7823ebb5e4a62185deba85754674b91074"
+            }
+          ]
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "9339e87aa471d186fa779caab84a7e1cd41e2f8e",
+            "snapshot": "18095ea66d1ac7256ede2d020ea78e9bf34db9b048d715219f7c2c61f7c0666a",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "551278033fc97cc67549b6a983cd22f56e0d76b6b3d906d9c93717deb28f173b"
+            },
+            "review": "76e1377cd957ccb9a463f19580f543e5af6881c3b3754c9eade35f2a288edcf8",
+            "review_synthetic": true,
+            "bindings": "c9fcd9fc748dc307056a31cb429e32ef349014df8bc4e6b358bd70c7639fb0e5"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "producer uses total.",
+              "sha256": "5f7c5bc726bac7ffe6d0401e614b54af52c2705e6920c47cc4befb7dcf6788cb"
+            }
+          ]
+        }
+      ],
+      "integration": "verified",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:21.914639+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "current",
+      "index": "current",
+      "projection_id": "1d1b5becf9df4797ff3c9e93c9ef2785563b9fddcac709c1931522290ff2c5d3"
+    },
+    "elapsed_seconds": 1.9881644160486758,
+    "receipts": "synthetic fixture only"
+  },
+  {
+    "case": "partial",
+    "root": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-2ux974af",
+    "query": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "49374172cf696cc6c74f9fc3a8602c4776b7bee2c801eab71d09981aac7ca4e3",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "f220b2d23d5e8e3007f59b8d01ece5b411527b97",
+            "snapshot": "5b655c9a0f012ae0b8b15e48492615805f046f43ce4f72bbf1a2a1c6293421e8",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "dc07c0b3603d0dab8ae73c9ffea7369843a40644c146883ef428cfd91c37f27d",
+                "text": "# consumer\nvalue = 'amount'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://consumer.invalid"
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "851c9d93a7b67b5d5575da7e92bfa205973dde6d",
+            "snapshot": "63d20c9487233b72fedba54142c5ec4be5c3114d413119ee299f4c88042437be",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "8179e3811b45c2a8c6e05d7a5b580611904ae4d81d9f0653abe1ff8229fdada7"
+            },
+            "review": "a60fa17d93af6abea4292382313d4329bbc9f7944b1a05206c46f8602c4275a3",
+            "review_synthetic": true,
+            "bindings": "fe5dc0cf4249d996237c6ee4c01d5c70d9e442775830b04cd9f98bf1acbb880e"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "producer uses total.",
+              "sha256": "5f7c5bc726bac7ffe6d0401e614b54af52c2705e6920c47cc4befb7dcf6788cb"
+            }
+          ]
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "index": "current"
+    },
+    "wiki": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "49374172cf696cc6c74f9fc3a8602c4776b7bee2c801eab71d09981aac7ca4e3",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "f220b2d23d5e8e3007f59b8d01ece5b411527b97",
+            "snapshot": "5b655c9a0f012ae0b8b15e48492615805f046f43ce4f72bbf1a2a1c6293421e8",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "dc07c0b3603d0dab8ae73c9ffea7369843a40644c146883ef428cfd91c37f27d",
+                "text": "# consumer\nvalue = 'amount'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://consumer.invalid"
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "851c9d93a7b67b5d5575da7e92bfa205973dde6d",
+            "snapshot": "63d20c9487233b72fedba54142c5ec4be5c3114d413119ee299f4c88042437be",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "8179e3811b45c2a8c6e05d7a5b580611904ae4d81d9f0653abe1ff8229fdada7"
+            },
+            "review": "a60fa17d93af6abea4292382313d4329bbc9f7944b1a05206c46f8602c4275a3",
+            "review_synthetic": true,
+            "bindings": "fe5dc0cf4249d996237c6ee4c01d5c70d9e442775830b04cd9f98bf1acbb880e"
+          }
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:23.149631+00:00",
+          "outcome": "partial"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "markdown": "# contract\n\nTarget version: v1\nCompletion: incomplete\nPublication: unavailable_or_partial\n\n## consumer\nValidation: pending_or_stale\nCurrent commit: f220b2d23d5e8e3007f59b8d01ece5b411527b97\nTarget: consumer-secret total target\n## producer\nValidation: verified\nCurrent commit: 851c9d93a7b67b5d5575da7e92bfa205973dde6d\nTarget: producer-secret total target\n"
+    },
+    "candidate": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "49374172cf696cc6c74f9fc3a8602c4776b7bee2c801eab71d09981aac7ca4e3",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "f220b2d23d5e8e3007f59b8d01ece5b411527b97",
+            "snapshot": "5b655c9a0f012ae0b8b15e48492615805f046f43ce4f72bbf1a2a1c6293421e8",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "dc07c0b3603d0dab8ae73c9ffea7369843a40644c146883ef428cfd91c37f27d",
+                "text": "# consumer\nvalue = 'amount'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://consumer.invalid"
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "851c9d93a7b67b5d5575da7e92bfa205973dde6d",
+            "snapshot": "63d20c9487233b72fedba54142c5ec4be5c3114d413119ee299f4c88042437be",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "8179e3811b45c2a8c6e05d7a5b580611904ae4d81d9f0653abe1ff8229fdada7"
+            },
+            "review": "a60fa17d93af6abea4292382313d4329bbc9f7944b1a05206c46f8602c4275a3",
+            "review_synthetic": true,
+            "bindings": "fe5dc0cf4249d996237c6ee4c01d5c70d9e442775830b04cd9f98bf1acbb880e"
+          }
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:23.149631+00:00",
+          "outcome": "partial"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "index": "current",
+      "projection_id": "0b1e74442d0123fadef831db0cc21757a0e4a0d03deffa62ab91ea4465633beb"
+    },
+    "elapsed_seconds": 0.9764913748949766,
+    "receipts": "synthetic fixture only"
+  },
+  {
+    "case": "withdrawn",
+    "root": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-khosta9o",
+    "query": {
+      "goal": "contract",
+      "version": "v2",
+      "goal_hash": "291288189485301cfb745fa2dd417b2f0f8247f2cce17ae43b9b6e71008dc08d",
+      "status": "withdrawn",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "a78f5f7bf2a5f2c6e3b87dc9e6140d49ef7c669b",
+            "snapshot": "8ed84d61f5ae0a594b2e4778b717f462f3fbd95867cec47bf3695908fde17a60",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://consumer.invalid"
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "4021eb596597c3fc576e690eae462a635e26c7bb",
+            "snapshot": "ab5b9cfd9001af5aede6bdd46fa00850060e903bcb29f6473930e41c74c840a0",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "index": "stale"
+    },
+    "wiki": {
+      "goal": "contract",
+      "version": "v2",
+      "goal_hash": "291288189485301cfb745fa2dd417b2f0f8247f2cce17ae43b9b6e71008dc08d",
+      "status": "withdrawn",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "a78f5f7bf2a5f2c6e3b87dc9e6140d49ef7c669b",
+            "snapshot": "8ed84d61f5ae0a594b2e4778b717f462f3fbd95867cec47bf3695908fde17a60",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://consumer.invalid"
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "4021eb596597c3fc576e690eae462a635e26c7bb",
+            "snapshot": "ab5b9cfd9001af5aede6bdd46fa00850060e903bcb29f6473930e41c74c840a0",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:24.846431+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "markdown": "# contract\n\nTarget version: v2\nCompletion: incomplete\nPublication: unavailable_or_partial\n\n## consumer\nValidation: pending_or_stale\nCurrent commit: a78f5f7bf2a5f2c6e3b87dc9e6140d49ef7c669b\nTarget: consumer-secret total target\n## producer\nValidation: pending_or_stale\nCurrent commit: 4021eb596597c3fc576e690eae462a635e26c7bb\nTarget: producer-secret total target\n"
+    },
+    "candidate": {
+      "goal": "contract",
+      "version": "v2",
+      "goal_hash": "291288189485301cfb745fa2dd417b2f0f8247f2cce17ae43b9b6e71008dc08d",
+      "status": "withdrawn",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "a78f5f7bf2a5f2c6e3b87dc9e6140d49ef7c669b",
+            "snapshot": "8ed84d61f5ae0a594b2e4778b717f462f3fbd95867cec47bf3695908fde17a60",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://consumer.invalid"
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "4021eb596597c3fc576e690eae462a635e26c7bb",
+            "snapshot": "ab5b9cfd9001af5aede6bdd46fa00850060e903bcb29f6473930e41c74c840a0",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:24.846431+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "projection_id": "b7e1248221326bde37e5cf59c79ce894941a85db33b1dd3f73b1f89f48222e0e"
+    },
+    "elapsed_seconds": 1.7873498327098787,
+    "receipts": "synthetic fixture only"
+  },
+  {
+    "case": "revoked",
+    "root": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-2byvv713",
+    "query": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "284c367af4535104eb2791c548a3a931b39e21c82e993eb2fcd871667b4b8cfb",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 1,
+      "members": [
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "fa9f9c963510eb683d9406759550175d68412a06",
+            "snapshot": "81f13efab55485e390f771d26bbcb2d5ec5d1e92289766e57d38075e122d95e9",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "a5619ce146a418cd4acb6175ab9c05cfce3b4f7e2760036b7d369f706719116a"
+            },
+            "review": "4e7245cb68af35ee126834602c550702f47e032b7007d5e517db91f89612cb5d",
+            "review_synthetic": true,
+            "bindings": "b9c15bebf775832ffeddc4a23777801ba5f34788fda9be701988fab19e8e412a"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "producer uses total.",
+              "sha256": "5f7c5bc726bac7ffe6d0401e614b54af52c2705e6920c47cc4befb7dcf6788cb"
+            }
+          ]
+        }
+      ],
+      "integration": "pending",
+      "index": "stale"
+    },
+    "wiki": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "284c367af4535104eb2791c548a3a931b39e21c82e993eb2fcd871667b4b8cfb",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 1,
+      "members": [
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "fa9f9c963510eb683d9406759550175d68412a06",
+            "snapshot": "81f13efab55485e390f771d26bbcb2d5ec5d1e92289766e57d38075e122d95e9",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "a5619ce146a418cd4acb6175ab9c05cfce3b4f7e2760036b7d369f706719116a"
+            },
+            "review": "4e7245cb68af35ee126834602c550702f47e032b7007d5e517db91f89612cb5d",
+            "review_synthetic": true,
+            "bindings": "b9c15bebf775832ffeddc4a23777801ba5f34788fda9be701988fab19e8e412a"
+          }
+        }
+      ],
+      "integration": "pending",
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:26.640191+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "markdown": "# contract\n\nTarget version: v1\nCompletion: incomplete\nPublication: unavailable_or_partial\n\n## producer\nValidation: verified\nCurrent commit: fa9f9c963510eb683d9406759550175d68412a06\nTarget: producer-secret total target\nRequired evidence withheld: 1\n"
+    },
+    "candidate": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "284c367af4535104eb2791c548a3a931b39e21c82e993eb2fcd871667b4b8cfb",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 1,
+      "members": [
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "fa9f9c963510eb683d9406759550175d68412a06",
+            "snapshot": "81f13efab55485e390f771d26bbcb2d5ec5d1e92289766e57d38075e122d95e9",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "verified",
+          "source_url": "https://producer.invalid",
+          "evidence": {
+            "checks": {
+              "producer": "a5619ce146a418cd4acb6175ab9c05cfce3b4f7e2760036b7d369f706719116a"
+            },
+            "review": "4e7245cb68af35ee126834602c550702f47e032b7007d5e517db91f89612cb5d",
+            "review_synthetic": true,
+            "bindings": "b9c15bebf775832ffeddc4a23777801ba5f34788fda9be701988fab19e8e412a"
+          }
+        }
+      ],
+      "integration": "pending",
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:26.640191+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "projection_id": "2a46dd978b6fa1940bd54bb50dd6b9a2ed4020b25ad8e4cc199f5cd5facca17a"
+    },
+    "elapsed_seconds": 1.7039606249891222,
+    "receipts": "synthetic fixture only"
+  },
+  {
+    "case": "drift",
+    "root": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-zqcs810s",
+    "query": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "9d133c9fe6d90beef64e3d1c4f3ea9ca57a291b557c593301cc17dfc9e4fa086",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "23e23cf6b90be6c8dbef9ffcf1c9a19198d7cd4e",
+            "snapshot": "24ca7e7a2b9655707f45bc9c6f4c5ce5a24bfd19012cd7d732f2de07a1803428",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "478b3cda4de4e8895f25f7c6a96ec29a656c990a02c67e720ce8b4a0b1c7caea"
+            },
+            "review": "267a4f0937812094c0fcf87322663656b66e4ae55b57eeb2cf833416ddc5e3e8",
+            "review_synthetic": true,
+            "bindings": "a043057751decda00e834f31053f2fb1e4e96832b638040a2caa1b7d5fb366d8"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "consumer uses total.",
+              "sha256": "ee5449a1a5334cc84b75ce6098725c7823ebb5e4a62185deba85754674b91074"
+            }
+          ]
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "5f3532a94cc36b9594da910495f83c3de72c7cf2",
+            "snapshot": "80b9f75e057c64e0c675ea6ac6787a7951ee55fbb2b255ff65559c86df824ba2",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "index": "stale"
+    },
+    "wiki": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "9d133c9fe6d90beef64e3d1c4f3ea9ca57a291b557c593301cc17dfc9e4fa086",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "23e23cf6b90be6c8dbef9ffcf1c9a19198d7cd4e",
+            "snapshot": "24ca7e7a2b9655707f45bc9c6f4c5ce5a24bfd19012cd7d732f2de07a1803428",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "478b3cda4de4e8895f25f7c6a96ec29a656c990a02c67e720ce8b4a0b1c7caea"
+            },
+            "review": "267a4f0937812094c0fcf87322663656b66e4ae55b57eeb2cf833416ddc5e3e8",
+            "review_synthetic": true,
+            "bindings": "a043057751decda00e834f31053f2fb1e4e96832b638040a2caa1b7d5fb366d8"
+          }
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "5f3532a94cc36b9594da910495f83c3de72c7cf2",
+            "snapshot": "80b9f75e057c64e0c675ea6ac6787a7951ee55fbb2b255ff65559c86df824ba2",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:28.349502+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "markdown": "# contract\n\nTarget version: v1\nCompletion: incomplete\nPublication: unavailable_or_partial\n\n## consumer\nValidation: verified\nCurrent commit: 23e23cf6b90be6c8dbef9ffcf1c9a19198d7cd4e\nTarget: consumer-secret total target\n## producer\nValidation: pending_or_stale\nCurrent commit: 5f3532a94cc36b9594da910495f83c3de72c7cf2\nTarget: producer-secret total target\n"
+    },
+    "candidate": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "9d133c9fe6d90beef64e3d1c4f3ea9ca57a291b557c593301cc17dfc9e4fa086",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "23e23cf6b90be6c8dbef9ffcf1c9a19198d7cd4e",
+            "snapshot": "24ca7e7a2b9655707f45bc9c6f4c5ce5a24bfd19012cd7d732f2de07a1803428",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "478b3cda4de4e8895f25f7c6a96ec29a656c990a02c67e720ce8b4a0b1c7caea"
+            },
+            "review": "267a4f0937812094c0fcf87322663656b66e4ae55b57eeb2cf833416ddc5e3e8",
+            "review_synthetic": true,
+            "bindings": "a043057751decda00e834f31053f2fb1e4e96832b638040a2caa1b7d5fb366d8"
+          }
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "5f3532a94cc36b9594da910495f83c3de72c7cf2",
+            "snapshot": "80b9f75e057c64e0c675ea6ac6787a7951ee55fbb2b255ff65559c86df824ba2",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:28.349502+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "projection_id": "ec16ee245625910ef10d0f1d60abcb831fedb8bb12cf44888ab070a5cb3f65b3"
+    },
+    "elapsed_seconds": 1.7944800411351025,
+    "receipts": "synthetic fixture only"
+  },
+  {
+    "case": "check_failed",
+    "root": "/private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-multi-0dipapsu",
+    "query": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "a64a84024285f106740cf396a823493593d242cb47cfea09e55af352aeda5106",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "bbcb069d83c1e7e873546e66518607ee217d5e00",
+            "snapshot": "906bdc76b1ad069312223366f1b600552f030e020e7afd4a3ae918c323f1231a",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "fa357a0cf4c11a16679cdf9585a46925c72905f4b8d2e63e811f2b4d31d08aa8"
+            },
+            "review": "5a6b46414419fc647906c0746b5a4c1042623c575e540158a21a9e31d6a692a3",
+            "review_synthetic": true,
+            "bindings": "8183cd17cb0c588d48360b5294d318d08e6f30862de3450a148c0f64de1dd534"
+          },
+          "documents": [
+            {
+              "path": "contract.md",
+              "text": "consumer uses total.",
+              "sha256": "ee5449a1a5334cc84b75ce6098725c7823ebb5e4a62185deba85754674b91074"
+            }
+          ]
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "e816f8405909ce07d1dfedb840c0b8173541c095",
+            "snapshot": "250273d4374f38d8becf29c2335da5162a19dfc0ead6af23630dac532a5f3424",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "index": "stale"
+    },
+    "wiki": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "a64a84024285f106740cf396a823493593d242cb47cfea09e55af352aeda5106",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "bbcb069d83c1e7e873546e66518607ee217d5e00",
+            "snapshot": "906bdc76b1ad069312223366f1b600552f030e020e7afd4a3ae918c323f1231a",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "fa357a0cf4c11a16679cdf9585a46925c72905f4b8d2e63e811f2b4d31d08aa8"
+            },
+            "review": "5a6b46414419fc647906c0746b5a4c1042623c575e540158a21a9e31d6a692a3",
+            "review_synthetic": true,
+            "bindings": "8183cd17cb0c588d48360b5294d318d08e6f30862de3450a148c0f64de1dd534"
+          }
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "e816f8405909ce07d1dfedb840c0b8173541c095",
+            "snapshot": "250273d4374f38d8becf29c2335da5162a19dfc0ead6af23630dac532a5f3424",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:30.190203+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "markdown": "# contract\n\nTarget version: v1\nCompletion: incomplete\nPublication: unavailable_or_partial\n\n## consumer\nValidation: verified\nCurrent commit: bbcb069d83c1e7e873546e66518607ee217d5e00\nTarget: consumer-secret total target\n## producer\nValidation: pending_or_stale\nCurrent commit: e816f8405909ce07d1dfedb840c0b8173541c095\nTarget: producer-secret total target\n"
+    },
+    "candidate": {
+      "goal": "contract",
+      "version": "v1",
+      "goal_hash": "a64a84024285f106740cf396a823493593d242cb47cfea09e55af352aeda5106",
+      "status": "active",
+      "completion": "incomplete",
+      "required_count": 2,
+      "withheld_count": 0,
+      "members": [
+        {
+          "repository": "consumer",
+          "current": {
+            "commit": "bbcb069d83c1e7e873546e66518607ee217d5e00",
+            "snapshot": "906bdc76b1ad069312223366f1b600552f030e020e7afd4a3ae918c323f1231a",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "5e02684f5a890eb7d29efa48533a1ddae65370044c3f8bbdc7d8738b74e00248",
+                "text": "# consumer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "consumer-secret total target",
+          "validation": "verified",
+          "source_url": "https://consumer.invalid",
+          "evidence": {
+            "checks": {
+              "consumer": "fa357a0cf4c11a16679cdf9585a46925c72905f4b8d2e63e811f2b4d31d08aa8"
+            },
+            "review": "5a6b46414419fc647906c0746b5a4c1042623c575e540158a21a9e31d6a692a3",
+            "review_synthetic": true,
+            "bindings": "8183cd17cb0c588d48360b5294d318d08e6f30862de3450a148c0f64de1dd534"
+          }
+        },
+        {
+          "repository": "producer",
+          "current": {
+            "commit": "e816f8405909ce07d1dfedb840c0b8173541c095",
+            "snapshot": "250273d4374f38d8becf29c2335da5162a19dfc0ead6af23630dac532a5f3424",
+            "files": [
+              {
+                "path": "app.py",
+                "mode": "100644",
+                "sha256": "61fc013dd44eec9d3a86e4676b372f1a7a9ca9d661d634e5eb7dc99b02d05f12",
+                "text": "# producer\nvalue = 'total'\n"
+              }
+            ]
+          },
+          "target": "producer-secret total target",
+          "validation": "pending_or_stale",
+          "source_url": "https://producer.invalid"
+        }
+      ],
+      "integration": "pending",
+      "origin": {
+        "kind": "user",
+        "request": "request-1",
+        "cause": "rename-field"
+      },
+      "relations": [],
+      "publication_history": [
+        {
+          "time": "2026-09-23T08:35:30.190203+00:00",
+          "outcome": "published"
+        }
+      ],
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "projection_id": "1c1d008462692e91e5214c2d8103ee9c897f04b05aece397551d4d1f67991e9e"
+    },
+    "elapsed_seconds": 1.961812332738191,
+    "receipts": "synthetic fixture only"
+  }
+]

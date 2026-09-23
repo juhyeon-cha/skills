@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "active": null,
+  "baseline": "5e0f56489f2a16f78c1b2ed12d708e333d4e71a5",
+  "project": "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+  "retirement": null,
+  "runs": [],
+  "settings": {
+    "audience": "백엔드 개발자",
+    "docs": "/private/tmp/knowledge-query-evidence/live-pilot/docs-producer",
+    "purpose": "교환 필드와 예외 및 배포 검증 범위를 판단한다",
+    "repo": "/private/tmp/knowledge-query-evidence/live-pilot/producer",
+    "repository": "pilot/producer",
+    "scope": [
+      "app.py",
+      "check.py"
+    ]
+  }
+}

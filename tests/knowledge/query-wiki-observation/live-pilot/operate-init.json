@@ -1,0 +1,5 @@
+{
+  "automation": "/private/tmp/knowledge-query-evidence/live-pilot/automation-producer",
+  "ownership": "/private/tmp/knowledge-query-evidence/live-pilot/docs-producer/.knowledge-automation-owner.json",
+  "phase": "initialized"
+}

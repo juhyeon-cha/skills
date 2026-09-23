@@ -1,0 +1,8 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "baseline": "5e0f56489f2a16f78c1b2ed12d708e333d4e71a5",
+  "phase": "initialized",
+  "project": "/private/tmp/knowledge-query-evidence/live-pilot/project-producer"
+}

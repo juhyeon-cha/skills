@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/automation.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/automation-producer",
+    "submit",
+    "--input",
+    "/private/tmp/knowledge-query-evidence/live-pilot/automation-event.json"
+  ],
+  "started_at": 1790153191.854788,
+  "elapsed_seconds": 0.17648601531982422,
+  "exit_code": 0,
+  "stdout": "{\"duplicate\": false, \"execution\": \"30485892cc8a4816a72f3c0e81b4409f\", \"phase\": \"queued\"}\n",
+  "stderr": ""
+}

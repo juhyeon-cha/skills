@@ -1,0 +1,74 @@
+{
+  "deployment": "not_verified",
+  "document_quality": "not_evaluated",
+  "id": "1f62a2d2f857808e9f831c55f50bfa4a54c39c19a8de6657fa9d113dd2404460",
+  "implementation": "not_verified",
+  "input": {
+    "current": {
+      "code": "producer",
+      "description": "두 저장소가 total 필드를 교환하도록 로컬 코드가 변경됐다."
+    },
+    "differences": [
+      {
+        "description": "현재 코드는 그대로 보존하며 문서화 목표를 철회하고 게시 상태에서 제외한다.",
+        "kind": "documentation",
+        "sources": [
+          "producer",
+          "consumer",
+          "scenario"
+        ]
+      }
+    ],
+    "intent": "current_behavior",
+    "origin": "user",
+    "rationale": "승인된 목표철회 로컬실험 조건. 운영결정 아님.",
+    "sources": [
+      {
+        "authority": "observed_implementation",
+        "id": "producer",
+        "kind": "code",
+        "locator": "/private/tmp/knowledge-query-evidence/live-pilot/producer/app.py",
+        "sha256": "4a65d859caeb6c1b47624fc75bc57120473380ae3d8f0c06aa59035745b1eb70",
+        "text": "def produce():\n    return {\"total\": 1}\n",
+        "version": "f801751439428b33019917409a39e43963049dc2"
+      },
+      {
+        "authority": "observed_implementation",
+        "id": "consumer",
+        "kind": "code",
+        "locator": "/private/tmp/knowledge-query-evidence/live-pilot/consumer/app.py",
+        "sha256": "8201d31072f9e3d1fb23ee8370faaeaf1d092388e1de77f649fb32e49ee1723a",
+        "text": "def consume(payload):\n    return payload[\"total\"]\n",
+        "version": "d887a4ca386ddac155db7058dc7a99f71f4a08f9"
+      },
+      {
+        "authority": "user_instruction",
+        "id": "scenario",
+        "kind": "user",
+        "locator": "local-fixture:approved-test-scope",
+        "sha256": "c6340708349e2a46c6053c15516e9b2b3ad3bb7b844effd439dc173041686ee7",
+        "text": "격리된 조회·위키 검증 시나리오에서 exchange 목표를 철회 상태로 둔다. 실제 운영 정책은 변경하지 않는다.",
+        "version": "withdrawal-scenario-1"
+      }
+    ],
+    "target": {
+      "acceptance": [
+        "produce() == {total:1}",
+        "consume({total:1}) == 1",
+        "consume({}) raises KeyError"
+      ],
+      "description": "고정 구현의 total 계약과 누락 KeyError를 문서화한다.",
+      "sources": [
+        "producer",
+        "consumer",
+        "scenario"
+      ],
+      "status": "withdrawn"
+    },
+    "version": 1
+  },
+  "kind": "change-intake",
+  "phase": "withdrawn",
+  "route": "current_documentation",
+  "version": 1
+}

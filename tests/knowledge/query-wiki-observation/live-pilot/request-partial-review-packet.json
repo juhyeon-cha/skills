@@ -1,0 +1,6 @@
+{
+  "goal": "exchange",
+  "repositories": [
+    "producer"
+  ]
+}

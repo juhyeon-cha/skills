@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "repositories": {
+    "pilot/producer": {
+      "path": "/private/tmp/knowledge-query-evidence/live-pilot/producer",
+      "url": "https://example.invalid/producer",
+      "scope": [
+        "app.py",
+        "check.py"
+      ],
+      "project": "/private/tmp/knowledge-query-evidence/live-pilot/project-producer"
+    },
+    "pilot/consumer": {
+      "path": "/private/tmp/knowledge-query-evidence/live-pilot/consumer",
+      "url": "https://example.invalid/consumer",
+      "scope": [
+        "app.py",
+        "check.py"
+      ],
+      "project": "/private/tmp/knowledge-query-evidence/live-pilot/project-consumer"
+    }
+  },
+  "principals": {
+    "operator": {
+      "manage": true,
+      "goals": [
+        "exchange"
+      ],
+      "repositories": {
+        "pilot/producer": [
+          "source",
+          "query",
+          "publish"
+        ],
+        "pilot/consumer": [
+          "source",
+          "query",
+          "publish"
+        ]
+      }
+    },
+    "reader": {
+      "manage": false,
+      "goals": [
+        "exchange"
+      ],
+      "repositories": {
+        "pilot/producer": [
+          "source",
+          "query",
+          "publish"
+        ],
+        "pilot/consumer": [
+          "source",
+          "query",
+          "publish"
+        ]
+      }
+    },
+    "restricted": {
+      "manage": false,
+      "goals": [
+        "exchange"
+      ],
+      "repositories": {
+        "pilot/producer": [
+          "source",
+          "query",
+          "publish"
+        ],
+        "pilot/consumer": []
+      }
+    }
+  },
+  "checks": {
+    "producer-check": {
+      "repositories": [
+        "pilot/producer"
+      ],
+      "cwd_repository": "pilot/producer",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-c",
+        "raise SystemExit(1)"
+      ]
+    },
+    "consumer-check": {
+      "repositories": [
+        "pilot/consumer"
+      ],
+      "cwd_repository": "pilot/consumer",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "check.py"
+      ]
+    },
+    "exchange-check": {
+      "repositories": [
+        "pilot/producer",
+        "pilot/consumer"
+      ],
+      "cwd_repository": "pilot/producer",
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "-B",
+        "/private/tmp/knowledge-query-evidence/live-pilot/exchange-check.py"
+      ]
+    }
+  }
+}

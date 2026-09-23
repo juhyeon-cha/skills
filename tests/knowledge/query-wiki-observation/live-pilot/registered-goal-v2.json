@@ -1,0 +1,31 @@
+{
+  "id": "exchange",
+  "version": "v1",
+  "status": "active",
+  "members": {
+    "pilot/producer": {
+      "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+      "criteria": [
+        "producer-check"
+      ]
+    },
+    "pilot/consumer": {
+      "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+      "criteria": [
+        "consumer-check"
+      ]
+    }
+  },
+  "integration": [
+    "exchange-check"
+  ],
+  "origin": {
+    "kind": "code",
+    "request": "pilot-amount-total",
+    "cause": "local-code-change",
+    "intake": {
+      "path": "/private/tmp/knowledge-query-evidence/live-pilot/project-producer/intakes/9b526284335a9f6fc45dd4f5b31ac535f574b6b39fee5654d9e94626cbbf9812.json",
+      "sha256": "87f5a81d36f15d34299dda9330ddf07317ddf234209714f965a35c35e34e9f73"
+    }
+  }
+}

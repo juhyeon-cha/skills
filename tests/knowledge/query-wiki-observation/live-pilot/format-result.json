@@ -1,0 +1,26 @@
+{
+  "verdict": "pass",
+  "file_hashes": {
+    "spec-producer.json": true,
+    "spec-consumer.json": true,
+    "frozen.json": true,
+    "documents.py": true,
+    "freeze.py": true,
+    "reader-defect-input.json": true,
+    "input-producer.json": true,
+    "input-consumer.json": true,
+    "reader-input.json": true,
+    "producer/check.py": true,
+    "producer/app.py": true,
+    "docs-consumer/guide.md": true,
+    "docs-producer/guide.md": true,
+    "consumer/check.py": true,
+    "consumer/app.py": true
+  },
+  "checks": [
+    "exact unique excerpts",
+    "evidence paths exist",
+    "source commit recorded"
+  ],
+  "boundary": "format only; semantic judgment separate"
+}

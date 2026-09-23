@@ -5,7 +5,9 @@ description: Build and inspect a local multipage web wiki from reviewed canonica
 
 # Present a knowledge wiki
 
-Choose the requested output before acting. For an existing managed wiki read, use `knowledge:query`.
+Choose the requested output before acting. For a live local managed reading website, read
+[managed reader](../../references/reader.md) and launch its fixed audience/goal server.
+For an agent answer from the same result, use `knowledge:query`.
 For an explicitly requested managed local publication, read [relations](../../references/multi-repo.md)
 and use the configured principal/audience; report every member outcome and partial failure.
 

@@ -5,6 +5,9 @@ The bundled wiki scripts render reviewed documents; the existing knowledge CLI s
 source intake, proposal review, and document updates. Keep shared rendering code in this
 plugin and repository-specific documents and manifests in the target repository.
 
+For a browser that checks current managed state on each request, use [managed reader](reader.md).
+The renderer below is the explicit static snapshot path and does not acquire live permissions.
+
 ## Establish the reading task
 
 Name the reader, the decisions they must make, and the source revision. Inspect existing

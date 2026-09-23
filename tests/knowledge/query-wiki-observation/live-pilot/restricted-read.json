@@ -1,0 +1,50 @@
+{
+  "completion": "incomplete",
+  "goal": "exchange",
+  "goal_hash": "dc8cba0f71b8db2941fe93939fc74ba32c5df1c26c86c812ad4d8744991dddb5",
+  "index": "stale",
+  "integration": "pending",
+  "members": [
+    {
+      "current": {
+        "commit": "f801751439428b33019917409a39e43963049dc2",
+        "files": [
+          {
+            "mode": "100644",
+            "path": "app.py",
+            "sha256": "4a65d859caeb6c1b47624fc75bc57120473380ae3d8f0c06aa59035745b1eb70",
+            "text": "def produce():\n    return {\"total\": 1}\n"
+          },
+          {
+            "mode": "100644",
+            "path": "check.py",
+            "sha256": "1e074d92a384b1bd2c2de4ca9c11cef3806dbfd18de47c27a2488453bece3d80",
+            "text": "from app import produce\nassert produce() == {\"total\": 1}\n"
+          }
+        ],
+        "snapshot": "be94f83ddddef7d6db872e6e7a5dff73df3c0e093419f72462781edbac1e3ce6"
+      },
+      "evidence": {
+        "bindings": "1f2cf2849c3330092cd236c21b436726f9fac50721689922395961fadaceb0d2",
+        "checks": {
+          "producer-check": "89fccbb146a9d24e59ac0778cc2c7f21d6c9a4ef867f8063b14bef22f11f1690"
+        },
+        "review": "2702fc00b1386158f905424821249a9e39fca0fb2ba2c1606e5879da3580e1a2",
+        "review_synthetic": false
+      },
+      "repository": "pilot/producer",
+      "source_url": "https://example.invalid/producer",
+      "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+      "validation": "verified"
+    }
+  ],
+  "projection_id": "f2a82ddad8e55285e4cc2fd16ae544f534ba8bcb8826ea1e0a1ec269dfc9f7af",
+  "publication_history": [],
+  "read_at": "2026-09-23T08:52:12.558726+00:00",
+  "required_count": 2,
+  "schema_version": 1,
+  "served": "unavailable_or_partial",
+  "status": "active",
+  "version": "v1",
+  "withheld_count": 1
+}

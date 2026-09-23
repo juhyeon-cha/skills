@@ -1,0 +1,23 @@
+{
+  "id": "exchange",
+  "version": "v1",
+  "status": "active",
+  "members": {
+    "producer": {
+      "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+      "criteria": [
+        "producer-check"
+      ]
+    },
+    "consumer": {
+      "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+      "criteria": [
+        "consumer-check"
+      ]
+    }
+  },
+  "integration": [
+    "exchange-check"
+  ],
+  "origin": {}
+}

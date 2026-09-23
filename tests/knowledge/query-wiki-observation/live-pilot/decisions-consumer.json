@@ -1,0 +1,46 @@
+{
+  "impact": "a3b73d2ba219d56b9b23a554134b2ad98af9e29d3a7af828c4f3b3155f629b43",
+  "claims": [
+    {
+      "path": "guide.md",
+      "id": "behavior",
+      "action": "replace",
+      "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+      "text": "소비자 consume(payload)는 total 필드 값을 그대로 반환한다. {\"total\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다.",
+      "evidence": [
+        "app.py"
+      ]
+    },
+    {
+      "path": "guide.md",
+      "id": "boundary",
+      "action": "keep",
+      "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+      "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다.",
+      "evidence": [
+        "app.py"
+      ]
+    },
+    {
+      "path": "guide.md",
+      "id": "version",
+      "action": "replace",
+      "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+      "text": "소스 버전: d887a4ca386ddac155db7058dc7a99f71f4a08f9. 근거: app.py.",
+      "evidence": [
+        "app.py"
+      ]
+    }
+  ],
+  "unlinked": [
+    {
+      "change": {
+        "after": "check.py",
+        "before": "check.py",
+        "type": "modified"
+      },
+      "action": "no-document-change",
+      "reason": "check.py는 app.py 계약에 맞춘 로컬 테스트이며 신규 사용자 동작을 도입하지 않는다."
+    }
+  ]
+}

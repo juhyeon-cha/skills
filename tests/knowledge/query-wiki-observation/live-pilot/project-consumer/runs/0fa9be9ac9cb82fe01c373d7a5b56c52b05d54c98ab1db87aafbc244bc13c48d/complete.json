@@ -1,0 +1,44 @@
+{
+  "id": "60fd4a13f272f977cdfac483b9b9c9eda5fcd0d55e96af33c727dd2aaace120a",
+  "kind": "completion",
+  "next_bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "behavior",
+            "text": "소비자 consume(payload)는 total 필드 값을 그대로 반환한다. {\"total\": 1}은 1을 반환하며, 필드가 없으면 KeyError가 발생한다. 기본값이나 호환 변환은 없다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "boundary",
+            "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "version",
+            "text": "소스 버전: d887a4ca386ddac155db7058dc7a99f71f4a08f9. 근거: app.py."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "e94f19378359a0ec945b998ba873f0ba3f3fb65f46b8fb1d207a912a59bea035"
+      }
+    ],
+    "id": "04e530bc03dae1c68d6ea361073800dc5dfaacc3d250185bfcc859ee37db460c",
+    "kind": "bindings",
+    "snapshot": "f4d3aba2bbb884406e0e00460d51c3ec031094d43a91eda2c76104448c66b818",
+    "version": 1
+  },
+  "packet": "5740939ef451bb72452400a8d51322669448d900d395e16806298bdd65043dd2",
+  "plan": "e7a36ab78e21017a9c794f0e8be8b7a408726938285a3db92d019be9d2b3525f",
+  "review": "aa9daaf95e88bf4781ff327ad9b61bcef20b1780a22b4456a34e7fa700b332ab",
+  "status": "applied",
+  "version": 1
+}

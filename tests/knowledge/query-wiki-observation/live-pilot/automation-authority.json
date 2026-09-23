@@ -1,0 +1,6 @@
+{
+  "reference": "Actual delegated pilot scope: isolated local code/document observations only; no new implementation or remote actions. Same-current-commit event recovery observation.",
+  "document_updates": true,
+  "implementation": false,
+  "checks": []
+}

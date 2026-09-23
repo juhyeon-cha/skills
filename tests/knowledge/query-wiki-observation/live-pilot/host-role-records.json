@@ -1,0 +1,61 @@
+{
+  "separation": "Independent Codex subagents; document-only readers were separated by prompt instructions, not filesystem permissions.",
+  "observable_model_identity": "unknown",
+  "provider_call_id": "unavailable",
+  "attestation_call_id_convention": "Actual host-returned canonical agent task identifier; followup operation and exact raw response retained. This is a host attestation, not authenticated provider audit.",
+  "roles": [
+    {
+      "id": "/root/query_wiki_live_pilot/bootstrap_reader",
+      "role": "fresh document-only normal reader",
+      "input": "reader-input.json",
+      "response": "reader-response.json"
+    },
+    {
+      "id": "/root/query_wiki_live_pilot/bootstrap_defect_reader",
+      "role": "fresh document-only defective-copy reader",
+      "input": "reader-defect-input.json",
+      "response": "reader-defect-response.json"
+    },
+    {
+      "id": "/root/query_wiki_live_pilot/bootstrap_judge",
+      "role": "independent content and AC judge",
+      "inputs": [
+        "frozen.json",
+        "input-producer.json",
+        "input-consumer.json",
+        "reader-input.json",
+        "reader-response.json",
+        "reader-defect-input.json",
+        "reader-defect-response.json",
+        "format-result.json",
+        "bootstrap-hashes.json"
+      ],
+      "response": "bootstrap-review.json"
+    },
+    {
+      "id": "/root/query_wiki_live_pilot/producer_update_review",
+      "role": "independent prepared producer update review",
+      "input": "prepare-producer.json packet pointer",
+      "response": "review-producer.json"
+    },
+    {
+      "id": "/root/query_wiki_live_pilot/producer_update_review",
+      "role": "independent partial implementation/document attestation",
+      "input": "partial-review-packet.json path pointer",
+      "response": "partial-attestation-response.json"
+    },
+    {
+      "id": "/root/query_wiki_live_pilot/consumer_update_review",
+      "role": "independent prepared consumer update review",
+      "input": "prepare-consumer.json packet pointer",
+      "response": "review-consumer.json"
+    },
+    {
+      "id": "/root/query_wiki_live_pilot/whole_integration_review",
+      "role": "independent whole implementation/document attestation",
+      "input": "whole-review-packet.json path pointer",
+      "response": "whole-attestation-response.json"
+    }
+  ],
+  "raw_host_prompts": "Preserved verbatim in current Codex collaboration tool transcript; local files are exact role data payloads and raw JSON responses."
+}

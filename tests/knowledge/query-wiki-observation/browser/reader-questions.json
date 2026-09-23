@@ -1,0 +1,17 @@
+{
+  "questions": [
+    "전체 목표가 완료됐나요?",
+    "보이는 저장소별 현재 커밋·목표·검증은 무엇인가요?",
+    "문서 본문을 읽을 수 있나요?",
+    "색인과 게시 상태는 무엇인가요?",
+    "숨겨지거나 미검증인 범위는 무엇인가요?"
+  ],
+  "inputs": [
+    "partial.json",
+    "complete.json",
+    "revoked.json",
+    "drift.json",
+    "check_failed.json",
+    "withdrawn.json"
+  ]
+}

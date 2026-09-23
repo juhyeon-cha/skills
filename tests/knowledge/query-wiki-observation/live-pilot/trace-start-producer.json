@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+    "--project",
+    "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+    "start",
+    "--rev",
+    "f801751439428b33019917409a39e43963049dc2"
+  ],
+  "started_at": 1790153040.736165,
+  "elapsed_seconds": 0.20097994804382324,
+  "exit_code": 0,
+  "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"after\": \"f801751439428b33019917409a39e43963049dc2\", \"before\": \"5e0f56489f2a16f78c1b2ed12d708e333d4e71a5\", \"context\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/context.json\", \"next_action\": \"prepare\", \"phase\": \"awaiting_decisions\", \"run\": \"285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9\"}\n",
+  "stderr": ""
+}

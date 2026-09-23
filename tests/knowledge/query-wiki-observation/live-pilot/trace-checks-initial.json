@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/multi_repo.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/relations",
+    "--host",
+    "/private/tmp/knowledge-query-evidence/live-pilot/host.json",
+    "--principal",
+    "operator",
+    "check",
+    "--input",
+    "/private/tmp/knowledge-query-evidence/live-pilot/request-checks-initial.json"
+  ],
+  "started_at": 1790153086.401771,
+  "elapsed_seconds": 0.6655328273773193,
+  "exit_code": 0,
+  "stdout": "{\"checks\": [{\"check\": \"producer-check\", \"evidence\": \"33cb576367d0e6181b4986deadc7cf1b63c22f561a22bbcb6817fff82407a0a1\", \"exit_code\": 0, \"source_unchanged\": true}, {\"check\": \"consumer-check\", \"evidence\": \"2ff8febed7a19b5d841e0a37ade458b33eed525bbf8027fc26507e077f1ceaa6\", \"exit_code\": 0, \"source_unchanged\": true}, {\"check\": \"exchange-check\", \"evidence\": \"eb42b8a08f2a60dc2df446886c138215e1b3fc4d926687547e68459b70b96d72\", \"exit_code\": 0, \"source_unchanged\": true}], \"goal\": \"exchange\"}\n",
+  "stderr": ""
+}

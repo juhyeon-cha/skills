@@ -1,0 +1,16 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+    "--project",
+    "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+    "intake",
+    "--input",
+    "/private/tmp/knowledge-query-evidence/live-pilot/browser-withdraw-intake-input.json"
+  ],
+  "started_at": 1790153737.030359,
+  "elapsed_seconds": 0.08712911605834961,
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "{\"_meta\": {\"cli_contract\": 1}, \"code\": \"INTAKE\", \"command\": \"intake\", \"error\": \"INTAKE: behavior target needs instruction/decision authority and remaining behavior difference\"}\n"
+}

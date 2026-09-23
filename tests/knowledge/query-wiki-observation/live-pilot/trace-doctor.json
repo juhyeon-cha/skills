@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+    "doctor"
+  ],
+  "started_at": 1790152811.047303,
+  "elapsed_seconds": 0.07812190055847168,
+  "exit_code": 0,
+  "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"git\": \"/opt/homebrew/bin/git\", \"git_version\": \"git version 2.55.0\", \"independent_agent\": \"host capability must be checked by the orchestrator\", \"jsonschema\": \"4.26.0\", \"python\": \"/private/tmp/knowledge-contract-venv/bin/python\", \"python_version\": \"3.14.7\", \"skill_files\": [\"/private/tmp/skills-knowledge-query-wiki/plugins/toolkit/skills/writing-for-humans/SKILL.md\", \"/private/tmp/skills-knowledge-query-wiki/plugins/toolkit/skills/writing-for-humans/references/backend.md\", \"/private/tmp/skills-knowledge-query-wiki/plugins/toolkit/skills/writing-for-humans/references/document-shapes.md\", \"/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/skills/review/SKILL.md\", \"/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/skills/review/references/rubric.md\", \"/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/skills/review/references/response.md\", \"/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/skills/review/references/document-ac.md\"], \"sqlite\": \"3.53.4\", \"sqlite_json\": \"verified\"}\n",
+  "stderr": ""
+}

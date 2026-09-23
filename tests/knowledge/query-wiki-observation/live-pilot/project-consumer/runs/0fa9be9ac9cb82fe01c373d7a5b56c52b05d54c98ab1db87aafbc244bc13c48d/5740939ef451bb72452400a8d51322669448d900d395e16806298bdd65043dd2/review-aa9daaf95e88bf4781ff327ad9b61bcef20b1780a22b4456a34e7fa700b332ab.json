@@ -1,0 +1,12 @@
+{
+  "checks": {
+    "decision_coverage": "pass",
+    "reader_action": "pass",
+    "source_fidelity": "pass",
+    "uncertainty": "pass"
+  },
+  "findings": [],
+  "packet": "5740939ef451bb72452400a8d51322669448d900d395e16806298bdd65043dd2",
+  "plan": "e7a36ab78e21017a9c794f0e8be8b7a408726938285a3db92d019be9d2b3525f",
+  "verdict": "pass"
+}

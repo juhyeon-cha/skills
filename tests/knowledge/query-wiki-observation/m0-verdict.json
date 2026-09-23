@@ -1,0 +1,125 @@
+{
+  "verdict": "PASS",
+  "signal": "MATCH",
+  "scope": "M0 공통 읽기 경계의 실현 가능성 및 고정 6상태 관측에 한정",
+  "evaluator": "독립 subagent 실제 모델 평가; fixture 검토 영수증과 구분",
+  "acceptance_quote": "고정6상태의 원본 관측과 공통읽기 후보를 독립 평가하여 필수상태 누락0, 권한본문노출0, 부분완료오표시0이고 기존query/wiki 계약을 보존하는 구현 경계를 확정한다. 시험영수증과 실제모델판정, 미검증 제품실행을 구분한다.",
+  "evidence": {
+    "source_base": "2fe1918",
+    "worktree": "/private/tmp/skills-knowledge-query-wiki",
+    "results_sha256": "0191161f77a4f0d6e7be69a2e54f42d4b987cd978435fd9ad90c5142bcd70d05",
+    "verification": "6개 HTML을 디코딩하여 candidate와 완전 일치 확인. 8개 필수 필드 존재 확인. 각 candidate가 wiki의 markdown 제외 전체 결과와 동일하고 query.index만 추가됨을 확인. 기존 fixture 상태에서 query/wiki를 독립 재조회하여 저장 관측과 완전 일치 확인. 보이는 각 repository의 실제 Git HEAD와 current.commit 일치 확인. 최초 시스템 Python은 의존성이 없어 실패했으며 기존 knowledge-contract-venv Python으로 재검증 성공."
+  },
+  "cases": [
+    {
+      "case": "complete",
+      "met": true,
+      "version": "v1",
+      "status": "active",
+      "completion": "complete",
+      "integration": "verified",
+      "withheld_count": 0,
+      "served": "current",
+      "index": "current",
+      "document_count": 2,
+      "visible_members": [
+        "consumer",
+        "producer"
+      ]
+    },
+    {
+      "case": "partial",
+      "met": true,
+      "version": "v1",
+      "status": "active",
+      "completion": "incomplete",
+      "integration": "pending",
+      "withheld_count": 0,
+      "served": "unavailable_or_partial",
+      "index": "current",
+      "document_count": 0,
+      "visible_members": [
+        "consumer",
+        "producer"
+      ]
+    },
+    {
+      "case": "withdrawn",
+      "met": true,
+      "version": "v2",
+      "status": "withdrawn",
+      "completion": "incomplete",
+      "integration": "pending",
+      "withheld_count": 0,
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "document_count": 0,
+      "visible_members": [
+        "consumer",
+        "producer"
+      ]
+    },
+    {
+      "case": "revoked",
+      "met": true,
+      "version": "v1",
+      "status": "active",
+      "completion": "incomplete",
+      "integration": "pending",
+      "withheld_count": 1,
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "document_count": 0,
+      "visible_members": [
+        "producer"
+      ]
+    },
+    {
+      "case": "drift",
+      "met": true,
+      "version": "v1",
+      "status": "active",
+      "completion": "incomplete",
+      "integration": "pending",
+      "withheld_count": 0,
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "document_count": 0,
+      "visible_members": [
+        "consumer",
+        "producer"
+      ]
+    },
+    {
+      "case": "check_failed",
+      "met": true,
+      "version": "v1",
+      "status": "active",
+      "completion": "incomplete",
+      "integration": "pending",
+      "withheld_count": 0,
+      "served": "unavailable_or_partial",
+      "index": "stale",
+      "document_count": 0,
+      "visible_members": [
+        "consumer",
+        "producer"
+      ]
+    }
+  ],
+  "contract_boundary": "기존 query는 검증된 개별 문서를 부분 상태에서도 반환하지만 wiki는 source/query/publish 교집합 권한과 현재 전체 게시 일치를 요구한다. 새 read는 wiki 결과를 본문/상태의 권위로 사용하고 query/wiki/정적 manifest 계약을 그대로 유지하는 추가 경계로 구현 가능하다. 비정상 상태의 본문 제외는 documents를 뜻하며 허용된 저장소의 current.files 소스 텍스트는 기존 wiki 계약상 남는다.",
+  "material_gaps": [],
+  "implementation_hazards": [
+    "query와 wiki를 순차 결합한 실험은 동시 권한/파일 변경에 대한 원자적 관측을 보장하지 않는다. 구현에서 동일 응답의 상태와 본문 일치 및 요청 시 권한 재검사 경계를 검증해야 한다.",
+    "후보에는 read 시각이 없다. 구현에서 관측 시각 및 projection_id의 해시 대상/의미를 명시해야 한다.",
+    "이번 권한철회는 consumer의 모든 권한을 제거했다. publish만 철회하거나 query만 철회하는 경우 및 비공개 relation/검색 유출 회귀가 구현 검증에 필요하다.",
+    "query.index는 query 투영의 freshness다. wiki 범위의 freshness 또는 게시 최신성으로 오인하지 않도록 served와 구분해야 한다.",
+    "check_failed는 검사 실패 관측이며 실제 갱신 트랜잭션 실패/복구 전체를 입증하지 않는다."
+  ],
+  "limitations": [
+    "6개 candidate HTML은 /tmp JSON 표시 실험이며 제품 서버 또는 브라우저 검증이 아니다.",
+    "fixture 작성 및 검토 영수증은 synthetic이다. 실제 모델 작성·6스킬 pilot·최종 제품 독립검토를 대체하지 않는다.",
+    "정적 export에 이미 담긴 consumer 본문은 권한철회 후에도 남는다. 재요청 시 새 응답 제한만 입증하며 소급 회수를 주장하지 않는다.",
+    "성능 개선, 동시성, 운영 보안, 실제 브라우저 렌더링은 미검증이다."
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "goal": "exchange",
+  "checks": [
+    "producer-check",
+    "consumer-check",
+    "exchange-check"
+  ]
+}

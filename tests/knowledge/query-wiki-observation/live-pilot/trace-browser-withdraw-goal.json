@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/multi_repo.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/relations-v2",
+    "--host",
+    "/private/tmp/knowledge-query-evidence/live-pilot/host.json",
+    "--principal",
+    "operator",
+    "goal",
+    "--input",
+    "/private/tmp/knowledge-query-evidence/live-pilot/request-browser-withdraw-goal.json"
+  ],
+  "started_at": 1790153793.5691788,
+  "elapsed_seconds": 0.08825802803039551,
+  "exit_code": 0,
+  "stdout": "{\"goal\": \"exchange\", \"goal_hash\": \"753ccbe15de14b83eeb2f3984cc0daae3b638073c29db0d7879a5a5113c830c7\", \"status\": \"withdrawn\"}\n",
+  "stderr": ""
+}
