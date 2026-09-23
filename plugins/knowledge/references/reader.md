@@ -82,7 +82,7 @@ Open the printed `http://127.0.0.1:PORT` URL. Port 0 selects an available port. 
 an overview, permitted repository document catalogues, individual document pages,
 evidence/publication history, and `/api/read` JSON.
 Every page/API request derives the same public read contract; the projection ID allows comparison
-with a CLI read while inputs are unchanged. Search filters only the permitted result and leaves
+with a CLI read while inputs are unchanged. Document search follows the contract below and leaves
 overall completion unchanged. Repository ID, code commit, target, validation and URL are distinct.
 Repository local paths and private state files are not served.
 
@@ -102,7 +102,37 @@ HTML is inert, images become alt text, and protocol-relative/unsafe links are in
 HTTP(S)/mailto links remain links; the reader fetches no external resources. The Node process is
 not an OS sandbox; use a trusted runtime. Missing runtime, timeout or rendering failure fails
 closed without cached-body fallback. Node startup is paid on document/catalogue requests; no
-cross-request rendered body cache is kept.
+cross-request rendered body cache is kept. Search also pays this per-request Node startup.
+
+### Search documents and evidence sections
+
+Use `/search/?q=QUERY` in the browser or `/api/search?q=QUERY` for the identical search result
+as JSON, URL-encoding the query. The overview search form leads to that page; existing `/?q=`
+links also show document results. The reader retains its host-selected identity and goal.
+An agent can retrieve the JSON from the running local reader. `multi_repo.py read` remains the
+unchanged full projection; the legacy `query` command retains its repository JSON filter.
+
+Search uses only bodies present in the fresh authorized read projection. It normalizes text with
+Unicode NFKC and casefold, splits the query on whitespace, and requires every term as a substring
+in the same section's displayed text or its document title. Sections follow the shared Markdown
+headings, including duplicate heading IDs. Displayed table, code and link-label text are included;
+link destinations, repository metadata and fallback path titles are not searchable. This is
+literal retrieval, not semantic ranking, translation, stemming or generated answers.
+
+Results are ordered by repository ID, document path and section order. Each carries `repository`,
+`path`, `title`, `section`, a bounded `excerpt`, and a managed document `url` with its actual anchor.
+`current`, `target`, `validation`, `validation_detail` and `review_synthetic` retain their separate
+meanings. Follow the URL to read the full section before answering from an incomplete excerpt.
+The JSON wrapper has `schema_version: 1`, `query`, `results`, and the original `projection_id`,
+`read_at`, goal/version/status, completion, integration, required/withheld counts, index and served
+states. The projection ID identifies the source view, not the query or search algorithm.
+
+Empty queries return no matches and an input prompt. No matches means no matching section in the
+currently provided documents, not proof that a feature or inaccessible evidence does not exist.
+Unavailable/partial bodies yield no matches; a failed read or renderer returns 503, never cached
+results. Search reads current permitted text, not the legacy stored query index: an absent/stale
+index can coexist with a current verified publication and searchable bodies. Report both states;
+search neither refreshes the index nor changes completion. Every new request rechecks permissions.
 
 Completion, membership and first-blocker diagnostics remain visible. Commit/hash/raw review detail
 is under disclosure controls; fixture review receipts remain explicitly marked as test responses.

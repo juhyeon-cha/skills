@@ -1,0 +1,99 @@
+{
+  "runtime": "v24.18.0",
+  "corpus_bytes": 22578,
+  "timings_ms": [
+    5.322875000000003,
+    1.825375000000001,
+    1.1213340000000045,
+    0.8025419999999954,
+    0.9995830000000012,
+    0.5901250000000005,
+    0.5165829999999971,
+    0.4918750000000003,
+    0.5748330000000053,
+    0.47424999999999784
+  ],
+  "results": [
+    {
+      "query": "금액 단위",
+      "baseline_repositories": [
+        "producer"
+      ],
+      "candidate_sections": [
+        {
+          "repository": "producer",
+          "path": "contract.md",
+          "id": "금액",
+          "text": "금액 필드 단위 표현 total KRW 정수 금액 단위는 KRW이며 total은 정수입니다. "
+        }
+      ]
+    },
+    {
+      "query": "변경 total",
+      "baseline_repositories": [],
+      "candidate_sections": [
+        {
+          "repository": "consumer",
+          "path": "guide.md",
+          "id": "변경-영향",
+          "text": "변경 영향 계약 변경 시 amount를 읽던 소비자 코드를 total을 읽도록 변경합니다. [생산자 설명은 별도 저장소에서 확인](https://example.invalid/producer). "
+        }
+      ]
+    },
+    {
+      "query": "운영 배포",
+      "baseline_repositories": [
+        "consumer"
+      ],
+      "candidate_sections": [
+        {
+          "repository": "consumer",
+          "path": "guide.md",
+          "id": "검증",
+          "text": "검증 로컬 계약 검사는 필드 전달과 정수 처리를 확인합니다. 운영 배포는 검증하지 않았습니다. "
+        }
+      ]
+    },
+    {
+      "query": "재시도 상한",
+      "baseline_repositories": [
+        "producer"
+      ],
+      "candidate_sections": [
+        {
+          "repository": "producer",
+          "path": "contract.md",
+          "id": "정책-2",
+          "text": "정책 재시도 상한은 최대 3회입니다. "
+        }
+      ]
+    },
+    {
+      "query": "total 120",
+      "baseline_repositories": [],
+      "candidate_sections": [
+        {
+          "repository": "producer",
+          "path": "contract.md",
+          "id": "예제",
+          "text": "예제 {\"total\":120}\n "
+        }
+      ]
+    },
+    {
+      "query": "METADATA_ONLY_771",
+      "baseline_repositories": [
+        "producer",
+        "consumer"
+      ],
+      "candidate_sections": []
+    },
+    {
+      "query": "양자결제",
+      "baseline_repositories": [],
+      "candidate_sections": []
+    }
+  ],
+  "hidden_results": 0,
+  "limits": "Pure parser/projection probe; live authorization, HTTP and actual model reading await implementation."
+}

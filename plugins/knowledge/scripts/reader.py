@@ -5,9 +5,11 @@ from html import escape
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import json
 import os
+import re
 from pathlib import Path
 import sqlite3
 import subprocess
+import unicodedata
 from urllib.parse import quote, urlsplit, parse_qs
 
 from jsonschema.exceptions import ValidationError
@@ -76,11 +78,79 @@ def markdown_pages(documents, module):
             or any(not isinstance(p, dict) or p.get('url') != d['url']
                    or not isinstance(p.get('html'), str) or not isinstance(p.get('title'), str)
                    or not isinstance(p.get('headings'), list)
+                   or not isinstance(p.get('search_title'), str)
+                   or not isinstance(p.get('sections'), list)
+                   or any(not isinstance(s, dict) or any(not isinstance(s.get(k), str)
+                          for k in ('id', 'title', 'text')) for s in p['sections'])
                    or any(not isinstance(h, dict) or not isinstance(h.get('id'), str)
                           or not isinstance(h.get('title'), str) or h.get('level') not in range(1, 7)
                           for h in p['headings']) for p, d in zip(pages, documents))):
         raise ValueError('MARKDOWN_RESULT_INVALID')
     return pages
+
+
+def permitted_documents(view):
+    return [{'path': d['path'], 'text': d['text'], 'repository': m['repository'],
+             'url': document_url(m['repository'], d['path'])}
+            for m in view['members'] for d in m.get('documents', [])]
+
+
+def normalized(text):
+    return unicodedata.normalize('NFKC', text).casefold()
+
+
+def excerpt(text, terms):
+    # Retain canonical spelling; locate a matching displayed word before clipping.
+    at = next((m.start() for m in re.finditer(r'\S+', text)
+               if any(t in normalized(m.group()) for t in terms)), 0)
+    start = max(0, at - 60)
+    return ('…' if start else '') + text[start:start + 280] + ('…' if start + 280 < len(text) else '')
+
+
+def search_documents(view, query, markdown_it=None):
+    """Derive section matches from the fresh public projection; no persisted search index."""
+    result = {k: view[k] for k in ('projection_id', 'read_at', 'goal', 'version', 'status',
+              'completion', 'index', 'served', 'required_count', 'withheld_count', 'integration')}
+    result.update(schema_version=1, query=query, results=[])
+    terms = normalized(query).split()
+    documents = permitted_documents(view)
+    if not terms or not documents:
+        return result
+    pages = markdown_pages(documents, markdown_it or os.environ.get('WIKI_MARKDOWN_IT_MODULE'))
+    members = {m['repository']: m for m in view['members']}
+    for document, page in sorted(zip(documents, pages), key=lambda pair: (pair[0]['repository'], pair[0]['path'])):
+        member = members[document['repository']]
+        for section in page['sections']:
+            text = normalized(page['search_title'] + ' ' + section['text'])
+            if not all(term in text for term in terms):
+                continue
+            result['results'].append({
+                'repository': document['repository'], 'path': document['path'], 'title': page['title'],
+                'section': section['title'], 'excerpt': excerpt(section['text'], terms),
+                'url': document['url'] + ('#' + quote(section['id'], safe='') if section['id'] else ''),
+                'validation': member['validation'], 'validation_detail': member['validation_detail'],
+                'current': member.get('current'), 'target': member.get('target'),
+                'review_synthetic': member.get('evidence', {}).get('review_synthetic'),
+            })
+    return result
+
+
+def search_form(query):
+    return '<form action="/search/" method="get"><label for="q">문서와 근거 절 찾기</label><input id="q" name="q" value="' + esc(query) + '"><button>찾기</button></form>'
+
+
+def search_body(result):
+    body = search_form(result['query']) + '<p>공백으로 구분한 단어가 같은 절에 모두 있는 결과입니다. 문서 제목과 본문을 검색합니다.</p>'
+    body += '<p>검색 결과 ' + str(len(result['results'])) + '개 · 검색은 전체 완료 판정을 바꾸지 않습니다.</p>'
+    if not result['query'].strip():
+        body += '<p>찾을 단어를 입력하세요.</p>'
+    elif not result['results']:
+        body += '<p>현재 제공 가능한 문서에서 일치하는 근거 절이 없습니다. 권한·검증·게시 상태와 검색어를 확인하세요.</p>'
+    for item in result['results']:
+        body += '<article><p class="path">' + esc(item['repository']) + ' / ' + esc(item['path']) + '</p><h2><a href="' + esc(item['url']) + '">' + esc(item['title']) + ' · ' + esc(item['section'] or '본문') + '</a></h2><p>' + esc(item['excerpt']) + '</p>'
+        body += '<p>검증: ' + label(item['validation']) + ' · 검토 기록: ' + ('시험용 응답' if item['review_synthetic'] else '호스트 기록') + '</p>'
+        body += disclosure('현재 구현과 목표', '<pre>' + esc(json.dumps({k: item[k] for k in ('current', 'target', 'validation_detail')}, ensure_ascii=False, indent=2)) + '</pre>') + '</article>'
+    return body
 
 
 def disclosure(title, body):
@@ -90,21 +160,24 @@ def disclosure(title, body):
 def render(view, route, search='', markdown_it=None):
     """Render only the public reading projection; never load repository documents."""
     members = view['members']
-    nav = '<a href="/">목표 개요</a><a href="/evidence/">근거와 확인 범위</a>'
+    nav = '<a href="/">목표 개요</a><a href="/search/">문서 검색</a><a href="/evidence/">근거와 확인 범위</a>'
     for member in members:
         nav += '<a href="/repositories/' + quote(member['repository'], safe='') + '/">' + esc(member['repository']) + '</a>'
     heading, body, has_body_title = '목표 개요', '', False
-    if route == '/':
+    if route in ('/', '/search/'):
         body = '<dl class="facts">' + ''.join([
             field('목표 상태', label(view['status'])), field('전체 완료', label(view['completion'])),
             field('필수 저장소', str(view['required_count'])), field('비공개 필수 저장소', str(view['withheld_count'])),
             field('통합 검증', label(view['integration'])), field('문서 제공', label(view['served']))]) + '</dl>'
         body += '<h2>통합 검증 진단</h2>' + diagnosis(view['integration_detail'])
-        body += '<h2>저장소별 현재와 목표</h2><form action="/" method="get"><label for="q">허용된 결과에서 찾기</label><input id="q" name="q" value="' + esc(search) + '"><button>찾기</button></form>'
-        matches = [m for m in members if search.casefold() in json.dumps(m, ensure_ascii=False).casefold()]
-        body += '<p>표시 ' + str(len(matches)) + ' / 접근 가능 ' + str(len(members)) + '개 · 검색은 전체 완료 판정을 바꾸지 않습니다.</p>'
-        for member in matches:
-            body += '<article><h3><a href="/repositories/' + quote(member['repository'], safe='') + '/">' + esc(member['repository']) + '</a></h3>' + member_facts(member) + '</article>'
+        if route == '/search/' or search:
+            heading = '문서와 근거 절 검색'
+            body += '<dl class="facts">' + field('조회 색인', label(view['index'])) + '</dl>'
+            body += search_body(search_documents(view, search, markdown_it))
+        else:
+            body += search_form('') + '<h2>저장소별 현재와 목표</h2>'
+            for member in members:
+                body += '<article><h3><a href="/repositories/' + quote(member['repository'], safe='') + '/">' + esc(member['repository']) + '</a></h3>' + member_facts(member) + '</article>'
     elif route == '/evidence/':
         heading = '근거와 확인 범위'
         body = '<dl class="facts">' + field('조회 색인', label(view['index'])) + '</dl>'
@@ -122,9 +195,7 @@ def render(view, route, search='', markdown_it=None):
         body += disclosure('영향과 후속 조치 상세', '<pre>' + esc(json.dumps(view.get('relations', []), ensure_ascii=False, indent=2)) + '</pre>')
         body += '<h2>게시 이력</h2><ul>' + ''.join('<li>' + esc(p['time']) + ' · ' + label(p['outcome']) + '</li>' for p in view['publication_history']) + '</ul>'
     else:
-        documents = [{'path': d['path'], 'text': d['text'], 'repository': m['repository'],
-                      'url': document_url(m['repository'], d['path'])}
-                     for m in members for d in m.get('documents', [])]
+        documents = permitted_documents(view)
         # Resolve against exact encoded routes in this request, never a filesystem path.
         document = next((d for d in documents if d['url'] == route), None)
         member = next((m for m in members if route == '/repositories/' + quote(m['repository'], safe='') + '/'), None)
@@ -199,6 +270,8 @@ def make_server(state, host, principal, goal, port, markdown_it=None):
                     view = store.reading({'goal': goal})
                 if parsed.path == '/api/read':
                     self.send(200, json.dumps(view, ensure_ascii=False), 'application/json; charset=utf-8')
+                elif parsed.path == '/api/search':
+                    self.send(200, json.dumps(search_documents(view, params.get('q', [''])[0], module), ensure_ascii=False), 'application/json; charset=utf-8')
                 else:
                     self.send(200, render(view, parsed.path, params.get('q', [''])[0], module))
             except KeyError:

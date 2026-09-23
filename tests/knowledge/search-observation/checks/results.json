@@ -1,0 +1,47 @@
+[
+  {
+    "check": "tests/knowledge/automation-check.sh",
+    "exit": 0,
+    "seconds": 67.46956229070202
+  },
+  {
+    "check": "tests/knowledge/document-ac-check.sh",
+    "exit": 0,
+    "seconds": 0.8505319999530911
+  },
+  {
+    "check": "tests/knowledge/foundation-check.sh",
+    "exit": 0,
+    "seconds": 6.34436837490648
+  },
+  {
+    "check": "tests/knowledge/knowledge-wiki-check.sh",
+    "exit": 0,
+    "seconds": 2.213842624798417
+  },
+  {
+    "check": "tests/knowledge/measurement-check.sh",
+    "exit": 0,
+    "seconds": 4.372875500004739
+  },
+  {
+    "check": "tests/knowledge/multi-repo-check.sh",
+    "exit": 0,
+    "seconds": 15.816474541090429
+  },
+  {
+    "check": "tests/knowledge/multi-repo-observation-check.sh",
+    "exit": 0,
+    "seconds": 0.07118954136967659
+  },
+  {
+    "check": "tests/knowledge/reader-check.sh",
+    "exit": 0,
+    "seconds": 91.27656037500128
+  },
+  {
+    "check": "tests/knowledge/source-contract-check.sh",
+    "exit": 0,
+    "seconds": 66.41651550028473
+  }
+]

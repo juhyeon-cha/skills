@@ -1,0 +1,8 @@
+{
+  "background": "일반 배경: 이 예제는 문서 탐색을 위한 로컬 자료이며 새로운 기능이나 계약을 추가하지 않습니다.\n\n",
+  "repeat": 80,
+  "documents": [
+    {"repository":"producer","path":"contract.md","text":"# 생산자 계약\n\n## 배경\n\n{background}## 금액\n\n| 필드 | 단위 | 표현 |\n| --- | --- | --- |\n| total | KRW | 정수 |\n\n금액 단위는 KRW이며 total은 정수입니다.\n\n## 정책\n\n보관 기간은 30일입니다.\n\n## 정책\n\n재시도 상한은 최대 3회입니다.\n\n## 예제\n\n```json\n{\"total\":120}\n```\n"},
+    {"repository":"consumer","path":"guide.md","text":"# 소비자 안내\n\n## 배경\n\n{background}## 변경 영향\n\n계약 변경 시 amount를 읽던 소비자 코드를 total을 읽도록 변경합니다. [생산자 설명은 별도 저장소에서 확인](https://example.invalid/producer).\n\n## 검증\n\n로컬 계약 검사는 필드 전달과 정수 처리를 확인합니다. 운영 배포는 검증하지 않았습니다.\n"}
+  ]
+}
