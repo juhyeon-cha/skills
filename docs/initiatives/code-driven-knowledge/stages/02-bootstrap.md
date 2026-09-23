@@ -29,7 +29,7 @@
 
 ## 현재 증거와 남은 일
 
-기존 `refresh-knowledge` 진입점에 [최초 구성 절차](../../../../plugins/toolkit/skills/refresh-knowledge/references/bootstrap.md)를 연결했다. 새 CLI·DB·평가 플랫폼 없이 기존 작성·독립 검증·초기화·접수 계약을 사용한다. [실행 태스크 #355](https://github.com/juhyeon-cha/skills/issues/355)에 고정 입력과 실제 역할 응답·명령·해시·실패·재진입 결과를 보존한다. 아래 관측은 macOS/Codex의 합성 단일 저장소·독자 한 유형에 한정하며 최종 독립 수용 판정을 대체하지 않는다.
+기존 `refresh-knowledge` 진입점에 [최초 구성 절차](../../../../plugins/knowledge/references/bootstrap.md)를 연결했다. 새 CLI·DB·평가 플랫폼 없이 기존 작성·독립 검증·초기화·접수 계약을 사용한다. [실행 태스크 #355](https://github.com/juhyeon-cha/skills/issues/355)에 고정 입력과 실제 역할 응답·명령·해시·실패·재진입 결과를 보존한다. 아래 관측은 macOS/Codex의 합성 단일 저장소·독자 한 유형에 한정하며 최종 독립 수용 판정을 대체하지 않는다.
 
 | 기준 | 실제 관측 |
 |---|---|
@@ -83,7 +83,7 @@
 | 코드 없는 목표 | 기존 `intake` 계약으로 지시·결정·목표·수용 기준·미반영 차이를 보존한다. 생성 명세 버전과 평가 결과를 연결하고 `intake-status`로 재확인한다. 코드 근거나 구현 완료를 만들지 않는다. |
 | 현재와 목표가 섞인 결과 | 주장 또는 구간을 분리하고 각각 위 경로로 인계한다. 현재 지식의 기준 확정이 목표의 구현 완료로 전파되지 않는지 확인한다. |
 
-현재 근거 연결은 기존 문서 발췌와 코드 경로를 요구한다. 상세 제약은 [초기 근거 계약](../../../../plugins/toolkit/skills/refresh-knowledge/references/source-contract.md), 코드 없는 목표의 처리는 [접수 계약](../contracts/change-intake.md)을 따른다. 목표를 코드 기반 연결 형식에 억지로 맞추기 위한 스키마 확장은 하지 않는다.
+현재 근거 연결은 기존 문서 발췌와 코드 경로를 요구한다. 상세 제약은 [초기 근거 계약](../../../../plugins/knowledge/references/source-contract.md), 코드 없는 목표의 처리는 [접수 계약](../contracts/change-intake.md)을 따른다. 목표를 코드 기반 연결 형식에 억지로 맞추기 위한 스키마 확장은 하지 않는다.
 
 ### 미확정과 실패 처리
 

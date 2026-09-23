@@ -34,7 +34,7 @@ user-authorized workflow outside this product. Neither a configured check nor mo
 override host permission checks.
 
 ```sh
-"$PYTHON" "$SKILL_DIR/scripts/automation.py" --state /absolute/automation init \
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/automation.py" --state /absolute/automation init \
   --project /absolute/project-state --authority /absolute/authority.json --ref HEAD
 ```
 

@@ -5,33 +5,35 @@ description: Bootstrap evidence-linked documents from code or goals, classify ch
 
 # Refresh knowledge
 
+For callers transitioning from toolkit, read [transition](../../references/transition.md)
+before selecting executable paths or continuing an existing project.
+
 For a human-facing web wiki derived from shared knowledge documents, read
-[knowledge wiki](references/knowledge-wiki.md) before designing pages or rendering outputs.
+[knowledge wiki](../../references/knowledge-wiki.md) before designing pages or rendering outputs.
 
 For shared goals across repositories, cross-repository impact comparisons, or permission-aware
-managed search/wiki reads, read [multi-repository relations](references/multi-repo.md).
+managed search/wiki reads, read [multi-repository relations](../../references/multi-repo.md).
 
 For local event requests, repeated foreground polling, host model receipts, operator stop/resume,
-or automation failure recovery, read [local automation](references/automation.md). It owns the
+or automation failure recovery, read [local automation](../../references/automation.md). It owns the
 host loop around the project CLI; keep its execution evidence separate from document completion.
 
 For initial knowledge or specification creation without an existing reviewed document baseline,
-read [bootstrap](references/bootstrap.md) and follow that procedure before entering the update flow.
+read [bootstrap](../../references/bootstrap.md) and follow that procedure before entering the update flow.
 
-Use the installed [CLI](scripts/knowledge.py) with one project directory and run ID. Read
-[setup and project commands](references/project.md) for first use, then [source and decision
-contracts](references/source-contract.md) when preparing evidence or decisions. Required files
-are bundled in this skill. Do not depend on a developer checkout or write into the plugin cache.
+Use the installed [CLI](../../scripts/knowledge.py) with one project directory and run ID. Read
+[setup and project commands](../../references/project.md) for first use, then [source and decision
+contracts](../../references/source-contract.md) when preparing evidence or decisions. Knowledge contracts and execution code are owned by the plugin root. Do not depend on a developer checkout or write into the plugin cache.
 
 ## Classify the change
 
-Read [change intake](references/intake.md) for user instructions, document changes, or when
+Read [change intake](../../references/intake.md) for user instructions, document changes, or when
 recording code-change intent. Preserve authority, current/target versions and remaining differences
 before routing. Wording changes close without code work only after semantic comparison. When
 continuing an implementation handoff, verifying a returned result, or deferring, withdrawing or
-rolling back a goal, read [implementation continuation](references/implementation.md). For
+rolling back a goal, read [implementation continuation](../../references/implementation.md). For
 additions, deletions, moves or renames, shared-policy or indirect effects, document consolidation
-or index changes, read [impact and structural changes](references/maintenance.md) before choosing
+or index changes, read [impact and structural changes](../../references/maintenance.md) before choosing
 the update boundary. Run doctor and confirm the host can actually invoke the
 writing skill and an independent reviewer before code-to-document execution. Missing capability
 is not-executed; preserve evidence and use the recovery route if it cannot be restored.
@@ -51,14 +53,15 @@ owner decision. Do not relabel required work as irrelevant merely to finish a ru
 
 ## Compose and review
 
-Dependency: invoke **toolkit:writing-for-humans**, supplied by the same toolkit installation,
-when composing replacement prose. Do not locate it through checkout-relative paths or copy
+Dependency: invoke **toolkit:writing-for-humans**, supplied by a separately resolved toolkit installation,
+when composing replacement prose. Resolve its absolute skill directory through the host and
+set `KNOWLEDGE_WRITER_SKILL` as described in project setup. Do not locate it through checkout-relative paths or copy
 its implementation here. If the runtime cannot resolve the dependency, report it unavailable.
 Use `prepare --run --decisions` to validate and record the proposal; read
-[editing constraints](references/updates.md) for failures and supported change types.
+[editing constraints](../../references/updates.md) for failures and supported change types.
 
-Dependency: delegate the returned packet to an independent agent using **toolkit:review-knowledge**,
-also supplied by toolkit. Use the host's registered independent-review capability when its guards require an identified role;
+Dependency: delegate the returned packet to an independent agent using **knowledge:review-knowledge**,
+supplied by knowledge. Use the host's registered independent-review capability when its guards require an identified role;
 never disable those guards. Give the complete packet and reader context, not your desired verdict.
 Require the reviewer to read that skill's actual files. Preserve its returned review JSON and
 import it with `review --run --review`. Never author the author's own passing review.
@@ -69,7 +72,7 @@ need no repeated user approval. Ask only when evidence or authorization cannot r
 
 ## Resume and finish
 
-Read [states and recovery](references/workflow.md) when resuming or after failure. `resume --run`
+Read [states and recovery](../../references/workflow.md) when resuming or after failure. `resume --run`
 uses the recorded passing review and updates the project baseline only after document verification.
 A new session needs the project directory and run ID, not reconstructed artifact arguments.
 Check final documents and the completion record. Report the pinned commit, changed documents,

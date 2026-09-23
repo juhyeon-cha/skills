@@ -38,15 +38,8 @@ def runtime_environment():
 
 def doctor():
     environment = runtime_environment()
-    skills = Path(__file__).resolve().parents[2]
-    required = ['writing-for-humans/SKILL.md', 'writing-for-humans/references/backend.md',
-                'writing-for-humans/references/document-shapes.md', 'review-knowledge/SKILL.md',
-                'review-knowledge/references/rubric.md', 'review-knowledge/references/response.md',
-                'review-knowledge/references/document-ac.md']
-    missing = [p for p in required if not (skills / p).is_file()]
-    if missing:
-        raise ValueError('DEPENDENCY_UNREACHED: missing installed skill files: ' + ', '.join(missing))
-    return {**environment, 'skill_files': required,
+    from package_paths import authoring_files
+    return {**environment, 'skill_files': list(map(str, authoring_files())),
             'independent_agent': 'host capability must be checked by the orchestrator'}
 
 

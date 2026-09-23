@@ -5,7 +5,7 @@ from pathlib import Path
 import sys
 import tempfile
 import unittest
-sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'plugins/toolkit/skills/refresh-knowledge/scripts'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / 'plugins/knowledge/scripts'))
 import intake
 from cli import sha
 

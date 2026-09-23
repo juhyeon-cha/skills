@@ -11,7 +11,7 @@ import sys
 import tempfile
 import unittest
 
-PLUGIN = Path(__file__).resolve().parents[3] / 'plugins/toolkit'
+PLUGIN = Path(__file__).resolve().parents[3] / 'plugins/knowledge'
 
 
 class ContractTests(unittest.TestCase):
@@ -21,7 +21,7 @@ class ContractTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.package = self.root / 'toolkit'
         shutil.copytree(PLUGIN, self.package, ignore=shutil.ignore_patterns('__pycache__'))
-        self.scripts = self.package / 'skills/refresh-knowledge/scripts'
+        self.scripts = self.package / 'scripts'
         self.cli = self.scripts / 'knowledge.py'
 
     def call(self, *args, isolated=False):
@@ -42,9 +42,11 @@ class ContractTests(unittest.TestCase):
         first = self.call('--version', isolated=True)
         self.assertEqual(first.returncode, 0, first.stderr)
         value = json.loads(first.stdout)
+        self.assertEqual(value['plugin_name'], 'knowledge')
+        self.assertEqual(value['plugin_version'], value['toolkit_version'])
         self.assertEqual(value['toolkit_version'], json.loads((self.package/'.claude-plugin/plugin.json').read_text())['version'])
         other = self.root/'second'; shutil.copytree(self.package, other)
-        moved = subprocess.run([sys.executable,'-S',str(other/'skills/refresh-knowledge/scripts/knowledge.py'),'--version'], capture_output=True,text=True)
+        moved = subprocess.run([sys.executable,'-S',str(other/'scripts/knowledge.py'),'--version'], capture_output=True,text=True)
         self.assertEqual(first.stdout,moved.stdout)
         (self.scripts/'__pycache__').mkdir()
         (self.scripts/'__pycache__/ignored.pyc').write_bytes(b'ignored')
@@ -53,7 +55,10 @@ class ContractTests(unittest.TestCase):
         with (self.scripts/'project_store.py').open('a') as f: f.write('\n# identity test\n')
         self.assertNotEqual(value['implementation_id'],json.loads(self.call('--version',isolated=True).stdout)['implementation_id'])
         changed=json.loads(self.call('--version',isolated=True).stdout)['implementation_id']
-        with (self.scripts/'schema.json').open('a') as f: f.write('\n')
+        with (self.package/'contracts/schema.json').open('a') as f: f.write('\n')
+        self.assertNotEqual(changed,json.loads(self.call('--version',isolated=True).stdout)['implementation_id'])
+        changed=json.loads(self.call('--version',isolated=True).stdout)['implementation_id']
+        with (self.scripts/'wiki/style.css').open('a') as f: f.write('\n/* identity test */\n')
         self.assertNotEqual(changed,json.loads(self.call('--version',isolated=True).stdout)['implementation_id'])
         (self.package/'.claude-plugin/plugin.json').write_text('{')
         self.error(self.call('--version',isolated=True),'INPUT_ERROR')

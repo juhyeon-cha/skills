@@ -6,7 +6,7 @@
 
 작성 에이전트가 문서의 주장마다 식별자, 문서에 그대로 존재하는 문장, 근거 파일 경로를 지정한다. CLI의 `bind`는 문장 존재 여부와 근거 파일 존재 여부를 검사하고, 기준 snapshot ID와 문서 전체 내용의 SHA-256을 저장한다. 같은 문서 안에서 식별자가 중복되거나 근거가 없으면 실패한다.
 
-문서 경로는 지정한 문서 루트 기준이고, 근거 경로는 소스 저장소 루트 기준이다. 문서 루트 아래의 심볼릭 링크와 상위 경로 참조는 거부한다. [실행 절차와 입력 예시](../../../../plugins/toolkit/skills/refresh-knowledge/references/source-contract.md#initial-baseline), [자료 스키마](../../../../plugins/toolkit/skills/refresh-knowledge/scripts/impact-schema.json)를 제공한다.
+문서 경로는 지정한 문서 루트 기준이고, 근거 경로는 소스 저장소 루트 기준이다. 문서 루트 아래의 심볼릭 링크와 상위 경로 참조는 거부한다. [실행 절차와 입력 예시](../../../../plugins/knowledge/references/source-contract.md#initial-baseline), [자료 스키마](../../../../plugins/knowledge/contracts/impact-schema.json)를 제공한다.
 
 `impact`는 이전·이후 snapshot을 Git 원본과 다시 대조하고, 연결 자료의 기준 및 현재 문서 내용을 확인한 뒤 변경을 계산한다. 문서 수정·삭제, 다른 기준 snapshot, 변조된 원본은 출력 생성 전에 실패한다. 정상적으로 문서를 고쳤다면 연결의 타당성을 검토한 뒤 다시 `bind`해야 한다.
 

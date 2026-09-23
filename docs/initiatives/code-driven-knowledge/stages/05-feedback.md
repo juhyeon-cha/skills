@@ -15,7 +15,7 @@
 - 검색·위키 색인은 재생성 가능한 조회용 자료로 두고 원본 지식·목표·근거의 권위를 대신하지 않게 한다. 현재 동작과 미구현 목표를 분리하고 색인 지연·삭제·권한 철회 시 노출 규칙을 검증한다.
 - 여러 저장소 전체를 한 번에 원자적으로 반영한다고 가정하지 않는다. 부분 완료·게시 실패·철회 상태를 조회할 수 있는 계약부터 정한다. 중앙 DB·분산 실행·검색 엔진 도입은 실제 규모와 병목을 관측한 뒤 선택한다.
 
-현재 구현의 권한·식별자·부분 검증·조회 계약은 [다중 저장소 참조](../../../../plugins/toolkit/skills/refresh-knowledge/references/multi-repo.md), 설계 노트의 실제 검증 범위는 [실측 보고](../experiments/multi-repo-observation.md)를 따른다.
+현재 구현의 권한·식별자·부분 검증·조회 계약은 [다중 저장소 참조](../../../../plugins/knowledge/references/multi-repo.md), 설계 노트의 실제 검증 범위는 [실측 보고](../experiments/multi-repo-observation.md)를 따른다.
 
 ## 세부 조건
 

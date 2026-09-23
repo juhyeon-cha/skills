@@ -8,7 +8,7 @@ Agent/model calls happen between commands, outside database locks. Never edit da
 | Phase | Next action |
 |---|---|
 | awaiting_decisions | Read context, author decisions, then prepare |
-| awaiting_review | Delegate the returned packet to toolkit:review-knowledge |
+| awaiting_review | Delegate the returned packet to knowledge:review-knowledge |
 | revise | Repair concrete findings, prepare a new packet, review again |
 | blocked | Resolve missing evidence or the actual policy decision |
 | ready | Passing review is stored; resume applies it |

@@ -19,7 +19,7 @@ RUN_NOT_ACTIVE RUN_NOT_FOUND RUN_PHASE RUN_TERMINATED SCOPE SOURCE_MISMATCH SOUR
 STALE_DOCUMENT SUCCESSOR UNSUPPORTED_FILE
 """.split())
 OWNERS = frozenset(('knowledge.py', 'cli.py', 'impact.py', 'intake.py', 'project_service.py',
-                    'project_store.py', 'source_verification.py', 'update.py', 'workflow.py'))
+                    'project_store.py', 'source_verification.py', 'update.py', 'workflow.py', 'package_paths.py'))
 
 
 def encode(value):
@@ -73,17 +73,19 @@ def failure(error, command):
 
 
 def version():
-    scripts = Path(__file__).resolve().parent
-    manifest = json.loads((scripts.parents[2] / '.claude-plugin/plugin.json').read_text())
+    root = Path(__file__).resolve().parent.parent
+    manifest = json.loads((root / '.claude-plugin/plugin.json').read_text())
     release = manifest['version']
     if not isinstance(release, str) or not release.strip():
         raise ValueError('invalid plugin manifest version')
     digest = hashlib.sha256()
-    files = sorted(p for p in scripts.rglob('*') if p.is_file()
-                   and '__pycache__' not in p.relative_to(scripts).parts
-                   and (p.suffix in ('.py', '.json') or p.name == 'requirements.txt'))
+    files = sorted(p for folder in ('scripts', 'contracts') for p in (root / folder).rglob('*')
+                   if p.is_file() and '__pycache__' not in p.relative_to(root).parts
+                   and (p.suffix in ('.py', '.json', '.mjs', '.js', '.css') or p.name == 'requirements.txt'))
     for path in files:
-        for part in (path.relative_to(scripts).as_posix().encode(), path.read_bytes()):
+        for part in (path.relative_to(root).as_posix().encode(), path.read_bytes()):
             digest.update(len(part).to_bytes(8, 'big'))
             digest.update(part)
-    return {'toolkit_version': release, 'implementation_id': digest.hexdigest()}
+    # Retain the legacy transport field; new callers use plugin_name/plugin_version.
+    return {'plugin_name': manifest['name'], 'plugin_version': release,
+            'toolkit_version': release, 'implementation_id': digest.hexdigest()}
