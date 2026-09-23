@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "after": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+  "before": "337290f783dc4337012f04c315cd10e9b1b9ec8d",
+  "completion": "/private/tmp/knowledge-query-evidence/live-pilot/project-consumer/runs/0fa9be9ac9cb82fe01c373d7a5b56c52b05d54c98ab1db87aafbc244bc13c48d/complete.json",
+  "context": "/private/tmp/knowledge-query-evidence/live-pilot/project-consumer/runs/0fa9be9ac9cb82fe01c373d7a5b56c52b05d54c98ab1db87aafbc244bc13c48d/context.json",
+  "context_integrity": "verified",
+  "next_action": "start",
+  "packet": "/private/tmp/knowledge-query-evidence/live-pilot/project-consumer/runs/0fa9be9ac9cb82fe01c373d7a5b56c52b05d54c98ab1db87aafbc244bc13c48d/5740939ef451bb72452400a8d51322669448d900d395e16806298bdd65043dd2/packet.json",
+  "phase": "completed",
+  "project": "/private/tmp/knowledge-query-evidence/live-pilot/project-consumer",
+  "review": {
+    "id": "aa9daaf95e88bf4781ff327ad9b61bcef20b1780a22b4456a34e7fa700b332ab",
+    "path": "/private/tmp/knowledge-query-evidence/live-pilot/project-consumer/runs/0fa9be9ac9cb82fe01c373d7a5b56c52b05d54c98ab1db87aafbc244bc13c48d/5740939ef451bb72452400a8d51322669448d900d395e16806298bdd65043dd2/review-aa9daaf95e88bf4781ff327ad9b61bcef20b1780a22b4456a34e7fa700b332ab.json"
+  },
+  "review_integrity": "verified",
+  "run": "0fa9be9ac9cb82fe01c373d7a5b56c52b05d54c98ab1db87aafbc244bc13c48d",
+  "settings": {
+    "audience": "백엔드 개발자",
+    "docs": "/private/tmp/knowledge-query-evidence/live-pilot/docs-consumer",
+    "purpose": "교환 필드와 예외 및 배포 검증 범위를 판단한다",
+    "repo": "/private/tmp/knowledge-query-evidence/live-pilot/consumer",
+    "repository": "pilot/consumer",
+    "scope": [
+      "app.py",
+      "check.py"
+    ]
+  }
+}

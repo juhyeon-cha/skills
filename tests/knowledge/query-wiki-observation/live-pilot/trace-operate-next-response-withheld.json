@@ -1,0 +1,14 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/automation.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/automation-producer",
+    "next"
+  ],
+  "started_at": 1790153192.031639,
+  "elapsed_seconds": 0.3453528881072998,
+  "exit_code": 0,
+  "stdout": "{\"execution\": \"30485892cc8a4816a72f3c0e81b4409f\", \"phase\": \"completed\"}\n",
+  "stderr": ""
+}

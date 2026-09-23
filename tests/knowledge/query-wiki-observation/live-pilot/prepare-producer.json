@@ -1,0 +1,12 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "after": "f801751439428b33019917409a39e43963049dc2",
+  "before": "5e0f56489f2a16f78c1b2ed12d708e333d4e71a5",
+  "context": "/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/context.json",
+  "next_action": "review",
+  "packet": "/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/0089fa1e828ecc0852f2de501104014fe756ae9ed40a655362d8a0504c4bb999/packet.json",
+  "phase": "awaiting_review",
+  "run": "285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9"
+}

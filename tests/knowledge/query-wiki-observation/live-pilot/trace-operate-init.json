@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/automation.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/automation-producer",
+    "init",
+    "--project",
+    "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+    "--authority",
+    "/private/tmp/knowledge-query-evidence/live-pilot/automation-authority.json",
+    "--ref",
+    "HEAD"
+  ],
+  "started_at": 1790153191.594868,
+  "elapsed_seconds": 0.25920605659484863,
+  "exit_code": 0,
+  "stdout": "{\"automation\": \"/private/tmp/knowledge-query-evidence/live-pilot/automation-producer\", \"ownership\": \"/private/tmp/knowledge-query-evidence/live-pilot/docs-producer/.knowledge-automation-owner.json\", \"phase\": \"initialized\"}\n",
+  "stderr": ""
+}

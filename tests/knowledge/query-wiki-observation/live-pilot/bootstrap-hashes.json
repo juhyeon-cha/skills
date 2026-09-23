@@ -1,0 +1,17 @@
+{
+  "spec-producer.json": "1940798da64f727594f6c3b8b6b73100668700a77f83b6a5ffe8844dabce80fd",
+  "spec-consumer.json": "1750fa5c877ce1f307631ec67886495dbc7c3deb26f42926d34d34911c07f70d",
+  "frozen.json": "88600f718a9672c1bdbbd02bc9a91399baa49d74f3d5ad9ebbfe1bdc5c59c7fe",
+  "documents.py": "d2eaf192632714c94bc8ffbe3684b0a60851a72fa7ec47c41f3847a7dabadeb5",
+  "freeze.py": "cdf418a017a19617da97debf5f212ff0b845a70c42a097042e4763836381e8d4",
+  "reader-defect-input.json": "da5e5caf1d33a46b6318f6ea5e236f214c831de945662aaa68cf4f7ce01fbab8",
+  "input-producer.json": "3f803ce5df4e44706bcb70839f26d75fcf27f30e141305c088ba5d9026713f99",
+  "input-consumer.json": "a0e2a0c68788e5867e862e9d9ca0354b23a69a6398e3d24ae56ab4593cf9baa1",
+  "reader-input.json": "f806ddb81af2efdda49ebff89b1a1f9496e6e884636dc807a8e5ab1c8795c0cd",
+  "producer/check.py": "2319f3e2cfef9eb22d767e7577871d16a47d885b5ecea0d9f1f2ccd7655c7c68",
+  "producer/app.py": "d7870d6cda1da085c62fa6ace1395a4e3a753d35d8a0e9a0b1057b50a244bb00",
+  "docs-consumer/guide.md": "6ff540d14cc6532ca7c0e8a6659f2e410149316d7e8f2a7af605680f04634cc3",
+  "docs-producer/guide.md": "c6866d37dc5762b9df251b3e4856e300ac51a41bc19afe833d5f6bb34826840b",
+  "consumer/check.py": "0c55ba0491c4024ef45686ca1b77ad51efbe033bfaf6faf1e1daa5bccefa4924",
+  "consumer/app.py": "4aa46f9a7d19fb08a16f2869fbebd039c1f598ef52a50c08021c0ec669d145db"
+}

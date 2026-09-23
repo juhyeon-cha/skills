@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "cli_contract": 1
+  },
+  "after": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+  "before": "337290f783dc4337012f04c315cd10e9b1b9ec8d",
+  "context": "/private/tmp/knowledge-query-evidence/live-pilot/project-consumer/runs/0fa9be9ac9cb82fe01c373d7a5b56c52b05d54c98ab1db87aafbc244bc13c48d/context.json",
+  "next_action": "prepare",
+  "phase": "awaiting_decisions",
+  "run": "0fa9be9ac9cb82fe01c373d7a5b56c52b05d54c98ab1db87aafbc244bc13c48d"
+}

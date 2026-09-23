@@ -78,6 +78,8 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
 | `knowledge:operate` | 자동화·저장소 관계 설정과 실행·복구 |
 
 작성에는 별도로 설치한 `toolkit:writing-for-humans`를 사용합니다.
+에이전트와 같은 근거·상태를 웹에서 읽으려면 [관리형 읽기 화면](plugins/knowledge/references/reader.md)을 사용합니다.
+화면은 요청마다 권한을 확인하며, 기존 정적 위키는 생성 당시 스냅샷으로 유지됩니다.
 [전환 안내](plugins/knowledge/references/transition.md)와 [후속 고도화 계획](docs/initiatives/code-driven-knowledge/plugin-evolution.md)을 확인하세요.
 
 ## toolkit 사용법

@@ -1,0 +1,44 @@
+{
+  "id": "3be6246b8e7cf806cbcff8813ad6fb8ec6a61c9824d5f4ed3e135f683fec87b6",
+  "kind": "completion",
+  "next_bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "behavior",
+            "text": "생산자 produce()는 {\"total\": 1}을 반환한다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "boundary",
+            "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "version",
+            "text": "소스 버전: f801751439428b33019917409a39e43963049dc2. 근거: app.py."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "ebdbe769da5b9439bce7b231fce2ca2fe590fee5340e3f1c5b2584d32a09c4a8"
+      }
+    ],
+    "id": "1f2cf2849c3330092cd236c21b436726f9fac50721689922395961fadaceb0d2",
+    "kind": "bindings",
+    "snapshot": "be94f83ddddef7d6db872e6e7a5dff73df3c0e093419f72462781edbac1e3ce6",
+    "version": 1
+  },
+  "packet": "0089fa1e828ecc0852f2de501104014fe756ae9ed40a655362d8a0504c4bb999",
+  "plan": "9dda607d60955326855b23dc7ce99aebec8a019096cf8b14ad148fb47fb1b829",
+  "review": "a7ff39dc424a3c277a644bf0aacffcddde29dd9556ca8311e58636d30d394933",
+  "status": "applied",
+  "version": 1
+}

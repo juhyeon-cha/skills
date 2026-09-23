@@ -1,0 +1,32 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+    "--project",
+    "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+    "init",
+    "--repo",
+    "/private/tmp/knowledge-query-evidence/live-pilot/producer",
+    "--docs",
+    "/private/tmp/knowledge-query-evidence/live-pilot/docs-producer",
+    "--repository",
+    "pilot/producer",
+    "--baseline",
+    "5e0f56489f2a16f78c1b2ed12d708e333d4e71a5",
+    "--path",
+    "app.py",
+    "--path",
+    "check.py",
+    "--spec",
+    "/private/tmp/knowledge-query-evidence/live-pilot/spec-producer.json",
+    "--audience",
+    "백엔드 개발자",
+    "--purpose",
+    "교환 필드와 예외 및 배포 검증 범위를 판단한다"
+  ],
+  "started_at": 1790153020.632558,
+  "elapsed_seconds": 0.13205671310424805,
+  "exit_code": 0,
+  "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"baseline\": \"5e0f56489f2a16f78c1b2ed12d708e333d4e71a5\", \"phase\": \"initialized\", \"project\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer\"}\n",
+  "stderr": ""
+}

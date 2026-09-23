@@ -1,0 +1,20 @@
+{
+  "goal": "exchange",
+  "packet": "9916bf1ac157095bd42412ed487c3e8978b478d60302577c2b038518b20f6aaa",
+  "author": "/root/query_wiki_live_pilot",
+  "actor": "/root/query_wiki_live_pilot/whole_integration_review",
+  "host_tool": "collaboration.spawn_agent",
+  "call_id": "/root/query_wiki_live_pilot/whole_integration_review",
+  "started_at": "2026-09-23T08:49:31.526853+00:00",
+  "finished_at": "2026-09-23T08:51:46.244643+00:00",
+  "prompt_sha256": "9916bf1ac157095bd42412ed487c3e8978b478d60302577c2b038518b20f6aaa",
+  "raw_response": "{\n  \"packet\": \"9916bf1ac157095bd42412ed487c3e8978b478d60302577c2b038518b20f6aaa\",\n  \"verdict\": \"pass\",\n  \"findings\": [],\n  \"implementation\": \"pass\",\n  \"documents\": \"pass\"\n}\n",
+  "response": {
+    "packet": "9916bf1ac157095bd42412ed487c3e8978b478d60302577c2b038518b20f6aaa",
+    "verdict": "pass",
+    "findings": [],
+    "implementation": "pass",
+    "documents": "pass"
+  },
+  "synthetic": false
+}

@@ -1,0 +1,18 @@
+{
+  "argv": [
+    "/private/tmp/knowledge-contract-venv/bin/python",
+    "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/multi_repo.py",
+    "--state",
+    "/private/tmp/knowledge-query-evidence/live-pilot/relations",
+    "--host",
+    "/private/tmp/knowledge-query-evidence/live-pilot/host.json",
+    "--principal",
+    "operator",
+    "init"
+  ],
+  "started_at": 1790153021.097468,
+  "elapsed_seconds": 0.15926218032836914,
+  "exit_code": 0,
+  "stdout": "{\"status\": \"initialized\"}\n",
+  "stderr": ""
+}

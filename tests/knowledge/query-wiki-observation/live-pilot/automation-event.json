@@ -1,0 +1,7 @@
+{
+  "event_id": "already-current-1",
+  "request_id": "pilot-current-recovery",
+  "cause_id": "local-code-change",
+  "kind": "code",
+  "revision": "f801751439428b33019917409a39e43963049dc2"
+}

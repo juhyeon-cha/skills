@@ -1,0 +1,8 @@
+import pathlib,json,hashlib,time
+R=pathlib.Path('/private/tmp/knowledge-query-evidence/live-pilot')
+def j(p,x): (R/p).write_text(json.dumps(x,ensure_ascii=False,indent=2)+'\n')
+freeze={'version':1,'frozen_at':time.time(),'reader':'교환 필드를 수정하는 백엔드 개발자','purpose':'생산자와 소비자의 필드를 함께 수정하고 호환성 및 검증 경계를 판단한다','questions':['현재 각 저장소가 쓰는 필드와 정상 입력/결과는 무엇인가? 문서를 인용하라.','필드가 빠진 입력을 소비하면 무엇이 일어나는가? 문서를 인용하라.','한 저장소만 total로 바꿔도 되는가? 배포된 시스템에서도 검증됐는가? 근거를 인용하라.'],'expected':['생산자 amount:1, 소비자는 amount를 읽어 1을 반환한다.','KeyError; 기본값이나 호환 변환 없음.','양쪽 함께 변경 필요; 로컬 고정 코드만, 배포 미검증.'],'criteria':{'C1':'정상 필드/값 사실 충실성','C2':'누락 필드 KeyError 조건 보존','C3':'상호 의존성과 동시에 바꿀 필요 설명','C4':'고정 commit 및 배포 미검증 구별'},'quality':'모든 C1..C4 content/reader pass, defect copy must fail C2','cost':'실제 명령 경과시간 및 agent 호출 수만 기록; 토큰/금액 unavailable','exclusions':['네트워크와 실제 배포','인증 서버 및 OS 권한 강제'],'defect':'소비자 누락 필드 예외를 기본값 0으로 의도적으로 변경한 별도 문서'}
+j('frozen.json',freeze)
+for name,code in [('producer','def produce():\n    return {"amount": 1}\n'),('consumer','def consume(payload):\n    return payload["amount"]\n')]:
+ r=R/name;(r/'app.py').write_text(code)
+ (r/'check.py').write_text('from app import '+('produce\nassert produce() == {"amount": 1}\n' if name=='producer' else 'consume\nassert consume({"amount": 1}) == 1\ntry:\n    consume({})\nexcept KeyError:\n    pass\nelse:\n    raise AssertionError("missing amount must fail")\n'))

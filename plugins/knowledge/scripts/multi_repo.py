@@ -117,7 +117,7 @@ class Store:
             raise ValueError('ACCESS_DENIED')
 
     @contextmanager
-    def locked(self, initialize=False):
+    def locked(self, initialize=False, readonly=False):
         import fcntl
         self.policy()
         if self.root.is_symlink():
@@ -145,6 +145,8 @@ class Store:
                 if self.state.get('version') != 1:
                     raise ValueError('STATE_VERSION')
             yield self
+            if readonly:
+                return
             if state_path.is_symlink():
                 raise ValueError('UNSAFE_PATH')
             temporary = self.root / ('state-' + uuid.uuid4().hex + '.tmp')
@@ -572,6 +574,35 @@ class Store:
         view['markdown'] = '\n'.join(lines) + '\n'
         return view
 
+    def reading(self, value):
+        """A common agent/browser projection with managed publication restrictions."""
+        shape(value, obj({'goal': NONEMPTY}))
+        policy_before = self.host_path.read_bytes()
+        view = self.wiki(value)
+        query = self.query(value)
+        # Detect observable changes between the two existing projections. The host
+        # still owns concurrent source writes; this is not an atomic Git snapshot.
+        keys = ('goal', 'version', 'goal_hash', 'status', 'required_count')
+        if any(view[k] != query[k] for k in keys):
+            raise ValueError('READ_CHANGED')
+        query_members = {m['repository']: m for m in query['members']}
+        if ({m['repository'] for m in view['members']} == set(query_members)
+                and view['withheld_count'] == query['withheld_count']
+                and any(view[k] != query[k] for k in ('completion', 'integration'))):
+            raise ValueError('READ_CHANGED')
+        for member in view['members']:
+            current = query_members.get(member['repository'], {})
+            if any(current.get(k) != v for k, v in member.items()):
+                raise ValueError('READ_CHANGED')
+        if self.host_path.read_bytes() != policy_before:
+            raise ValueError('READ_CHANGED')
+        view.pop('markdown')
+        view['index'] = query['index']
+        view['schema_version'] = 1
+        view['projection_id'] = digest(view)
+        view['read_at'] = now()
+        return view
+
     def predict(self, value):
         shape(value, PREDICT)
         goal = self.goal(value['goal'])
@@ -630,16 +661,16 @@ def main():
     parser.add_argument('--host', required=True, type=Path)
     parser.add_argument('--principal', required=True)
     parser.add_argument('action', choices=['init', 'goal', 'check', 'review-packet', 'attest',
-                        'predict', 'compare', 'refresh', 'query', 'publish', 'wiki'])
+                        'predict', 'compare', 'refresh', 'query', 'publish', 'wiki', 'read'])
     parser.add_argument('--input', type=Path)
     args = parser.parse_args()
     try:
         store = Store(args.state, args.host, args.principal)
-        with store.locked(args.action == 'init'):
-            if args.action not in ('query', 'wiki') and not store.actor['manage']:
+        with store.locked(args.action == 'init', readonly=args.action == 'read'):
+            if args.action not in ('query', 'wiki', 'read') and not store.actor['manage']:
                 raise ValueError('ACCESS_DENIED')
             value = read(args.input) if args.input else {}
-            method = {'goal': 'set_goal', 'check': 'run_checks', 'review-packet': 'review_packet'}.get(args.action, args.action)
+            method = {'goal': 'set_goal', 'check': 'run_checks', 'review-packet': 'review_packet', 'read': 'reading'}.get(args.action, args.action)
             result = getattr(store, method)(value)
         print(json.dumps(result, ensure_ascii=False, sort_keys=True))
         return 0

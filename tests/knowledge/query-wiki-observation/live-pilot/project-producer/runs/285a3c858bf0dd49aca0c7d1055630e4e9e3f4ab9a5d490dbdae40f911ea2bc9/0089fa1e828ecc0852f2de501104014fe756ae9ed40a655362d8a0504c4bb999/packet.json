@@ -1,0 +1,190 @@
+{
+  "after": {
+    "commit": "f801751439428b33019917409a39e43963049dc2",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "4a65d859caeb6c1b47624fc75bc57120473380ae3d8f0c06aa59035745b1eb70",
+        "text": "def produce():\n    return {\"total\": 1}\n"
+      },
+      {
+        "mode": "100644",
+        "path": "check.py",
+        "sha256": "1e074d92a384b1bd2c2de4ca9c11cef3806dbfd18de47c27a2488453bece3d80",
+        "text": "from app import produce\nassert produce() == {\"total\": 1}\n"
+      }
+    ],
+    "id": "be94f83ddddef7d6db872e6e7a5dff73df3c0e093419f72462781edbac1e3ce6",
+    "kind": "snapshot",
+    "repository": "pilot/producer",
+    "scope": [
+      "app.py",
+      "check.py"
+    ],
+    "version": 1
+  },
+  "audience": "백엔드 개발자",
+  "before": {
+    "commit": "5e0f56489f2a16f78c1b2ed12d708e333d4e71a5",
+    "files": [
+      {
+        "mode": "100644",
+        "path": "app.py",
+        "sha256": "d7870d6cda1da085c62fa6ace1395a4e3a753d35d8a0e9a0b1057b50a244bb00",
+        "text": "def produce():\n    return {\"amount\": 1}\n"
+      },
+      {
+        "mode": "100644",
+        "path": "check.py",
+        "sha256": "2319f3e2cfef9eb22d767e7577871d16a47d885b5ecea0d9f1f2ccd7655c7c68",
+        "text": "from app import produce\nassert produce() == {\"amount\": 1}\n"
+      }
+    ],
+    "id": "d0e25e550fbeedd3988d663187db9904799397961b4ff4f468a325bab4b4db7d",
+    "kind": "snapshot",
+    "repository": "pilot/producer",
+    "scope": [
+      "app.py",
+      "check.py"
+    ],
+    "version": 1
+  },
+  "bindings": {
+    "documents": [
+      {
+        "claims": [
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "behavior",
+            "text": "생산자 produce()는 {\"amount\": 1}을 반환한다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "boundary",
+            "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+          },
+          {
+            "evidence": [
+              "app.py"
+            ],
+            "id": "version",
+            "text": "소스 버전: 5e0f56489f2a16f78c1b2ed12d708e333d4e71a5. 근거: app.py."
+          }
+        ],
+        "path": "guide.md",
+        "sha256": "c6866d37dc5762b9df251b3e4856e300ac51a41bc19afe833d5f6bb34826840b"
+      }
+    ],
+    "id": "60b3021000154b09ea96d968629f113474751a3ba2ea881a9e58c55e7819b6c7",
+    "kind": "bindings",
+    "snapshot": "d0e25e550fbeedd3988d663187db9904799397961b4ff4f468a325bab4b4db7d",
+    "version": 1
+  },
+  "id": "0089fa1e828ecc0852f2de501104014fe756ae9ed40a655362d8a0504c4bb999",
+  "kind": "review-packet",
+  "plan": {
+    "after": "be94f83ddddef7d6db872e6e7a5dff73df3c0e093419f72462781edbac1e3ce6",
+    "before": "d0e25e550fbeedd3988d663187db9904799397961b4ff4f468a325bab4b4db7d",
+    "bindings": "60b3021000154b09ea96d968629f113474751a3ba2ea881a9e58c55e7819b6c7",
+    "decisions": {
+      "claims": [
+        {
+          "action": "replace",
+          "evidence": [
+            "app.py"
+          ],
+          "id": "behavior",
+          "path": "guide.md",
+          "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+          "text": "생산자 produce()는 {\"total\": 1}을 반환한다."
+        },
+        {
+          "action": "keep",
+          "evidence": [
+            "app.py"
+          ],
+          "id": "boundary",
+          "path": "guide.md",
+          "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+          "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+        },
+        {
+          "action": "replace",
+          "evidence": [
+            "app.py"
+          ],
+          "id": "version",
+          "path": "guide.md",
+          "reason": "고정 after 소스의 total 계약과 버전을 반영하고 기존 의존성/배포 한계는 보존한다.",
+          "text": "소스 버전: f801751439428b33019917409a39e43963049dc2. 근거: app.py."
+        }
+      ],
+      "impact": "14a261ba690bdcdfd0d4f17103cfcd8448651ae824db4b2899aab6e0dc153d9a",
+      "unlinked": [
+        {
+          "action": "no-document-change",
+          "change": {
+            "after": "check.py",
+            "before": "check.py",
+            "type": "modified"
+          },
+          "reason": "check.py는 app.py 계약에 맞춘 로컬 테스트이며 신규 사용자 동작을 도입하지 않는다."
+        }
+      ]
+    },
+    "documents": [
+      {
+        "after_sha256": "ebdbe769da5b9439bce7b231fce2ca2fe590fee5340e3f1c5b2584d32a09c4a8",
+        "after_text": "# producer 교환 계약\n\n생산자 produce()는 {\"total\": 1}을 반환한다.\n\n교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다.\n\n소스 버전: f801751439428b33019917409a39e43963049dc2. 근거: app.py.\n",
+        "before_sha256": "c6866d37dc5762b9df251b3e4856e300ac51a41bc19afe833d5f6bb34826840b",
+        "before_text": "# producer 교환 계약\n\n생산자 produce()는 {\"amount\": 1}을 반환한다.\n\n교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다.\n\n소스 버전: 5e0f56489f2a16f78c1b2ed12d708e333d4e71a5. 근거: app.py.\n",
+        "path": "guide.md"
+      }
+    ],
+    "id": "9dda607d60955326855b23dc7ce99aebec8a019096cf8b14ad148fb47fb1b829",
+    "kind": "update-plan",
+    "next_bindings": {
+      "documents": [
+        {
+          "claims": [
+            {
+              "evidence": [
+                "app.py"
+              ],
+              "id": "behavior",
+              "text": "생산자 produce()는 {\"total\": 1}을 반환한다."
+            },
+            {
+              "evidence": [
+                "app.py"
+              ],
+              "id": "boundary",
+              "text": "교환 필드 이름을 바꾸면 생산자와 소비자를 함께 수정해야 한다. 한쪽만 바꾸면 소비자가 필요한 필드를 찾지 못한다. 이 문서는 고정된 로컬 코드의 현재 동작이며, 실제 배포 동작은 검증하지 않았다."
+            },
+            {
+              "evidence": [
+                "app.py"
+              ],
+              "id": "version",
+              "text": "소스 버전: f801751439428b33019917409a39e43963049dc2. 근거: app.py."
+            }
+          ],
+          "path": "guide.md",
+          "sha256": "ebdbe769da5b9439bce7b231fce2ca2fe590fee5340e3f1c5b2584d32a09c4a8"
+        }
+      ],
+      "id": "1f2cf2849c3330092cd236c21b436726f9fac50721689922395961fadaceb0d2",
+      "kind": "bindings",
+      "snapshot": "be94f83ddddef7d6db872e6e7a5dff73df3c0e093419f72462781edbac1e3ce6",
+      "version": 1
+    },
+    "version": 1
+  },
+  "purpose": "교환 필드와 예외 및 배포 검증 범위를 판단한다",
+  "version": 1
+}

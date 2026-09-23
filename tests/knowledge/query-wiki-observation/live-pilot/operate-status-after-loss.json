@@ -1,0 +1,152 @@
+{
+  "authority": {
+    "checks": [],
+    "document_updates": true,
+    "implementation": false,
+    "reference": "Actual delegated pilot scope: isolated local code/document observations only; no new implementation or remote actions. Same-current-commit event recovery observation."
+  },
+  "automation": "/private/tmp/knowledge-query-evidence/live-pilot/automation-producer",
+  "document_hashes": {
+    "guide.md": "ebdbe769da5b9439bce7b231fce2ca2fe590fee5340e3f1c5b2584d32a09c4a8"
+  },
+  "events": {
+    "already-current-1": {
+      "execution": "30485892cc8a4816a72f3c0e81b4409f",
+      "hash": "46bac1e45a33e8c81e8ffb0a6a53ff9922ca22377499563ac16de8a6b522a070",
+      "received_at": "2026-09-23T08:46:32.023855+00:00"
+    }
+  },
+  "executions": {
+    "30485892cc8a4816a72f3c0e81b4409f": {
+      "attempts": {},
+      "completed_at": "2026-09-23T08:46:32.369655+00:00",
+      "created_at": "2026-09-23T08:46:31.915654+00:00",
+      "decisions": [],
+      "document_status": "unchanged",
+      "id": "30485892cc8a4816a72f3c0e81b4409f",
+      "implementation_status": "not_requested",
+      "input": {
+        "cause_id": "local-code-change",
+        "event_id": "already-current-1",
+        "kind": "code",
+        "request_id": "pilot-current-recovery",
+        "revision": "f801751439428b33019917409a39e43963049dc2"
+      },
+      "phase": "completed",
+      "receipts": [],
+      "results": {},
+      "run": null,
+      "signature": "f4c388c734c83ca4c168aedc42a15b11471c14efaa1fe99299a1aae91c87da2c"
+    }
+  },
+  "expected_baseline": "f801751439428b33019917409a39e43963049dc2",
+  "findings": [],
+  "frontier": "f801751439428b33019917409a39e43963049dc2",
+  "history": [
+    {
+      "argv": [
+        "status"
+      ],
+      "kind": "command_intent",
+      "time": "2026-09-23T08:46:31.915768+00:00"
+    },
+    {
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+        "--project",
+        "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+        "status"
+      ],
+      "exit_code": 0,
+      "finished_at": "2026-09-23T08:46:32.023009+00:00",
+      "kind": "command_result",
+      "started_at": "2026-09-23T08:46:31.916239+00:00",
+      "stderr": "",
+      "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"active\": null, \"baseline\": \"f801751439428b33019917409a39e43963049dc2\", \"project\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer\", \"retirement\": null, \"runs\": [{\"after\": \"f801751439428b33019917409a39e43963049dc2\", \"before\": \"5e0f56489f2a16f78c1b2ed12d708e333d4e71a5\", \"completion\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/complete.json\", \"context\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/context.json\", \"context_integrity\": \"unchecked\", \"next_action\": \"start\", \"packet\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/0089fa1e828ecc0852f2de501104014fe756ae9ed40a655362d8a0504c4bb999/packet.json\", \"phase\": \"completed\", \"review\": {\"id\": \"a7ff39dc424a3c277a644bf0aacffcddde29dd9556ca8311e58636d30d394933\", \"path\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/0089fa1e828ecc0852f2de501104014fe756ae9ed40a655362d8a0504c4bb999/review-a7ff39dc424a3c277a644bf0aacffcddde29dd9556ca8311e58636d30d394933.json\"}, \"review_integrity\": \"unchecked\", \"run\": \"285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9\"}], \"settings\": {\"audience\": \"백엔드 개발자\", \"docs\": \"/private/tmp/knowledge-query-evidence/live-pilot/docs-producer\", \"purpose\": \"교환 필드와 예외 및 배포 검증 범위를 판단한다\", \"repo\": \"/private/tmp/knowledge-query-evidence/live-pilot/producer\", \"repository\": \"pilot/producer\", \"scope\": [\"app.py\", \"check.py\"]}}\n",
+      "time": "2026-09-23T08:46:32.023033+00:00"
+    },
+    {
+      "event_id": "already-current-1",
+      "execution": "30485892cc8a4816a72f3c0e81b4409f",
+      "kind": "event",
+      "time": "2026-09-23T08:46:32.023860+00:00"
+    },
+    {
+      "argv": [
+        "status"
+      ],
+      "kind": "command_intent",
+      "time": "2026-09-23T08:46:32.083751+00:00"
+    },
+    {
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+        "--project",
+        "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+        "status"
+      ],
+      "exit_code": 0,
+      "finished_at": "2026-09-23T08:46:32.189570+00:00",
+      "kind": "command_result",
+      "started_at": "2026-09-23T08:46:32.084277+00:00",
+      "stderr": "",
+      "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"active\": null, \"baseline\": \"f801751439428b33019917409a39e43963049dc2\", \"project\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer\", \"retirement\": null, \"runs\": [{\"after\": \"f801751439428b33019917409a39e43963049dc2\", \"before\": \"5e0f56489f2a16f78c1b2ed12d708e333d4e71a5\", \"completion\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/complete.json\", \"context\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/context.json\", \"context_integrity\": \"unchecked\", \"next_action\": \"start\", \"packet\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/0089fa1e828ecc0852f2de501104014fe756ae9ed40a655362d8a0504c4bb999/packet.json\", \"phase\": \"completed\", \"review\": {\"id\": \"a7ff39dc424a3c277a644bf0aacffcddde29dd9556ca8311e58636d30d394933\", \"path\": \"/private/tmp/knowledge-query-evidence/live-pilot/project-producer/runs/285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9/0089fa1e828ecc0852f2de501104014fe756ae9ed40a655362d8a0504c4bb999/review-a7ff39dc424a3c277a644bf0aacffcddde29dd9556ca8311e58636d30d394933.json\"}, \"review_integrity\": \"unchecked\", \"run\": \"285a3c858bf0dd49aca0c7d1055630e4e9e3f4ab9a5d490dbdae40f911ea2bc9\"}], \"settings\": {\"audience\": \"백엔드 개발자\", \"docs\": \"/private/tmp/knowledge-query-evidence/live-pilot/docs-producer\", \"purpose\": \"교환 필드와 예외 및 배포 검증 범위를 판단한다\", \"repo\": \"/private/tmp/knowledge-query-evidence/live-pilot/producer\", \"repository\": \"pilot/producer\", \"scope\": [\"app.py\", \"check.py\"]}}\n",
+      "time": "2026-09-23T08:46:32.189590+00:00"
+    },
+    {
+      "argv": [
+        "start",
+        "--rev",
+        "f801751439428b33019917409a39e43963049dc2"
+      ],
+      "kind": "command_intent",
+      "time": "2026-09-23T08:46:32.190619+00:00"
+    },
+    {
+      "argv": [
+        "/private/tmp/knowledge-contract-venv/bin/python",
+        "/private/tmp/skills-knowledge-query-wiki/plugins/knowledge/scripts/knowledge.py",
+        "--project",
+        "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+        "start",
+        "--rev",
+        "f801751439428b33019917409a39e43963049dc2"
+      ],
+      "exit_code": 0,
+      "finished_at": "2026-09-23T08:46:32.369011+00:00",
+      "kind": "command_result",
+      "started_at": "2026-09-23T08:46:32.191108+00:00",
+      "stderr": "",
+      "stdout": "{\"_meta\": {\"cli_contract\": 1}, \"baseline\": \"f801751439428b33019917409a39e43963049dc2\", \"phase\": \"unchanged\"}\n",
+      "time": "2026-09-23T08:46:32.369041+00:00"
+    },
+    {
+      "execution": "30485892cc8a4816a72f3c0e81b4409f",
+      "kind": "completed",
+      "reused": true,
+      "time": "2026-09-23T08:46:32.369664+00:00"
+    }
+  ],
+  "pending": null,
+  "project": "/private/tmp/knowledge-query-evidence/live-pilot/project-producer",
+  "ref": "HEAD",
+  "settings": {
+    "audience": "백엔드 개발자",
+    "docs": "/private/tmp/knowledge-query-evidence/live-pilot/docs-producer",
+    "purpose": "교환 필드와 예외 및 배포 검증 범위를 판단한다",
+    "repo": "/private/tmp/knowledge-query-evidence/live-pilot/producer",
+    "repository": "pilot/producer",
+    "scope": [
+      "app.py",
+      "check.py"
+    ]
+  },
+  "stopped": false,
+  "tracked_sources": [
+    "app.py",
+    "check.py"
+  ],
+  "version": 1
+}

@@ -1,0 +1,43 @@
+{
+  "boundary": "Actual independent model observations plus local CLI Git/SQLite; no deployed/remote service proof",
+  "bootstrap": "pass",
+  "defect": "C2 content and reader fail, preserved in bootstrap-review.json",
+  "updated_documents": {
+    "producer": "completed",
+    "consumer": "completed"
+  },
+  "coordinates": {
+    "host": "/private/tmp/knowledge-query-evidence/live-pilot/host.json",
+    "state": "/private/tmp/knowledge-query-evidence/live-pilot/relations-v2",
+    "goal": "exchange",
+    "principal": "reader"
+  },
+  "operate": {
+    "execution": "30485892cc8a4816a72f3c0e81b4409f",
+    "phase": "completed",
+    "documents": "unchanged",
+    "implementation": "not_requested",
+    "loss": "response withheld from subsequent control flow; not a real network loss"
+  },
+  "cost": {
+    "command_invocations": 42,
+    "command_elapsed_seconds": 9.22604513168335,
+    "nonzero_command_traces": 1,
+    "agent_invocations": 7,
+    "model": "unknown",
+    "tokens": "unavailable",
+    "money": "unavailable"
+  },
+  "failures": [
+    "PreToolUse rejected transparent Python Git helper; literal authorized commands succeeded",
+    "Initial relation/project logical ID mismatch; fail-closed, original state retained, relations-v2 aligned labels"
+  ],
+  "unverified": [
+    "Deployment",
+    "Provider authenticated model identity",
+    "Enforced reader tool isolation",
+    "Human usability",
+    "Distributed runtime or scale"
+  ],
+  "whole": "complete"
+}

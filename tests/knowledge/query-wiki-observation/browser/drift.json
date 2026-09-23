@@ -1,0 +1,85 @@
+{
+  "completion": "incomplete",
+  "goal": "exchange",
+  "goal_hash": "dc8cba0f71b8db2941fe93939fc74ba32c5df1c26c86c812ad4d8744991dddb5",
+  "index": "stale",
+  "integration": "pending",
+  "members": [
+    {
+      "current": {
+        "commit": "d887a4ca386ddac155db7058dc7a99f71f4a08f9",
+        "files": [
+          {
+            "mode": "100644",
+            "path": "app.py",
+            "sha256": "8201d31072f9e3d1fb23ee8370faaeaf1d092388e1de77f649fb32e49ee1723a",
+            "text": "def consume(payload):\n    return payload[\"total\"]\n"
+          },
+          {
+            "mode": "100644",
+            "path": "check.py",
+            "sha256": "8fbb7358ad38177972790100e338703b083105afcb8da0ca269661379310f543",
+            "text": "from app import consume\nassert consume({\"total\": 1}) == 1\ntry:\n    consume({})\nexcept KeyError:\n    pass\nelse:\n    raise AssertionError(\"missing total must fail\")\n"
+          }
+        ],
+        "snapshot": "f4d3aba2bbb884406e0e00460d51c3ec031094d43a91eda2c76104448c66b818"
+      },
+      "evidence": {
+        "bindings": "04e530bc03dae1c68d6ea361073800dc5dfaacc3d250185bfcc859ee37db460c",
+        "checks": {
+          "consumer-check": "c8e58b5e4d74e489ca498ae7b0e243f72e486f1ad3fd88d223bae1edc72481e1"
+        },
+        "review": "2702fc00b1386158f905424821249a9e39fca0fb2ba2c1606e5879da3580e1a2",
+        "review_synthetic": false
+      },
+      "repository": "pilot/consumer",
+      "source_url": "https://example.invalid/consumer",
+      "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+      "validation": "verified"
+    },
+    {
+      "current": {
+        "commit": "f801751439428b33019917409a39e43963049dc2",
+        "files": [
+          {
+            "mode": "100644",
+            "path": "app.py",
+            "sha256": "4a65d859caeb6c1b47624fc75bc57120473380ae3d8f0c06aa59035745b1eb70",
+            "text": "def produce():\n    return {\"total\": 1}\n"
+          },
+          {
+            "mode": "100644",
+            "path": "check.py",
+            "sha256": "1e074d92a384b1bd2c2de4ca9c11cef3806dbfd18de47c27a2488453bece3d80",
+            "text": "from app import produce\nassert produce() == {\"total\": 1}\n"
+          }
+        ],
+        "snapshot": "be94f83ddddef7d6db872e6e7a5dff73df3c0e093419f72462781edbac1e3ce6"
+      },
+      "repository": "pilot/producer",
+      "source_url": "https://example.invalid/producer",
+      "target": "total 필드로 값 1을 교환한다. 누락 필드는 KeyError, 기본값/호환 변환 없음.",
+      "validation": "pending_or_stale"
+    }
+  ],
+  "origin": {
+    "cause": "local-code-change",
+    "kind": "code",
+    "request": "pilot-amount-total"
+  },
+  "projection_id": "2c7e78a47298590c520ea68181cbd74c9eb0826e376d81249b43b94d2afa2f76",
+  "publication_history": [
+    {
+      "outcome": "published",
+      "time": "2026-09-23T08:51:47.692608+00:00"
+    }
+  ],
+  "read_at": "2026-09-23T08:54:52.461497+00:00",
+  "relations": [],
+  "required_count": 2,
+  "schema_version": 1,
+  "served": "unavailable_or_partial",
+  "status": "active",
+  "version": "v1",
+  "withheld_count": 0
+}
