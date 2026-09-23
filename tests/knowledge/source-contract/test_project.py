@@ -10,23 +10,26 @@ import sys
 import tempfile
 import unittest
 
-PLUGIN = Path(__file__).resolve().parents[3] / 'plugins/toolkit'
+PLUGIN = Path(__file__).resolve().parents[3] / 'plugins/knowledge'
 
 
 class InstalledProjectTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.package = tempfile.TemporaryDirectory(prefix='installed toolkit ')
+        cls.package = tempfile.TemporaryDirectory(prefix='installed knowledge ')
         cls.addClassCleanup(cls.package.cleanup)
-        cls.installed = Path(cls.package.name) / 'toolkit'
+        cls.installed = Path(cls.package.name) / 'knowledge'
         shutil.copytree(PLUGIN, cls.installed, ignore=shutil.ignore_patterns('__pycache__'))
         cls.skill = cls.installed / 'skills/refresh-knowledge'
-        cls.cli_path = cls.skill / 'scripts/knowledge.py'
+        cls.cli_path = cls.installed / 'scripts/knowledge.py'
+        cls.writer = (Path(cls.package.name) / 'external-writer').resolve()
+        shutil.copytree(PLUGIN.parent / 'toolkit/skills/writing-for-humans', cls.writer)
 
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='knowledge project ')
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.writer_path = self.writer
         self.repo = self.root / 'repo'; self.repo.mkdir()
         self.docs = self.root / 'docs'; self.docs.mkdir()
         self.project = self.root / 'project'
@@ -53,6 +56,7 @@ class InstalledProjectTests(unittest.TestCase):
 
     def command(self, *args, ok=True):
         env = dict(os.environ); env.pop('PYTHONPATH', None); env.pop('KNOWLEDGE_RUNTIME', None)
+        env['KNOWLEDGE_WRITER_SKILL'] = str(self.writer_path)
         result = subprocess.run([sys.executable, str(self.cli_path), '--project', str(self.project),
                                  *map(str, args)], cwd=self.root, env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode == 0, ok, result.stderr)
@@ -79,10 +83,10 @@ class InstalledProjectTests(unittest.TestCase):
     def without_authoring_skills(self):
         isolated = self.root / 'runtime-only-toolkit'
         shutil.copytree(self.installed, isolated)
-        for name in ('writing-for-humans', 'review-knowledge'):
-            skill = isolated / 'skills' / name
-            skill.rename(skill.with_name(name + '.held'))
-        self.cli_path = isolated / 'skills/refresh-knowledge/scripts/knowledge.py'
+        skill = isolated / 'skills/review-knowledge'
+        skill.rename(skill.with_name('review-knowledge.held'))
+        self.writer_path = self.root / 'absent-writer'
+        self.cli_path = isolated / 'scripts/knowledge.py'
 
     def test_review_and_resume_without_authoring_skills_preserve_checks(self):
         revision = self.commit(2)
@@ -550,7 +554,7 @@ sys.exit(knowledge.main())
         required = isolated / 'skills/review-knowledge/SKILL.md'
         required.rename(required.with_suffix('.missing'))
         original = self.cli_path
-        self.cli_path = isolated / 'skills/refresh-knowledge/scripts/knowledge.py'
+        self.cli_path = isolated / 'scripts/knowledge.py'
         try:
             self.assertIn('DEPENDENCY_UNREACHED', self.command('doctor', ok=False).stderr)
             self.assertIn('DEPENDENCY_UNREACHED', self.command('start', '--rev', self.commit(2), ok=False).stderr)
@@ -596,6 +600,21 @@ with patch.object(sqlite3, 'connect', without_function):
                     self.assertIn('json, json_set, json_extract', error['error'])
                     self.assertFalse(project.exists())
 
+    def test_explicit_writer_dependency_is_checked_before_mutation(self):
+        original = self.writer_path
+        revision = self.commit(2)
+        for writer in ('', 'relative-writer', str(self.root / 'absent-writer'), str(self.root)):
+            with self.subTest(writer=writer):
+                self.writer_path = writer
+                result = self.command('start', '--rev', revision, ok=False)
+                self.assertEqual(json.loads(result.stderr)['code'], 'DEPENDENCY_UNREACHED')
+                self.assertEqual(self.command('status')['runs'], [])
+                self.assertEqual((self.docs / 'guide.md').read_text(), '호출은 1회 시도한다.\n')
+        self.writer_path = original
+        doctor = self.command('doctor')
+        self.assertIn(str(self.writer / 'SKILL.md'), doctor['skill_files'])
+        self.assertFalse((self.installed / 'skills/writing-for-humans').exists())
+
     def test_skill_local_references_and_package_registration(self):
         import re
         manifest = json.loads((self.installed / '.claude-plugin/plugin.json').read_text())
@@ -606,8 +625,9 @@ with patch.object(sqlite3, 'connect', without_function):
                 for ref in re.findall(r'\]\(([^)]+)\)', file.read_text()):
                     if '://' in ref:
                         continue
+                    ref = ref.replace('${CLAUDE_PLUGIN_ROOT}', str(self.installed))
                     target = (file.parent / ref.split('#')[0]).resolve()
-                    self.assertTrue(target.is_relative_to(skill.resolve()), (file, ref))
+                    self.assertTrue(target.is_relative_to(self.installed.resolve()), (file, ref))
                     self.assertTrue(target.exists(), (file, ref))
         self.assertFalse((self.installed / 'tests').exists())
         self.assertFalse((self.installed / '.claude/skills').exists())

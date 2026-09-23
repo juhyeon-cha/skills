@@ -45,7 +45,7 @@
 후속 [태스크 #374](https://github.com/juhyeon-cha/skills/issues/374)는 기존 문서 CLI 위에
 명시 코드/목표 요청, 살아 있는 호스트의 모델 작업 전달, 지정 ref의 주기 검사를 연결한다.
 설치본은 변경하지 않았다. 운영 방법과 권한·소유권 경계는
-[배포용 절차](../../../../plugins/toolkit/skills/refresh-knowledge/references/automation.md)에 있다.
+[배포용 절차](../../../../plugins/knowledge/references/automation.md)에 있다.
 
 - 이벤트·요청·원인 ID, 입력 커밋과 목표 해시를 보존한다. 오래된 전달은 이력으로 남기고, 의도적 rollback은 근거·영향·선택지를 담은 정책 대기를 거친다.
 - 문서 반영과 구현 검증을 별도로 기록한다. 실제 로컬 목표는 코드 커밋·필수 검사·독립 구현 리뷰 후 문서 작성·독립 리뷰·반영까지 완료됐다.

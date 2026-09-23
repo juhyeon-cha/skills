@@ -9,7 +9,7 @@
 3. 수정안의 의미와 문맥을 리뷰한 뒤 `apply`로 적용한다. CLI는 계획을 재계산하고 전체 문서를 사전 검사한다. 기준 원문 또는 이미 적용된 목표 내용과 다른 문서는 덮어쓰지 않는다.
 4. 모든 문서가 목표 내용과 일치할 때만 성공을 출력한다. 그때 계획의 `next_bindings`를 다음 갱신의 근거 연결로 사용한다.
 
-[입력 예시와 실행·복구 절차](../../../../plugins/toolkit/skills/refresh-knowledge/references/updates.md), [자료 스키마](../../../../plugins/toolkit/skills/refresh-knowledge/scripts/update-schema.json)를 제공한다. 실행 코드는 설치 스킬 안에 있으며 공개 프로젝트 CLI가 호출한다.
+[입력 예시와 실행·복구 절차](../../../../plugins/knowledge/references/updates.md), [자료 스키마](../../../../plugins/knowledge/contracts/update-schema.json)를 제공한다. 실행 코드는 knowledge 플러그인 루트의 scripts에 있으며 공개 프로젝트 CLI가 호출한다.
 
 ## 결정별 동작
 

@@ -2,18 +2,18 @@
 
 이 문서는 현재 구현된 코드→기존 문서 갱신 계약이다. [양방향 변경 설계](../roadmap.md)는 후속 목표이며, 목표 명세의 코드 구현은 아직 이 CLI의 기능이 아니다. 출발점·현재/목표 분류와 인계는 [접수 계약](change-intake.md), 종료·격리·새 기준 전환은 배포 상태 계약에 추가했다.
 
-여러 프로젝트의 목표·근거를 연결할 때는 별도 [다중 저장소 계약](../../../../plugins/toolkit/skills/refresh-knowledge/references/multi-repo.md)을 읽는다. 저장소별 현재 소스·목표·검증과 조회 권한을 집계하며, 이 문서의 프로젝트 기준을 대체하지 않는다. 실제 두 저장소의 양방향 흐름·검색·관리 위키 검증은 [5단계 관측](../experiments/multi-repo-observation.md)으로 구분한다.
+여러 프로젝트의 목표·근거를 연결할 때는 별도 [다중 저장소 계약](../../../../plugins/knowledge/references/multi-repo.md)을 읽는다. 저장소별 현재 소스·목표·검증과 조회 권한을 집계하며, 이 문서의 프로젝트 기준을 대체하지 않는다. 실제 두 저장소의 양방향 흐름·검색·관리 위키 검증은 [5단계 관측](../experiments/multi-repo-observation.md)으로 구분한다.
 
-근거 수집부터 문서 적용까지를 toolkit 설치 스킬과 프로젝트 CLI로 연결했다. 사용자는 갱신할 저장소·변경 범위·문서 목적을 지정하고, 에이전트가 근거 판단과 문장 작성, 독립 리뷰, 로컬 적용을 진행한다. 누락된 정책 결정이나 근거 충돌만 사용자에게 돌아오도록 절차를 정했다.
+근거 수집부터 문서 적용까지를 knowledge 설치 스킬과 프로젝트 CLI로 연결했다. 사용자는 갱신할 저장소·변경 범위·문서 목적을 지정하고, 에이전트가 근거 판단과 문장 작성, 독립 리뷰, 로컬 적용을 진행한다. 누락된 정책 결정이나 근거 충돌만 사용자에게 돌아오도록 절차를 정했다.
 
-두 스킬과 실행 코드는 toolkit 패키지 안에 있다. 각 스킬은 자체 참조 문서를 포함하며, 작성과 독립 리뷰는 스킬 이름으로 의존성을 명시한다. 공개 진입점은 `refresh-knowledge/scripts/knowledge.py`이며 [프로젝트 사용법](../../../../plugins/toolkit/skills/refresh-knowledge/references/project.md)을 따른다. 원격 릴리스 발행은 별도다.
+지식 실행·검토는 knowledge 패키지가 소유하고 범용 문장 작성은 별도 toolkit에 의존한다. 공통 실행 코드·스키마·참조는 knowledge 루트의 scripts·contracts·references가 소유한다. 공개 진입점은 `knowledge/scripts/knowledge.py`이며 [프로젝트 사용법](../../../../plugins/knowledge/references/project.md)을 따른다. 원격 릴리스 발행은 별도다.
 
 | 구성 요소 | 책임 |
 |---|---|
-| [refresh-knowledge](../../../../plugins/toolkit/skills/refresh-knowledge/SKILL.md) | 입력 확보, 수집·영향 분석 실행, 근거별 결정, 작성·리뷰 위임, 통과 후 적용과 재개 |
+| [refresh-knowledge](../../../../plugins/knowledge/skills/refresh-knowledge/SKILL.md) | 입력 확보, 수집·영향 분석 실행, 근거별 결정, 작성·리뷰 위임, 통과 후 적용과 재개 |
 | 기존 [writing-for-humans](../../../../plugins/toolkit/skills/writing-for-humans/SKILL.md) | 독자와 목적에 맞는 수정 문장 작성 |
-| [review-knowledge](../../../../plugins/toolkit/skills/review-knowledge/SKILL.md) | 원본 일치, 결정 누락, 독자의 행동 가능성, 불확실성 표현을 독립 리뷰 |
-| [workflow.py](../../../../plugins/toolkit/skills/refresh-knowledge/scripts/workflow.py) | 검토 자료 묶음 생성, 리뷰가 검토한 수정안과 같은지 검사, 조건부 적용 후 완료 기록 생성 |
+| [review-knowledge](../../../../plugins/knowledge/skills/review-knowledge/SKILL.md) | 원본 일치, 결정 누락, 독자의 행동 가능성, 불확실성 표현을 독립 리뷰 |
+| [workflow.py](../../../../plugins/knowledge/scripts/workflow.py) | 검토 자료 묶음 생성, 리뷰가 검토한 수정안과 같은지 검사, 조건부 적용 후 완료 기록 생성 |
 
 ## 리뷰 이후의 변경을 탐지한다
 
@@ -39,7 +39,7 @@
 
 ## CLI 내부 책임
 
-공개 `scripts/knowledge.py`는 인자 해석·의존성 확인·명령 연결·JSON 출력을 맡는다. 같은 디렉터리의 `project_service.py`는 명령별 허용 상태와 전이, `project_store.py`는 v1 DB 트랜잭션·조회·변경 필드 저장·불변 산출물 검사를 맡는다. 접수 모듈도 저장 모듈을 직접 사용한다. 기존 저수준 CLI와 스키마 경로는 유지한다.
+공개 `scripts/knowledge.py`는 인자 해석·의존성 확인·명령 연결·JSON 출력을 맡는다. 같은 디렉터리의 `project_service.py`는 명령별 허용 상태와 전이, `project_store.py`는 v1 DB 트랜잭션·조회·변경 필드 저장·불변 산출물 검사를 맡는다. 접수 모듈도 저장 모듈을 직접 사용한다. 저수준 CLI는 scripts, JSON 스키마는 contracts에서 제공한다. 기존 데이터 형식은 유지한다.
 
 `source_verification.py`는 한 프로젝트 명령 안에서 고정 Git 스냅샷 캡처 결과를 재사용한다. 캐시 적중 때도 전달된 스냅샷 전체가 실제 결과와 같은지 비교한다. 명령이 끝나면 폐기하고 다음 명령은 다시 검증한다. 계획·packet·접수 검증과 적용 직전 실제 문서 검사는 생략하지 않는다. 저장 형식과 `user_version=1`은 유지하며, 상태 전이는 변경 필드만 직렬화하여 기존 JSON에 반영한다.
 

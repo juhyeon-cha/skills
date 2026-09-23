@@ -16,6 +16,7 @@ import uuid
 
 sys.dont_write_bytecode = True
 CLI = Path(__file__).with_name('knowledge.py')
+from package_paths import REFERENCES, REVIEW_SKILL, authoring_files, writer_skill, require_files, review_files
 TERMINAL = {'completed', 'stale', 'superseded'}
 
 
@@ -263,12 +264,15 @@ class Store:
             e['failure'] = {'class': 'model', 'evidence': 'Three attempts exhausted', 'retry': False}
             self.save()
             return {'phase': e['phase'], 'execution': e['id'], 'failure': e['failure']}
+        if role == 'author':
+            authoring_files()
+        elif role == 'reviewer':
+            require_files(review_files())
         e['attempts'][role] = attempt
-        skill = CLI.parent.parent
         instructions = {
-            'author': f'Read {skill.parent / "writing-for-humans/SKILL.md"} and {skill / "references/source-contract.md"}. '
-                      'Compose source-backed decisions JSON for knowledge prepare. Return only decisions JSON.',
-            'reviewer': f'Read {skill.parent / "review-knowledge/SKILL.md"} and its required references. '
+            'author': (f'Read {writer_skill() / "SKILL.md"} and {REFERENCES / "source-contract.md"}. '
+                       'Compose source-backed decisions JSON for knowledge prepare. Return only decisions JSON.') if role == 'author' else '',
+            'reviewer': f'Read {REVIEW_SKILL / "SKILL.md"} and its required references. '
                         'Independently review the exact packet for document quality and current-source fidelity. '
                         'The goal and implementation evidence are separate context: document pass does not certify '
                         'goal acceptance, implementation tests or deployment. Those were judged separately by '

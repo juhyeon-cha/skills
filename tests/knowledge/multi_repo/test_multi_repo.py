@@ -11,7 +11,7 @@ from types import SimpleNamespace
 import unittest
 
 ROOT = Path(__file__).resolve().parents[3]
-SCRIPTS = ROOT / 'plugins/toolkit/skills/refresh-knowledge/scripts'
+SCRIPTS = ROOT / 'plugins/knowledge/scripts'
 if '--scripts' in sys.argv:
     SCRIPTS = Path(sys.argv[sys.argv.index('--scripts') + 1])
 sys.path.insert(0, str(SCRIPTS))
@@ -318,6 +318,7 @@ class Contracts(unittest.TestCase):
     def test_permission_negative_control(self):
         copied = Path(tempfile.mkdtemp(prefix='knowledge-permission-negative-')) / 'scripts'
         shutil.copytree(SCRIPTS, copied)
+        shutil.copytree(SCRIPTS.parent / 'contracts', copied.parent / 'contracts')
         path = copied / 'multi_repo.py'
         source = path.read_text()
         boundary = "return 'source' in rights and scope in rights  # PERMISSION_BOUNDARY"

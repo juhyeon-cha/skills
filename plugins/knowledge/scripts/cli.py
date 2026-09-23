@@ -14,7 +14,7 @@ try:
 except ImportError:
     sys.exit("DEPENDENCY_UNREACHED: install the adjacent requirements.txt in a user-owned environment")
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent / "contracts"
 
 
 def canonical(value):

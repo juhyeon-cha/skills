@@ -13,7 +13,7 @@ import tempfile
 from cli import Draft202012Validator, ValidationError, canonical, identify, load, sha, valid_path, write_new
 from impact import bind, document_bytes, impact
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent / "contracts"
 
 
 def shape(value, definition):

@@ -10,7 +10,7 @@ import sys
 import tempfile
 
 HERE = Path(__file__).resolve().parent
-PLUGIN = HERE.parents[2] / 'plugins/toolkit'
+PLUGIN = HERE.parents[2] / 'plugins/knowledge'
 
 
 def run(output):
@@ -18,9 +18,12 @@ def run(output):
     trace = []
     with tempfile.TemporaryDirectory(prefix='foundation installed ') as temporary:
         root = Path(temporary)
-        installed = root / 'toolkit'
+        installed = root / 'knowledge'
         shutil.copytree(PLUGIN, installed, ignore=shutil.ignore_patterns('__pycache__'))
-        cli = installed / 'skills/refresh-knowledge/scripts/knowledge.py'
+        cli = installed / 'scripts/knowledge.py'
+        writer = root / 'writer'
+        shutil.copytree(PLUGIN.parent / 'toolkit/skills/writing-for-humans', writer)
+        environment = dict(os.environ, KNOWLEDGE_WRITER_SKILL=str(writer))
         repo = root / 'repo'; repo.mkdir()
         docs = root / 'docs'; docs.mkdir()
         project = root / 'project'
@@ -30,7 +33,7 @@ def run(output):
         third = packets['c']['after']['commit']
 
         def invoke(argv, expected=0, input_bytes=None):
-            result = subprocess.run(list(map(str, argv)), input=input_bytes, capture_output=True, cwd=root)
+            result = subprocess.run(list(map(str, argv)), input=input_bytes, capture_output=True, cwd=root, env=environment)
             entry = {'argv': list(map(str, argv)), 'rc': result.returncode,
                      'stdout': result.stdout.decode(), 'stderr': result.stderr.decode()}
             trace.append(entry)

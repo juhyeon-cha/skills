@@ -12,7 +12,7 @@ host-private state directory, a host-controlled configuration file, and the prin
 by that host on **every** call:
 
 ```sh
-"$PYTHON" "$SKILL_DIR/scripts/multi_repo.py" --state /absolute/relations \
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/multi_repo.py" --state /absolute/relations \
   --host /absolute/host.json --principal operator init
 ```
 

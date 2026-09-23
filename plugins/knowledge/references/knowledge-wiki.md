@@ -38,8 +38,8 @@ establishes only that comparison; freshness requires observing the actual source
 
 Use the bundled renderer when a local multipage wiki is requested. Its commands take explicit
 paths and never write dependencies or output into the installed plugin. Node.js 20+ and the
-pinned Markdown runtime are required. Resolve `SKILL_DIR` to this installed skill directory;
-for source development, use the assigned linked worktree's skill directory instead.
+pinned Markdown runtime are required. Resolve `KNOWLEDGE_ROOT` to this installed knowledge plugin directory;
+for source development, use the assigned linked worktree's knowledge plugin directory instead.
 
 Prepare a fresh user-owned runtime outside the plugin cache:
 
@@ -47,8 +47,8 @@ Prepare a fresh user-owned runtime outside the plugin cache:
 WIKI_RUNTIME=/absolute/user-owned/wiki-runtime
 mkdir -p "$WIKI_RUNTIME"
 WIKI_RUNTIME=$(cd "$WIKI_RUNTIME" && pwd -P)
-cp "$SKILL_DIR/scripts/wiki/runtime/package.json" "$WIKI_RUNTIME/package.json"
-cp "$SKILL_DIR/scripts/wiki/runtime/package-lock.json" "$WIKI_RUNTIME/package-lock.json"
+cp "$KNOWLEDGE_ROOT/scripts/wiki/runtime/package.json" "$WIKI_RUNTIME/package.json"
+cp "$KNOWLEDGE_ROOT/scripts/wiki/runtime/package-lock.json" "$WIKI_RUNTIME/package-lock.json"
 npm ci --prefix "$WIKI_RUNTIME" --ignore-scripts
 ```
 
@@ -57,9 +57,9 @@ approved dependency setup once and reuse it while its pinned manifests remain un
 The target repository needs no npm scripts, renderer copies, or rendering dependency.
 
 ```sh
-node "$SKILL_DIR/scripts/wiki/build.mjs" /absolute/content /absolute/new-site "$WIKI_RUNTIME/node_modules/markdown-it"
-node "$SKILL_DIR/scripts/wiki/check.mjs" /absolute/content/manifest.json /absolute/new-site
-node "$SKILL_DIR/scripts/wiki/server.mjs" /absolute/new-site 8769
+node "$KNOWLEDGE_ROOT/scripts/wiki/build.mjs" /absolute/content /absolute/new-site "$WIKI_RUNTIME/node_modules/markdown-it"
+node "$KNOWLEDGE_ROOT/scripts/wiki/check.mjs" /absolute/content/manifest.json /absolute/new-site
+node "$KNOWLEDGE_ROOT/scripts/wiki/server.mjs" /absolute/new-site 8769
 ```
 
 Open the printed loopback URL. Serve only an output whose build and check completed. To compare
@@ -104,7 +104,7 @@ not semantic review, atomic publication, live verification or currentness.
 ## Evaluate reading and change propagation
 
 For document acceptance and reader evaluation, read and apply the existing
-[document acceptance contract](../../review-knowledge/references/document-ac.md).
+[document acceptance contract](../skills/review-knowledge/references/document-ac.md).
 Use the shared Markdown as the document input and link failed and repaired versions to their
 actual responses. That contract owns freezing, role separation, judgment, and rerun requirements.
 

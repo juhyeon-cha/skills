@@ -4,7 +4,7 @@ Source capture reads pinned committed Git blobs, not working edits or deployment
 Scope paths are literal repository-relative files/directories; repeat `--path` for multiple
 scopes. UTF-8 regular text files are supported; selected symlinks, submodules, binary data and
 invalid paths fail. An empty capture can represent deleted files; inspect a new scope's file count.
-The [source schema](../scripts/schema.json) owns snapshot/change shapes.
+The [source schema](../contracts/schema.json) owns snapshot/change shapes.
 
 ## Initial baseline
 
@@ -16,7 +16,7 @@ use the source repository root. This input is project data, never a plugin-file 
 {"documents":[{"path":"guide.md","claims":[{"id":"retry-limit","text":"A connection error is retried twice.","evidence":["src/retry.py"]}]}]}
 ```
 
-The [binding schema](../scripts/impact-schema.json) requires exact document excerpts, unique
+The [binding schema](../contracts/impact-schema.json) requires exact document excerpts, unique
 claim IDs within each document and nonempty evidence paths. Binding verifies excerpt presence
 and records the whole document hash. File-level evidence can overselect claims after an unrelated
 line change and cannot discover undeclared dependencies. Record coverage limits honestly.
@@ -25,7 +25,7 @@ line change and cannot discover undeclared dependencies. Record coverage limits 
 
 Read every source file and document in `context.json` relevant to a candidate or unlinked change.
 The impact ID and candidate IDs are machine-generated; copy them exactly. The
-[decision schema](../scripts/update-schema.json) owns the input consumed by `prepare`:
+[decision schema](../contracts/update-schema.json) owns the input consumed by `prepare`:
 
 ```json
 {

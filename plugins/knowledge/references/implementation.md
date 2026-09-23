@@ -41,7 +41,7 @@ newer baseline to document it. Continue only with verified, applicable source an
 ## 3. Connect verified source to the document run
 
 Read [project commands](project.md) and use the existing source-to-document flow in
-[refresh-knowledge](../SKILL.md). Inspect the project's settings, baseline and active run against
+[refresh-knowledge](../skills/refresh-knowledge/SKILL.md). Inspect the project's settings, baseline and active run against
 the actual repository and document bytes. For an existing run inspect `status --run ID` and follow
 its next action. For a new verified source revision use `start --rev COMMIT`; keep the link to the
 behavior-change intake in the caller-owned record. Do not pass that intake to `start --intake`:

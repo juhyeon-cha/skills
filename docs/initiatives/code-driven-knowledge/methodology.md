@@ -14,7 +14,7 @@
 | 문서 평가 사례 | 고정 기대 명제, 새 독자 풀이, 독립 판정, 결함 주입 | SAP 사례의 문장·질문에 묶인 부분을 계약과 사례 데이터로 분리 |
 | 기계 검사 | 링크·식별자·해시·자료 구조·버전 검사 | 문서 유형별 필수 정보 누락과 증거 연결 검사; 의미 통과로 확대 해석하지 않음 |
 
-[현재 review-knowledge 기준](../../../plugins/toolkit/skills/review-knowledge/references/rubric.md)은 현재 동작과 목표·표현 변경의 근거를 구분하며 문서 AC 계약으로 연결한다. 2단계는 이 분류를 재사용하고, 최초 생성 문서의 필수 항목 대조와 유형별 인계를 추가 검증한다. 기존 [문서 AC 실험](experiments/document-ac.md)은 이 방법의 출발 증거이며 일반 제품의 품질 보장은 아니다.
+[현재 review-knowledge 기준](../../../plugins/knowledge/skills/review-knowledge/references/rubric.md)은 현재 동작과 목표·표현 변경의 근거를 구분하며 문서 AC 계약으로 연결한다. 2단계는 이 분류를 재사용하고, 최초 생성 문서의 필수 항목 대조와 유형별 인계를 추가 검증한다. 기존 [문서 AC 실험](experiments/document-ac.md)은 이 방법의 출발 증거이며 일반 제품의 품질 보장은 아니다.
 
 ## 1. 산출물을 먼저 분류한다
 

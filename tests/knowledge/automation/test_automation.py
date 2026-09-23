@@ -2,6 +2,8 @@
 from datetime import datetime, timezone
 import concurrent.futures
 import json
+import os
+from unittest.mock import patch
 from pathlib import Path
 import subprocess
 import shutil
@@ -9,12 +11,22 @@ import sys
 import tempfile
 import unittest
 
-SCRIPTS = Path(__file__).resolve().parents[3] / 'plugins/toolkit/skills/refresh-knowledge/scripts'
+SCRIPTS = Path(__file__).resolve().parents[3] / 'plugins/knowledge/scripts'
 sys.path.insert(0, str(SCRIPTS))
 import automation
 
 
 class AutomationTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.dependencies = tempfile.TemporaryDirectory(prefix='external writer ')
+        cls.addClassCleanup(cls.dependencies.cleanup)
+        cls.writer = (Path(cls.dependencies.name) / 'writer').resolve()
+        shutil.copytree(SCRIPTS.parents[1] / 'toolkit/skills/writing-for-humans', cls.writer)
+        cls.writer_env = patch.dict(os.environ, KNOWLEDGE_WRITER_SKILL=str(cls.writer))
+        cls.writer_env.start()
+        cls.addClassCleanup(cls.writer_env.stop)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='automation contract ')
         self.addCleanup(self.temp.cleanup)
@@ -102,6 +114,18 @@ class AutomationTests(unittest.TestCase):
         self.author(count); self.review()
         self.assertEqual(self.auto('next')['phase'], 'completed')
         return e['execution']
+
+    def test_generated_role_prompts_resolve_separate_installed_resources(self):
+        self.event(self.commit(2))
+        author = self.author(2)
+        self.assertIn(str(self.writer / 'SKILL.md'), author['prompt'])
+        self.assertIn(str(SCRIPTS.parent / 'references/source-contract.md'), author['prompt'])
+        # prepare still needs the writer; an already prepared review can resume without it.
+        self.assertEqual(self.auto('next')['pending']['role'], 'reviewer')
+        with patch.dict(os.environ, KNOWLEDGE_WRITER_SKILL=''):
+            reviewer = self.review()
+        self.assertIn(str(SCRIPTS.parent / 'skills/review-knowledge/SKILL.md'), reviewer['prompt'])
+        self.assertEqual(self.auto('next')['phase'], 'completed')
 
     def test_code_duplicate_new_request_and_unchanged_effect(self):
         rev = self.commit(2)

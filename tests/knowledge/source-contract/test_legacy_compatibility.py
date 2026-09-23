@@ -36,8 +36,8 @@ class LegacyTests(unittest.TestCase):
             self.assertEqual({k:config[k] for k in ('repo','docs')},self.manifest['original_config'])
             config.update(repo=str(self.repo),docs=str(self.root/'docs'))
             db.execute('UPDATE project SET config=?',(json.dumps(config,ensure_ascii=False,sort_keys=True),))
-        package=self.root/'toolkit'; shutil.copytree(ROOT/'plugins/toolkit',package,ignore=shutil.ignore_patterns('__pycache__'))
-        self.cli=package/'skills/refresh-knowledge/scripts/knowledge.py'
+        package=self.root/'toolkit'; shutil.copytree(ROOT/'plugins/knowledge',package,ignore=shutil.ignore_patterns('__pycache__'))
+        self.cli=package/'scripts/knowledge.py'
 
     def state(self):
         with sqlite3.connect(self.db) as db:

@@ -1,0 +1,33 @@
+name: Knowledge plugin contracts
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: knowledge-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  knowledge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Prepare external Python runtime
+        run: |
+          python3 -m venv "$RUNNER_TEMP/knowledge-venv"
+          "$RUNNER_TEMP/knowledge-venv/bin/python" -m pip install -r plugins/knowledge/scripts/requirements.txt
+          echo "KNOWLEDGE_PYTHON=$RUNNER_TEMP/knowledge-venv/bin/python" >> "$GITHUB_ENV"
+          echo "KNOWLEDGE_WRITER_SKILL=$GITHUB_WORKSPACE/plugins/toolkit/skills/writing-for-humans" >> "$GITHUB_ENV"
+      - name: Knowledge regression and historical evidence checks
+        run: |
+          for check in tests/knowledge/*-check.sh; do
+            bash "$check"
+          done

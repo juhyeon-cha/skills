@@ -11,7 +11,7 @@ const root = path.resolve(
 );
 const scripts = path.join(
   root,
-  "plugins/toolkit/skills/refresh-knowledge/scripts/wiki",
+  "plugins/knowledge/scripts/wiki",
 );
 const modulePath = process.env.WIKI_MARKDOWN_IT_MODULE;
 assert(
@@ -252,7 +252,7 @@ test("partial output has no completion receipt and cannot serve", () => {
 });
 test("copied plugin executes without repository dependencies", () => {
   const f = fixture(["welcome"]);
-  const copy = path.join(f.temp, "installed-toolkit");
+  const copy = path.join(f.temp, "installed-knowledge");
   fs.cpSync(scripts, copy, { recursive: true });
   assert.equal(build(f, copy).status, 0);
   assert.equal(

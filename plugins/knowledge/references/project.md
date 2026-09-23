@@ -1,29 +1,34 @@
 # Project setup and public commands
 
-Resolve the absolute installed skill directory as `SKILL_DIR`. Python 3.10+, Git, SQLite support
+Resolve the absolute installed knowledge plugin directory as `KNOWLEDGE_ROOT`. Python 3.10+, Git, SQLite support
 in Python, and the pinned [requirements](../scripts/requirements.txt) are required. Prepare an
 isolated virtual environment outside the plugin cache once, using an authorized dependency
 installation. Use its Python for every command; changing cwd must not change the selected project.
 
 ```sh
 python3 -m venv /absolute/user-owned/knowledge-venv
-/absolute/user-owned/knowledge-venv/bin/python -m pip install -r "$SKILL_DIR/scripts/requirements.txt"
+/absolute/user-owned/knowledge-venv/bin/python -m pip install -r "$KNOWLEDGE_ROOT/scripts/requirements.txt"
 PYTHON=/absolute/user-owned/knowledge-venv/bin/python
-"$PYTHON" "$SKILL_DIR/scripts/knowledge.py" doctor
+export KNOWLEDGE_WRITER_SKILL=/absolute/installed/toolkit/skills/writing-for-humans
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/knowledge.py" doctor
 ```
 
-`doctor` checks Python 3.10+, the pinned jsonschema version, runnable Git, SQLite, and bundled
-writing/review files before mutation. It reports actual versions/paths or fails. Host-level skill
+`doctor` checks Python 3.10+, the pinned jsonschema version, runnable Git, SQLite, and
+the explicitly selected external writing skill and knowledge-owned review files before authoring. It reports actual versions/paths or fails. Host-level skill
 resolution and independent-agent availability must be verified by the orchestrator; file presence
 does not prove those capabilities. It does
-not install dependencies silently. Artifacts and the project database belong outside the installed
+not install dependencies silently. Set `KNOWLEDGE_WRITER_SKILL` to the absolute installed
+`toolkit:writing-for-humans` skill directory; resolve it through the host rather than assuming
+a sibling plugin location. The environment is inherited by automation subprocesses. Missing or
+incomplete writer files block authoring commands, while review/resume of existing runs retain
+their runtime-only recovery boundary. Artifacts and the project database belong outside the installed
 skill. Use an exclusive document workspace: SQLite serializes this project's commands, but cannot
 coordinate a different project or arbitrary editor targeting the same documents.
 
 Create a baseline spec as described in [source-contract.md](source-contract.md). Then initialize:
 
 ```sh
-"$PYTHON" "$SKILL_DIR/scripts/knowledge.py" --project /absolute/project-state init \
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project /absolute/project-state init \
   --repo /absolute/source-repo --docs /absolute/document-root --repository owner/repository \
   --baseline COMMIT --path src --spec /absolute/baseline-spec.json \
   --audience 'Backend callers' --purpose 'Use the documented behavior correctly'
@@ -38,11 +43,11 @@ other than 1 fail; no automatic migration is performed.
 Subsequent commands share only `--project`; paths below are returned in their JSON results:
 
 ```sh
-"$PYTHON" "$SKILL_DIR/scripts/knowledge.py" --project /absolute/project-state start --rev NEXT_COMMIT
-"$PYTHON" "$SKILL_DIR/scripts/knowledge.py" --project /absolute/project-state status --run RUN_ID
-"$PYTHON" "$SKILL_DIR/scripts/knowledge.py" --project /absolute/project-state prepare --run RUN_ID --decisions /absolute/decisions.json
-"$PYTHON" "$SKILL_DIR/scripts/knowledge.py" --project /absolute/project-state review --run RUN_ID --review /absolute/review.json
-"$PYTHON" "$SKILL_DIR/scripts/knowledge.py" --project /absolute/project-state resume --run RUN_ID
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project /absolute/project-state start --rev NEXT_COMMIT
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project /absolute/project-state status --run RUN_ID
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project /absolute/project-state prepare --run RUN_ID --decisions /absolute/decisions.json
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project /absolute/project-state review --run RUN_ID --review /absolute/review.json
+"$PYTHON" "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project /absolute/project-state resume --run RUN_ID
 ```
 
 `start` returns the source/document context path; `prepare` returns the exact review packet path.
@@ -75,7 +80,7 @@ after that command exits before choosing the next operation. Use the [state rule
 
 The integrated observation is macOS with Codex orchestration, local Git/SQLite, Python 3.14 and
 jsonschema 4.26.0. Other hosts are not certified by that observation. A host must support local
-Python/Git commands, toolkit skill reads, and an independent reviewer; otherwise stop before
+Python/Git commands, knowledge review and external toolkit writer reads, and an independent reviewer; otherwise stop before
 application and report the unavailable capability. Source inputs remain pinned UTF-8 regular Git
 files. Use a user-owned virtual environment and an exclusive document workspace. No model API,
 remote publication, dependency download, database migration, or automatic skill installation is

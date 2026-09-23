@@ -9,7 +9,7 @@ import sys
 from cli import (Draft202012Validator, ValidationError, capture, compare, identify,
                  load, sha, valid_path, write_new)
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent / "contracts"
 
 
 def shape(value, definition):
