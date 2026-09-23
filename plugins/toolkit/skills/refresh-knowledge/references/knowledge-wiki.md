@@ -1,7 +1,9 @@
 # Knowledge wiki
 
 Use this procedure when presenting code-linked knowledge as a human-facing web wiki.
-It extends the document workflow; it does not add a renderer command to the knowledge CLI.
+The bundled wiki scripts render reviewed documents; the existing knowledge CLI still owns
+source intake, proposal review, and document updates. Keep shared rendering code in this
+plugin and repository-specific documents and manifests in the target repository.
 
 ## Establish the reading task
 
@@ -34,12 +36,70 @@ verification. Put technical provenance behind a clear evidence link or disclosur
 whether the site is a fixed snapshot. Comparing a supplied revision or checking file hashes
 establishes only that comparison; freshness requires observing the actual source and index.
 
-Use the project's renderer if one exists. For a new renderer, verify input boundaries,
-missing references, duplicate routes, orphan pages, and unsafe content. Build into a new
-output directory, write a completion receipt only after success, and serve only a completed
-output. A failed build may leave partial files; inspect them before retrying and follow the
-project's deletion policy. A receipt should bind the actual document, manifest, search, and
-HTML bytes. A passing hash check is neither semantic review nor atomic publication.
+Use the bundled renderer when a local multipage wiki is requested. Its commands take explicit
+paths and never write dependencies or output into the installed plugin. Node.js 20+ and the
+pinned Markdown runtime are required. Resolve `SKILL_DIR` to this installed skill directory;
+for source development, use the assigned linked worktree's skill directory instead.
+
+Prepare a fresh user-owned runtime outside the plugin cache:
+
+```sh
+WIKI_RUNTIME=/absolute/user-owned/wiki-runtime
+mkdir -p "$WIKI_RUNTIME"
+WIKI_RUNTIME=$(cd "$WIKI_RUNTIME" && pwd -P)
+cp "$SKILL_DIR/scripts/wiki/runtime/package.json" "$WIKI_RUNTIME/package.json"
+cp "$SKILL_DIR/scripts/wiki/runtime/package-lock.json" "$WIKI_RUNTIME/package-lock.json"
+npm ci --prefix "$WIKI_RUNTIME" --ignore-scripts
+```
+
+Choose an unused runtime directory so existing dependency manifests are preserved. Run the
+approved dependency setup once and reuse it while its pinned manifests remain unchanged.
+The target repository needs no npm scripts, renderer copies, or rendering dependency.
+
+```sh
+node "$SKILL_DIR/scripts/wiki/build.mjs" /absolute/content /absolute/new-site "$WIKI_RUNTIME/node_modules/markdown-it"
+node "$SKILL_DIR/scripts/wiki/check.mjs" /absolute/content/manifest.json /absolute/new-site
+node "$SKILL_DIR/scripts/wiki/server.mjs" /absolute/new-site 8769
+```
+
+Open the printed loopback URL. Serve only an output whose build and check completed. To compare
+against an independently observed revision, append `--observed-revision REV` to the check.
+A mismatch returns nonzero and reports stale; the caller remains responsible for obtaining
+that revision. Serving is a local preview, not remote publication or a source-change watcher.
+
+### Content manifest
+
+Place `manifest.json` beside the canonical Markdown files:
+
+```json
+{
+  "title": "Project knowledge",
+  "revision": "PINNED_SOURCE_REVISION",
+  "home": "overview",
+  "evidencePage": "sources",
+  "pages": [
+    {"id": "overview", "path": "overview.md", "title": "Overview", "summary": "Choose the next action."},
+    {"id": "sources", "path": "sources.md", "title": "Evidence", "summary": "Scope and verification.", "kind": "evidence"}
+  ]
+}
+```
+
+`home` names a listed page and maps to `/`; other IDs map to `/ID/`. `evidencePage` is optional
+and, when present, names a listed page. Page paths use canonical relative paths (for example `guide.md` or `guides/setup.md`,
+without `./`, `..`, backslashes or absolute paths). Page IDs and paths are unique; page IDs use lowercase
+letters, digits and hyphens starting with a letter. Page counts and names come from this manifest.
+Optional per-page `evidence.reviewStatus` and `evidence.liveStatus` are human-readable recorded
+states, never attestations manufactured by the renderer. Missing states display as unverified.
+
+Use local Markdown links and existing heading anchors. Raw HTML is rendered inert; images are
+outside the supported subset. Broken references, missing inputs, duplicate IDs, path escapes,
+symlinks and unlisted Markdown files fail the build. Build into a new output directory; existing
+output is refused. A failed build can leave partial files, so inspect them and choose a new
+output before retrying. Follow the user's deletion boundary for cleanup.
+
+The completion receipt binds document, manifest, search and HTML bytes and is written last.
+The checker detects changed bytes and missing outputs. This is local integrity evidence,
+not semantic review, atomic publication, live verification or currentness.
 
 ## Evaluate reading and change propagation
 
