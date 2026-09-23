@@ -1,0 +1,331 @@
+[
+  {
+    "case": "complete",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "verified": true
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": true,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "document_drift",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "stage": "documents",
+        "error_type": "ValueError",
+        "error": "CLAIM: excerpt absent from document"
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": true,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "fresh_failed_check",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "stage": "checks",
+        "error_type": "ValueError",
+        "error": "CHECK_STALE_OR_FAILED"
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": true,
+        "exit_code": 1
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "stale_failed_check",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "stage": "checks",
+        "error_type": "ValueError",
+        "error": "CHECK_STALE_OR_FAILED"
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": false,
+        "exit_code": 1
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "missing_check",
+    "members": {
+      "consumer": {
+        "stage": "review",
+        "error_type": "ValueError",
+        "error": "REVIEW_PENDING"
+      },
+      "producer": {
+        "stage": "checks",
+        "error_type": "ValueError",
+        "error": "CHECK_PENDING"
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "missing": true
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "no_review",
+    "members": {
+      "consumer": {
+        "stage": "review",
+        "error_type": "ValueError",
+        "error": "REVIEW_PENDING"
+      },
+      "producer": {
+        "stage": "review",
+        "error_type": "ValueError",
+        "error": "REVIEW_PENDING"
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": true,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "source_dirty",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "stage": "source",
+        "error_type": "ValueError",
+        "error": "SOURCE_DIRTY"
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": false,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": false,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "missing_document",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "stage": "documents",
+        "error_type": "FileNotFoundError",
+        "error": "[Errno 2] No such file or directory: '/private/tmp/knowledge-diagnostics-evidence/knowledge-multi-zmw3u_wq/producer-docs-8a58a40a6bb8b05029f59bef13fa7ce0a7365a7d/contract.md'"
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": true,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "integration_failure",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "verified": true
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": true,
+        "exit_code": 1
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": true,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "revoke_publish",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "withheld": true
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": false,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": false,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "revoke_query",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "withheld": true
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": false,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": false,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  },
+  {
+    "case": "revoke_source",
+    "members": {
+      "consumer": {
+        "verified": true
+      },
+      "producer": {
+        "withheld": true
+      }
+    },
+    "checks": {
+      "exchange": {
+        "fresh": false,
+        "exit_code": 0
+      },
+      "consumer": {
+        "fresh": true,
+        "exit_code": 0
+      },
+      "producer": {
+        "fresh": false,
+        "exit_code": 0
+      }
+    },
+    "all_fixture_file_bytes_unchanged": true
+  }
+]

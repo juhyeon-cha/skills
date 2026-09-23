@@ -1,0 +1,30 @@
+{
+  "verdict": "MATCH",
+  "scope": "M0 design premise only; independent evaluator judgment, not a synthetic review receipt or implementation acceptance",
+  "base": "9721f38950cc4db59e3dda67f8784f0c219df87b",
+  "findings": [],
+  "evidence": [
+    "Read frozen m0.md, story.md, m0.py and results.json.",
+    "Inspected source: allowed/source/documents/checked/reviewed/member/view/query/wiki/reading.",
+    "Independently reopened all 12 preserved fixtures and evaluated member stages, check freshness and all fixture file byte hashes; m0-independent-observation.json records results.",
+    "Document drift fails at documents with CLAIM mismatch; dirty source fails at source; missing document raises FileNotFoundError at documents; missing check and missing review are separately observable.",
+    "Fresh failed producer check has matching goal, command, executable files, sources and source_unchanged with exit code 1; altered-command failed record is stale despite the same exit code and legacy exception.",
+    "Integration failure fixture has both members verified while the fresh exchange check exits 1.",
+    "All three revoked-right fixtures withhold producer under the joint source/query/publish gate.",
+    "All preserved fixture file byte hashes were unchanged after independent observation."
+  ],
+  "constraints": [
+    "Expose allowlisted code/stage/action only; never raw exceptions, command argv, file paths, stdout/stderr, hidden repository names or source bodies through diagnostics.",
+    "Treat observed first failure as a blocker, not a complete root cause. Unknown/unavailable remains valid for unrecognized evidence.",
+    "Check freshness before using nonzero exit as a current failure; mirror all current binding predicates.",
+    "Preserve query/wiki/view outputs and their persisted index/publication digests; attach diagnostic data only to reading through a separate optional collector after legacy decisions.",
+    "Apply the managed reading authorization intersection before diagnostic access; suppress aggregate check details when member evidence is withheld.",
+    "Do not use diagnostics to grant completion, publication, permission or run repairs."
+  ],
+  "not_established": [
+    "Future implementation preserves hashes and permissions under all cases.",
+    "Concurrent mutation safety, malformed objects, browser behavior, full regression suite and independent quality/acceptance.",
+    "Real review correctness: preserved fixture receipts are synthetic.",
+    "Token/dollar costs or operational platform need."
+  ]
+}

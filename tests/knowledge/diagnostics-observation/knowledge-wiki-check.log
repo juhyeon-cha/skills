@@ -1,0 +1,45 @@
+
+added 7 packages in 527ms
+External dependency runtime retained: /private/var/folders/wh/wsssd94174qd3nh3llz9k4t40000gn/T/knowledge-wiki-runtime.t4u2LX
+✔ arbitrary routes intro,notes (247.774875ms)
+✔ arbitrary routes guide,release,proof,faq (257.374208ms)
+✔ reject missing source (71.548833ms)
+✔ reject missing home (68.956375ms)
+✔ reject missing evidence (69.300958ms)
+✔ reject empty pages (63.927042ms)
+✔ reject duplicate id (71.505959ms)
+✔ reject path escape (64.63725ms)
+✔ reject broken link (65.27375ms)
+✔ reject broken anchor (81.557958ms)
+✔ reject protocol relative (76.979709ms)
+✔ reject orphan (70.274917ms)
+✔ reject symlink (70.089834ms)
+✔ reject noncanonical path ./overview.md (74.584458ms)
+✔ reject noncanonical path sub/../overview.md (74.0095ms)
+✔ reject noncanonical path sub//one.md (69.862125ms)
+✔ reject noncanonical path /overview.md (76.049916ms)
+✔ reject noncanonical path C:\one.md (75.054875ms)
+✔ reject malformed evidence true (79.147625ms)
+✔ reject malformed evidence null (71.527542ms)
+✔ reject malformed evidence [] (68.40025ms)
+✔ reject malformed evidence {"reviewStatus":true} (68.492333ms)
+✔ reject malformed evidence {"liveStatus":{"pass":true}} (157.868208ms)
+✔ reject malformed evidence {"reviewStatus":" "} (129.603333ms)
+✔ reject malformed evidence {"liveStatus":""} (54.703042ms)
+✔ canonical nested Markdown and textual status round trip (138.736833ms)
+✔ raw HTML and dangerous links stay inert (79.355333ms)
+✔ reject tamper overview.md (125.396917ms)
+✔ reject tamper manifest.json (153.122ms)
+✔ reject tamper index.html (315.985291ms)
+✔ reject tamper search-index.json (144.611458ms)
+✔ partial output has no completion receipt and cannot serve (187.915958ms)
+✔ copied plugin executes without repository dependencies (142.800375ms)
+✔ loopback serves routes and custom 404, confines files (212.036166ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3899.658208

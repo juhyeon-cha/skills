@@ -1,0 +1,6 @@
+✓ (a) claude plugin validate --strict 통과 — . plugins/harness plugins/knowledge plugins/toolkit
+✓ (b) shellcheck 통과 — plugins/·tests/ 아래 *.sh 63개 · severity=warning 이상 0건 (규칙 면제 SC2317)
+✓ (c) harness 설명 3중 일치 — plugin.json == marketplace.json, README.md 에 있음
+✓ (c) knowledge 설명 3중 일치 — plugin.json == marketplace.json, README.md 에 있음
+✓ (c) toolkit 설명 3중 일치 — plugin.json == marketplace.json, README.md 에 있음
+✓ skills 게이트 통과 — validate · shellcheck · 설명 3중 일치

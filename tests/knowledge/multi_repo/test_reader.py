@@ -133,14 +133,100 @@ class ReaderTests(unittest.TestCase):
     def test_change_during_read_fails_closed(self):
         f=self.complete(); store=Store(f.root/'state',f.host_path,'reader')
         original=Store.query
-        def changed(instance,value):
-            result=original(instance,value);result['members'][0]['current']['commit']='0'*40;return result
+        def changed(instance,value,**kwargs):
+            result=original(instance,value,**kwargs);result['members'][0]['current']['commit']='0'*40;return result
         with store.locked(readonly=True), patch.object(Store,'query',changed):
             with self.assertRaisesRegex(ValueError,'READ_CHANGED'):store.reading({'goal':'contract'})
-        def changed_policy(instance,value):
-            result=original(instance,value);f.host['principals']['reader']['repositories']['consumer']=[];f.persist();return result
+        def changed_policy(instance,value,**kwargs):
+            result=original(instance,value,**kwargs);f.host['principals']['reader']['repositories']['consumer']=[];f.persist();return result
         with store.locked(readonly=True), patch.object(Store,'query',changed_policy):
             with self.assertRaisesRegex(ValueError,'READ_CHANGED'):store.reading({'goal':'contract'})
+
+    def test_diagnostics_recovery_and_legacy_publication(self):
+        f=self.complete(); port=self.serve(f)
+        query_before=f.call('query',{'goal':'contract'},'reader')
+        wiki_before=f.call('wiki',{'goal':'contract'},'reader')
+        def current():
+            status,_,raw=self.request(port,'/api/read'); self.assertEqual(status,200)
+            return json.loads(raw)
+        def producer(view):
+            return next(m for m in view['members'] if m['repository']=='producer')
+        initial=current()
+        self.assertEqual(initial['index'],'current');self.assertEqual(initial['served'],'current')
+        self.assertEqual(producer(initial)['validation_detail']['code'],'verified')
+        self.assertEqual(f.call('query',{'goal':'contract'},'reader'),query_before)
+        self.assertEqual(f.call('wiki',{'goal':'contract'},'reader'),wiki_before)
+        doc=f.root/('producer-docs-'+f.revisions['producer'])/'contract.md'
+        original=doc.read_text();doc.write_text('changed')
+        drift=current()
+        self.assertEqual(producer(drift)['validation_detail'],{'stage':'documents',
+            'code':'document_evidence_changed','next_action':'update_and_review_documents'})
+        for route in ('/','/repositories/producer/','/evidence/'):
+            self.assertIn('문서와 검토된 근거가 일치하지 않음',self.request(port,route)[2])
+        doc.write_text(original)
+        self.assertEqual(current()['projection_id'],initial['projection_id'])
+        command=copy.deepcopy(f.host['checks']['producer'])
+        f.host['checks']['producer']['argv']=[sys.executable,'-B','-c',
+            "import sys; print('PRIVATE_DIAGNOSTIC_PATH',file=sys.stderr); raise SystemExit(1)"]
+        f.persist();f.call('run_checks',{'goal':'contract','checks':['producer']})
+        failed=current()
+        self.assertEqual(producer(failed)['validation_detail']['code'],'check_failed')
+        self.assertNotEqual(failed['projection_id'],drift['projection_id'])
+        self.assertNotIn('PRIVATE_DIAGNOSTIC_PATH',json.dumps(failed))
+        self.assertNotIn(str(f.root),json.dumps(failed))
+        f.host['checks']['producer']=command;f.persist()
+        self.assertEqual(producer(current())['validation_detail']['code'],'check_stale')
+        f.call('run_checks',{'goal':'contract','checks':['producer']})
+        self.assertEqual(producer(current())['validation_detail']['code'],'review_pending')
+        f.review()
+        reviewed=current();self.assertEqual(reviewed['completion'],'complete')
+        self.assertEqual(reviewed['served'],'unavailable_or_partial')
+        f.call('refresh',{'goal':'contract'});f.call('publish',{'goal':'contract','audience':'reader'})
+        self.assertEqual(current()['served'],'current')
+
+    def test_diagnostics_missing_unknown_integration_and_withheld(self):
+        f=Fixture();f.update('producer','total');f.update('consumer','total')
+        view=f.call('reading',{'goal':'contract'},'reader')
+        self.assertTrue(all(m['validation_detail']['code']=='check_pending' for m in view['members']))
+        f.call('run_checks',{'goal':'contract','checks':['producer','consumer','exchange']});f.review()
+        f.host['checks']['exchange']['argv']=[sys.executable,'-B','-c','raise SystemExit(1)'];f.persist()
+        f.call('run_checks',{'goal':'contract','checks':['exchange']})
+        view=f.call('reading',{'goal':'contract'},'reader')
+        self.assertTrue(all(m['validation']=='verified' for m in view['members']))
+        self.assertEqual(view['completion'],'incomplete')
+        self.assertEqual(view['integration_detail']['code'],'check_failed')
+        for right in ('source','query','publish'):
+            f.host['principals']['reader']['repositories']['producer']=[r for r in ('source','query','publish') if r!=right];f.persist()
+            view=f.call('reading',{'goal':'contract'},'reader')
+            self.assertEqual(view['integration_detail']['code'],'withheld')
+            self.assertNotIn('producer',json.dumps(view));self.assertNotIn('check_failed',json.dumps(view))
+        f.host['principals']['reader']['repositories']['producer']=['source','query','publish'];f.persist()
+        with patch.object(Store,'documents',side_effect=ValueError('PRIVATE /hidden/member command-output')):
+            view=f.call('reading',{'goal':'contract'},'reader')
+        self.assertTrue(all(m['validation_detail']=={'stage':'documents','code':'evidence_unavailable',
+            'next_action':'ask_host_to_inspect_evidence'} for m in view['members']))
+        self.assertNotIn('PRIVATE',json.dumps(view));self.assertNotIn('/hidden',json.dumps(view))
+
+    def test_diagnostic_change_between_projections_is_rejected(self):
+        f=self.complete();store=Store(f.root/'state',f.host_path,'reader')
+        original=Store.query
+        def changed(instance,value,**kwargs):
+            result=original(instance,value,**kwargs)
+            kwargs['diagnostics']['members']['producer']['code']='check_failed'
+            return result
+        with store.locked(readonly=True),patch.object(Store,'query',changed):
+            with self.assertRaisesRegex(ValueError,'READ_CHANGED'):store.reading({'goal':'contract'})
+
+    def test_dirty_source_then_document_update_pending(self):
+        f=self.complete();repo=f.root/'producer'
+        (repo/'app.py').write_text("value = 'new contract'\n")
+        def detail():
+            view=f.call('reading',{'goal':'contract'},'reader')
+            return next(m['validation_detail'] for m in view['members'] if m['repository']=='producer')
+        self.assertEqual(detail()['code'],'source_dirty')
+        f.git(repo,'add','app.py');f.git(repo,'commit','-qm','New source without document update')
+        self.assertEqual(detail(),{'stage':'documents','code':'documents_pending',
+            'next_action':'update_and_review_documents'})
 
 
 if __name__ == '__main__':
