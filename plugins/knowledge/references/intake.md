@@ -40,6 +40,6 @@ the document to match that code.
 not_evaluated, implementation as not_required (wording) or not_verified, deployment as not_verified.
 For wording edits, retain before/after documents and the local semantic comparison or independent
 AC result before closing document work. For behavior targets, document acceptance never closes
-implementation. Use knowledge:review-knowledge's document AC contract for both cases. No command in
+implementation. Use knowledge:review's document AC contract for both cases. No command in
 this skill promotes a handoff to implemented or deployed. Technical artifacts are not a second
 business ledger.

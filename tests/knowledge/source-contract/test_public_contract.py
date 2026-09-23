@@ -63,6 +63,38 @@ class ContractTests(unittest.TestCase):
         (self.package/'.claude-plugin/plugin.json').write_text('{')
         self.error(self.call('--version',isolated=True),'INPUT_ERROR')
 
+    def test_relation_helpers_preserve_contract_without_automation(self):
+        probe = """import builtins, hashlib, json, os, sys
+from datetime import datetime
+sys.path.insert(0, sys.argv[1])
+original = builtins.__import__
+def load(name, *args, **kwargs):
+    if name == 'automation': raise ImportError('query must not load the host loop')
+    return original(name, *args, **kwargs)
+builtins.__import__ = load
+import multi_repo
+from common import digest, environment, goal_order, now
+assert multi_repo.digest is digest
+assert digest({'b': 2, 'a': '한'}) == hashlib.sha256('{"a":"한","b":2}'.encode()).hexdigest()
+assert goal_order('v2', 'v10') == 1
+assert goal_order('10', '2') == -1
+assert goal_order('v2', 'v2') == 0
+for before, after in [('v2', '3'), ('v02', 'v3'), ('a', 'b')]:
+    try: goal_order(before, after)
+    except ValueError as error: assert str(error).startswith('GOAL_VERSION_ORDER:')
+    else: raise AssertionError('incomparable versions accepted')
+os.environ['GIT_DIR'] = '/untrusted'
+os.environ['KNOWLEDGE_TEST_MARKER'] = 'kept'
+assert 'GIT_DIR' not in environment()
+assert environment()['KNOWLEDGE_TEST_MARKER'] == 'kept'
+assert datetime.fromisoformat(now()).utcoffset().total_seconds() == 0
+print('relation helpers isolated')
+"""
+        result = subprocess.run([sys.executable, '-c', probe, str(self.scripts)],
+                                text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), 'relation helpers isolated')
+
     def test_help_usage_dependency_and_missing_project(self):
         for args in [('--help',),('status','--help')]:
             p=self.call(*args,isolated=True); self.assertEqual(p.returncode,0); self.assertEqual(p.stderr,''); self.assertIn('usage:',p.stdout)
@@ -107,9 +139,9 @@ runpy.run_path(sys.argv[0], run_name='__main__')
             exec(compile("raise ValueError('RUN_PHASE: invalid')",str(self.scripts/'project_service.py'),'exec'))
         except ValueError as error: self.assertEqual(contract.error_code(error),'RUN_PHASE')
         for path in self.scripts.glob('*.py'):
-            # automation.py is a separate host-loop CLI with its own JSON transport;
-            # knowledge.py never imports it or exposes its domain errors.
-            if path.name == 'automation.py':
+            # The host-loop CLI and shared relation helpers have separate error transports;
+            # knowledge.py does not expose their domain errors.
+            if path.name in ('automation.py', 'common.py'):
                 self.assertNotIn(path.name, contract.OWNERS)
                 continue
             for node in ast.walk(ast.parse(path.read_text())):

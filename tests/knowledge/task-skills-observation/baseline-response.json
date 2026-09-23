@@ -1,0 +1,233 @@
+{
+  "evaluation": "Read-only routing and contract interpretation; no product commands, remote calls, document changes, review execution or completion observations performed. Commands are conditional sequences with unresolved coordinates, not execution claims.",
+  "available_entrypoints": [
+    "knowledge:refresh-knowledge",
+    "knowledge:review-knowledge"
+  ],
+  "responses": [
+    {
+      "request": "코드에서 처음 팀 안내 문서를 만들어 주세요.",
+      "id": "Q1",
+      "skills": [
+        "knowledge:refresh-knowledge",
+        "toolkit:writing-for-humans (external dependency)",
+        "knowledge:review-knowledge (independent roles)"
+      ],
+      "sequence": [
+        "Resolve repository, bounded source scope, team reader, purpose, document root and project directory; inspect existing baseline status if any. Freeze original request, pinned commit/source bytes and hashes, required proposition/AC IDs, exclusions, output paths and unknowns in caller-owned bundle.",
+        "Read actual source; invoke separately resolved writer to generate first documents and exact-excerpt/evidence baseline spec. Compare every required item and hash outputs.",
+        "Use document-ac format check, independent content review, fresh document-only reader and independent AC judgment; preserve actual inputs/responses and repairs. Recheck evaluated hashes immediately before handoff.",
+        "Verify Python/Git/SQLite/jsonschema, explicit KNOWLEDGE_WRITER_SKILL and real independent host roles with doctor; knowledge.py --project DIR init --repo REPO --docs DOCS --repository LABEL --baseline COMMIT --path SCOPE --spec SPEC --audience AUDIENCE --purpose PURPOSE. Inspect actual init receipt and status baseline/settings/document bytes."
+      ],
+      "required": [
+        "Missing task-specific repository/scope/reader/purpose/paths must be resolved before execution",
+        "Pinned UTF-8 regular Git source; reviewed baseline spec; exact role evidence; user-owned runtime and exclusive document workspace",
+        "Independent reviewer and document-only reader availability; separately installed toolkit writer"
+      ],
+      "completion": "First evaluated current-knowledge bundle is initialized and its actual documents/baseline/receipt inspected. This does not establish deployment or full repository coverage.",
+      "stop": [
+        "Inaccessible required evidence or unresolved mandatory criterion keeps bundle pending",
+        "Missing role/tool/response is not-executed; init success cannot substitute for semantic review",
+        "Changed hashes require reconciliation and renewed affected review; absent current code routes goal-only proposal rather than fabricated baseline"
+      ]
+    },
+    {
+      "request": "코드 변경을 기존 검토 문서에 반영해 주세요.",
+      "id": "Q2",
+      "skills": [
+        "knowledge:refresh-knowledge",
+        "toolkit:writing-for-humans (when composing replacement prose)",
+        "knowledge:review-knowledge (independent reviewer)"
+      ],
+      "sequence": [
+        "Resolve existing project; read public status and status --run ID for an existing run before doing new work. Pin current/next revisions; preserve authoritative intent with code-change intake and verify code version.",
+        "Run doctor and check host writer/reviewer capabilities. For a new source revision use start --rev COMMIT --intake INTAKE_ID only for confirmed current_documentation intake; inspect returned context, candidates, unlinked changes, full relevant source/documents and indirect effects.",
+        "Author one supported keep/replace/remove decision per existing candidate and justified dispositions for every unlinked change; invoke writer for prose. prepare --run ID --decisions FILE creates immutable packet.",
+        "Delegate complete packet/reader context to actual independent knowledge reviewer; import actual JSON using review --run ID --review FILE. Repair/reprepare/rereview revisions; resume --run ID after exact passing review.",
+        "Inspect final document bytes, public baseline, completion receipt and expected changed/preserved artifacts."
+      ],
+      "required": [
+        "Project directory/run identity and reviewed baseline",
+        "Pinned source/context/intake authority/complete documents and binding coverage",
+        "Writer and actual independent reviewer; runtime and exclusive document workspace"
+      ],
+      "completion": "Recorded run completed only after document verification, receipt inspection and baseline advancement to pinned source; semantic/coverage and environment limits reported separately.",
+      "stop": [
+        "If code contradicts authoritative intent, hand off implementation repair; do not document defect as intended policy",
+        "New claims/documents/scope/consolidation need a separately reviewed successor bootstrap; prepare does not support them",
+        "Missing evidence/owner decision blocks; partial application resumes same run; conflicting bytes preserved; unrecoverable damage may require retirement and reviewed successor"
+      ]
+    },
+    {
+      "request": "준비된 수정안 packet을 독립 검토해 주세요.",
+      "id": "Q3",
+      "skills": [
+        "knowledge:review-knowledge"
+      ],
+      "sequence": [
+        "Obtain full packet including exact packet/plan IDs, audience/purpose, full before/after source, original bindings and full proposed documents; read rubric and response contract.",
+        "Independently assess source_fidelity, decision_coverage, reader_action and uncertainty. For v2 inspect complete intake authority, target criteria and remaining differences; for targets/wording use document-ac authority classes.",
+        "Return exact IDs and fixed JSON keys packet, plan, verdict, checks, findings; concrete findings name document/claim/source. Include concise evidence/execution limits."
+      ],
+      "required": [
+        "Complete actual packet and IDs, full source/documents/reader context",
+        "Reviewer independent of author; no other skill dependency"
+      ],
+      "completion": "Actual plan-bound independent decision returned: pass only four pass checks and no findings; revise for repairable defects, blocked for missing evidence/decisions. No document apply or authorship.",
+      "stop": [
+        "Missing packet/plan ID: request complete packet instead of inventing ID",
+        "Missing required evidence: blocked/unverified; absent reviewer execution recorded as not-executed outside manufactured review JSON",
+        "Changed packet requires new review"
+      ]
+    },
+    {
+      "request": "두 저장소가 묶인 목표에서 하나만 완료됐는지 조회해 주세요.",
+      "id": "Q4",
+      "skills": [
+        "knowledge:refresh-knowledge"
+      ],
+      "sequence": [
+        "Select multi-repository relations procedure; resolve existing relation state, host-controlled config, host-selected principal and goal ID/version.",
+        "Use same configured Python: scripts/multi_repo.py --state STATE --host HOST --principal PRINCIPAL query --input GOAL_JSON where input names goal. Inspect authorized current member/goal validation and evidence identities.",
+        "Report which visible member is currently verified and which is incomplete/withheld; distinguish member verification from all-required-members plus whole integration review completion."
+      ],
+      "required": [
+        "Existing relation state/goal identity and trusted host config/principal",
+        "Current clean pinned sources, baseline/document bindings, actual checks and independent attestations backing derived status",
+        "source plus query permission; goal access for goal status/counts"
+      ],
+      "completion": "Read-only current authorized status observation answering partial completion; no new check, review, attestation, refresh or publication required solely to query.",
+      "stop": [
+        "No goal/state coordinates: cannot execute query until resolved",
+        "Hidden members remain required and only permitted counts/metadata are exposed; do not infer hidden IDs or shrink membership",
+        "Dirty source, drift, missing artifacts or stale evidence prevents whole-completion claim; query failure is not a completion result"
+      ]
+    },
+    {
+      "request": "이미 검토된 문서로 로컬 웹 위키를 보여 주세요.",
+      "id": "Q5",
+      "skills": [
+        "knowledge:refresh-knowledge",
+        "toolkit:writing-for-humans (only if organizing/rewriting prose)",
+        "knowledge:review-knowledge (if content changes or required evaluation missing)"
+      ],
+      "sequence": [
+        "Read knowledge-wiki procedure; resolve reviewed canonical Markdown, source revision, reader tasks and review evidence; keep evaluation artifacts out of normal reading path. Reuse reviewed bodies; freeze manifest/page routes/evidence states.",
+        "Resolve Node.js 20+ and pinned markdown-it runtime in unused user-owned directory outside plugin cache; reuse valid existing runtime or obtain dependency-setup authorization before npm ci network operation.",
+        "Run scripts/wiki/build.mjs CONTENT NEW_SITE RUNTIME/node_modules/markdown-it; inspect result then check.mjs CONTENT/manifest.json NEW_SITE (with --observed-revision REV only from actual observation). Serve only passing output using server.mjs NEW_SITE 8769; open printed loopback URL.",
+        "Observe browser routes, search hits/empty state, unknown route, keyboard, anchors and narrow/wide/resize against exact output. Apply document-ac if missing; procedure also calls for a real source-change propagation replay through independent review/application and HTML/search regeneration; record whether executed or outside available evidence."
+      ],
+      "required": [
+        "Reviewed exact document bytes and provenance; valid manifest and existing relative heading links",
+        "Node 20+, pinned runtime, new output directory, actual browser access",
+        "Actual independent review/reader records; before/after source and authorized project route if change replay is to be established"
+      ],
+      "completion": "Local preview of reviewed fixed content, passing build/check and actual browser observations; report content version, output, reader/browser results, change-propagation result and unverified scope separately. Not remote publication, watcher or automatic freshness.",
+      "stop": [
+        "Failed build may leave partial files: inspect and choose new output without unauthorized deletion",
+        "Changed content needs affected semantic review; build integrity never supplies it",
+        "Cannot claim interactions/change propagation without actual observations; missing dependency authorization or required review evidence remains explicit"
+      ]
+    },
+    {
+      "request": "자동화 작업 응답이 유실됐습니다. 이어서 처리해 주세요.",
+      "id": "Q6",
+      "skills": [
+        "knowledge:refresh-knowledge",
+        "knowledge:review-knowledge and toolkit:writing-for-humans only if the recovered pending role requires them"
+      ],
+      "sequence": [
+        "Resolve original automation state/project/execution and preserve raw lost-call evidence; read automation status and linked knowledge.py status --run ID.",
+        "Call automation next to reconcile same public run; inspect exact pending task ID/prompt hash/role/attempt. Query the original host call before any redispatch; never create replacement state or duplicate implementation on unknown outcome.",
+        "If real result is recovered, preserve actor/tool/call identities, timestamps, exact raw JSON and matching response in receipt; accept --input RECEIPT then next. If failure established, fail --input with task_id, class, evidence and outcome not_executed or unknown.",
+        "Known-unexecuted model/transport permits bounded retry (at most three attempts per role); permission/service waits for repair. After repair resume --execution ID then next. Unknown outcome retains exact pending barrier until actual result or proven nonexecution.",
+        "Continue host loop with proper role separation until idle/stopped/named evidence-authority wait; inspect actual project documents, receipt and baseline before completion."
+      ],
+      "required": [
+        "Original state/project paths; task/execution identity and raw host call lookup",
+        "Real receipts, scope authority and original ownership; runtime-only recovery may proceed without writer for review/resume",
+        "Independent host roles only when their pending operation is actually needed"
+      ],
+      "completion": "Same execution reconciled and its actual document/implementation statuses reported separately, or specific unresolved wait retained. idle alone is not deployment proof.",
+      "stop": [
+        "Unknown implementation outcome prohibits replacement call even after successor or resume",
+        "Missing actual response cannot be replaced by synthetic successful receipt",
+        "Permission/service/policy waits or exhausted attempts remain pending; preserve conflicts and unexplained termination reason; do not remove ownership reservation"
+      ]
+    },
+    {
+      "request": "아직 코드도 승인도 없는 목표 초안을 정리해 주세요.",
+      "id": "Q7",
+      "skills": [
+        "knowledge:refresh-knowledge",
+        "toolkit:writing-for-humans",
+        "knowledge:review-knowledge (document-ac roles)"
+      ],
+      "sequence": [
+        "Use bootstrap goal-only bundle; freeze original draft, actual user request, problem/constraints, reader/purpose, stable logical goal ID/content version, source absence, assumptions and unresolved decisions.",
+        "Compose explicitly local proposal with actionable intended outcomes, conditions/exceptions, draft acceptance and remaining implementation differences. Do not treat the request to organize as approval to implement its contents.",
+        "Compare required items and independently evaluate proposal document quality using document-ac roles with original constraints/authority and fresh document-only reader; preserve results separately from packet JSON since no packet/plan exists.",
+        "Recheck hashes and retain local documents plus pending approval/evidence. Use proposed intake only if its actual authority requirements are met; no authority fabrication or baseline initialization."
+      ],
+      "required": [
+        "Actual draft or enough stated goal/problem constraints, reader and purpose (not supplied in this short request)",
+        "Recorded absent-code state distinct from inaccessible evidence",
+        "External writer and actual independent evaluation roles for evaluated bundle"
+      ],
+      "completion": "Organized local proposal and explicit unresolved decisions with separate document-quality outcome; target remains unapproved and implementation/deployment unverified.",
+      "stop": [
+        "If no substantive draft/problem is available, request it rather than invent target",
+        "Missing authority/unclear scope is indeterminate; absent roles not-executed",
+        "Do not create approved target, current-code baseline or implementation handoff from drafting authorization alone"
+      ]
+    },
+    {
+      "request": "권한이 철회된 뒤 기존 관리형 위키의 본문을 보고 싶습니다.",
+      "id": "Q8",
+      "skills": [
+        "knowledge:refresh-knowledge"
+      ],
+      "sequence": [
+        "Use multi-repository managed read procedure; resolve existing state, host config, current host-selected principal and goal.",
+        "Call scripts/multi_repo.py --state STATE --host HOST --principal PRINCIPAL wiki --input GOAL_JSON through trusted host so current permission configuration is reread.",
+        "Inspect authorized projection/status/publication history; if revoked permissions prevent access, report the unavailable/partial boundary and omit protected bodies. Do not bypass via private objects/indexes, previous export or another principal."
+      ],
+      "required": [
+        "Trusted current host configuration and authentic host-selected principal",
+        "Wiki bodies require source/query/publish permissions and latest successful matching publication with goal complete",
+        "Existing state and goal coordinates"
+      ],
+      "completion": "Current permission-aware response observed; revoked content is not served. A request to view cannot restore grants, and earlier publication cannot authorize current read.",
+      "stop": [
+        "Missing grants: stop protected-body access and hand off to actual host authority for any access restoration",
+        "Required membership is not reduced by revocation; expose only allowed goal counts/diagnostics",
+        "Previously copied static exports cannot revoke themselves; do not represent them as compliant managed current reads"
+      ]
+    }
+  ],
+  "files_read": [
+    "/private/tmp/knowledge-task-evidence/questions.json",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/skills/refresh-knowledge/SKILL.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/skills/review-knowledge/SKILL.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/project.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/bootstrap.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/intake.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/workflow.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/automation.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/multi-repo.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/knowledge-wiki.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/source-contract.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/updates.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/maintenance.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/implementation.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/references/cli-contract.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/skills/review-knowledge/references/rubric.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/skills/review-knowledge/references/response.md",
+    "/private/tmp/skills-knowledge-plugin/plugins/knowledge/skills/review-knowledge/references/document-ac.md"
+  ],
+  "limits": [
+    "toolkit writer dependency recognized from package contracts; its files were not read in this bounded package evaluation.",
+    "Executable/schema internals not inspected; exact authoring JSON beyond supplied reference examples remains to be validated against authoritative shapes when executing.",
+    "Some references in initial combined read were truncated; automation and workflow were subsequently reread in full."
+  ]
+}

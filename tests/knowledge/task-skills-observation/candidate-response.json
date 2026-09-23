@@ -1,0 +1,209 @@
+{
+  "evaluation_scope": "문서만 읽은 routing/contract 해석. 제품 명령, 모델 역할 실행, 외부 호출, 소스 수정은 하지 않음.",
+  "prototype_limitations": [
+    "candidate 파일 목록에 scripts/, contracts/ 및 package runtime이 없어 knowledge.py, automation.py, multi_repo.py, wiki build/check/server, requirements/schema를 실행·검증할 수 없음. 위 sequence는 문서에 명시된 실행 계약이며 실제 실행 결과가 아님.",
+    "intake 및 multi-repo의 정확한 schema는 부재한 executable에 위임되어 있으므로 필드를 추정한 실행 입력은 생성하지 않음. 외부 writing capability와 독립 역할의 실제 작동도 확인되지 않음."
+  ],
+  "answers": [
+    {
+      "id": "Q1",
+      "skills": [
+        "knowledge:bootstrap",
+        "toolkit:writing-for-humans",
+        "knowledge:review"
+      ],
+      "sequence": [
+        "독자·목적·저장소·범위를 확정하고 원요청, 커밋, 실제 소스, 제외 범위, 필수 명제/AC, 출력 경로를 호출자 소유 번들에 고정한다.",
+        "실제 코드로 현재 동작 문서와 정확한 발췌/파일 근거를 가진 baseline spec을 작성하고 모든 필수 항목을 대조한다.",
+        "독립 내용 검토, 문서만 받는 새 독자 실행, 독립 AC 판정을 실시하고 실제 입력/응답/해시/실패·수정 기록을 보존한다.",
+        "doctor와 실제 호스트 역량 확인 후 평가된 바이트를 재확인하고 별도 프로젝트에 init한다. 반환 receipt와 public status의 설정·baseline 및 문서/spec 바이트를 비교한다."
+      ],
+      "evidence_dependencies": [
+        "고정 Git 소스, 독자 질문/기준, 정확한 evidence excerpt, 외부 writing 스킬, 독립 reviewer/reader",
+        "Python 3.10+, Git, SQLite, pinned jsonschema, 독점 문서 workspace, 실제 init/status receipt"
+      ],
+      "completion": "해당 코드·독자·범위의 독립 평가가 통과하고 프로젝트 baseline/문서가 평가된 결과와 일치함을 확인한 최초 문서 번들. 구현/배포 완료는 아님.",
+      "stop_handoff": [
+        "필수 코드 접근 불가, 필수 기준 미충족, 역할/응답 부재는 pending/not-executed.",
+        "이미 검토된 baseline이 있으면 update로 전환. 변경된 입력/바이트는 새 버전으로 재평가."
+      ]
+    },
+    {
+      "id": "Q2",
+      "skills": [
+        "knowledge:update",
+        "toolkit:writing-for-humans",
+        "knowledge:review"
+      ],
+      "sequence": [
+        "project status 및 기존 run의 status --run과 handoff를 읽고 baseline/새 커밋/원래 권한을 확인한다.",
+        "intake에 실제 코드 근거와 current/target/differences를 기록한다. current_behavior의 commit과 start --rev COMMIT --intake ID를 일치시킨다.",
+        "doctor와 writing/독립 review 역량을 확인하고 context의 실제 소스·전체 문서를 읽는다. 모든 후보에 정확히 한 keep/replace/remove 결정, 모든 unlinked 변경에 근거 있는 disposition을 작성한다.",
+        "prepare가 반환한 완전한 packet을 독립 reviewer에게 제공하고 실제 응답을 review로 가져온다. 수정 시 새 prepare와 독립 review를 반복한다.",
+        "기록된 pass 후 동일 run의 resume으로 적용하고 결과 문서, completion artifact, baseline 및 예상 영향 범위를 대조한다."
+      ],
+      "evidence_dependencies": [
+        "기존 reviewed baseline, 전후 pinned source와 full documents, intake authority/version, exact impact/candidate/packet/plan IDs",
+        "writer와 independent reviewer, 실제 review response, runtime 및 적용 전 문서 바이트"
+      ],
+      "completion": "검토된 해당 문서 변경의 적용과 baseline 전진을 결과 상태에서 확인. 구현·배포는 별도이며 남은 차이와 범위 제한을 보고.",
+      "stop_handoff": [
+        "baseline이 없으면 bootstrap. 새 claim/문서·범위 변경은 reviewed successor bootstrap.",
+        "코드가 승인 의도와 모순되면 문서를 코드에 맞춰 왜곡하지 말고 implementation handoff.",
+        "손상 artifact/제3자 문서 충돌은 보존 후 recovery. applying은 같은 run 재개; 미확인 정책·필수 근거는 blocked."
+      ]
+    },
+    {
+      "id": "Q3",
+      "skills": [
+        "knowledge:review"
+      ],
+      "sequence": [
+        "rubric/response를 적용하고 완전한 caller-supplied packet과 실제 packet/plan ID, 전후 소스, binding, 전체 수정 문서, audience/purpose를 받는다.",
+        "작성자와 독립적으로 유지된 주장과 문맥까지 읽고 source_fidelity, decision_coverage, reader_action, uncertainty를 판정한다. v2 intake 전체 authority/acceptance/differences도 확인한다.",
+        "정확한 packet/plan을 가진 지정 JSON(checks 4개와 findings)을 반환하고 증거·실행 제한을 명시한다."
+      ],
+      "evidence_dependencies": [
+        "완전한 packet과 pinned evidence; target/wording/document AC 해당 시 document-ac 권한 분류",
+        "실제 독립 리뷰 실행. 별도 authoring 스킬은 필요 없음"
+      ],
+      "completion": "동일 packet/plan에 바인딩된 독립 판정 반환까지만. author/apply/publish 없음.",
+      "stop_handoff": [
+        "ID가 없으면 완전한 packet 요청; ID를 만들지 않는다.",
+        "증거/owner decision 부족은 blocked+unverified; 고칠 결함은 revise. 네 checks가 모두 pass이고 findings가 비어야 pass. 변경 packet은 새 전체 검토."
+      ]
+    },
+    {
+      "id": "Q4",
+      "skills": [
+        "knowledge:query"
+      ],
+      "sequence": [
+        "기존 relation state, host 설정, host-selected principal과 goal ID를 확인한다.",
+        "multi_repo.py --state PATH --host HOST --principal PRINCIPAL query --input INPUT을 사용한다. 입력은 goal ID이며 필요하면 literal text만 추가한다.",
+        "반환된 현재 authorized projection의 각 접근 가능 member와 통합 검증 상태를 읽고 current source, target, document review, implementation verification을 구분한다."
+      ],
+      "evidence_dependencies": [
+        "기존 relation/goal version, 현재 host authorization, source/check/document/review identities와 authorized locators",
+        "read runtime; writer dependency는 요구하지 않음"
+      ],
+      "completion": "한 member만 verified인지 현재 접근 가능한 근거로 답하고 goal/source 버전, index/read 상태, 누락 범위를 보고. 두 필수 member와 integration이 모두 충족되지 않으면 전체 완료는 아님.",
+      "stop_handoff": [
+        "숨겨진 member는 required에서 제거하지 않고 허용된 count만 보고한다. 숨겨진 ID/본문/경로는 노출하지 않는다.",
+        "state 부재·stale index는 그대로 보고한다. 조회 요청으로 init/refresh/check/attest/publish를 하지 않는다. 설치/설정 작업이 실제 요청된 경우만 operate로 넘긴다."
+      ]
+    },
+    {
+      "id": "Q5",
+      "skills": [
+        "knowledge:wiki"
+      ],
+      "sequence": [
+        "선택된 공유 가능한 canonical reviewed 문서와 manifest, 독자 목적, source revision, 실제 review 증거를 확인한다.",
+        "새 외부 runtime/output 경로를 정하고 Node 20+ 및 pinned markdown runtime을 승인된 방식으로 준비한다. 설치 cache와 입력은 보존한다.",
+        "build.mjs content new-site markdown-it, check.mjs manifest new-site를 실행하고 성공 결과만 server.mjs로 loopback에 제공한다. 독립 관측 source revision이 있으면 checker와 비교한다.",
+        "브라우저에서 route/search/empty/unknown route, keyboard, heading links, narrow/wide/resize를 관찰하고 exact output에 묶는다. 문서 AC/실제 변경 replay 검증은 수행 증거가 있는 범위만 기록한다."
+      ],
+      "evidence_dependencies": [
+        "reviewed Markdown와 manifest, review/source version, build receipt, Node 20+, pinned package manifests, 실제 browser capability",
+        "독자 평가가 요구될 경우 document-ac 역할과 기록; 변경 전파를 주장하려면 실제 독립 검토·적용·재렌더링 replay"
+      ],
+      "completion": "검토 콘텐츠 버전과 build/check 바이트, loopback URL 및 실제 브라우저 관찰을 제시하는 로컬 preview. 미실행 reader/replay 항목은 미검증으로 보고하며 live implementation/currentness/remote deployment를 주장하지 않음.",
+      "stop_handoff": [
+        "콘텐츠 신규 작성/갱신 필요 시 bootstrap/update의 reviewed output으로 돌아온다.",
+        "build 실패 partial 파일은 검사하고 새 output으로 재시도; 삭제는 별도 경계.",
+        "기존 managed body 읽기는 query로 전환. 접근 거절된 body를 static export로 우회하지 않는다. 원격 게시 별도 승인."
+      ]
+    },
+    {
+      "id": "Q6",
+      "skills": [
+        "knowledge:operate"
+      ],
+      "sequence": [
+        "원래 automation state와 연결된 project status --run, 저장된 pending task 및 실제 original host call 기록을 먼저 검사한다.",
+        "next로 같은 public run/command outcome을 reconcile한다. 반복 next의 같은 task는 새 호출 허가가 아니므로 원호출에서 실제 응답을 조회한다.",
+        "응답을 복구하면 정확한 task_id/prompt_sha256, 실제 actor/tool/call/timestamps/raw JSON과 parsed response를 보존하여 accept하고 next한다.",
+        "실패면 실제 evidence와 class/outcome(not_executed 또는 unknown)을 fail로 기록한다. 수리 후 같은 execution에 resume, next. 알려진 미실행 model/transport만 역할당 최대 3회 제한된 재시도한다.",
+        "idle/stopped/이름 있는 wait까지 실제 host loop를 계속하며 author/reviewer/implementer 분리를 유지한다."
+      ],
+      "evidence_dependencies": [
+        "원 state/project/task/run/call identity와 권한, 저장 prompt hash, 실제 host raw response 및 기존 receipt",
+        "실제 독립 에이전트 기능, runtime, 명시 승인된 checks와 그 실제 결과"
+      ],
+      "completion": "실제 execution status와 pending task/next action, failure evidence, 별도 document/implementation 결과를 확인·보고. response loss 자체를 성공이나 미실행으로 추정하지 않음.",
+      "stop_handoff": [
+        "unknown outcome은 같은 pending task와 writer barrier를 유지; replacement writer, prompt hash 재작성, 중복 project 생성 금지.",
+        "permission/service는 repair wait, 실제 policy/새 권한은 named wait. 예산 소진 무한 retry 없음.",
+        "stop은 다음 boundary에서 멈추며 in-flight call 취소/rollback 아님. docs authoring은 update, independent judgment는 review에 위임."
+      ]
+    },
+    {
+      "id": "Q7",
+      "skills": [
+        "knowledge:bootstrap",
+        "toolkit:writing-for-humans",
+        "knowledge:review"
+      ],
+      "sequence": [
+        "코드 부재를 inaccessible과 구분하여 goal-only 번들을 고정한다. 실제 초안/원요청, goal ID와 content version, 독자/목적, 가정·미결정·testable acceptance를 보존한다.",
+        "미승인 목표를 proposal로 명시한 로컬 문서를 작성한다. 현재 동작/승인 target으로 표현하지 않는다.",
+        "document-ac의 proposal authority 기준으로 형식·독립 내용 검토·문서-only reader·독립 판정을 보존한다. packet/plan이 없으면 별도 AC 기록을 쓴다.",
+        "필수 미결정은 pending으로 남기고 로컬 proposal 및 필요한 결정/근거를 인계한다. intake authority 조건이 실제 충족될 때만 proposed intake를 사용한다."
+      ],
+      "evidence_dependencies": [
+        "정확한 제안 원문, 문제/제약 근거, 버전·해시, frozen AC와 예상 unknown 처리",
+        "writing capability와 실제 independent evaluation 역할; code absent를 명시"
+      ],
+      "completion": "제안 문서의 평가 범위만 보고하며 승인/현재 baseline/구현 완료를 주장하지 않는다. unresolved mandatory decision이 있으면 bundle pending.",
+      "stop_handoff": [
+        "문서 정리 권한을 목표 승인으로 바꾸지 않는다. 승인 authority를 꾸며 intake에 맞추지 않는다.",
+        "필수 코드가 사실은 inaccessible이면 missing evidence로 멈춘다. 추후 실제 승인 target은 intake 및 implementation handoff."
+      ]
+    },
+    {
+      "id": "Q8",
+      "skills": [
+        "knowledge:query"
+      ],
+      "sequence": [
+        "기존 state/host/host-selected principal과 goal을 사용하여 multi_repo.py wiki의 managed read를 실행한다.",
+        "매 호출 새로 읽힌 권한의 projection을 따르고 현재 publication/projection 일치 및 전체 goal 완료 조건을 확인한다.",
+        "철회로 body가 withheld되면 허용되는 diagnostic status/count와 served unavailable_or_partial 결과만 설명한다."
+      ],
+      "evidence_dependencies": [
+        "현재 host grants와 기존 managed publication/goal version; wiki body에는 source+query+publish 모두 필요",
+        "public managed read result; private object/index 내용은 읽지 않음"
+      ],
+      "completion": "현재 허용된 읽기 결과 또는 본문 제공 불가 사유·상태를 보고하는 read boundary. 철회된 본문 제공이나 재게시를 완료로 삼지 않음.",
+      "stop_handoff": [
+        "private objects/indexes, 예전 static 복사본, 다른 principal로 권한 우회 금지.",
+        "권한 변경이나 publish/refresh를 요청에 포함된 것으로 추정하지 않는다. Static export는 이미 복사 후 회수할 수 없다는 한계가 현재 body 공개 허가가 되지 않음."
+      ]
+    }
+  ],
+  "files_read": [
+    "/private/tmp/knowledge-task-evidence/questions.json",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/bootstrap/SKILL.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/update/SKILL.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/wiki/SKILL.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/operate/SKILL.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/review/SKILL.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/query/SKILL.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/bootstrap.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/project.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/query.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/automation.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/knowledge-wiki.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/intake.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/source-contract.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/updates.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/workflow.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/multi-repo.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/cli-contract.md",
+    "/private/tmp/knowledge-task-evidence/candidate/references/maintenance.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/review/references/rubric.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/review/references/response.md",
+    "/private/tmp/knowledge-task-evidence/candidate/skills/review/references/document-ac.md"
+  ]
+}

@@ -1,9 +1,12 @@
 # Transition from toolkit
 
 Read this when changing an executable locator or skill name from a toolkit knowledge install.
-The source marketplace now supplies `knowledge:refresh-knowledge` and
-`knowledge:review-knowledge`. Toolkit retains `writing-for-humans`; it contains no forwarding
-knowledge runtime. Existing released caches remain untouched until a separately authorized update.
+The source marketplace supplies six direct entrypoints: `knowledge:bootstrap` for first
+baselines, `knowledge:update` for existing knowledge changes, `knowledge:review` for independent
+judgment, `knowledge:query` for reads, `knowledge:wiki` for presentation, and `knowledge:operate`
+for automation and relation operations. The former `refresh-knowledge` entrypoint maps by task;
+`review-knowledge` maps to `knowledge:review`. Toolkit retains `writing-for-humans`; it contains
+no forwarding knowledge runtime. Existing released caches remain untouched until a separately authorized update.
 
 ## Select the package and capabilities
 

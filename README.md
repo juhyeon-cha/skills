@@ -66,8 +66,17 @@ Stop(원장에 진행 중인 일이 남았는데 세션이 멈추려 하면 되�
 
 ## knowledge 사용법
 
-`knowledge:refresh-knowledge`는 초기 구성·변경 반영·조회·위키의 기존 절차를 제공하고,
-`knowledge:review-knowledge`는 독립 검토를 맡습니다. 실행 코드와 계약은 플러그인 루트가 소유합니다.
+작업에 맞는 진입점을 직접 호출합니다. 실행 코드와 계약은 플러그인 루트가 소유합니다.
+
+| 스킬 | 작업 |
+|---|---|
+| `knowledge:bootstrap` | 코드 또는 목표에서 첫 검토된 지식 구성 |
+| `knowledge:update` | 기존 지식 변경 반영과 중단된 갱신 재개 |
+| `knowledge:review` | 수정안·문서의 독립 검토 |
+| `knowledge:query` | 현재 근거·목표·부분 완료 및 기존 관리 위키 조회 |
+| `knowledge:wiki` | 검토된 문서의 로컬 웹 화면 구성 |
+| `knowledge:operate` | 자동화·저장소 관계 설정과 실행·복구 |
+
 작성에는 별도로 설치한 `toolkit:writing-for-humans`를 사용합니다.
 [전환 안내](plugins/knowledge/references/transition.md)와 [후속 고도화 계획](docs/initiatives/code-driven-knowledge/plugin-evolution.md)을 확인하세요.
 

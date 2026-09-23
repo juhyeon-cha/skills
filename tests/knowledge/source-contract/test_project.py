@@ -20,7 +20,7 @@ class InstalledProjectTests(unittest.TestCase):
         cls.addClassCleanup(cls.package.cleanup)
         cls.installed = Path(cls.package.name) / 'knowledge'
         shutil.copytree(PLUGIN, cls.installed, ignore=shutil.ignore_patterns('__pycache__'))
-        cls.skill = cls.installed / 'skills/refresh-knowledge'
+        cls.skill = cls.installed / 'skills/update'
         cls.cli_path = cls.installed / 'scripts/knowledge.py'
         cls.writer = (Path(cls.package.name) / 'external-writer').resolve()
         shutil.copytree(PLUGIN.parent / 'toolkit/skills/writing-for-humans', cls.writer)
@@ -83,8 +83,8 @@ class InstalledProjectTests(unittest.TestCase):
     def without_authoring_skills(self):
         isolated = self.root / 'runtime-only-toolkit'
         shutil.copytree(self.installed, isolated)
-        skill = isolated / 'skills/review-knowledge'
-        skill.rename(skill.with_name('review-knowledge.held'))
+        skill = isolated / 'skills/review'
+        skill.rename(skill.with_name('review.held'))
         self.writer_path = self.root / 'absent-writer'
         self.cli_path = isolated / 'scripts/knowledge.py'
 
@@ -551,7 +551,7 @@ sys.exit(knowledge.main())
         isolated = self.root / 'incomplete-toolkit'
         shutil.copytree(self.installed, isolated)
         # Move, rather than destroy, a required fixture dependency.
-        required = isolated / 'skills/review-knowledge/SKILL.md'
+        required = isolated / 'skills/review/SKILL.md'
         required.rename(required.with_suffix('.missing'))
         original = self.cli_path
         self.cli_path = isolated / 'scripts/knowledge.py'
@@ -618,7 +618,10 @@ with patch.object(sqlite3, 'connect', without_function):
     def test_skill_local_references_and_package_registration(self):
         import re
         manifest = json.loads((self.installed / '.claude-plugin/plugin.json').read_text())
-        for name in ['refresh-knowledge', 'review-knowledge']:
+        names = ['bootstrap', 'update', 'review', 'query', 'wiki', 'operate']
+        self.assertEqual(set(manifest['skills']), {'./skills/' + name for name in names})
+        self.assertEqual({p.name for p in (self.installed / 'skills').iterdir()}, set(names))
+        for name in names:
             self.assertIn('./skills/' + name, manifest['skills'])
             skill = self.installed / 'skills' / name
             for file in skill.rglob('*.md'):
