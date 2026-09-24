@@ -337,6 +337,10 @@ def register_commands(parser):
     init.add_argument('--notes', type=Path, help='Canonical personal note directory, outside the notebook DB')
     init.add_argument('--source', required=True)
     init.add_argument('--audience', choices=sorted(AUDIENCES), required=True)
+    status = sub.add_parser('status')
+    status.add_argument('--source', required=True)
+    status.add_argument('--publication', type=Path, required=True)
+    status.add_argument('--collection', type=Path)
     refresh = sub.add_parser('refresh-sap')
     refresh.add_argument('--plan', type=Path, required=True)
     refresh.add_argument('--output', type=Path, required=True)
@@ -373,6 +377,9 @@ def execute(args):
     command = args.notebook_command
     if command == 'init':
         return initialize(args.project, args.source, args.audience, args.notes)
+    if command == 'status':
+        from notebook_status import status
+        return status(args.project, args.source, args.publication, args.collection)
     if command == 'refresh-sap':
         from sap_refresh import refresh
         return refresh(args.project, args.plan, args.output)

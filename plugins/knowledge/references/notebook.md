@@ -5,6 +5,9 @@ that must survive recollection outside Git. Git projects keep their existing
 bootstrap/update contracts. This notebook is a separate local-owner store, not a
 replacement for `multi_repo` permissions or its managed publication.
 
+For the installed SAP Harness “내 지식” screen or its copied handoff, read
+[desktop connection](desktop.md).
+
 ## Select purpose and authority
 
 Distinguish the product user from its developer, independently of job title. An

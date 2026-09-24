@@ -121,7 +121,7 @@ print(json.dumps(state['after' if (base / 'collected').exists() else 'before']))
         handoff = json.loads((self.output / 'handoff.json').read_text())
         self.assertEqual(handoff['documents'][0]['id'], doc)
         self.assertTrue(handoff['collection_ok'])
-        self.assertFalse((self.project / 'sap-refresh.lock').exists())
+        self.assertTrue((self.project / 'sap-refresh.lock').is_file())
 
     def test_exporter_upgrade_preserves_old_provenance_and_attributes_new_capture(self):
         evidence, doc, note = self.seed()
@@ -148,7 +148,7 @@ print(json.dumps(state['after' if (base / 'collected').exists() else 'before']))
         self.refresh(code=1, error=True)
         self.assertEqual(self.read(), original)
         self.assertNotIn('collect', [args[1] for args in self.calls()])
-        self.assertFalse((self.project / 'sap-refresh.lock').exists())
+        self.assertTrue((self.project / 'sap-refresh.lock').is_file())
 
     def test_partial_nonzero_is_imported_but_public_exit_is_failure(self):
         self.seed()
@@ -188,12 +188,25 @@ print(json.dumps(state['after' if (base / 'collected').exists() else 'before']))
     def test_concurrent_lock_refuses_without_importing_or_collecting(self):
         self.project.mkdir()
         lock = self.project / 'sap-refresh.lock'
-        lock.write_text('existing runner')
-        self.refresh(code=1, error=True)
-        self.assertEqual(lock.read_text(), 'existing runner')
-        self.assertFalse((self.project / 'observations.sqlite').exists())
-        self.assertNotIn('collect', [args[1] for args in self.calls()])
-        self.assertFalse(self.output.exists())
+        script = ROOT / 'plugins/knowledge/scripts'
+        child = subprocess.Popen([sys.executable, '-c',
+            "import sys,time; from pathlib import Path; sys.path.insert(0,sys.argv[1]); "
+            "from sap_refresh import refresh_lock; "
+            "ctx=refresh_lock(Path(sys.argv[2])); ctx.__enter__(); print('locked',flush=True); time.sleep(30)",
+            str(script), str(self.project)], stdout=subprocess.PIPE, text=True)
+        try:
+            self.assertEqual(child.stdout.readline().strip(), 'locked')
+            self.refresh(code=1, error=True)
+            self.assertFalse((self.project / 'observations.sqlite').exists())
+            self.assertNotIn('collect', [args[1] for args in self.calls()])
+            self.assertFalse(self.output.exists())
+        finally:
+            child.kill()
+            child.wait(timeout=5)
+            child.stdout.close()
+        # A terminated process leaves the file but no kernel lock; no manual recovery.
+        self.refresh()
+        self.assertTrue((self.output / 'collection.json').exists())
 
     def test_existing_output_refuses_without_importing_or_collecting(self):
         self.output.mkdir()
@@ -250,6 +263,35 @@ print(json.dumps(state['after' if (base / 'collected').exists() else 'before']))
         scope.write_text(json.dumps(dict(version=1, source=SOURCE, audience='developer')))
         self.run_cli(*args, '--output', publication / 'foreign', code=1, error=True)
         self.assertFalse((publication / 'foreign').exists())
+
+    @unittest.skipUnless(os.environ.get('WIKI_MARKDOWN_IT_MODULE'), 'markdown-it runtime not supplied')
+    def test_desktop_status_distinguishes_collection_writing_review_and_publication(self):
+        self.run_cli('init', '--source', SOURCE, '--audience', 'user')
+        publication = self.base / 'desktop-wiki'
+        args = ('status', '--source', SOURCE, '--publication', publication)
+        self.assertEqual(self.run_cli(*args)['stage'], 'empty')
+        _, doc, _ = self.seed()
+        self.assertEqual(self.run_cli(*args)['stage'], 'publish')
+        self.run_cli('wiki', '--source', SOURCE, '--output', publication / 'first', '--publish', publication,
+                     '--node', shutil.which('node'), '--markdown-it', os.environ['WIKI_MARKDOWN_IT_MODULE'])
+        current = self.run_cli(*args)
+        self.assertEqual(current['stage'], 'complete')
+        self.assertTrue(current['has_wiki'])
+        self.assertIsNotNone(current['last_published_at'])
+        self.refresh()
+        status = self.run_cli(*args, '--collection', self.output / 'collection.json')
+        self.assertEqual(status['stage'], 'writing')
+        self.assertTrue(status['has_wiki'])
+        value = self.read()['documents'][0]['value']
+        evidence = self.read()['observations'][0]['id']
+        revised = self.append('document', {**value, 'previous': doc, 'evidence': [evidence]})['id']
+        self.assertEqual(self.run_cli(*args)['stage'], 'review')
+        self.append('review', dict(document=revised, reviewer='independent', verdict='pass', reason='Synthetic fixture only'))
+        self.assertEqual(self.run_cli(*args)['stage'], 'publish')
+        failure = self.base / 'failed-collection.json'
+        failure.write_text(json.dumps(dict(source=SOURCE, ok=False)))
+        self.assertEqual(self.run_cli(*args, '--collection', failure)['stage'], 'collection_failed')
+        self.assertTrue(self.run_cli(*args, '--collection', failure)['has_wiki'])
 
 
 if __name__ == '__main__':

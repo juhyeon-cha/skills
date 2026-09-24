@@ -1,5 +1,7 @@
 """Explicit, bounded SAP recollection followed by notebook import and writer handoff."""
 import json
+import os
+from contextlib import contextmanager
 from pathlib import Path
 import subprocess
 from datetime import datetime, timezone
@@ -43,6 +45,31 @@ def exported(plan, item):
     return value
 
 
+@contextmanager
+def refresh_lock(root):
+    # Keep this file: unlinking a locked inode would let another writer bypass it.
+    lock = safe_path(root / 'sap-refresh.lock')
+    with lock.open('a+b') as file:
+        if os.name == 'nt':
+            import msvcrt
+            if file.tell() == 0:
+                file.write(b'0')
+                file.flush()
+            file.seek(0)
+            msvcrt.locking(file.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        try:
+            yield
+        finally:
+            if os.name == 'nt':
+                file.seek(0)
+                msvcrt.locking(file.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(file.fileno(), fcntl.LOCK_UN)
+
+
 def refresh(root, plan_path, output):
     plan = validate_plan(json.loads(plan_path.read_text(encoding='utf-8')))
     root, output = safe_path(root), safe_path(output)
@@ -51,11 +78,7 @@ def refresh(root, plan_path, output):
     # Inspect all selected objects before the first network request. No guessed identities.
     before = {item['id']: exported(plan, item) for item in plan['objects']}
     root.mkdir(parents=True, exist_ok=True, mode=0o700)
-    lock = root / 'sap-refresh.lock'
-    safe_path(lock)
-    with lock.open('x'):
-        pass
-    try:
+    with refresh_lock(root):
         output.mkdir(parents=True, exist_ok=False, mode=0o700)
         existing = []
         if (root / 'observations.sqlite').exists():
@@ -103,8 +126,6 @@ def refresh(root, plan_path, output):
         report['scope'] = 'One bounded refresh; no scheduler or automatic semantic approval. See collection.json even when prior documents remain current.'
         (output / 'collection.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
         return report
-    finally:
-        lock.unlink()
 
 
 def wiki(root, source, output, node, markdown_it, publish=None):
@@ -147,6 +168,15 @@ def wiki(root, source, output, node, markdown_it, publish=None):
         with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=publish, delete=False) as file:
             file.write(content)
             temporary = file.name
+        import hashlib
+        from common import digest
+        receipt = {'revision': digest(view), 'published_at': datetime.now(timezone.utc).isoformat(),
+                   'entry_hash': hashlib.sha256(content.encode('utf-8')).hexdigest()}
+        receipt_path = safe_path(publish / 'published.json')
+        with tempfile.NamedTemporaryFile(mode='w', encoding='utf-8', dir=publish, delete=False) as file:
+            json.dump(receipt, file, ensure_ascii=False)
+            receipt_temp = file.name
+        os.replace(receipt_temp, receipt_path)
         os.replace(temporary, publish / 'index.html')
     return {'ok': True, 'entry': str(publish / 'index.html') if publish else None,
             'index': str(output / 'site/index.html'),
