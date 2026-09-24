@@ -4,14 +4,13 @@ This is a local owner's notebook, not a multi-user authorization service. Review
 identities are caller attestations; the orchestrator must supply a real independent
 judgment. Neither an import nor a stored hash attests semantic correctness.
 """
-from contextlib import contextmanager
 from datetime import datetime
 import json
 from pathlib import Path
 
 from common import digest
 
-APPLICATION = 0x4B4E4231
+from notebook_store import database, safe_path, configuration, configured_scope, has_store, location
 KINDS = {'observation', 'document', 'note', 'review'}
 AREAS = {'usage', 'development', 'domain'}
 AUDIENCES = {'user', 'developer'}
@@ -70,14 +69,10 @@ def validate(kind, value):
         raise ValueError('INPUT: unsupported record kind')
 
 
-def safe_path(path):
-    require('..' not in Path(path).parts, 'parent traversal is unsupported in notebook paths')
-    path = Path(path).absolute()
-    require(not any(p.is_symlink() for p in (path, *path.parents)), 'symlink notebook paths are unsupported')
-    return path
-
-
 def notebook_scope(root, required=False):
+    config = configuration(root)
+    if config:
+        return configured_scope(config)
     file = safe_path(root) / 'scope.json'
     safe_path(file)
     if not file.exists():
@@ -93,8 +88,14 @@ def notebook_scope(root, required=False):
     return scope
 
 
-def initialize(root, source, audience, notes=None):
+def initialize(root, source, audience, notes=None, attach=False):
     require(isinstance(source, str) and bool(source.strip()) and audience in AUDIENCES, 'invalid notebook scope')
+    config = configuration(root)
+    if config:
+        require(notes is None, 'set notes in the storage configuration')
+        from notebook_store import initialize as initialize_store
+        return initialize_store(config, source, audience, attach)
+    require(not attach, '--attach requires a storage configuration file')
     root = safe_path(root)
     scope = {'version': 1, 'source': source, 'audience': audience}
     if notes is not None:
@@ -123,16 +124,18 @@ def check_scope(root, source=None, audience=None):
     return scope
 
 
-def notes_scope(scope, create=False):
+def notes_scope(scope, create=False, inspect_only=False):
     directory = safe_path(scope['notes'])
     owner = safe_path(directory / '.notebook-scope')
-    expected = {k: scope[k] for k in ('version', 'source', 'audience')}
+    expected = {k: scope[k] for k in ('version', 'source', 'audience', 'store', 'notebook') if k in scope}
     if owner.exists():
         require(json.loads(owner.read_text(encoding='utf-8')) == expected, 'personal notes scope mismatch')
     else:
-        require(create, 'personal notes scope is missing')
+        require(create or inspect_only, 'personal notes scope is missing')
         require(not directory.exists() or not any(directory.glob('*.json')),
                 'preserve existing unscoped note files; select a new personal note directory')
+        if inspect_only:
+            return directory
         directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         with owner.open('x', encoding='utf-8') as file:
             file.write(json.dumps(expected, ensure_ascii=False))
@@ -157,48 +160,9 @@ def personal_notes(root, rows):
     return result
 
 
-@contextmanager
-def database(root, write=False, create=False):
-    import sqlite3
-    root = safe_path(root)
-    file = root / 'observations.sqlite'
-    fresh = not file.exists()
-    if fresh:
-        require(write and create, 'notebook does not exist; import an observation first')
-        root.mkdir(parents=True, exist_ok=True)
-        # Exclusive file creation prevents a racing initializer from claiming another DB.
-        with file.open('xb'):
-            pass
-    safe_path(file)
-    db = sqlite3.connect(file.as_uri() + ('?mode=rw' if write else '?mode=ro'), uri=True, timeout=0)
-    try:
-        if write:
-            db.execute('BEGIN IMMEDIATE')
-        if fresh:
-            db.execute('CREATE TABLE records (seq INTEGER PRIMARY KEY, id TEXT UNIQUE NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL)')
-            db.execute(f'PRAGMA application_id={APPLICATION}')
-            db.execute('PRAGMA user_version=1')
-        require(db.execute('PRAGMA application_id').fetchone()[0] == APPLICATION and
-                db.execute('PRAGMA user_version').fetchone()[0] == 1,
-                'unsupported notebook database; preserve it and use a new directory')
-        scope = notebook_scope(root)
-        if scope:
-            require(all(r['value'].get('source', scope['source']) == scope['source'] and
-                        (r['kind'] != 'document' or r['value']['audience'] == scope['audience'])
-                        for r in records(db)), 'notebook contains records outside its declared scope')
-        yield db
-        if write:
-            db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
-
-
 def records(db):
     result = []
-    for seq, identity, kind, body in db.execute('SELECT seq,id,kind,body FROM records ORDER BY seq'):
+    for seq, identity, kind, body in db.all():
         value = json.loads(body)
         validate(kind, value)
         require(digest({'kind': kind, 'value': value}) == identity, 'record hash mismatch')
@@ -260,41 +224,51 @@ def append(root, kind, value):
             handle.write(json.dumps(value, ensure_ascii=False, indent=2))
         return {'id': identity, 'kind': kind, 'created': True}
     with database(root, True, create=kind == 'observation') as db:
-        rows = records(db)
-        by_id = {r['id']: r for r in rows}
-        if identity in by_id:
-            return {'id': identity, 'kind': kind, 'created': False}
-        if kind == 'observation':
-            for r in rows:
-                if r['kind'] == kind and (r['value']['source'], r['value']['object']) == (value['source'], value['object']):
-                    require(timestamp(r['value']['observed_at']) != timestamp(value['observed_at']),
-                            'different evidence at the same observation time; reconcile the input')
-        elif kind == 'document':
-            previous = [r for r in rows if r['kind'] == kind and r['value']['source'] == value['source']
-                        and r['value']['key'] == value['key']]
-            require(value['previous'] == (previous[-1]['id'] if previous else None),
-                    'previous must name the latest document revision')
-            if previous:
-                require(all(previous[-1]['value'][k] == value[k] for k in ('audience', 'area', 'product_version')),
-                        'use a new document key for a different audience, area or product version')
-            for ref in value['evidence']:
-                require(ref in by_id and by_id[ref]['kind'] == 'observation'
-                        and by_id[ref]['value']['source'] == value['source'], 'evidence source mismatch or missing observation')
-        elif kind == 'note':
-            require((value['source'], value['object']) in latest_observations(rows), 'note needs a known source/object')
-        elif kind == 'review':
-            doc = by_id.get(value['document'])
-            require(doc is not None and doc['kind'] == 'document', 'review needs an exact document ID')
-            require(doc['value']['author'] != value['reviewer'], 'independent reviewer must differ from author')
-            if value['verdict'] == 'pass':
-                state = document_state(doc, rows)
-                require(state['status'] not in ('stale', 'evidence_pending'), 'changed or incomplete evidence cannot pass')
-        db.execute('INSERT INTO records(id,kind,body) VALUES (?,?,?)',
-                   (identity, kind, json.dumps(value, ensure_ascii=False, sort_keys=True)))
+        return append_record(db, kind, value)
+
+
+def append_record(db, kind, value):
+    validate(kind, value)
+    scope = db.scope
+    if scope:
+        require(value.get('source', scope['source']) == scope['source'] and
+                (kind != 'document' or value['audience'] == scope['audience']), 'notebook scope mismatch')
+    identity = digest({'kind': kind, 'value': value})
+    rows = records(db)
+    by_id = {r['id']: r for r in rows}
+    if identity in by_id:
+        return {'id': identity, 'kind': kind, 'created': False}
+    if kind == 'observation':
+        for r in rows:
+            if r['kind'] == kind and (r['value']['source'], r['value']['object']) == (value['source'], value['object']):
+                require(timestamp(r['value']['observed_at']) != timestamp(value['observed_at']),
+                        'different evidence at the same observation time; reconcile the input')
+    elif kind == 'document':
+        previous = [r for r in rows if r['kind'] == kind and r['value']['source'] == value['source']
+                    and r['value']['key'] == value['key']]
+        require(value['previous'] == (previous[-1]['id'] if previous else None),
+                'previous must name the latest document revision')
+        if previous:
+            require(all(previous[-1]['value'][k] == value[k] for k in ('audience', 'area', 'product_version')),
+                    'use a new document key for a different audience, area or product version')
+        for ref in value['evidence']:
+            require(ref in by_id and by_id[ref]['kind'] == 'observation'
+                    and by_id[ref]['value']['source'] == value['source'], 'evidence source mismatch or missing observation')
+    elif kind == 'note':
+        require((value['source'], value['object']) in latest_observations(rows), 'note needs a known source/object')
+    elif kind == 'review':
+        doc = by_id.get(value['document'])
+        require(doc is not None and doc['kind'] == 'document', 'review needs an exact document ID')
+        require(doc['value']['author'] != value['reviewer'], 'independent reviewer must differ from author')
+        if value['verdict'] == 'pass':
+            state = document_state(doc, rows)
+            require(state['status'] not in ('stale', 'evidence_pending'), 'changed or incomplete evidence cannot pass')
+
+    db.insert(identity, kind, value)
     return {'id': identity, 'kind': kind, 'created': True}
 
 
-def read(root, source, audience=None, area=None, product_version=None, query=None):
+def read_snapshot(root, source, audience=None, area=None, product_version=None, query=None):
     require(bool(source), 'explicit source is required')
     scope = check_scope(root, source, audience)
     if scope:
@@ -303,8 +277,13 @@ def read(root, source, audience=None, area=None, product_version=None, query=Non
         require(audience in AUDIENCES, 'invalid audience')
     if area is not None:
         require(area in AREAS, 'invalid area')
-    with database(root) as db:
-        rows = records(db)
+    if has_store(root):
+        with database(root) as db:
+            scope = db.scope
+            rows = records(db)
+    else:
+        require(scope is not None, 'notebook is not initialized')
+        rows = []
     rows += personal_notes(root, rows)
     if scope:
         require(all(r['value'].get('source', source) == source and
@@ -328,21 +307,29 @@ def read(root, source, audience=None, area=None, product_version=None, query=Non
             'observations': list(current.values()),
             'notes': [r for r in selected if r['kind'] == 'note'],
             'history': [{'id': r['id'], 'kind': r['kind']} for r in selected],
-            'scope': 'Local owner supplied evidence; current means reviewed against latest imported complete observations, not live system freshness.'}
+            'scope': 'Local owner supplied evidence; current means reviewed against latest imported complete observations, not live system freshness.'}, rows
+
+
+def read(root, source, audience=None, area=None, product_version=None, query=None):
+    return read_snapshot(root, source, audience, area, product_version, query)[0]
 
 
 def register_commands(parser):
     sub = parser.add_subparsers(dest='notebook_command', required=True)
     init = sub.add_parser('init')
+    init.add_argument('--attach', action='store_true', help='Add knowledge tables/notebook to the existing configured DB')
+    sub.add_parser('backup').add_argument('--output', type=Path, required=True)
+    sub.add_parser('restore').add_argument('--input', type=Path, required=True)
     init.add_argument('--notes', type=Path, help='Canonical personal note directory, outside the notebook DB')
     init.add_argument('--source', required=True)
     init.add_argument('--audience', choices=sorted(AUDIENCES), required=True)
     status = sub.add_parser('status')
     status.add_argument('--source', required=True)
-    status.add_argument('--publication', type=Path, required=True)
+    status.add_argument('--publication', type=Path)
     status.add_argument('--collection', type=Path)
     handoff = sub.add_parser('handoff')
     handoff.add_argument('--source', required=True)
+    handoff.add_argument('--save', action='store_true', help='Also save immutable handoff JSON under configured artifacts')
     handoff.add_argument('--collection', type=Path)
     wiki = sub.add_parser('wiki')
     wiki.add_argument('--source', required=True)
@@ -374,16 +361,21 @@ def register_commands(parser):
 def execute(args):
     command = args.notebook_command
     if command == 'init':
-        return initialize(args.project, args.source, args.audience, args.notes)
+        return initialize(args.project, args.source, args.audience, args.notes, args.attach)
+    if command in ('backup', 'restore'):
+        from notebook_transfer import backup, restore
+        return backup(args.project, args.output) if command == 'backup' else restore(args.project, args.input)
     if command == 'status':
         from notebook_status import status
-        return status(args.project, args.source, args.publication, args.collection)
+        return status(args.project, args.source, location(args.project, 'publication', args.publication), args.collection)
     if command == 'handoff':
         from notebook_handoff import handoff
-        return handoff(args.project, args.source, args.collection)
+        return handoff(args.project, args.source, args.collection, args.save)
     if command == 'wiki':
         from notebook_publication import wiki
-        return wiki(args.project, args.source, args.output, args.node, args.markdown_it, args.publish, args.require_current)
+        config = configuration(args.project)
+        publish = location(args.project, 'publication', args.publish) if args.publish or (config and 'publication' in config) else None
+        return wiki(args.project, args.source, args.output, args.node, args.markdown_it, publish, args.require_current)
     if command == 'get':
         check_scope(args.project, args.source)
         with database(args.project) as db:
