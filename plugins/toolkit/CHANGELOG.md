@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.0 — 2026-09-24
+
+**폭 판단 — MINOR (사용자 명시 요청).** 문서 작성 기능을 확장하고 지식 관리 기능을 독립 플러그인으로 옮긴다. 기존 지식 스킬 이름 제거는 저장소 정책상 MAJOR 대상이지만, 이번 요청에 따라 MINOR로 발행하며 전환 방법을 명시한다.
+
+### 독자를 위한 문서 작성
+
+- 질문별 답을 먼저 제시하고 조건·근거·정상 및 경계 사례를 연결한다. FE·BE·기획·PO가 공통 사례를 각자의 업무 판단에 활용하도록 문서 구성을 보완한다.
+- 흐름도·카드·표 선택 기준과 매체 지원 조건을 추가한다. knowledge 위키에서 지원하는 안전한 Markdown 표현과 일반 Markdown 대체 표현을 안내한다.
+
+### 지식 기능 분리와 전환
+
+- `refresh-knowledge`와 `review-knowledge`는 toolkit에서 제거한다. 기존 지식 갱신·검토, 최초 구성, 양방향 변경 관리, 로컬 자동화·복수 저장소·위키 기능은 `knowledge` 0.1.0에서 제공한다.
+- 기존 사용자는 `knowledge`를 설치하고 작업에 맞게 `knowledge:bootstrap`, `knowledge:update`, `knowledge:review`, `knowledge:query`, `knowledge:wiki`, `knowledge:operate`를 사용한다. `writing-for-humans`는 toolkit에 유지한다.
+- 직접 호출하던 실행 경로는 knowledge 설치본의 `scripts/`로 변경한다. 기존 프로젝트·문서·상태 자료는 유지하며, 진행 중인 이전 작업은 원래 자원으로 마무리한 뒤 전환한다. 자세한 절차는 knowledge의 `references/transition.md`를 따른다.
+
 ## 2.1.1 — 2026-09-20
 
 **폭 판단 — PATCH (사용자 지시).** 새 스킬 두 개의 추가는 저장소 기준으로 MINOR에 해당하지만, 요청한 PATCH로 발행한다. 기존 스킬의 호출이나 사용자 자료 형식은 변경하지 않는다. 새 지식 갱신 기능을 처음 사용할 때는 Python·Git과 jsonschema 의존성, 프로젝트 초기 설정이 필요하다.
