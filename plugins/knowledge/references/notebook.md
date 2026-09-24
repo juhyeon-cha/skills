@@ -66,7 +66,15 @@ context, not product-specific requirements. Preserve provenance and collection s
 Use `complete`, `partial`, `failed` or `removed`. The producer maps its own states to
 these meanings: complete covers its stated collection scope, never all possible facts.
 Failed/partial evidence is not silently replaced with an earlier successful capture.
-A repeated identical record is idempotent. Different evidence at the same source,
+A repeated identical record is idempotent. A later complete observation is a
+reconfirmation only when every field except `observed_at` equals the bound complete
+evidence. Its new immutable record and capture time remain in history; documents
+keep their original evidence IDs and independent reviews. Revision equality alone
+is insufficient: title, body, metadata, status or revision changes require review.
+The producer should keep capture time in `observed_at`; timestamps embedded in the
+body or metadata remain evidence and are compared conservatively. A reconfirmation
+can require wiki republication to expose fresh capture metadata, without rewriting
+or reviewing unchanged explanations. Different evidence at the same source,
 object and observation time is a conflict; reconcile it rather than overwrite history.
 
 Store producer-specific details as opaque body/metadata. The producer owns canonical

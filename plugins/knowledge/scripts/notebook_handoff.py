@@ -25,7 +25,7 @@ def handoff(root, source, collection=None, save=False):
     by_id = {row['id']: row for row in rows}
     for document in result['documents']:
         for dependency in document['dependencies']:
-            if dependency['bound'] != dependency['latest'] or dependency['status'] != 'complete':
+            if not dependency['equivalent']:
                 result['evidence_changes'].append({'document': document['id'], 'object': dependency['object'],
                     'reason': 'incomplete_evidence' if dependency['status'] != 'complete' else 'new_observation',
                     'bound': by_id[dependency['bound']], 'latest': by_id[dependency['latest']]})

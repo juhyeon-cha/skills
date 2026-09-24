@@ -77,6 +77,36 @@ class StorageChecks(unittest.TestCase):
     def read(self, **kwargs):
         return self.cli('read', '--source', SOURCE, **kwargs)
 
+    def test_inspect_reconfirmation_and_separate_audiences(self):
+        self.init()
+        first, document = self.seed()
+        before = self.database.read_bytes()
+        report = self.cli('inspect', '--source', SOURCE)
+        self.assertEqual(self.database.read_bytes(), before)
+        self.assertEqual(report['storage']['database'], str(self.database))
+        self.assertEqual(report['storage']['notebook'], 'users')
+        self.assertEqual(report['history_counts']['review'], 1)
+        self.assertEqual(report['document_counts'], {'current': 1})
+        second = self.append('observe', {**self.observation(), 'observed_at': '2026-09-02T00:00:00Z'})['id']
+        report = self.cli('inspect', '--source', SOURCE)
+        self.assertEqual(report['document_counts'], {'current': 1})
+        self.assertEqual(report['reconfirmed_dependencies'], 1)
+        self.assertEqual(report['history_counts']['observation'], 2)
+        self.assertEqual(self.read()['documents'][0]['value']['evidence'], [first])
+        self.assertNotEqual(first, second)
+        self.cli('inspect', '--source', 'foreign', success=False)
+        shared = self.configure('shared-developer')
+        self.init(config=shared, audience='developer', attach=True)
+        self.seed(config=shared, audience='developer')
+        self.assertEqual(self.cli('inspect', '--source', SOURCE)['history_counts']['observation'], 2)
+        self.assertEqual(self.cli('inspect', '--source', SOURCE, config=shared)['history_counts']['observation'], 1)
+        separate = self.configure('developers', db=self.base / 'developer.sqlite')
+        self.init(config=separate, audience='developer')
+        self.assertEqual(self.cli('inspect', '--source', SOURCE, config=separate)['audience'], 'developer')
+        missing = self.configure('missing', db=self.base / 'missing.sqlite')
+        self.cli('inspect', '--source', SOURCE, config=missing, success=False)
+        self.assertFalse((self.base / 'missing.sqlite').exists())
+
     def host(self, wal=False):
         with sqlite3.connect(self.database) as db:
             db.executescript('CREATE TABLE host_objects(id TEXT PRIMARY KEY, body TEXT);'

@@ -85,6 +85,55 @@ class NotebookChecks(unittest.TestCase):
         report.write_text(json.dumps({'source': 'foreign', 'ok': True}))
         self.run_cli('handoff', '--source', 'product:test', '--collection', str(report), success=False)
 
+    def test_reconfirmation_preserves_review_and_capture_history(self):
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user')
+        original = self.observation()
+        first = self.append('observe', original)['id']
+        doc = self.append('document', self.document([first]))['id']
+        review = self.review(doc)['id']
+        latest = self.append('observe', {**original, 'observed_at': '2026-09-02T10:00:00Z'})['id']
+        current = self.read()['documents'][0]
+        self.assertEqual(current['status'], 'current')
+        self.assertEqual(current['review']['id'], review)
+        self.assertEqual(current['value']['evidence'], [first])
+        self.assertEqual(current['dependencies'][0]['latest'], latest)
+        self.assertTrue(current['dependencies'][0]['equivalent'])
+        self.assertEqual(len([r for r in self.read()['history'] if r['kind'] == 'observation']), 2)
+        self.assertEqual(self.run_cli('handoff', '--source', 'product:test')['documents'], [])
+        # Reusing a producer revision must not conceal changed content or coverage.
+        for day, field, value, expected in (
+            (3, 'body', 'Changed meaning', 'stale'),
+            (4, 'title', 'Changed title', 'stale'),
+            (5, 'metadata', {'profile': 'different'}, 'stale'),
+            (6, 'revision', 'different', 'stale'),
+            (7, 'status', 'partial', 'evidence_pending'),
+            (8, 'status', 'failed', 'evidence_pending'),
+            (9, 'status', 'removed', 'evidence_pending'),
+        ):
+            self.append('observe', {**original, 'observed_at': f'2026-09-{day:02d}T10:00:00Z', field: value})
+            self.assertEqual(self.read()['documents'][0]['status'], expected)
+
+    def test_reconfirmation_does_not_supply_review_or_hide_other_changes(self):
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user')
+        original = self.observation()
+        first = self.append('observe', original)['id']
+        other = self.observe(object='CUSTOMER')
+        doc = self.append('document', self.document([first, other]))['id']
+        self.append('observe', {**original, 'observed_at': '2026-09-02T10:00:00Z'})
+        self.assertEqual(self.read()['documents'][0]['status'], 'unreviewed')
+        for verdict in ('revise', 'blocked'):
+            self.review(doc, verdict=verdict)
+            self.assertEqual(self.read()['documents'][0]['status'], verdict)
+        self.review(doc)
+        self.observe(day=3, object='CUSTOMER')
+        handoff = self.run_cli('handoff', '--source', 'product:test')
+        self.assertEqual(handoff['documents'][0]['status'], 'stale')
+        self.assertEqual([c['object'] for c in handoff['evidence_changes']], ['CUSTOMER'])
+        self.observe(day=4, object='CUSTOMER', status='partial')
+        handoff = self.run_cli('handoff', '--source', 'product:test')
+        self.assertEqual(handoff['documents'][0]['status'], 'evidence_pending')
+        self.assertEqual(handoff['evidence_changes'][0]['reason'], 'incomplete_evidence')
+
     def test_accumulation_preserves_notes_and_document_history(self):
         first = self.observe()
         usage = self.document([first])
