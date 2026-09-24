@@ -71,10 +71,14 @@ the original. Do that here too; step 4 commits those files along with the versio
 ## 4. Run the script
 
 ```bash
-bash scripts/release.sh <name> <patch|minor|major>
+bash scripts/release.sh <name> <patch|minor|major|initial>
 ```
 
-It computes the next number, checks the preconditions, raises `version` in
+For the first publication with no previous plugin tag, use `initial` to retain the
+current version. It checks local and fetched tags and refuses `initial` after a
+previous publication.
+
+It computes the release number, checks the preconditions, writes `version` in
 `plugins/<name>/.claude-plugin/plugin.json`, regenerates harness runtime metadata from its common
 distribution module, runs `claude plugin validate --strict` on both the marketplace and the plugin
 and the repository gate, commits, tags `<name>-v<version>`, and pushes both. **Everything that

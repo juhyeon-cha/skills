@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 릴리스의 기계 부분. 사용: bash scripts/release.sh <플러그인> <patch|minor|major>
+# 릴리스의 기계 부분. 사용: bash scripts/release.sh <플러그인> <patch|minor|major|initial>
 #
 # 판단은 사람(또는 /release 스킬)이 하고 이 스크립트는 그 뒤만 한다.
 #   사람 — 이전 태그부터 훑기 · 폭 결정 · CHANGELOG 항목 본문 작성
@@ -25,14 +25,14 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.." || { echo "✗ 레포 루트로 이동하
 
 NAME="${1:-}"
 BUMP="${2:-}"
-usage() { echo "사용: bash scripts/release.sh <플러그인> <patch|minor|major>" >&2; }
+usage() { echo "사용: bash scripts/release.sh <플러그인> <patch|minor|major|initial>" >&2; }
 
 # ── 전제 확인 (여기서는 아무것도 바꾸지 않는다) ────────────────────────
 [ -n "$NAME" ] && [ -n "$BUMP" ] || { usage; exit 1; }
 
 case "$BUMP" in
-  patch|minor|major) ;;
-  *) echo "✗ 폭은 patch·minor·major 중 하나다 — 받은 값: $BUMP" >&2; usage; exit 1 ;;
+  patch|minor|major|initial) ;;
+  *) echo "✗ 폭은 patch·minor·major·initial 중 하나다 — 받은 값: $BUMP" >&2; usage; exit 1 ;;
 esac
 
 # 승인된 릴리스는 기본 브랜치 또는 할당된 linked worktree에서 실행한다.
@@ -83,6 +83,7 @@ IFS=. read -r MA MI PA <<EOF
 $CUR
 EOF
 case "$BUMP" in
+  initial) NEXT="$CUR" ;;
   major) NEXT="$((MA + 1)).0.0" ;;
   minor) NEXT="$MA.$((MI + 1)).0" ;;
   patch) NEXT="$MA.$MI.$((PA + 1))" ;;
@@ -121,6 +122,18 @@ if ! git merge-base --is-ancestor "origin/$DEFAULT" HEAD; then
   echo "✗ origin/$DEFAULT 가 앞서 있다 — 커밋해 두고 push 가 거부되는 것을 막는다" >&2
   echo "  먼저 'git pull --rebase origin $DEFAULT' 뒤 다시 돌려라" >&2
   exit 1
+fi
+
+# First publication retains the existing version, only when no prior plugin tag exists.
+if [ "$BUMP" = initial ]; then
+  if ! git fetch --quiet origin --tags; then
+    echo "✗ 첫 릴리스 태그 확인 실패 — 아무것도 바꾸지 않았다" >&2
+    exit 1
+  fi
+  if [ -n "$(git tag -l "$NAME-v*")" ]; then
+    echo "✗ $NAME 의 이전 릴리스 태그가 있다 — initial 은 첫 발행에만 사용한다" >&2
+    exit 1
+  fi
 fi
 
 AHEAD=$(git rev-list --count "origin/$DEFAULT..HEAD")

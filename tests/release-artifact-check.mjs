@@ -46,8 +46,8 @@ function fixture(name, plugin = 'harness') {
   const initial = run(repo, 'git', ['rev-parse', 'HEAD']);
   const files = ['.claude-plugin/plugin.json', ...plugin === 'harness' ? Object.keys(projections(root)) : []];
   const before = files.map(relative => fs.readFileSync(path.join(root, relative)));
-  function release(commandPath = `${bin}${path.delimiter}${env.PATH}`) {
-    return spawnSync('/bin/bash', ['scripts/release.sh', plugin, 'minor'], {cwd: repo, env: {...env, PATH: commandPath}, encoding: 'utf8'});
+  function release(commandPath = `${bin}${path.delimiter}${env.PATH}`, mode = 'minor') {
+    return spawnSync('/bin/bash', ['scripts/release.sh', plugin, mode], {cwd: repo, env: {...env, PATH: commandPath}, encoding: 'utf8'});
   }
   function unchanged(result) {
     check(result.status !== 0, `${name}: failure is nonzero`);
@@ -68,6 +68,24 @@ try {
     if (plugin === 'harness') check(inspectDistribution(f.root).version === '2.2.0', 'generated metadata exactly follows canonical version');
     run(f.repo, 'git', ['merge-base', '--is-ancestor', tag, 'origin/main']); assertions++;
     check(run(f.repo, 'git', ['--git-dir', f.remote, 'rev-parse', tag]) === run(f.repo, 'git', ['--git-dir', f.remote, 'rev-parse', 'main']), `${plugin}: origin tag and branch name same release commit`);
+  }
+  const first = fixture('first-publication', 'knowledge');
+  fs.writeFileSync(path.join(first.root, 'CHANGELOG.md'), '## 2.1.3 — 2026-09-24\n\nInitial fixture\n');
+  const firstResult = first.release(undefined, 'initial');
+  check(firstResult.status === 0, `initial release succeeds: ${firstResult.stderr}`);
+  check(JSON.parse(fs.readFileSync(path.join(first.root, '.claude-plugin/plugin.json'))).version === '2.1.3', 'initial preserves version');
+  check(run(first.repo, 'git', ['--git-dir', first.remote, 'rev-parse', 'knowledge-v2.1.3']) === run(first.repo, 'git', ['--git-dir', first.remote, 'rev-parse', 'main']), 'initial tag and branch are atomically published');
+  const publishedHead = run(first.repo, 'git', ['rev-parse', 'HEAD']);
+  check(first.release(undefined, 'initial').status !== 0, 'initial refuses repeated publication');
+  check(run(first.repo, 'git', ['rev-parse', 'HEAD']) === publishedHead, 'repeated publication makes no commit');
+  for (const remoteOnly of [false, true]) {
+    const f = fixture(`initial-prior-${remoteOnly}`, 'knowledge');
+    fs.writeFileSync(path.join(f.root, 'CHANGELOG.md'), '## 2.1.3 — 2026-09-24\n\nInitial fixture\n');
+    if (remoteOnly) run(f.repo, 'git', ['--git-dir', f.remote, 'tag', 'knowledge-v1.0.0', 'main']);
+    else run(f.repo, 'git', ['tag', 'knowledge-v1.0.0']);
+    check(f.release(undefined, 'initial').status !== 0, 'initial rejects any previous local or remote plugin tag');
+    check(run(f.repo, 'git', ['rev-parse', 'HEAD']) === f.initial, 'previous-tag refusal makes no commit');
+    check(run(f.repo, 'git', ['--git-dir', f.remote, 'rev-parse', 'main']) === f.initial, 'previous-tag refusal leaves remote unchanged');
   }
   for (const phase of ['generate', 'check', 'validate', 'gate']) {
     const f = fixture(`failure-${phase}`);

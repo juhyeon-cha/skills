@@ -151,7 +151,7 @@ API 명세·업무 문서처럼 Git 밖에서 얻은 자료는 [관측 기반 �
   변경은 전부 `0.1.0` 에 쌓는다. 올려 봐야 아무에게도 알리는 바가 없다.
 - **릴리스는 `/release` 로 한다** (`.claude/skills/release/SKILL.md`). 폭과 CHANGELOG 항목은
   사람이 정하고, 그 뒤의 버전 갱신·validate·커밋·로컬 태그는
-  `bash scripts/release.sh <플러그인> <patch|minor|major>` 가 한다.
+  `bash scripts/release.sh <플러그인> <patch|minor|major|initial>` 가 한다.
 
 ## 커밋
 
