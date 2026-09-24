@@ -218,6 +218,33 @@ print(json.dumps(state['after' if (base / 'collected').exists() else 'before']))
         self.assertNotIn('collect', [args[1] for args in self.calls()])
 
     @unittest.skipUnless(os.environ.get('WIKI_MARKDOWN_IT_MODULE'), 'markdown-it runtime not supplied')
+    def test_publication_rechecks_the_exact_exported_documents(self):
+        self.run_cli('init', '--source', SOURCE, '--audience', 'user')
+        publication = self.base / 'reviewed-wiki'
+        args = ('wiki', '--source', SOURCE, '--publish', publication, '--require-current',
+                '--node', shutil.which('node'), '--markdown-it', os.environ['WIKI_MARKDOWN_IT_MODULE'])
+        _, doc, _ = self.seed()
+        self.assertEqual(self.run_cli('status', '--source', SOURCE, '--publication', publication)['stage'], 'publish')
+        self.run_cli(*args, '--output', publication / 'reviewed')
+        before = (publication / 'index.html').read_bytes()
+        value = self.read()['documents'][0]['value']
+        revised = self.append('document', dict(value, previous=doc, body='A new unreviewed revision'))['id']
+        for verdict in (None, 'revise', 'blocked'):
+            if verdict:
+                self.append('review', dict(document=revised, reviewer='synthetic-reviewer',
+                                          verdict=verdict, reason='Synthetic negative case'))
+            target = publication / str(verdict)
+            self.run_cli(*args, '--output', target, code=1, error=True)
+            self.assertFalse(target.exists())
+            self.assertEqual((publication / 'index.html').read_bytes(), before)
+        self.append('review', dict(document=revised, reviewer='synthetic-reviewer',
+                                  verdict='pass', reason='Synthetic acceptance'))
+        self.refresh()
+        self.run_cli(*args, '--output', publication / 'stale', code=1, error=True)
+        self.assertFalse((publication / 'stale').exists())
+        self.assertEqual((publication / 'index.html').read_bytes(), before)
+
+    @unittest.skipUnless(os.environ.get('WIKI_MARKDOWN_IT_MODULE'), 'markdown-it runtime not supplied')
     def test_installed_copy_builds_wiki_outside_source_checkout(self):
         self.run_cli('init', '--source', SOURCE, '--audience', 'user')
         _, doc, _ = self.seed()

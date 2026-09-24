@@ -128,10 +128,13 @@ def refresh(root, plan_path, output):
         return report
 
 
-def wiki(root, source, output, node, markdown_it, publish=None):
+def wiki(root, source, output, node, markdown_it, publish=None, require_current=False):
     from observation_wiki import export
     scope = notebook_scope(root, required=True)
     view = read(root, source)
+    if require_current:
+        require(bool(view['documents']) and all(d['status'] == 'current' for d in view['documents']),
+                'publication requires reviewed current documents in the exported snapshot')
     output = safe_path(output)
     if publish is not None:
         publish = safe_path(publish)

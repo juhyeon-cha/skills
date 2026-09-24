@@ -274,13 +274,17 @@ No repository checkout, npm workspace or Git is needed at execution time.
 
 ```sh
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook wiki \
-  --source SOURCE_UUID --output WIKI_ROOT/snapshots/NEW_BUILD --publish WIKI_ROOT \
+  --source SOURCE_UUID --output WIKI_ROOT/snapshots/NEW_BUILD --publish WIKI_ROOT --require-current \
   --node /absolute/node --markdown-it /absolute/node_modules/markdown-it
 python -m http.server 8777 --bind 127.0.0.1 --directory WIKI_ROOT
 ```
 
 `wiki` exports, builds and checks local bytes before returning `site` and `index`.
 Use a new output directory on every build; an existing snapshot is never replaced.
+`--require-current` checks the exact exported snapshot and rejects empty, unreviewed,
+stale or blocked documents before creating output. Use it for reviewed publication;
+omit it only when deliberately building a labelled draft for inspection.
+
 Optional `--publish` creates a scope-bound stable entry at WIKI_ROOT/index.html.
 The new output must be inside that root. Only a successful build/check atomically
 updates the entry; a failed build retains the last success. Keep the failed run

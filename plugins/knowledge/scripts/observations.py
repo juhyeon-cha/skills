@@ -348,6 +348,7 @@ def register_commands(parser):
     wiki.add_argument('--source', required=True)
     wiki.add_argument('--output', type=Path, required=True)
     wiki.add_argument('--publish', type=Path, help='Stable wiki root containing this new output directory')
+    wiki.add_argument('--require-current', action='store_true', help='Require reviewed current documents in the exact exported snapshot')
     wiki.add_argument('--node', required=True)
     wiki.add_argument('--markdown-it', type=Path, required=True)
     get = sub.add_parser('get')
@@ -385,7 +386,7 @@ def execute(args):
         return refresh(args.project, args.plan, args.output)
     if command == 'wiki':
         from sap_refresh import wiki
-        return wiki(args.project, args.source, args.output, args.node, args.markdown_it, args.publish)
+        return wiki(args.project, args.source, args.output, args.node, args.markdown_it, args.publish, args.require_current)
     if command == 'get':
         check_scope(args.project, args.source)
         with database(args.project) as db:
