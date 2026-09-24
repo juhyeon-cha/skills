@@ -182,6 +182,13 @@ def latest_observations(rows):
     return latest
 
 
+def same_evidence(left, right):
+    """Only capture time may differ; a producer revision alone is not proof."""
+    return (left['status'] == right['status'] == 'complete' and
+            {k: v for k, v in left.items() if k != 'observed_at'} ==
+            {k: v for k, v in right.items() if k != 'observed_at'})
+
+
 def document_state(document, rows):
     by_id = {r['id']: r for r in rows}
     latest = latest_observations(rows)
@@ -190,12 +197,14 @@ def document_state(document, rows):
         evidence = by_id[identity]['value']
         current = latest[(evidence['source'], evidence['object'])]
         dependencies.append({'bound': identity, 'latest': current['id'], 'object': evidence['object'],
-                             'status': current['value']['status']})
+                             'status': current['value']['status'],
+                             'equivalent': same_evidence(evidence, current['value']),
+                             'last_observed_at': current['value']['observed_at']})
     reviews = [r for r in rows if r['kind'] == 'review' and r['value']['document'] == document['id']]
     review = reviews[-1] if reviews else None
     if any(d['status'] != 'complete' for d in dependencies):
         status = 'evidence_pending'
-    elif any(d['bound'] != d['latest'] for d in dependencies):
+    elif any(d['bound'] != d['latest'] and not d['equivalent'] for d in dependencies):
         status = 'stale'
     elif not review:
         status = 'unreviewed'
@@ -314,8 +323,33 @@ def read(root, source, audience=None, area=None, product_version=None, query=Non
     return read_snapshot(root, source, audience, area, product_version, query)[0]
 
 
+def inspect_notebook(root, source):
+    """Describe the selected store and retained history without initializing it."""
+    from collections import Counter
+    config = configuration(root)
+    view, rows = read_snapshot(root, source)
+    scope = view['notebook_scope']
+    require(scope is not None, 'inspection requires a scoped notebook')
+    storage = {'mode': 'configured' if config else 'directory',
+               'database': config['database'] if config else str(safe_path(root) / 'observations.sqlite'),
+               'notebook': scope.get('notebook'), 'store': scope.get('store'),
+               'notes': {'mode': 'files', 'path': scope['notes']} if 'notes' in scope else {'mode': 'database'}}
+    if config:
+        storage.update(configuration=str(safe_path(root)), artifacts=config['artifacts'],
+                       publication=config.get('publication'))
+    return {'source': scope['source'], 'audience': scope['audience'], 'storage': storage,
+            'history_counts': dict(Counter(r['kind'] for r in rows)),
+            'latest_observation_counts': dict(Counter(r['value']['status'] for r in view['observations'])),
+            'document_counts': dict(Counter(d['status'] for d in view['documents'])),
+            'reconfirmed_dependencies': sum(d['bound'] != d['latest'] and d['equivalent']
+                for doc in view['documents'] for d in doc['dependencies']),
+            'retention': 'Append-only history is retained; inspection does not delete or compact records.',
+            'scope': view['scope']}
+
+
 def register_commands(parser):
     sub = parser.add_subparsers(dest='notebook_command', required=True)
+    sub.add_parser('inspect').add_argument('--source', required=True)
     init = sub.add_parser('init')
     init.add_argument('--attach', action='store_true', help='Add knowledge tables/notebook to the existing configured DB')
     sub.add_parser('backup').add_argument('--output', type=Path, required=True)
@@ -360,6 +394,8 @@ def register_commands(parser):
 
 def execute(args):
     command = args.notebook_command
+    if command == 'inspect':
+        return inspect_notebook(args.project, args.source)
     if command == 'init':
         return initialize(args.project, args.source, args.audience, args.notes, args.attach)
     if command in ('backup', 'restore'):

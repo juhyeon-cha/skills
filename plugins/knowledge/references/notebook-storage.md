@@ -131,3 +131,16 @@ backup does not silently infer an audience.
 Backup digests detect inconsistent bytes, not authenticity or truth. Existing review
 records remain caller-attested history; restoring them performs no new review.
 Git project and automation databases keep their existing storage contracts.
+
+## Inspect selected storage and retained history
+
+Run `notebook inspect --source SOURCE_ID` with the selected `--project` to read the
+actual database path, storage identity, notebook, immutable audience, note mode and
+configured artifact/publication paths. The command reports retained record counts,
+latest observation completeness, document states and reconfirmed dependencies. It
+validates existing storage without initializing or changing it. User and developer
+notebooks may use different database files; no shared-file requirement exists.
+
+Counts describe imported local evidence, not live source freshness. Retain raw
+producer archives until their coverage and provenance have been verified separately.
+Inspection never deletes archives, history, notes or generated artifacts.
