@@ -36,7 +36,8 @@ The known v1 interrupted-run regression is a tested boundary, not universal hist
 
 ## Distribution boundary
 
-A source PR is not an installed upgrade. Removing the old toolkit skill names requires a
-major toolkit release under this repository's release policy; this extraction does not bump
-or publish that release. The new knowledge source starts at 0.1.0. Release/install work must
-explicitly communicate the new plugin and executable locations to existing callers.
+A source release is not an installed upgrade. Toolkit 2.2.0 removes the old
+knowledge skill names. This requires a major version under the repository's
+ordinary policy; its CHANGELOG records the user's explicit minor-release decision.
+Knowledge's first release retains 0.1.0. Existing callers must install knowledge
+and select the new skill names and executable locations described above.
