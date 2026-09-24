@@ -141,6 +141,13 @@ class PublicationChecks(unittest.TestCase):
         self.assertEqual(current['stage'], 'complete')
         self.assertTrue(current['has_wiki'])
         self.assertIsNotNone(current['last_published_at'])
+        self.append('observe', {**self.observation(), 'observed_at': '2026-09-01T13:00:00Z'})
+        self.assertEqual(self.run_cli(*args)['stage'], 'publish')
+        self.assertEqual(self.read()['documents'][0]['id'], doc)
+        self.run_cli('wiki', '--source', SOURCE, '--output', publication / 'reconfirmed',
+                     '--publish', publication, '--require-current', '--node', shutil.which('node'),
+                     '--markdown-it', os.environ['WIKI_MARKDOWN_IT_MODULE'])
+        self.assertEqual(self.run_cli(*args)['stage'], 'complete')
         self.append('observe', self.observation(2))
         status = self.run_cli(*args, '--collection', self.collection)
         self.assertEqual(status['stage'], 'writing')
