@@ -1,295 +1,196 @@
-# Accumulate knowledge from non-Git observations
+# Accumulate knowledge from explicit evidence
 
-Read this for explicitly exported SAP evidence, source-scoped notes, or knowledge
-that must survive recollection outside Git. Git projects keep their existing
-bootstrap/update contracts. This notebook is a separate local-owner store, not a
-replacement for `multi_repo` permissions or its managed publication.
+Read this for source-scoped evidence, notes or knowledge outside a Git checkout.
+Git projects retain their bootstrap/update contracts; this local-owner notebook
+is not a multi-user authorization service or a replacement for managed project permissions.
 
-For the installed SAP Harness “내 지식” screen or its copied handoff, read
-[desktop connection](desktop.md).
+## Responsibilities
 
-## Select purpose and authority
+The producing application owns collection, authentication, source-specific parsing,
+collection authorization and storage-location selection. It translates its output
+into the observation contract below and invokes the public notebook CLI. Knowledge
+never executes a producer's collector or interprets its domain-specific payload.
 
-Distinguish the product user from its developer, independently of job title. An
-ABAP developer using installed sap-harness is a product user when carrying out SAP
-work. Select `audience: user|developer`, `area: usage|development|domain`, the actual
-reader task (`purpose`) and an explicit `product_version`. Use the inspected
-version, or an explicit unknown label; never infer latest compatibility.
+Knowledge owns evidence history, explanations, personal notes, dependency impact,
+writing handoffs, independent review records and static wiki publication. Use
+`toolkit:writing-for-humans` for question-led explanations and reader actions.
+Distinguish product usage from product development independently of job title.
+For example, an engineer using an installed product may need usage knowledge;
+a developer changing that product needs implementation knowledge.
 
-Keep product usage, product implementation and tenant-specific domain knowledge
-separate. Reuse evidence IDs across explanations, not copied policies. Follow
-`toolkit:writing-for-humans` for question-first answers, linked scenarios and visual
-forms. SAP structure alone does not establish business intent, runtime behavior,
-authorization or transaction results.
+## Initialize one source and audience
 
-Resolve an absolute installed knowledge plugin root and Python 3.10+ through the
-host. Notebook operations use Python's standard library and SQLite; they do not
-need a Git clone or SAP credentials. Writing and independent semantic review still
-require the actual host writer/reviewer capabilities. Missing capabilities leave
-drafts unreviewed. The CLI never calls a model or invents a review.
-
-Use a user-owned notebook directory outside plugin caches and separate from SAP
-DB files and existing generated pages. For SAP, obtain the canonical notebook,
-wiki and personal-note paths from `sap-harness knowledge paths --tenant TENANT
---source SOURCE_UUID`; its existing vault knowledge base is the storage owner.
-Initialize each new notebook with one immutable purpose and source before import:
+The host supplies absolute notebook, personal-note and wiki paths in user-owned
+storage outside plugin caches. Keep the notebook separate from the producer's DB
+and preserve existing files. A product may keep user knowledge in a vault and
+its own developer documentation in Git; knowledge does not choose those paths.
 
 ```sh
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook init \
-  --source SOURCE_UUID --audience user --notes ABSOLUTE_PERSONAL_DIRECTORY
+  --source SOURCE_ID --audience user --notes PERSONAL_DIRECTORY
 ```
 
-`--notes` makes that directory the canonical store for append-only note JSON files;
-the notebook DB does not duplicate their bodies. Wiki builds read those files.
-Back up both locations together. Preserve unrelated files there. Without `--notes`,
-notes stay in the notebook DB. Use separate directories for every purpose/source.
-Product-development knowledge belongs in the developer repository's managed Git
-knowledge workflow. A separate `developer` notebook can hold explicitly selected
-local evidence, but must never publish into the user wiki.
+Use `developer` for a separate developer notebook. Source and audience are immutable;
+reads and writes reject a different scope. A source identifier is not a display
+label or inferred tenant name. Existing unscoped or mixed notebooks are retained;
+explicitly select records for a new scoped notebook instead of relabeling them.
+Personal notes have their own matching scope marker and one original JSON file.
+Back up notebook and personal notes together. Without `--notes`, notes stay in the DB.
 
-Existing unscoped notebooks remain readable; they cannot be relabeled or published.
-Select records explicitly into a new scoped notebook, including note selection;
-never infer the audience of a legacy note. Keep each source explicit. A SAP graph source UUID is not the tenant
-alias; `observation.source_id` and the exported object ID select its identity.
-A database rebuild that assigns new IDs requires an explicit new source; this
-notebook does not infer equivalence across rebuilt databases.
+## Observation input contract
 
-## Import inspected evidence
-
-Existing public `sap-harness graph show-id OBJECT_UUID --db DATABASE` exports one
-owner graph as JSON without querying SAP. Save its output as UTF-8 JSON and supply
-the actual producing sap-harness version. Resolve the installed CLI as documented
-by sap-harness; do not require `npm`, a source checkout or extension installation.
-Recollection and SAP access remain sap-harness operations needing their own scope.
-
-```sh
-python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook import-sap \
-  --input OBJECT_EXPORT.json --producer-version INSTALLED_VERSION
-```
-
-The adapter checks owner/source identity, preserves the full export, original
-observation time and completeness, and hashes the export as its evidence revision.
-A retained successful structure under a partial/failed observation is not a new
-complete observation. `unsupported`/`reference` map to `partial`; original status
-and collector profile remain recorded. Completeness is limited to that profile.
-An absent object or a missing export is not evidence of removal.
-
-Other explicit evidence can use `notebook observe --input observation.json`:
+The public `notebook observe --input OBSERVATION.json` command accepts exactly:
 
 ```json
 {
-  "source": "product-release-example",
-  "object": "connection-guide",
-  "revision": "source-content-sha256-or-other-actual-version",
-  "observed_at": "2026-09-24T00:00:00Z",
+  "source": "producer:environment",
+  "object": "stable-object-id",
+  "revision": "producer-revision-or-content-hash",
+  "observed_at": "2026-09-24T08:00:00Z",
   "status": "complete",
-  "title": "Connection behavior",
-  "body": "Exact inspected evidence, with its limitations.",
-  "metadata": {"producer": "explicit local export", "locator": "original source locator"}
+  "title": "Order API contract",
+  "body": "Explicitly exported evidence, including its limitations.",
+  "metadata": {
+    "producer": "api-schema-exporter",
+    "producer_version": "1.0",
+    "locator": "object:stable-object-id",
+    "evidence_scope": "documented schema only; runtime behavior not observed"
+  }
 }
 ```
 
-Supported states are `complete`, `partial`, `failed`, `removed`. Record removal only
-from explicit evidence. Import is atomic and identical records are idempotent.
-Older observations remain history and cannot replace the latest observation.
-Conflicting bytes at the same source/object/time fail for reconciliation; do not
-invent a later time to force replacement. Use the same owner `show-id` selection
-on later exports. Export content hashes include all preserved fields.
+All scalar fields are nonempty strings. `observed_at` includes a timezone.
+`metadata` contains only string keys and values; the example keys are useful producer
+context, not product-specific requirements. Preserve provenance and collection scope.
+Use `complete`, `partial`, `failed` or `removed`. The producer maps its own states to
+these meanings: complete covers its stated collection scope, never all possible facts.
+Failed/partial evidence is not silently replaced with an earlier successful capture.
+A repeated identical record is idempotent. Different evidence at the same source,
+object and observation time is a conflict; reconcile it rather than overwrite history.
 
-## Write, revise and review an explanation
+Store producer-specific details as opaque body/metadata. The producer owns canonical
+hashing and identity translation. A content hash establishes byte identity, not truth.
+Knowledge adds its own immutable record ID and returns it for document dependencies.
 
-Use `notebook document --input document.json`. Every revision has an immutable ID.
-First revision uses `previous: null`; an update must name that key's latest ID.
-Different audience, area or product version needs its own key. This preserves
-version-specific explanations rather than silently relabeling old instructions.
+## Write and independently review explanations
 
-```json
-{
-  "key": "object-reading-user-v1",
-  "source": "SOURCE_ID",
-  "title": "What can this collected object tell me?",
-  "audience": "user",
-  "area": "domain",
-  "purpose": "Decide what is known and what needs another observation",
-  "product_version": "EXACT_INSTALLED_VERSION",
-  "author": "ACTUAL_AUTHOR",
-  "body": "Supported Markdown explanation, including important unknowns.",
-  "evidence": ["OBSERVATION_ID_RETURNED_BY_IMPORT"],
-  "previous": null
-}
-```
+Use `notebook document --input DOCUMENT.json` with exactly these fields:
+`key`, `source`, `title`, `audience`, `area`, `purpose`, `product_version`, `author`,
+`body`, `evidence`, `previous`. Text fields are nonempty; `audience` is `user` or
+`developer`; `area` is `usage`, `development` or `domain`. `evidence` is a nonempty
+list of distinct observation record IDs from the same source. `previous` is null
+for a new key or the latest document ID for a revision. Use a new key to change
+audience, area or product version. Existing explanations and reviews remain history.
 
-One explanation binds observations from one source. Cross-source material uses
-separate explanations; this boundary is not an authorization system. All supplied
-IDs must exist. A hash proves identity, not source truth or semantic correctness.
-Give an independent reviewer the exact document and evidence (`notebook get --source
-SOURCE_ID --id ID`), the reader task and actual input authority. Preserve their real
-response. Register their judgment with `notebook review --input review.json`:
+Write the answer to the reader's question, the action or judgment it supports,
+its exceptions and what the evidence does not establish. Keep code-derived facts,
+observed behavior and interpretation distinguishable. Field lists alone are not
+an explanation. Use [visual blocks](visual-blocks.md) when sequence or comparison
+is easier to read visually. Preserve the reader's language.
 
-```json
-{"document":"DOCUMENT_ID","reviewer":"ACTUAL_NON_AUTHOR","verdict":"pass","reason":"Actual judgment with scope and limits."}
-```
+Use `notebook review --input REVIEW.json` with `document`, `reviewer`, `verdict`
+and `reason`. The document is an exact revision ID; verdict is `pass`, `revise`
+or `blocked`. Register a real independent judgment, not an invented review record.
+The reviewer must differ from the author. Identities are caller-attested, not
+authenticated. A pass requires current complete bound observations.
 
-Verdicts are `pass`, `revise`, `blocked`. An author cannot review their own document;
-identities are caller-attested, not authenticated by this CLI. The orchestrator
-must not impersonate an independent reviewer. A pass requires current complete
-bound observations. A later collection makes explanations `stale` or
-`evidence_pending` as appropriate; their text and earlier reviews remain history.
-Read results mark drafts `unreviewed`, rather than publishing them as facts.
-`current` means reviewed against latest imported complete evidence, not live SAP.
+`current` means reviewed against the latest imported complete evidence. It does
+not guarantee the live source is unchanged. A changed observation makes dependent
+explanations `stale`; incomplete/removed evidence makes them `evidence_pending`.
+An unreviewed revision remains `unreviewed`. Review requests remain `revise` or `blocked`.
 
-## Preserve discoveries and earlier knowledge
+## Preserve personal findings
 
-Use `notebook note --input note.json` with the exact fields `source`, `object`,
-`author`, `body`, `origin`, all nonempty strings. A note needs a known source/object.
-Notes remain labeled personal records and never become verified facts automatically.
-Only capture material requested or relevant to the user's knowledge task; this is
-not conversation recording or automatic ingestion of arbitrary workspace files.
+Use `notebook note --input NOTE.json` with nonempty `source`, `object`, `author`,
+`body` and `origin`. The source/object must already exist. Notes remain personal
+records; neither collection nor publication promotes them to reviewed facts.
 
-For an explicitly selected old synthesis Markdown page:
+For one explicitly selected old Markdown file, use:
 
 ```sh
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook import-note \
-  --source SOURCE_ID --object OBJECT_ID --author ACTUAL_AUTHOR --file LEGACY_PAGE.md
+  --source SOURCE_ID --object OBJECT_ID --author ACTUAL_AUTHOR --file OLD_PAGE.md
 ```
 
-Import preserves its complete UTF-8 text and original byte hash as an unreviewed
-note, without rewriting or deleting the file. Repeating identical text for the
-same scope/author is idempotent. Changed text creates another record. Review its
-source and applicability before turning it into a document. Broken legacy links
-are retained as literal text, not followed. Bulk automatic migration and pruning
-are not performed. Keep the old generator from writing into notebook directories.
+This preserves the full UTF-8 text and original byte hash, without deleting or
+rewriting the original. Identical imports are idempotent; changes add history.
+Old links stay literal. Capture only the selected useful finding, not arbitrary
+workspace files or conversation history. Bulk migration/pruning is not performed.
 
-## Read and show the knowledge
+## Compare changes and hand off writing
+
+After the producer imports evidence, request:
+
+```sh
+python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook handoff \
+  --source SOURCE_ID --collection COLLECTION.json
+```
+
+`--collection` is optional. When supplied, the producer report must contain the
+matching `source` and boolean `ok`; additional producer diagnostics stay opaque.
+A missing report means collection success is unknown, not true. A false report
+remains false even when previously imported evidence is still complete.
+
+The version-1 response contains pending `documents`, latest `observations`, personal
+`notes`, `history` references (`id`, `kind`) and `evidence_changes`. Resolve a historical
+record through public `get --source SOURCE --id ID`. Each changed dependency identifies its document,
+object, exact bound/latest records and reason (`new_observation` or `incomplete_evidence`).
+Current unrelated documents are excluded from the writing queue. An empty initialized
+notebook returns an empty packet. Use that packet to:
+
+1. Compare exact evidence and decide which claims need changing. A new capture is
+   a recheck trigger, not proof that every business claim changed.
+2. Revise relevant explanations with their `previous` IDs, preserving notes and history.
+3. Obtain independent review of the exact new revisions; register the actual result.
+4. Publish reviewed explanations. Collection success alone does not complete the task.
+
+The producer owns retry, authentication prompts, scheduling and collection progress.
+The host dispatches writing and review through actual agent capabilities; the CLI
+only returns data and never calls an AI service or approves its own output.
+
+## Read, inspect status and publish
 
 ```sh
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook read \
-  --source SOURCE_ID --audience user --area domain --product-version VERSION --query QUESTION_TERMS
+  --source SOURCE_ID --audience user --area domain --product-version VERSION --query TERMS
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook get --source SOURCE_ID --id RECORD_ID
-python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook export --source SOURCE_ID --output NEW_CONTENT
+python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook status \
+  --source SOURCE_ID --publication WIKI_ROOT --collection COLLECTION.json
 ```
 
-Filters select explanations within the notebook purpose; notes and observations
-stay visible for that source. A scoped notebook rejects other sources/audiences
-on reads, writes and refreshes. Search is literal text matching, not semantic retrieval. Omit
-filters deliberately to see all purposes/versions for that source. No match does
-not establish missing SAP behavior. History IDs can be retrieved with `get`.
+Read filters select explanations; notes and observations remain visible for the
+selected source. Query is literal text matching. No match does not establish missing
+product behavior. History IDs can be retrieved with `get`.
+Status distinguishes empty, writing, review, publish, complete and collection_failed.
+The host adds its own active collection/publication progress. Complete means the
+published entry matches the reviewed notebook revision, not live source freshness.
 
-Export requires a scoped notebook and creates only its audience entry page, document
-status/version, evidence and literal notes. Build and serve them using
-[static wiki](knowledge-wiki.md#render-the-reviewed-body). The existing safe renderer
-supports flows/cards. This export is a dated snapshot, not the permission-aware
-managed reader; rebuild after importing or revising. Export never uploads data.
-
-## Recovery and limits
-
-`observations.sqlite` is append-only through the CLI. A busy writer fails immediately;
-wait for it to finish and retry the original request, which is idempotent. Failed
-semantic operations roll back. Readers never create a missing store. Unknown DB
-versions or symlink paths fail rather than migrate or overwrite. Preserve an
-interrupted first initialization and choose a new directory after diagnosis.
-An interrupted export has no final manifest; retain it and retry a new output path.
-
-Imports handle explicit local exports. The authorized recollection branch below
-uses the SAP CLI to connect. It does not schedule collection, install the plugin, migrate existing DBs,
-or add a server-side multi-user service. Keep runtime availability, successful local
-import, independent document judgment and real SAP completeness separate.
-
-## Recollect and close a SAP knowledge task
-
-Use this branch when the user authorizes SAP recollection. Keep that authorization
-scoped to a named source and object list. A saved plan is configuration, not new
-permission. Use `toolkit:writing-for-humans` to turn findings into reader actions;
-job title alone does not choose between product usage and product development.
-
-Create a private plan outside plugin caches with this exact shape:
-
-```json
-{
-  "version": 1,
-  "cli": ["/absolute/node", "/absolute/installed/sap-harness.js"],
-  "producer_version": "ACTUAL_INSTALLED_BUILD",
-  "db": "/absolute/existing/graph.sqlite",
-  "source": "REGISTERED_SOURCE_UUID",
-  "tenant": "SELECTED_TENANT",
-  "level": "SELECTED_READONLY_LEVEL",
-  "objects": [{"id": "OBJECT_UUID", "type": "DDLS", "name": "I_PLANT"}]
-}
-```
-
-A directly executable installed CLI uses a one-element `cli` array. No shell
-fragments or credentials belong in this plan. Source registration and initial
-collection use SAP Harness's installed `graph` commands. New builds can resolve
-an object export by `graph show-id --name I_PLANT --type DDLS --source SOURCE_UUID
---db DATABASE`; use the returned owner ID. Older builds require an existing ID.
-Read-only target levels are configured names, not the literal word `readonly`.
-SAP Harness selects the readonly target for `graph source` and `graph collect`.
-
-```sh
-python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook refresh-sap \
-  --plan PLAN.json --output NEW_RUN_DIRECTORY
-```
-
-This runs one bounded refresh (1–20 selected objects), imports newer complete or
-partial observations and writes `collection.json` plus `handoff.json`. It never
-registers a new source implicitly. When only the exporting product version changes,
-it preserves an otherwise identical old observation with its original producer
-attribution; a new collection records the new version. It validates all local identities before
-collection; SAP Harness validates the observed server/client and connection before
-its DB writer opens. Commands use argument arrays. SAP owns SSO and may open its
-login browser; a 180-second command timeout stops the run for human attention.
-There is no background scheduler. Repeating the command is an explicit new run.
-For a recurring request, use the host's scheduler with the same approved plan,
-failures stopping for attention, and the authorization's requested interval.
-
-Read both the exit code and report. Exit 1 with `ok: false` can still include a
-successfully imported partial observation. A failed connection with no newer
-observation is `collection_unverified`; the prior complete evidence remains only
-the last imported evidence. Do not report it as a successful live refresh. Do not
-retry authentication automatically. Preserve interrupted output directories and
-use a new one. The notebook's `sap-refresh.lock` prevents another refresh writer;
-after a crash, confirm no process is active before explicitly removing that lock.
-
-For each completed SAP investigation or implementation task within this authorized
-knowledge workflow:
-
-1. Retain the useful finding as a source/object note, including unresolved meaning.
-2. Run the configured refresh when its selected evidence may have changed. Inspect
-   `collection.json` before the writer handoff; an incomplete run remains visible.
-3. Compare each handoff document's exact old/new evidence. Inspect field labels,
-   deprecation/successor annotations, uncollected targets and limits before writing
-   an explanation. A stable structure hash is not proof of unchanged business data.
-4. Revise only relevant document keys with the latest evidence and `previous` ID.
-   Keep product versions distinct. Obtain a real independent review of the exact
-   revision; register that actual response. Keep notes and previous revisions.
-5. Rebuild the wiki with the following command, and verify the selected audience entry
-   page, important states and evidence links. Report incomplete work separately.
-
-## Build from an installed plugin
-
-The notebook CLI needs Python 3.10+ with SQLite. Wiki rendering also needs Node and
-MarkdownIt available as a module directory; resolve them through the host runtime
-or install the documented wiki dependencies with the user's approved package setup.
-No repository checkout, npm workspace or Git is needed at execution time.
+Python 3.10+ with SQLite is sufficient for notebook commands. Wiki rendering also
+requires Node and MarkdownIt, resolved by the host. Install dependencies only with
+the applicable authorization. No repository checkout is needed at execution time.
 
 ```sh
 python "$KNOWLEDGE_ROOT/scripts/knowledge.py" --project NOTEBOOK notebook wiki \
-  --source SOURCE_UUID --output WIKI_ROOT/snapshots/NEW_BUILD --publish WIKI_ROOT --require-current \
+  --source SOURCE_ID --output WIKI_ROOT/snapshots/NEW_BUILD --publish WIKI_ROOT --require-current \
   --node /absolute/node --markdown-it /absolute/node_modules/markdown-it
-python -m http.server 8777 --bind 127.0.0.1 --directory WIKI_ROOT
 ```
 
-`wiki` exports, builds and checks local bytes before returning `site` and `index`.
-Use a new output directory on every build; an existing snapshot is never replaced.
-`--require-current` checks the exact exported snapshot and rejects empty, unreviewed,
-stale or blocked documents before creating output. Use it for reviewed publication;
-omit it only when deliberately building a labelled draft for inspection.
+`--require-current` validates the exact exported snapshot, rejecting an empty
+notebook or any unreviewed/stale/incomplete/blocked explanation before writing output.
+Omit it only for a deliberately labelled draft. `notebook export --source SOURCE_ID
+--output NEW_CONTENT` produces inputs for the same [wiki renderer](knowledge-wiki.md).
 
-Optional `--publish` creates a scope-bound stable entry at WIKI_ROOT/index.html.
-The new output must be inside that root. Only a successful build/check atomically
-updates the entry; a failed build retains the last success. Keep the failed run
-visible in the task report; the retained page is not evidence that refresh passed.
-Serve only this wiki root, never a parent containing another audience's files.
-The root starts empty or carries the same scope; unrelated existing sites are refused.
-Serve on loopback for browser search, then stop that foreground server when done.
-This does not publish remotely, install dependencies or approve document semantics.
+Each build uses a new output directory. The stable publication root must be empty
+or belong to the same source/audience; output must be its child. Build/check failure
+preserves the last successful entry. Only a checked snapshot replaces the entry,
+with a publication receipt. Keep failed attempts visible separately. Serve only
+this wiki root on loopback for search, never a parent containing private stores.
+This is local publication, not external sharing or semantic approval.
+
+## Recovery
+
+The CLI appends records; semantic write failures roll back. A busy writer fails
+immediately: wait and retry the idempotent input. Readers do not create a missing
+store. Unknown DB versions or symlink paths fail rather than migrate or overwrite.
+Preserve interrupted initialization/export output and diagnose it before retrying
+with a new destination. Existing data is never rewritten to change producer ownership.

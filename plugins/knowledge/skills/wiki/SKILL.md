@@ -7,7 +7,7 @@ description: Build and inspect a local multipage web wiki from reviewed canonica
 
 For a non-Git notebook, follow [installed wiki build](../../references/notebook.md#build-from-an-installed-plugin).
 Keep draft/stale labels visible; this local snapshot is not a managed publication
-or a live SAP view. Return after inspecting that output.
+or a live source view. Return after inspecting that output.
 
 Choose the requested output before acting. For a live local managed reading website, read
 [managed reader](../../references/reader.md) and launch its fixed audience/goal server.

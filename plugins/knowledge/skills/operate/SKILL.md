@@ -5,12 +5,11 @@ description: Set up and operate local knowledge automation or repository relatio
 
 # Operate knowledge workflows
 
-For local SAP exports or a non-Git knowledge notebook, read
-[observation notebooks](../../references/notebook.md) for initialization, import,
-notes and recovery. For authorized recollection or task-end accumulation, follow
-its "Recollect and close a SAP knowledge task" procedure, inspect the collection
-report and complete the writer/reviewer handoff. Resolve its standard-library
-runtime and user-owned directory, then return after this notebook branch.
+For explicitly supplied evidence or a non-Git notebook, read
+[observation notebooks](../../references/notebook.md) for initialization, imports,
+change impact, writer handoffs, review and publication. The producing application
+owns collection and its authorization. Resolve the standard-library runtime and
+host-supplied storage location, then return after this notebook branch.
 Git project prerequisites below apply only to the Git-backed route.
 
 Read [project setup](../../references/project.md) for runtime and host capabilities. Reuse existing

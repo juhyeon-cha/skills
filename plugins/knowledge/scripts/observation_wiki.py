@@ -41,7 +41,7 @@ def export(view, output, base_path="/"):
         name = identity + '.md'
         files[name] = text
         entry = {'id': identity, 'path': name, 'title': title, 'summary': title,
-                 'evidence': {'reviewStatus': review, 'liveStatus': '가져온 자료의 로컬 스냅샷 · 실시간 SAP 확인 아님'}}
+                 'evidence': {'reviewStatus': review, 'liveStatus': '가져온 자료의 로컬 스냅샷 · 실시간 시스템 확인 아님'}}
         if kind:
             entry['kind'] = kind
         pages.append(entry)
@@ -82,7 +82,7 @@ def export(view, output, base_path="/"):
     if not view['notes']:
         notes += '\n기록된 메모가 없습니다.\n'
     page('notes', '추가한 메모와 이전 지식', notes, '메모 · 독립 검토된 사실 아님')
-    evidence = '# 근거와 수집 상태\n\n이 페이지의 버전·상태는 마지막으로 가져온 자료에 관한 것입니다. 최신 SAP 상태를 보장하지 않습니다.\n\n'
+    evidence = '# 근거와 수집 상태\n\n이 페이지의 버전·상태는 마지막으로 가져온 자료에 관한 것입니다. 최신 시스템 상태를 보장하지 않습니다.\n\n'
     evidence += literal(json.dumps({k: view[k] for k in ('source', 'audience', 'area', 'product_version', 'scope')}, ensure_ascii=False, indent=2))
     evidence += '\n## 설명별 근거 연결\n\n'
     for doc in view['documents']:

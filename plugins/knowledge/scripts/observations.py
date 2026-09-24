@@ -328,7 +328,7 @@ def read(root, source, audience=None, area=None, product_version=None, query=Non
             'observations': list(current.values()),
             'notes': [r for r in selected if r['kind'] == 'note'],
             'history': [{'id': r['id'], 'kind': r['kind']} for r in selected],
-            'scope': 'Local owner supplied evidence; current means reviewed against latest imported complete observations, not live SAP freshness.'}
+            'scope': 'Local owner supplied evidence; current means reviewed against latest imported complete observations, not live system freshness.'}
 
 
 def register_commands(parser):
@@ -341,9 +341,9 @@ def register_commands(parser):
     status.add_argument('--source', required=True)
     status.add_argument('--publication', type=Path, required=True)
     status.add_argument('--collection', type=Path)
-    refresh = sub.add_parser('refresh-sap')
-    refresh.add_argument('--plan', type=Path, required=True)
-    refresh.add_argument('--output', type=Path, required=True)
+    handoff = sub.add_parser('handoff')
+    handoff.add_argument('--source', required=True)
+    handoff.add_argument('--collection', type=Path)
     wiki = sub.add_parser('wiki')
     wiki.add_argument('--source', required=True)
     wiki.add_argument('--output', type=Path, required=True)
@@ -356,9 +356,6 @@ def register_commands(parser):
     get.add_argument('--source', required=True)
     for kind in ('observe', 'document', 'note', 'review'):
         sub.add_parser(kind).add_argument('--input', type=Path, required=True)
-    sap = sub.add_parser('import-sap')
-    sap.add_argument('--input', type=Path, required=True)
-    sap.add_argument('--producer-version', required=True)
     legacy = sub.add_parser('import-note')
     legacy.add_argument('--file', type=Path, required=True)
     for k in ('source', 'object', 'author'):
@@ -381,11 +378,11 @@ def execute(args):
     if command == 'status':
         from notebook_status import status
         return status(args.project, args.source, args.publication, args.collection)
-    if command == 'refresh-sap':
-        from sap_refresh import refresh
-        return refresh(args.project, args.plan, args.output)
+    if command == 'handoff':
+        from notebook_handoff import handoff
+        return handoff(args.project, args.source, args.collection)
     if command == 'wiki':
-        from sap_refresh import wiki
+        from notebook_publication import wiki
         return wiki(args.project, args.source, args.output, args.node, args.markdown_it, args.publish, args.require_current)
     if command == 'get':
         check_scope(args.project, args.source)
@@ -396,12 +393,9 @@ def execute(args):
                       and r['value']['source'] == args.source), None)
         require(match is not None, 'record not found in selected source')
         return match
-    if command in ('observe', 'document', 'note', 'review', 'import-sap'):
+    if command in ('observe', 'document', 'note', 'review'):
         value = json.loads(args.input.read_text(encoding='utf-8'))
-        if command == 'import-sap':
-            from sap_observations import adapt_sap_graph
-            value = adapt_sap_graph(value, producer_version=args.producer_version)
-        return append(args.project, 'observation' if command in ('observe', 'import-sap') else command, value)
+        return append(args.project, 'observation' if command == 'observe' else command, value)
     if command == 'import-note':
         data = args.file.read_bytes()
         import hashlib

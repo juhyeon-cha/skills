@@ -5,7 +5,7 @@ description: Create the first evidence-linked knowledge or target specification 
 
 # Bootstrap knowledge
 
-For non-Git evidence such as an explicit SAP export, read
+For explicitly supplied non-Git evidence, read
 [observation notebooks](../../references/notebook.md) and use its source, purpose,
 authoring and review flow. Do not fabricate a Git baseline for external evidence.
 For Git-backed knowledge continue below.

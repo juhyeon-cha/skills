@@ -3,6 +3,7 @@ import hashlib
 import json
 from common import digest
 from observations import read, safe_path, notebook_scope, require, timestamp
+from notebook_handoff import collection_result
 
 
 def status(root, source, publication, collection=None):
@@ -28,12 +29,9 @@ def status(root, source, publication, collection=None):
     entry_matches = has_wiki and published.get('entry_hash') == hashlib.sha256(entry.read_bytes()).hexdigest()
     if entry_matches:
         result['last_published_at'] = published.get('published_at')
-    if collection is not None:
-        report = json.loads(safe_path(collection).read_text(encoding='utf-8'))
-        require(report.get('source') == source and isinstance(report.get('ok'), bool), 'invalid collection report')
-        if not report['ok']:
-            result['stage'] = 'collection_failed'
-            return result
+    if collection_result(collection, source) is False:
+        result['stage'] = 'collection_failed'
+        return result
     states = {d['status'] for d in view['documents']}
     if not states or states & {'stale', 'evidence_pending', 'revise', 'blocked'}:
         result['stage'] = 'writing'

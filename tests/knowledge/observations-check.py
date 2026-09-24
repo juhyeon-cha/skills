@@ -37,7 +37,7 @@ class NotebookChecks(unittest.TestCase):
         path.write_text(json.dumps(value, ensure_ascii=False), encoding='utf-8')
         return self.run_cli(command, '--input', str(path), **kwargs)
 
-    def observation(self, day=1, source='sap:test', object='ZORDER', status='complete'):
+    def observation(self, day=1, source='product:test', object='ORDER', status='complete'):
         return dict(source=source, object=object, revision=f'r{day}',
                     observed_at=f'2026-09-{day:02d}T10:00:00+00:00', status=status,
                     title='주문 API', body=f'주문 처리 근거 {day}', metadata={})
@@ -46,7 +46,7 @@ class NotebookChecks(unittest.TestCase):
         return self.append('observe', self.observation(**kwargs))['id']
 
     def document(self, evidence, key='usage', audience='user', area='usage',
-                 source='sap:test', version='v1', previous=None):
+                 source='product:test', version='v1', previous=None):
         return dict(key=key, source=source, title='주문 사용 가이드', audience=audience,
                     area=area, purpose='주문 처리', product_version=version,
                     author='writer', body='주문 조회와 오류 처리 안내', evidence=evidence,
@@ -56,8 +56,34 @@ class NotebookChecks(unittest.TestCase):
         return self.append('review', dict(document=doc, reviewer=reviewer,
                            verdict=verdict, reason='수집 근거와 문서 주장을 대조함'), **kwargs)
 
-    def read(self, *args, source='sap:test', **kwargs):
+    def read(self, *args, source='product:test', **kwargs):
         return self.run_cli('read', '--source', source, *args, **kwargs)
+
+    def test_handoff_identifies_changed_evidence_and_preserves_notes(self):
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user')
+        empty = self.run_cli('handoff', '--source', 'product:test')
+        self.assertEqual(empty['documents'], [])
+        first = self.observe()
+        unrelated = self.observe(object='CUSTOMER')
+        doc = self.append('document', self.document([first]))['id']
+        other = self.append('document', self.document([unrelated], key='customers'))['id']
+        self.review(doc)
+        self.review(other)
+        self.append('note', dict(source='product:test', object='ORDER', author='owner', body='Keep this', origin='manual'))
+        self.assertEqual(self.run_cli('handoff', '--source', 'product:test')['documents'], [])
+        second = self.observe(day=2)
+        packet = self.run_cli('handoff', '--source', 'product:test')
+        self.assertEqual([d['id'] for d in packet['documents']], [doc])
+        self.assertEqual(packet['evidence_changes'][0]['bound']['id'], first)
+        self.assertEqual(packet['evidence_changes'][0]['latest']['id'], second)
+        self.assertEqual(packet['notes'][0]['value']['body'], 'Keep this')
+        self.assertIn({'id': first, 'kind': 'observation'}, packet['history'])
+        self.assertEqual(self.run_cli('get', '--source', 'product:test', '--id', first)['id'], first)
+        report = self.base / 'collection.json'
+        report.write_text(json.dumps({'source': 'product:test', 'ok': False}))
+        self.assertFalse(self.run_cli('handoff', '--source', 'product:test', '--collection', str(report))['collection_ok'])
+        report.write_text(json.dumps({'source': 'foreign', 'ok': True}))
+        self.run_cli('handoff', '--source', 'product:test', '--collection', str(report), success=False)
 
     def test_accumulation_preserves_notes_and_document_history(self):
         first = self.observe()
@@ -69,7 +95,7 @@ class NotebookChecks(unittest.TestCase):
         self.review(user_id)
         self.review(dev_id)
         self.assertEqual({d['status'] for d in self.read()['documents']}, {'current'})
-        note = dict(source='sap:test', object='ZORDER', author='owner',
+        note = dict(source='product:test', object='ORDER', author='owner',
                     body='관측 갱신 뒤에도 남아야 하는 메모', origin='manual')
         note_id = self.append('note', note)['id']
         second = self.observe(day=2)
@@ -111,21 +137,21 @@ class NotebookChecks(unittest.TestCase):
         self.assertFalse(self.append('document', doc)['created'])
         self.review(doc_id)
         self.assertFalse(self.review(doc_id)['created'])
-        note = dict(source='sap:test', object='ZORDER', author='owner', body='메모', origin='manual')
+        note = dict(source='product:test', object='ORDER', author='owner', body='메모', origin='manual')
         self.append('note', note)
         self.assertFalse(self.append('note', note)['created'])
 
     def test_source_audience_area_version_and_query_filters(self):
         source_a = self.observe()
-        source_b = self.observe(source='sap:other')
+        source_b = self.observe(source='product:other')
         definitions = [self.document([source_a]),
                        self.document([source_a], key='developer', audience='developer', area='development'),
                        self.document([source_a], key='v2', version='v2'),
-                       self.document([source_b], source='sap:other')]
+                       self.document([source_b], source='product:other')]
         for definition in definitions:
             self.append('document', definition)
         self.assertEqual(len(self.read()['documents']), 3)
-        self.assertEqual(len(self.read(source='sap:other')['documents']), 1)
+        self.assertEqual(len(self.read(source='product:other')['documents']), 1)
         self.assertEqual({o['id'] for o in self.read()['observations']}, {source_a})
         selected = self.read('--audience', 'user', '--area', 'usage', '--product-version', 'v1')
         self.assertEqual([d['value']['key'] for d in selected['documents']], ['usage'])
@@ -160,7 +186,7 @@ class NotebookChecks(unittest.TestCase):
     def test_missing_read_and_invalid_input_do_not_initialize(self):
         self.read(success=False)
         self.assertFalse(self.project.exists())
-        self.append('note', dict(source='sap:test', object='missing', author='owner',
+        self.append('note', dict(source='product:test', object='missing', author='owner',
                                  body='orphan note', origin='manual'), success=False)
         self.assertFalse(self.project.exists())
         for invalid in ({}, {**self.observation(), 'metadata': {'x': 1}},
@@ -233,24 +259,24 @@ class NotebookChecks(unittest.TestCase):
         second = self.observe(day=2)
         self.append('document', {**document, 'previous': doc_id,
                                  'evidence': [second], 'body': '새 문서'})
-        result = self.run_cli('get', '--id', first, '--source', 'sap:test')
+        result = self.run_cli('get', '--id', first, '--source', 'product:test')
         self.assertEqual(result['value'], self.observation())
-        old = self.run_cli('get', '--id', doc_id, '--source', 'sap:test')
+        old = self.run_cli('get', '--id', doc_id, '--source', 'product:test')
         self.assertEqual(old['value'], document)
-        self.run_cli('get', '--id', first, '--source', 'sap:other', success=False)
-        self.run_cli('get', '--id', 'absent', '--source', 'sap:test', success=False)
+        self.run_cli('get', '--id', first, '--source', 'product:other', success=False)
+        self.run_cli('get', '--id', 'absent', '--source', 'product:test', success=False)
 
     def test_export_preserves_scope_and_refuses_overwrite(self):
-        self.run_cli('init', '--source', 'sap:test', '--audience', 'user')
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user')
         first = self.observe()
         doc = self.append('document', self.document([first]))['id']
         self.review(doc)
-        self.append('observe', self.observation(source='sap:other'), success=False)
-        self.append('note', dict(source='sap:test', object='ZORDER', author='owner',
+        self.append('observe', self.observation(source='product:other'), success=False)
+        self.append('note', dict(source='product:test', object='ORDER', author='owner',
                                 body='```\n<script>note</script>\n````', origin='manual'))
         output = self.base / 'wiki-inputs'
         before = self.read()
-        result = self.run_cli('export', '--source', 'sap:test', '--output', str(output))
+        result = self.run_cli('export', '--source', 'product:test', '--output', str(output))
         manifest = json.loads((output / 'manifest.json').read_text(encoding='utf-8'))
         self.assertEqual(result['revision'], manifest['revision'])
         self.assertEqual(result['pages'], len(manifest['pages']))
@@ -263,24 +289,24 @@ class NotebookChecks(unittest.TestCase):
         self.assertIn('독립 검토 기록 있음', files['p-' + doc + '.md'].decode('utf-8'))
         self.assertIn('`````\n```\n<script>note</script>\n````\n`````',
                       files['notes.md'].decode('utf-8'))
-        self.run_cli('export', '--source', 'sap:test', '--output', str(output), success=False)
+        self.run_cli('export', '--source', 'product:test', '--output', str(output), success=False)
         self.assertEqual({p.name: p.read_bytes() for p in output.iterdir()}, files)
         self.assertEqual(self.read(), before)
 
     @unittest.skipUnless(os.environ.get('WIKI_MARKDOWN_IT_MODULE'),
                          'WIKI_MARKDOWN_IT_MODULE not supplied; actual wiki renderer not executed')
     def test_export_builds_real_wiki_with_inert_notes_and_document_visuals(self):
-        self.run_cli('init', '--source', 'sap:test', '--audience', 'user')
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user')
         first = self.observe()
         body = ('> [!FLOW] 순서\n>\n> 1. 관측\n> 2. 검토\n\n'
                 '> [!CARDS] 독자\n>\n> - **사용자**: 제품 사용\n> - **개발자**: 제품 개발\n')
         doc = self.append('document', {**self.document([first]), 'body': body})['id']
         self.review(doc)
         hostile = '```\n<script>note</script>\n[bad](missing.md)\n````\n' + body
-        self.append('note', dict(source='sap:test', object='ZORDER', author='owner',
+        self.append('note', dict(source='product:test', object='ORDER', author='owner',
                                 body=hostile, origin='manual'))
         content, site = self.base / 'content', self.base / 'site'
-        self.run_cli('export', '--source', 'sap:test', '--output', str(content))
+        self.run_cli('export', '--source', 'product:test', '--output', str(content))
         scripts = CLI.parent / 'wiki'
         for script, arguments in (
                 ('build.mjs', [content, site, os.environ['WIKI_MARKDOWN_IT_MODULE']]),
@@ -298,14 +324,14 @@ class NotebookChecks(unittest.TestCase):
         self.assertIn('wiki-cards', rendered)
 
     def test_scope_rejects_cross_purpose_source_and_rebinding_without_changing_records(self):
-        self.run_cli('init', '--source', 'sap:test', '--audience', 'user')
-        self.assertFalse(self.run_cli('init', '--source', 'sap:test', '--audience', 'user')['created'])
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user')
+        self.assertFalse(self.run_cli('init', '--source', 'product:test', '--audience', 'user')['created'])
         first = self.observe()
         self.append('document', self.document([first]))
         before = (self.project / 'observations.sqlite').read_bytes()
         self.append('document', self.document([first], audience='developer'), success=False)
         self.append('observe', self.observation(source='other'), success=False)
-        self.run_cli('init', '--source', 'sap:test', '--audience', 'developer', success=False)
+        self.run_cli('init', '--source', 'product:test', '--audience', 'developer', success=False)
         self.read('--audience', 'developer', success=False)
         self.run_cli('get', '--source', 'other', '--id', first, success=False)
         self.assertEqual((self.project / 'observations.sqlite').read_bytes(), before)
@@ -313,12 +339,12 @@ class NotebookChecks(unittest.TestCase):
 
     def test_personal_notes_have_one_original_and_survive_recollection_and_export(self):
         personal = self.base / 'personal'
-        self.run_cli('init', '--source', 'sap:test', '--audience', 'user', '--notes', str(personal))
-        self.run_cli('init', '--source', 'sap:test', '--audience', 'developer', '--notes', str(personal),
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user', '--notes', str(personal))
+        self.run_cli('init', '--source', 'product:test', '--audience', 'developer', '--notes', str(personal),
                      project=self.base / 'developer', success=False)
         self.assertFalse((self.base / 'developer' / 'scope.json').exists())
         self.observe()
-        note = dict(source='sap:test', object='ZORDER', author='owner', body='MY-PERSONAL-NOTE', origin='manual')
+        note = dict(source='product:test', object='ORDER', author='owner', body='MY-PERSONAL-NOTE', origin='manual')
         identity = self.append('note', note)['id']
         self.assertFalse(self.append('note', note)['created'])
         original = personal / (identity + '.json')
@@ -327,9 +353,9 @@ class NotebookChecks(unittest.TestCase):
             self.assertEqual(db.execute("SELECT count(*) FROM records WHERE kind='note'").fetchone()[0], 0)
         self.observe(day=2)
         self.assertEqual(self.read()['notes'][0]['id'], identity)
-        self.assertEqual(self.run_cli('get', '--source', 'sap:test', '--id', identity)['value'], note)
+        self.assertEqual(self.run_cli('get', '--source', 'product:test', '--id', identity)['value'], note)
         output = self.base / 'wiki'
-        self.run_cli('export', '--source', 'sap:test', '--output', str(output))
+        self.run_cli('export', '--source', 'product:test', '--output', str(output))
         self.assertIn('MY-PERSONAL-NOTE', (output / 'notes.md').read_text())
         self.assertEqual(original.read_bytes(), before)
         original.write_text(json.dumps({**note, 'source': 'other'}))
@@ -337,24 +363,24 @@ class NotebookChecks(unittest.TestCase):
 
     def test_unscoped_notebook_cannot_be_relabelled_or_published(self):
         self.observe()
-        self.run_cli('init', '--source', 'sap:test', '--audience', 'user', success=False)
+        self.run_cli('init', '--source', 'product:test', '--audience', 'user', success=False)
         output = self.base / 'mixed-wiki'
-        self.run_cli('export', '--source', 'sap:test', '--audience', 'user',
+        self.run_cli('export', '--source', 'product:test', '--audience', 'user',
                      '--output', str(output), success=False)
         self.assertFalse(output.exists())
 
     def test_each_wiki_has_only_its_own_documents_notes_evidence_and_history(self):
         for audience in ('user', 'developer'):
             self.project = self.base / audience
-            self.run_cli('init', '--source', 'sap:test', '--audience', audience)
+            self.run_cli('init', '--source', 'product:test', '--audience', audience)
             observation = {**self.observation(), 'body': audience + '-EVIDENCE'}
             evidence = self.append('observe', observation)['id']
             self.append('document', {**self.document([evidence], audience=audience),
                                      'body': audience + '-DOCUMENT'})
-            self.append('note', dict(source='sap:test', object='ZORDER', author='owner',
+            self.append('note', dict(source='product:test', object='ORDER', author='owner',
                                     body=audience + '-NOTE', origin='manual'))
             out = self.base / (audience + '-wiki')
-            self.run_cli('export', '--source', 'sap:test', '--output', str(out))
+            self.run_cli('export', '--source', 'product:test', '--output', str(out))
             text = '\n'.join(p.read_text() for p in out.iterdir())
             other = 'developer' if audience == 'user' else 'user'
             for kind in ('EVIDENCE', 'DOCUMENT', 'NOTE'):
@@ -367,8 +393,8 @@ class NotebookChecks(unittest.TestCase):
         legacy = self.base / 'legacy.md'
         body = '# 운영 메모\n\n수동 확인 필요.\n'
         legacy.write_text(body, encoding='utf-8')
-        arguments = ('import-note', '--file', str(legacy), '--source', 'sap:test',
-                     '--object', 'ZORDER', '--author', 'owner')
+        arguments = ('import-note', '--file', str(legacy), '--source', 'product:test',
+                     '--object', 'ORDER', '--author', 'owner')
         self.assertTrue(self.run_cli(*arguments)['created'])
         self.assertFalse(self.run_cli(*arguments)['created'])
         self.observe(day=2)
