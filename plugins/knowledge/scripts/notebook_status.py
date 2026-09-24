@@ -19,8 +19,6 @@ def status(root, source, publication, collection=None):
     result = {'source': source, 'audience': scope['audience'], 'has_wiki': has_wiki,
               'stage': 'empty', 'documents': [], 'last_observed_at': None,
               'last_published_at': None}
-    if not (safe_path(root) / 'observations.sqlite').exists():
-        return result
     view = read(root, source)
     result['documents'] = [{'title': d['value']['title'], 'status': d['status']} for d in view['documents']]
     result['last_observed_at'] = max((o['value']['observed_at'] for o in view['observations']), key=timestamp, default=None)
@@ -31,6 +29,8 @@ def status(root, source, publication, collection=None):
         result['last_published_at'] = published.get('published_at')
     if collection_result(collection, source) is False:
         result['stage'] = 'collection_failed'
+        return result
+    if not view['history']:
         return result
     states = {d['status'] for d in view['documents']}
     if not states or states & {'stale', 'evidence_pending', 'revise', 'blocked'}:

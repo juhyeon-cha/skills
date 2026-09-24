@@ -39,4 +39,8 @@ Codes do not grant retry permission. After a busy writer exits, inspect current 
 
 ## Compatibility boundary
 
+For notebook SQLite location selection, explicit attach and scoped history transfer,
+read [notebook storage](notebook-storage.md). These commands retain this JSON transport
+and standard-library-only notebook runtime.
+
 The CLI continues existing v1 projects without migration. Unsupported DB versions fail before writes. The development regression preserves a real v1 interrupted application and checks completion, repeated resume, and immutable evidence. This is a specific supported state, not a promise to read every historical version. For runtime prerequisites use `doctor`; for run integrity use [project status](project.md).

@@ -21,8 +21,9 @@ a developer changing that product needs implementation knowledge.
 ## Initialize one source and audience
 
 The host supplies absolute notebook, personal-note and wiki paths in user-owned
-storage outside plugin caches. Keep the notebook separate from the producer's DB
-and preserve existing files. A product may keep user knowledge in a vault and
+storage outside plugin caches. For an explicit SQLite file, a shared application DB,
+configured artifact/publication locations, or history transfer, read
+[notebook storage](notebook-storage.md). Preserve existing files. A product may keep user knowledge in a vault and
 its own developer documentation in Git; knowledge does not choose those paths.
 
 ```sh
@@ -192,5 +193,6 @@ This is local publication, not external sharing or semantic approval.
 The CLI appends records; semantic write failures roll back. A busy writer fails
 immediately: wait and retry the idempotent input. Readers do not create a missing
 store. Unknown DB versions or symlink paths fail rather than migrate or overwrite.
+Configured-store initialization and history transfer follow [storage recovery](notebook-storage.md).
 Preserve interrupted initialization/export output and diagnose it before retrying
 with a new destination. Existing data is never rewritten to change producer ownership.
