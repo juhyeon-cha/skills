@@ -1,7 +1,7 @@
 {
   "name": "knowledge",
   "description": "코드·목표·문서의 근거를 연결하고 변경 반영·독립 검토·복수 저장소 조회·로컬 위키를 제공하는 지식 관리 플러그인",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "author": {
     "name": "juhyeon-cha"
   },
