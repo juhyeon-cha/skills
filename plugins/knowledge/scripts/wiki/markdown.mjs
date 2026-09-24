@@ -1,6 +1,8 @@
+import {projectVisuals} from "./visuals.mjs";
+
 /** Shared Markdown parsing and deterministic heading IDs for static and managed readers. */
 export function parseDocument(md, body) {
-  const tokens = md.parse(body, {}), headings = [], anchors = new Set();
+  const tokens = projectVisuals(md.parse(body, {}), md), headings = [], anchors = new Set();
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (token.type !== "heading_open") continue;

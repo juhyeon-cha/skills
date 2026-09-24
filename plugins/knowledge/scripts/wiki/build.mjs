@@ -59,6 +59,16 @@ need(
     manifest.pages.length > 0,
   "Incomplete manifest",
 );
+const basePath = manifest.basePath ?? "/";
+need(
+  typeof basePath === "string" &&
+    /^\/(?:[A-Za-z0-9_%.-]+\/)*$/.test(basePath) &&
+    basePath.split("/").filter(Boolean).every((part) => {
+      const decoded = decodeURIComponent(part);
+      return decoded !== "." && decoded !== ".." && !/[\/\\]/.test(decoded);
+    }),
+  "Invalid publication basePath",
+);
 const ids = new Set(),
   paths = new Set();
 const pages = manifest.pages.map((p) => {
@@ -109,7 +119,7 @@ const pages = manifest.pages.map((p) => {
     headings,
     anchors,
     sha256: hash(body),
-    url: p.id === manifest.home ? "/" : "/" + p.id + "/",
+    url: p.id === manifest.home ? basePath : basePath + p.id + "/",
   };
 });
 need(ids.has(manifest.home), "Unknown home page");
@@ -176,7 +186,7 @@ const nav = (current) =>
     .join("");
 function shell(title, body, p) {
   const current = p?.id || "";
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · ${esc(manifest.title)}</title><link rel="stylesheet" href="/style.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header><a class="brand" href="/">${esc(manifest.title)}</a><span class="edition">LOCAL KNOWLEDGE · 고정 스냅샷</span></header><div class="layout"><aside class="sidebar"><details class="menu" open><summary>페이지 탐색</summary><nav aria-label="페이지 탐색">${nav(current)}</nav></details><section class="search" aria-label="지식 검색"><label for="query">문서에서 찾기</label><input id="query" type="search" placeholder="검색어를 입력하세요…" autocomplete="off"><p id="search-status" role="status"></p><ul id="results"></ul></section></aside><main id="main" tabindex="-1"><div class="eyebrow">${p?.kind === "evidence" ? "근거와 확인 범위" : "작업 지식"}</div>${body}${p ? `<details class="provenance"><summary>이 문서의 근거와 스냅샷 정보</summary><p>문서 검토: ${esc(p.evidence?.reviewStatus || "미확인")} · 실환경 검증: ${esc(p.evidence?.liveStatus || "미확인")}</p><p>기준 revision: <code>${esc(manifest.revision)}</code></p><p>이 문서는 고정 스냅샷이며 이후 변경을 자동 감지하지 않습니다.</p><p>문서 해시: <code>${p.sha256}</code></p><p>스냅샷 해시: <code>${snapshotHash}</code></p>${manifest.evidencePage ? `<a href="${pages.find((entry) => entry.id === manifest.evidencePage).url}">근거와 확인 범위 보기</a>` : ""}</details>` : ""}<footer>읽고, 판단하고, 확인한 뒤 실행하세요.<span>${esc(manifest.title)}</span></footer></main><aside class="toc" aria-label="이 페이지에서"><p>이 페이지에서</p>${
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · ${esc(manifest.title)}</title><link rel="stylesheet" href="${basePath}style.css"></head><body><a class="skip" href="#main">본문으로 건너뛰기</a><header><a class="brand" href="${basePath}">${esc(manifest.title)}</a><span class="edition">LOCAL KNOWLEDGE · 고정 스냅샷</span></header><div class="layout"><aside class="sidebar"><details class="menu" open><summary>페이지 탐색</summary><nav aria-label="페이지 탐색">${nav(current)}</nav></details><section class="search" aria-label="지식 검색"><label for="query">문서에서 찾기</label><input id="query" type="search" placeholder="검색어를 입력하세요…" autocomplete="off"><p id="search-status" role="status"></p><ul id="results"></ul></section></aside><main id="main" tabindex="-1"><div class="eyebrow">${p?.kind === "evidence" ? "근거와 확인 범위" : "작업 지식"}</div>${body}${p ? `<details class="provenance"><summary>이 문서의 근거와 스냅샷 정보</summary><p>문서 검토: ${esc(p.evidence?.reviewStatus || "미확인")} · 실환경 검증: ${esc(p.evidence?.liveStatus || "미확인")}</p><p>기준 revision: <code>${esc(manifest.revision)}</code></p><p>이 문서는 고정 스냅샷이며 이후 변경을 자동 감지하지 않습니다.</p><p>문서 해시: <code>${p.sha256}</code></p><p>스냅샷 해시: <code>${snapshotHash}</code></p>${manifest.evidencePage ? `<a href="${pages.find((entry) => entry.id === manifest.evidencePage).url}">근거와 확인 범위 보기</a>` : ""}</details>` : ""}<footer>읽고, 판단하고, 확인한 뒤 실행하세요.<span>${esc(manifest.title)}</span></footer></main><aside class="toc" aria-label="이 페이지에서"><p>이 페이지에서</p>${
     p
       ? p.headings
           .filter((h) => h.level === 2)
@@ -185,7 +195,7 @@ function shell(title, body, p) {
           )
           .join("")
       : ""
-  }</aside></div><script src="/search.js" defer></script></body></html>`;
+  }</aside></div><script src="${basePath}search.js" defer></script></body></html>`;
 }
 fs.mkdirSync(output, { recursive: true });
 for (const p of pages) {
@@ -204,7 +214,7 @@ fs.writeFileSync(
   path.join(output, "404.html"),
   shell(
     "페이지를 찾을 수 없습니다",
-    '<h1>이 페이지를 찾지 못했습니다.</h1><p>주소가 바뀌었거나 존재하지 않는 페이지입니다. 탐색 메뉴에서 필요한 작업을 선택하세요.</p><a class="home-link" href="/">시작 페이지로 돌아가기 →</a>',
+    `<h1>이 페이지를 찾지 못했습니다.</h1><p>주소가 바뀌었거나 존재하지 않는 페이지입니다. 탐색 메뉴에서 필요한 작업을 선택하세요.</p><a class="home-link" href="${basePath}">시작 페이지로 돌아가기 →</a>`,
   ),
 );
 fs.writeFileSync(
@@ -228,6 +238,7 @@ fs.writeFileSync(
 );
 for (const asset of ["search.js", "style.css"])
   fs.copyFileSync(path.join(__dirname, asset), path.join(output, asset));
+fs.appendFileSync(path.join(output, "style.css"), "\n" + fs.readFileSync(path.join(__dirname, "visuals.css"), "utf8"));
 const inputHashes = {
   "manifest.json": hash(raw),
   ...Object.fromEntries(pages.map((p) => [p.path, p.sha256])),

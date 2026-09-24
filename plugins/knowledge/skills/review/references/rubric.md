@@ -11,7 +11,8 @@
   an intake acceptance criterion requires revision. Missing authority needed to judge is unverified.
   Version 1 reviews cover only the supplied no-intake scope. Every candidate and unlinked change has a justified disposition. Challenge
   unsupported no-document-change assertions and undeclared dependencies visible in the packet.
-- Reader action: the audience can choose the correct action. Check ambiguity, lost exceptions,
+- Reader action: apply [reader-task coverage](reader-tasks.md) to the supplied audience,
+  purpose and questions. The audience can choose the correct action. Check ambiguity, lost exceptions,
   Markdown/context broken by excerpt deletion, and cross-document contradictions. Style feedback
   must explain a reader impact.
 - Uncertainty: do not treat unverified behavior or policy intent as proven. Missing source or

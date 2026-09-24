@@ -1,14 +1,17 @@
 # Bootstrap documents from code or goals
 
-Use one repository, a bounded subject and one reader role per input bundle. This procedure
+Use one repository, a bounded subject and explicit reader tasks per input bundle. This procedure
 creates the first documents using existing writing, review and CLI contracts; it introduces
 no product command or storage schema. Keep artifacts in a caller-owned local directory.
 
 ## 1. Freeze the input
 
+Read [reader tasks](../skills/review/references/reader-tasks.md) to select the requested
+readers, freeze their questions and preserve shared authority across explanations.
+
 Before writing, preserve the original request and a small local manifest linking it to:
 
-- Reader, purpose, repository, source scope and explicit exclusions with reasons.
+- Readers, their tasks, repository, source scope and explicit exclusions with reasons.
 - Exact input bytes, SHA-256 hashes, locators and versions: resolved Git commit and selected
   source files for current behavior; actual user instructions or decisions for goals; original
   documents for context. Record a caller-owned logical goal ID separately from its content version.
@@ -41,7 +44,7 @@ source references, testable acceptance and
 remaining implementation differences using [intake.md](intake.md). A proposal without user or
 approved-decision authority remains a local proposal; do not fabricate authority to fit intake.
 
-Compare every frozen required item with the generated documents and evidence. Record its exact
+Compare every frozen required item and reader question with the generated documents and evidence. Record its exact
 location or a concrete omission/conflict. Save document/spec/input-file hashes in the manifest.
 An unresolved mandatory item keeps this bundle pending; repairable omissions return to generation.
 

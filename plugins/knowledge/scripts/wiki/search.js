@@ -3,7 +3,7 @@ const query = document.querySelector("#query"),
   status = document.querySelector("#search-status"),
   results = document.querySelector("#results");
 let index;
-fetch("/search-index.json")
+fetch(new URL("search-index.json", document.currentScript.src))
   .then((r) => {
     if (!r.ok) throw Error("unavailable");
     return r.json();

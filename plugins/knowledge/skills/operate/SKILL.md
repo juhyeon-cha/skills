@@ -5,6 +5,13 @@ description: Set up and operate local knowledge automation or repository relatio
 
 # Operate knowledge workflows
 
+For explicitly supplied evidence or a non-Git notebook, read
+[observation notebooks](../../references/notebook.md) for initialization, imports,
+change impact, writer handoffs, review and publication. The producing application
+owns collection and its authorization. Resolve the standard-library runtime and
+host-supplied storage location, then return after this notebook branch.
+Git project prerequisites below apply only to the Git-backed route.
+
 Read [project setup](../../references/project.md) for runtime and host capabilities. Reuse existing
 project/state directories; if no reviewed baseline exists, hand its scope to `knowledge:bootstrap`.
 For event requests, polling, host task receipts or failure recovery read

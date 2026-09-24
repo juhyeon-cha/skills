@@ -1,0 +1,14 @@
+{
+  "FE1": {"source":["fixture/screen.py:can_cancel"],"required":["paid 상태의 본인 주문","pending 중 요청 불가"]},
+  "FE2": {"source":["fixture/screen.py:outcome","fixture/decisions.md:P1"],"required":["성공 여부 미확정","주문 다시 조회","자동 재요청을 보장하거나 지시하지 않음"]},
+  "FE3": {"source":["fixture/screen.py:outcome"],"required":["403 취소 권한 없음·계정 확인","409 취소 가능한 상태가 아님·주문 다시 조회"]},
+  "BE1": {"source":["fixture/service.py:Orders.cancel"],"required":["소유자 검사가 먼저이며 타인은 403","이미 취소된 본인 주문은 200 cancelled"]},
+  "BE2": {"source":["fixture/service.py:Orders.cancel"],"required":["paid를 cancelled로 변경","다른 상태는 409","단일 인메모리 인스턴스 lock 범위이며 분산 동시성 보장은 아님"]},
+  "BE3": {"source":["fixture/service.py","fixture/decisions.md:P1"],"required":["환불 보장 없음","영속 저장·결제사 연동 없음","정적 코드 근거이며 운영 배포·실행 검증을 입증하지 않음"]},
+  "PL1": {"source":["fixture/service.py:Orders.cancel","fixture/decisions.md:P1"],"required":["본인 paid에서 cancelled","본인 cancelled 반복은 완료 응답","출고 이후는 범위 밖이며 코드상 409"]},
+  "PL2": {"source":["fixture/screen.py:outcome","fixture/decisions.md:P1"],"required":["성공·실패 단정 금지","주문 다시 조회 안내가 보이는 수용 조건"]},
+  "PL3": {"source":["fixture/decisions.md:P1"],"required":["결제사 연동·환불 제외","환불 시점·운영 처리 주체 미정","환불 완료 약속 불가"]},
+  "PO1": {"source":["fixture/decisions.md:O1"],"required":["가상 시나리오 내 두 명 제보","빈도·비율·비용·기존 전환율 미측정","감소 효과 미입증"]},
+  "PO2": {"source":["fixture/decisions.md:D1","fixture/decisions.md:P1"],"required":["취소 상태 직접 확인 제한 기능 검토","환불 동시 제공 대안은 결제사 연동·정책 결정 필요","확정 범위와 제품 검토·출시 승인을 구분"]},
+  "PO3": {"source":["fixture/decisions.md:D1"],"required":["문의 비율은 지표 후보","분모·기간·목표치 미정","출시 일정·승인 없음","효과 판단을 위한 관측 필요"]}
+}

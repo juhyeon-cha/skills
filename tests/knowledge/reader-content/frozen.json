@@ -1,0 +1,12 @@
+{
+  "base_commit": "127bb1b91243fa247e4fed0d04a65c7eb202a4ac",
+  "kind": "synthetic-reader-task-observation",
+  "inputs": {
+    "fixture/decisions.md": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+    "fixture/screen.py": "f5f11cee9e38d28d42fa738a328c300934e731425b3d9d3589b6954d8022e434",
+    "fixture/service.py": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+    "questions.json": "b6cb4a4cbfb8fa6df5856394c522c433a4bc862298b653dbab33057140db531e",
+    "expectations.json": "d8a912fa63baac55c8943f01cba6d5d3cc5bd84438dac39ddd242c7ba1c4c1c4",
+    "protocol.md": "a36d789296e0cfac0279815d6a4146efad4752eb8c4541d5ee10bddce6a766f4"
+  }
+}

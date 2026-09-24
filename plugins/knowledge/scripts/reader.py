@@ -258,7 +258,7 @@ def make_server(state, host, principal, goal, port, markdown_it=None):
                 self.send(400, '잘못된 요청입니다.', 'text/plain; charset=utf-8')
                 return
             if parsed.path == '/style.css':
-                self.send(200, Path(__file__).with_name('reader.css').read_text(), 'text/css; charset=utf-8')
+                self.send(200, Path(__file__).with_name('reader.css').read_text() + '\n' + (Path(__file__).parent / 'wiki' / 'visuals.css').read_text(), 'text/css; charset=utf-8')
                 return
             params = parse_qs(parsed.query, keep_blank_values=True)
             if set(params) - {'q'} or any(len(v) != 1 for v in params.values()):

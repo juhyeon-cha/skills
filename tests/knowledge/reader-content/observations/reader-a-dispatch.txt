@@ -1,0 +1,2 @@
+/Users/juhyeon/.harness-workspace/skills
+Read only /private/tmp/knowledge-content-input-a.txt once using a literal file read. Then answer the packet without further tools or reading any other file. Do not inspect the repository, sources, evaluation criteria or other conversation. This is a document-only reader observation with prompt-level separation. Return only the requested JSON. Do not edit files.

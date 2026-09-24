@@ -25,6 +25,7 @@ Read the reference for the primary reader and the reference for the document's p
 | Product owners decide priorities, scope, or outcomes | [PO: investment and product decisions](references/product-owner.md) |
 | Service planners define policies, workflows, or conditions | [Planning: rules and exceptions](references/planning.md) |
 | Choosing a structure for proposals, specifications, handoffs, updates, or instructions | [Document shapes and multiple audiences](references/document-shapes.md) |
+| Choosing or authoring flowcharts, cards, tables, or other visual explanations | [Visual explanations and medium support](references/visual-explanations.md) |
 | Condensing a draft or replacing abstract language | [Editing criteria and audience-specific examples](references/editing.md) |
 
 For unlisted roles, use the closest **decision task**. Role-specific items are selection criteria, not a form to fill out.

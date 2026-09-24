@@ -1,0 +1,14 @@
+{
+  "author": "/root/content_author",
+  "independence": "fresh dispatch, prompt-only input separation; no provider sandbox claim",
+  "model_identity": "not exposed by collaboration tool",
+  "cost_tokens": "unknown",
+  "files": {
+    "reader-a-prompt.txt": "e9e3166200417b04759c200146c04eb1efd327ec5dc80ca6bcff2761bcc846b6",
+    "reader-a-dispatch.txt": "f1729a9f8fa407de222364d86a2cc1f1483a192806e1ec273859a4dea3dc0e89",
+    "reader-b-prompt.txt": "0f2d3b1e9f81967f257a094f466fba3e17d0c49319fa47e5425022312da361e1",
+    "reader-b-dispatch.txt": "47c95dc98e62a415241ae39dbd450f0f454d2175275eebe7e95392f890568eaf"
+  },
+  "normal_document_sha256": "8e505becd7582d193c5131477363de0c45f45bf600125a669099febf6be797da",
+  "defect_document_sha256": "f0011716d8f3d2e291005bb1046ca4edf70b8a8d3dcdd584eb56941749ce9f57"
+}

@@ -23,6 +23,9 @@ line change and cannot discover undeclared dependencies. Record coverage limits 
 
 ## Decisions for a run
 
+Before composing decisions, read [reader tasks](../skills/review/references/reader-tasks.md)
+to freeze the affected reader questions and compare dependent explanations of shared rules.
+
 Read every source file and document in `context.json` relevant to a candidate or unlinked change.
 The impact ID and candidate IDs are machine-generated; copy them exactly. The
 [decision schema](../contracts/update-schema.json) owns the input consumed by `prepare`:

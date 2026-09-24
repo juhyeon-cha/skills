@@ -16,7 +16,8 @@ def writer_skill():
 
 
 def review_files():
-    return [REVIEW_SKILL / name for name in ('SKILL.md', 'references/rubric.md', 'references/response.md', 'references/document-ac.md')]
+    return [REVIEW_SKILL / name for name in ('SKILL.md', 'references/rubric.md', 'references/response.md',
+                                           'references/document-ac.md', 'references/reader-tasks.md')]
 
 
 def require_files(required):

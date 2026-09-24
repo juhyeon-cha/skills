@@ -1,0 +1,377 @@
+{
+  "artifact_kind": "caller-owned document-generation observation; not a production schema",
+  "base_commit": "127bb1b91243fa247e4fed0d04a65c7eb202a4ac",
+  "questions_source": {
+    "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/questions.json",
+    "sha256": "b6cb4a4cbfb8fa6df5856394c522c433a4bc862298b653dbab33057140db531e"
+  },
+  "document": {
+    "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/generated/knowledge.md",
+    "sha256": "8e505becd7582d193c5131477363de0c45f45bf600125a669099febf6be797da"
+  },
+  "authority_boundary": "합성 정적 코드, 가상 확정 범위 P1, 제품 검토안 D1을 구분한다. 문서 생성만 수행; 독립 판단 및 CLI 인계 미실행.",
+  "questions": [
+    {
+      "id": "FE1",
+      "reader": "FE",
+      "task": "취소 화면 구현",
+      "question": "취소 요청은 언제 허용하며 진행 중 추가 클릭은 어떻게 처리하나요?",
+      "mandatory": true,
+      "action": "취소 화면 구현",
+      "answer_locations": [
+        "knowledge.md#screen"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/screen.py",
+          "sha256": "f5f11cee9e38d28d42fa738a328c300934e731425b3d9d3589b6954d8022e434",
+          "locator": "4–5행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 7–8행"
+        }
+      ],
+      "claim_classes": [
+        "current",
+        "confirmed_target"
+      ],
+      "necessary_conditions_and_exceptions": "본인·paid·pending 아님을 모두 만족; pending 동안 추가 취소 불허",
+      "unknown_handling": "실제 버튼 연결과 pending 이벤트 구현·실행 미검증",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "FE2",
+      "reader": "FE",
+      "task": "취소 화면 구현",
+      "question": "응답을 받지 못했다면 사용자에게 어떤 상태와 다음 행동을 안내하나요?",
+      "mandatory": true,
+      "action": "취소 화면 구현",
+      "answer_locations": [
+        "knowledge.md#screen"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/screen.py",
+          "sha256": "f5f11cee9e38d28d42fa738a328c300934e731425b3d9d3589b6954d8022e434",
+          "locator": "8–10행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 9행"
+        }
+      ],
+      "claim_classes": [
+        "current",
+        "confirmed_target",
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "응답 없음은 성공·실패 미확정; 처리 결과 확인 필요 / 주문 다시 조회",
+      "unknown_handling": "재조회 API·후속 전환 미제공; 자동 재취소 약속 없음",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "FE3",
+      "reader": "FE",
+      "task": "취소 화면 구현",
+      "question": "403과 409 응답의 안내와 다음 행동은 어떻게 다른가요?",
+      "mandatory": true,
+      "action": "취소 화면 구현",
+      "answer_locations": [
+        "knowledge.md#screen",
+        "knowledge.md#shared"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/screen.py",
+          "sha256": "f5f11cee9e38d28d42fa738a328c300934e731425b3d9d3589b6954d8022e434",
+          "locator": "13–16행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/service.py",
+          "sha256": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+          "locator": "14–19행"
+        }
+      ],
+      "claim_classes": [
+        "current"
+      ],
+      "necessary_conditions_and_exceptions": "403 권한 없음→계정 확인; 409 상태 불가→재조회",
+      "unknown_handling": "실제 UI 연동 실행 미검증",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "BE1",
+      "reader": "BE",
+      "task": "취소 계약 구현",
+      "question": "타인 주문과 이미 취소된 본인 주문에 대한 요청은 각각 어떻게 처리하나요?",
+      "mandatory": true,
+      "action": "취소 계약 구현",
+      "answer_locations": [
+        "knowledge.md#shared",
+        "knowledge.md#backend"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/service.py",
+          "sha256": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+          "locator": "14–17행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 8행"
+        }
+      ],
+      "claim_classes": [
+        "current",
+        "confirmed_target"
+      ],
+      "necessary_conditions_and_exceptions": "소유권 우선; 타인 취소 주문도 403; 본인 취소 반복 200 cancelled",
+      "unknown_handling": "정적 코드의 반환 계약이며 배포 API 미검증",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "BE2",
+      "reader": "BE",
+      "task": "취소 계약 구현",
+      "question": "취소할 수 있는 상태와 결과는 무엇이며 동시성 보장은 어디까지인가요?",
+      "mandatory": true,
+      "action": "취소 계약 구현",
+      "answer_locations": [
+        "knowledge.md#shared",
+        "knowledge.md#backend"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/service.py",
+          "sha256": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+          "locator": "5–21행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 7–8행"
+        }
+      ],
+      "claim_classes": [
+        "current",
+        "confirmed_target",
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "paid만 신규 변경; cancelled 반복 성공; 그 외 409; 같은 Orders 잠금 공유 범위",
+      "unknown_handling": "다중 객체·프로세스·분산·영속 트랜잭션 보장 불가",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "BE3",
+      "reader": "BE",
+      "task": "취소 계약 구현",
+      "question": "취소 성공은 환불 성공을 뜻하나요? 저장·연동과 실행 검증의 범위는 어디까지인가요?",
+      "mandatory": true,
+      "action": "취소 계약 구현",
+      "answer_locations": [
+        "knowledge.md#shared",
+        "knowledge.md#backend"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/service.py",
+          "sha256": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+          "locator": "11–21행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 11–13행"
+        }
+      ],
+      "claim_classes": [
+        "current",
+        "confirmed_target",
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "취소 성공은 상태 변경; 환불 별개; 메모리 저장만",
+      "unknown_handling": "영속 저장·결제사 연동 없음; 실행·운영·배포 미검증",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "PL1",
+      "reader": "기획",
+      "task": "정책과 수용 시나리오 정의",
+      "question": "신규 취소, 반복 요청, 출고 이후 요청의 기대 결과를 어떻게 구분하나요?",
+      "mandatory": true,
+      "action": "정책과 수용 시나리오 정의",
+      "answer_locations": [
+        "knowledge.md#shared"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/service.py",
+          "sha256": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+          "locator": "14–21행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 7–8행"
+        }
+      ],
+      "claim_classes": [
+        "current",
+        "confirmed_target"
+      ],
+      "necessary_conditions_and_exceptions": "본인 paid 신규→변경+200; cancelled 반복→200; 출고 이후 제외·현재 코드 409",
+      "unknown_handling": "정적 결과를 관찰 가능한 수용 조건으로 제시; 실행 통과 주장 없음",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "PL2",
+      "reader": "기획",
+      "task": "정책과 수용 시나리오 정의",
+      "question": "응답이 유실되었을 때 정책과 관찰 가능한 수용 조건은 무엇인가요?",
+      "mandatory": true,
+      "action": "정책과 수용 시나리오 정의",
+      "answer_locations": [
+        "knowledge.md#screen"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/screen.py",
+          "sha256": "f5f11cee9e38d28d42fa738a328c300934e731425b3d9d3589b6954d8022e434",
+          "locator": "8–10행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 9행"
+        }
+      ],
+      "claim_classes": [
+        "current",
+        "confirmed_target",
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "응답 유실 조건에서 결과 확정 금지; 안내 문구와 재조회 행동 관찰",
+      "unknown_handling": "실제 통신 유실·재조회 연동 검증 없음",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "PL3",
+      "reader": "기획",
+      "task": "정책과 수용 시나리오 정의",
+      "question": "이번 범위에서 제외되거나 결정되지 않은 것은 무엇이며 어떤 약속을 막나요?",
+      "mandatory": true,
+      "action": "정책과 수용 시나리오 정의",
+      "answer_locations": [
+        "knowledge.md#shared",
+        "knowledge.md#backend",
+        "knowledge.md#product"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 8–13행; D1 24–25행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/service.py",
+          "sha256": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+          "locator": "11행"
+        }
+      ],
+      "claim_classes": [
+        "confirmed_target",
+        "proposal",
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "출고 후 취소·실제 환불·결제사 연동 제외; 환불 시점·주체 미정",
+      "unknown_handling": "환불 완료·성과·출시 준비 약속 불가",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "PO1",
+      "reader": "PO",
+      "task": "범위와 성과 판단",
+      "question": "이 문제의 실제 입력 근거는 무엇이며 규모와 효과까지 입증됐나요?",
+      "mandatory": true,
+      "action": "범위와 성과 판단",
+      "answer_locations": [
+        "knowledge.md#product"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "서문 3행; O1 15–18행; D1 25행"
+        }
+      ],
+      "claim_classes": [
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "가상 고객 두 명 제보만; 빈도·비율·비용·전환율 미측정",
+      "unknown_handling": "실제 관측이나 문의 감소 입증으로 해석 금지",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "PO2",
+      "reader": "PO",
+      "task": "범위와 성과 판단",
+      "question": "현재 검토 범위와 대안의 차이 및 의존성은 무엇인가요?",
+      "mandatory": true,
+      "action": "범위와 성과 판단",
+      "answer_locations": [
+        "knowledge.md#product",
+        "knowledge.md#shared"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "P1 7–13행; D1 22–23행"
+        }
+      ],
+      "claim_classes": [
+        "confirmed_target",
+        "proposal",
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "제한된 취소 상태 확인 우선 검토; 환불 포함 대안은 결제사 연동·정책 필요",
+      "unknown_handling": "비용·일정 미제공; 검토안을 출시 승인으로 격상 금지",
+      "status": "authored_pending_independent_evaluation"
+    },
+    {
+      "id": "PO3",
+      "reader": "PO",
+      "task": "범위와 성과 판단",
+      "question": "성과·출시를 판단하기 위해 무엇을 더 결정하거나 확인해야 하나요?",
+      "mandatory": true,
+      "action": "범위와 성과 판단",
+      "answer_locations": [
+        "knowledge.md#product",
+        "knowledge.md#backend"
+      ],
+      "sources": [
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/decisions.md",
+          "sha256": "32c1547a8592aab0566f6b69b490d433f34f105076e0e9ce2dafe93e0e0c36f1",
+          "locator": "D1 24–25행; P1 12–13행"
+        },
+        {
+          "path": "/private/tmp/skills-knowledge-reader-content/tests/knowledge/reader-content/fixture/service.py",
+          "sha256": "df8132595fa2c47dfa980418d30caf37cb9c153be4c4cb1721bf383168d7e068",
+          "locator": "11행"
+        }
+      ],
+      "claim_classes": [
+        "proposal",
+        "unresolved"
+      ],
+      "necessary_conditions_and_exceptions": "문의 비율 후보의 분모·기간·목표 정의 및 실제 관측; 범위에 맞는 구현 실행 확인",
+      "unknown_handling": "효과 미입증; 출시 일정·승인 없음; 환불 대안 시 정책·연동 필요",
+      "status": "authored_pending_independent_evaluation"
+    }
+  ]
+}
