@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "source": "business:demo",
+  "audience": "user",
+  "user": "owner",
+  "context": {
+    "company": "demo"
+  },
+  "as_of": "2026-10-01",
+  "query": "10월 윤활유 판매량을 판매처별 제품별로 보고 현재 재고도 볼 거예요."
+}

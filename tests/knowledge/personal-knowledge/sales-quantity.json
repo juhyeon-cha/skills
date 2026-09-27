@@ -1,0 +1,41 @@
+{
+  "version": 2,
+  "key": "owner-sales-quantity",
+  "concept": "sales-quantity",
+  "source": "business:demo",
+  "audience": "user",
+  "object": null,
+  "author": "owner",
+  "body": "판매량은 반품을 뺀 출고 수량으로 보고 무상 샘플은 제외해요.",
+  "summary": {
+    "text": "반품 차감 출고 수량, 무상 샘플 제외",
+    "author": "assistant"
+  },
+  "origin": "user:conversation:example-1",
+  "scope": {
+    "user": "owner",
+    "context": {
+      "company": "demo"
+    }
+  },
+  "revision": 1,
+  "previous": null,
+  "recorded_at": "2026-09-27T09:00:00+09:00",
+  "term": "판매량",
+  "aliases": [
+    "판매 수량"
+  ],
+  "related_terms": [
+    "출고 실적",
+    "판매 개수"
+  ],
+  "definition": "출고 수량에서 반품 수량을 차감",
+  "exceptions": [
+    "무상 샘플 제외"
+  ],
+  "evidence": [],
+  "valid_from": "2026-01-01",
+  "valid_to": null,
+  "lifecycle": "active",
+  "change": "correction"
+}

@@ -5,12 +5,18 @@ description: Read current knowledge, goals, evidence and partial completion acro
 
 # Query knowledge
 
-For an existing non-Git observation notebook, read
-[notebook retrieval](../../references/notebook.md#read-and-show-the-knowledge).
-Select the explicit source, reader purpose and product version; preserve stale,
-partial and unreviewed states. Do not require Git relations for that route.
+For personal business definitions or natural-language analytical retrieval, follow
+[personal retrieval](../../references/personal-knowledge.md#retrieve-through-the-public-cli).
+Return assertion, scope, evidence, review and unresolved conflicts separately.
+Finish this notebook route after returning the result.
 
-Read [query procedure](../../references/query.md) before retrieving results. Resolve the question
+For an existing non-Git observation notebook, read
+[notebook retrieval](../../references/notebook.md#read-inspect-status-and-publish).
+Select the explicit source, reader purpose and product version; preserve stale,
+partial and unreviewed states, then return the notebook answer.
+
+For Git projects or managed relations, read [query procedure](../../references/query.md)
+before retrieving results. Resolve the question
 and existing project or relation coordinates, host configuration and host-selected principal.
 Return current implementation, target and verification as separate facts with evidence versions.
 A hidden or failed required member keeps whole completion incomplete. Missing access is not absence.

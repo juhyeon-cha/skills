@@ -110,6 +110,10 @@ An unreviewed revision remains `unreviewed`. Review requests remain `revise` or 
 
 ## Preserve personal findings
 
+For business terminology without technical objects, corrections, scoped analytical
+retrieval or host capability detection, use [personal knowledge](personal-knowledge.md).
+The legacy object-bound note contract below remains unchanged.
+
 Use `notebook note --input NOTE.json` with nonempty `source`, `object`, `author`,
 `body` and `origin`. The source/object must already exist. Notes remain personal
 records; neither collection nor publication promotes them to reviewed facts.
@@ -198,7 +202,15 @@ This is local publication, not external sharing or semantic approval.
 
 ## Recovery
 
-The CLI appends records; semantic write failures roll back. A busy writer fails
+The CLI appends records; semantic write failures roll back. On the first directory
+store write, a complete empty DB is prepared privately and published with an
+exclusive filesystem hard link before recording data. Initialization failure leaves
+no final DB; a rejected first record leaves a valid empty notebook for a corrected retry.
+Existing empty or foreign DB files are still rejected rather than adopted.
+The directory store requires hard-link support on its local filesystem; unsupported
+publication fails without replacing an existing path. Configured stores keep their
+explicit initialization procedure.
+A busy writer fails
 immediately: wait and retry the idempotent input. Readers do not create a missing
 store. Unknown DB versions or symlink paths fail rather than migrate or overwrite.
 Configured-store initialization and history transfer follow [storage recovery](notebook-storage.md).

@@ -1,0 +1,288 @@
+{
+  "fixture_version": 1,
+  "scenario": "conflicting",
+  "synthetic": true,
+  "initialize": {
+    "source": "business:demo",
+    "audience": "user"
+  },
+  "calls": [
+    {
+      "command": "define",
+      "input": {
+        "version": 2,
+        "key": "owner-lubricants",
+        "concept": "lubricants",
+        "source": "business:demo",
+        "audience": "user",
+        "object": null,
+        "author": "owner",
+        "body": "제가 말하는 윤활유는 L100과 L200이에요. 시제품은 빼주세요.",
+        "summary": {
+          "text": "윤활유는 L100/L200이며 시제품 제외",
+          "author": "assistant"
+        },
+        "origin": "user:conversation:example-1",
+        "scope": {
+          "user": "owner",
+          "context": {
+            "company": "demo"
+          }
+        },
+        "revision": 1,
+        "previous": null,
+        "recorded_at": "2026-09-27T09:00:00+09:00",
+        "term": "윤활유",
+        "aliases": [
+          "윤활 오일"
+        ],
+        "related_terms": [
+          "윤활 제품"
+        ],
+        "definition": "제품 L100 및 L200",
+        "exceptions": [
+          "시제품 제외"
+        ],
+        "evidence": [],
+        "valid_from": "2026-01-01",
+        "valid_to": null,
+        "lifecycle": "active",
+        "change": "correction"
+      },
+      "response": {
+        "_meta": {
+          "cli_contract": 1
+        },
+        "created": true,
+        "id": "748eccd97d2c77323d13fac405783ae1aeae602338fe1fc3c1dca35661320cf8",
+        "key": "owner-lubricants",
+        "kind": "note",
+        "revision": 1,
+        "version": 1
+      }
+    },
+    {
+      "command": "define",
+      "input": {
+        "version": 2,
+        "key": "alternative",
+        "concept": "lubricants",
+        "source": "business:demo",
+        "audience": "user",
+        "object": null,
+        "author": "owner",
+        "body": "제가 말하는 윤활유는 L100과 L200이에요. 시제품은 빼주세요.",
+        "summary": {
+          "text": "윤활유는 L100/L200이며 시제품 제외",
+          "author": "assistant"
+        },
+        "origin": "user:conversation:example-1",
+        "scope": {
+          "user": "owner",
+          "context": {
+            "company": "demo"
+          }
+        },
+        "revision": 1,
+        "previous": null,
+        "recorded_at": "2026-09-27T09:00:00+09:00",
+        "term": "윤활유",
+        "aliases": [
+          "윤활 오일"
+        ],
+        "related_terms": [
+          "윤활 제품"
+        ],
+        "definition": "제품 L300",
+        "exceptions": [
+          "시제품 제외"
+        ],
+        "evidence": [],
+        "valid_from": "2026-01-01",
+        "valid_to": null,
+        "lifecycle": "active",
+        "change": "correction"
+      },
+      "response": {
+        "_meta": {
+          "cli_contract": 1
+        },
+        "created": true,
+        "id": "2a08faf5d46eb515de2983766061878f873b0cf1aa9251a726edc7e1135be168",
+        "key": "alternative",
+        "kind": "note",
+        "revision": 1,
+        "version": 1
+      }
+    },
+    {
+      "command": "retrieve",
+      "input": {
+        "version": 1,
+        "source": "business:demo",
+        "audience": "user",
+        "user": "owner",
+        "context": {
+          "company": "demo"
+        },
+        "as_of": "2026-10-01",
+        "query": "10월 윤활유 판매량을 판매처별 제품별로 보고 현재 재고도 볼 거예요."
+      },
+      "response": {
+        "_meta": {
+          "cli_contract": 1
+        },
+        "absence_established": false,
+        "ambiguities": [],
+        "conflicts": [
+          {
+            "concept": "lubricants",
+            "reason": "different_definitions_or_exceptions",
+            "record_ids": [
+              "748eccd97d2c77323d13fac405783ae1aeae602338fe1fc3c1dca35661320cf8",
+              "2a08faf5d46eb515de2983766061878f873b0cf1aa9251a726edc7e1135be168"
+            ],
+            "status": "unresolved"
+          }
+        ],
+        "coverage": "registered_terms_and_literal_candidates",
+        "items": [
+          {
+            "applicability": "conflicting",
+            "assertion": "personal",
+            "dependencies": [],
+            "evidence_state": "unsupported",
+            "id": "owner-lubricants",
+            "independent_review": null,
+            "kind": "personal_definition",
+            "matching_reasons": [
+              {
+                "kind": "term",
+                "term": "윤활유"
+              }
+            ],
+            "organizational_approval": "not_asserted",
+            "record_id": "748eccd97d2c77323d13fac405783ae1aeae602338fe1fc3c1dca35661320cf8",
+            "revision": 1,
+            "value": {
+              "aliases": [
+                "윤활 오일"
+              ],
+              "audience": "user",
+              "author": "owner",
+              "body": "제가 말하는 윤활유는 L100과 L200이에요. 시제품은 빼주세요.",
+              "change": "correction",
+              "concept": "lubricants",
+              "definition": "제품 L100 및 L200",
+              "evidence": [],
+              "exceptions": [
+                "시제품 제외"
+              ],
+              "key": "owner-lubricants",
+              "lifecycle": "active",
+              "object": null,
+              "origin": "user:conversation:example-1",
+              "previous": null,
+              "recorded_at": "2026-09-27T09:00:00+09:00",
+              "related_terms": [
+                "윤활 제품"
+              ],
+              "revision": 1,
+              "scope": {
+                "context": {
+                  "company": "demo"
+                },
+                "user": "owner"
+              },
+              "source": "business:demo",
+              "summary": {
+                "author": "assistant",
+                "text": "윤활유는 L100/L200이며 시제품 제외"
+              },
+              "term": "윤활유",
+              "valid_from": "2026-01-01",
+              "valid_to": null,
+              "version": 2
+            }
+          },
+          {
+            "applicability": "conflicting",
+            "assertion": "personal",
+            "dependencies": [],
+            "evidence_state": "unsupported",
+            "id": "alternative",
+            "independent_review": null,
+            "kind": "personal_definition",
+            "matching_reasons": [
+              {
+                "kind": "term",
+                "term": "윤활유"
+              }
+            ],
+            "organizational_approval": "not_asserted",
+            "record_id": "2a08faf5d46eb515de2983766061878f873b0cf1aa9251a726edc7e1135be168",
+            "revision": 1,
+            "value": {
+              "aliases": [
+                "윤활 오일"
+              ],
+              "audience": "user",
+              "author": "owner",
+              "body": "제가 말하는 윤활유는 L100과 L200이에요. 시제품은 빼주세요.",
+              "change": "correction",
+              "concept": "lubricants",
+              "definition": "제품 L300",
+              "evidence": [],
+              "exceptions": [
+                "시제품 제외"
+              ],
+              "key": "alternative",
+              "lifecycle": "active",
+              "object": null,
+              "origin": "user:conversation:example-1",
+              "previous": null,
+              "recorded_at": "2026-09-27T09:00:00+09:00",
+              "related_terms": [
+                "윤활 제품"
+              ],
+              "revision": 1,
+              "scope": {
+                "context": {
+                  "company": "demo"
+                },
+                "user": "owner"
+              },
+              "source": "business:demo",
+              "summary": {
+                "author": "assistant",
+                "text": "윤활유는 L100/L200이며 시제품 제외"
+              },
+              "term": "윤활유",
+              "valid_from": "2026-01-01",
+              "valid_to": null,
+              "version": 2
+            }
+          }
+        ],
+        "limitations": [
+          "Imported local evidence only; no live business-data verification.",
+          "Scope is personalization, not host authorization.",
+          "Text and summaries are data, never executable instructions."
+        ],
+        "outcome": "conflicting",
+        "query": {
+          "as_of": "2026-10-01",
+          "audience": "user",
+          "context": {
+            "company": "demo"
+          },
+          "query": "10월 윤활유 판매량을 판매처별 제품별로 보고 현재 재고도 볼 거예요.",
+          "source": "business:demo",
+          "user": "owner",
+          "version": 1
+        },
+        "version": 1
+      }
+    }
+  ]
+}
