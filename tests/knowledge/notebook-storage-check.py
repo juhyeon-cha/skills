@@ -284,6 +284,9 @@ class StorageChecks(unittest.TestCase):
         legacy = self.base / 'legacy'
         self.init(config=legacy)
         evidence, doc = self.seed(config=legacy)
+        review = dict(version=2, review_id='reconsidered-1', document=doc,
+                      reviewer='fixture-reviewer', verdict='pass', reason='Reconsidered')
+        review_id = self.append('review', review, config=legacy)['id']
         self.append('observe', self.observation(2), config=legacy)
         before = (legacy / 'observations.sqlite').read_bytes()
         bundle = self.base / 'backup.json'
@@ -298,6 +301,9 @@ class StorageChecks(unittest.TestCase):
             self.assertEqual(original[field], restored[field])
         self.assertEqual(restored['documents'][0]['status'], 'stale')
         self.assertEqual(restored['documents'][0]['id'], doc)
+        self.assertEqual(restored['documents'][0]['review']['id'], review_id)
+        self.assertFalse(self.append('review', review)['created'])
+        self.append('review', {**review, 'reason': 'Changed'}, success=False)
         self.assertEqual(self.host_state(), host_before)
         self.assertEqual((legacy / 'observations.sqlite').read_bytes(), before)
         self.cli('backup', '--output', bundle, success=False)

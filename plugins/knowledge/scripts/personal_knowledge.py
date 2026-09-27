@@ -95,10 +95,11 @@ def normalize(value):
 
 def capabilities():
     return {'version': 1, 'personal_note_versions': [2], 'retrieval_versions': [1],
+            'review_versions': [1, 2],
             'storage': ['database'], 'schema_migration_required': False,
             'matching': ['term', 'confirmed_alias', 'related_term', 'host_concept', 'literal', 'same_concept', 'evidence_link'],
             'organizational_approval': False, 'semantic_search': False,
-            'compatibility': 'All readers must support personal note v2 before its first write; older readers reject it.',
+            'compatibility': 'All readers must support personal note v2 or review v2 before writing that record version; older readers reject it.',
             'outcomes': ['matched', 'no_match', 'out_of_scope', 'conflicting', 'ambiguous', 'stale', 'unavailable']}
 
 

@@ -415,19 +415,26 @@ class Store:
                 response['implementation'] != 'pass' or response['documents'] != 'pass'):
             raise ValueError('REVIEW_INCONSISTENT')
         identity = self.save(value)
-        self.state['reviews'].append(identity)
-        self.event('review', review=identity)
+        if identity not in self.state['reviews']:
+            self.state['reviews'].append(identity)
+            self.event('review', review=identity)
         return {'review': identity, 'verdict': response['verdict'], 'synthetic': value['synthetic']}
 
     def reviewed(self, goal, repository, snapshot, docs, checks):
-        for identity in reversed(self.state['reviews']):
+        # First registration orders judgments; exact receipt retries are not new
+        # judgments, including duplicates retained by older writers.
+        for identity in reversed(list(dict.fromkeys(self.state['reviews']))):
             review = self.object(identity)
             packet = self.object(review['packet'])
-            if (packet['goal_hash'] == digest(goal) and review['response']['verdict'] == 'pass'
+            if (packet['goal_hash'] == digest(goal)
                     and packet['sources'].get(repository) == snapshot
-                    and packet['documents'].get(repository) == docs
-                    and all(packet['checks'].get(c) == i for c, i in checks.items())):
-                return identity
+                    and packet['documents'].get(repository) == docs):
+                # A member-only adverse judgment also blocks older integration
+                # approval; it need not contain the integration check IDs.
+                if review['response']['verdict'] != 'pass':
+                    raise ValueError('REVIEW_PENDING')
+                if all(packet['checks'].get(c) == i for c, i in checks.items()):
+                    return identity
         raise ValueError('REVIEW_PENDING')
 
     def member(self, goal, repository, scope, diagnostics=None):

@@ -103,6 +103,27 @@ or `blocked`. Register a real independent judgment, not an invented review recor
 The reviewer must differ from the author. Identities are caller-attested, not
 authenticated. A pass requires current complete bound observations.
 
+For new review events, require `review_versions` containing `2` from
+`notebook capabilities`, then submit this versioned form through the same command:
+
+```json
+{"version":2,"review_id":"review-event-123","document":"EXACT_RECORD_ID","reviewer":"independent-reviewer","verdict":"pass","reason":"Reconsidered against the pinned evidence"}
+```
+
+The caller assigns a notebook-wide unique `review_id` for each actual judgment.
+Reusing that ID with identical content is an idempotent retry; different content
+is rejected. A new ID records a new judgment even when verdict and reason repeat.
+The latest newly appended review of the exact revision determines its review state;
+retrying an older event never moves it forward. Submission order is authoritative,
+so hosts must submit judgments in their intended order. These events do not prove
+reviewer identity or organizational approval.
+
+Unversioned inputs remain supported as legacy version 1 with content-based
+deduplication; they cannot express a repeated identical judgment as a new event.
+Existing history is preserved without a SQLite migration. Older readers reject
+version-2 review records: upgrade all readers before writing them or use a separate
+notebook. Backups containing them require a compatible reader too.
+
 `current` means reviewed against the latest imported complete evidence. It does
 not guarantee the live source is unchanged. A changed observation makes dependent
 explanations `stale`; incomplete/removed evidence makes them `evidence_pending`.

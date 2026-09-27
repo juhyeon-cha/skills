@@ -124,6 +124,8 @@ period starting on or before `as_of`, then checks its end and lifecycle. This is
 at a historical recording time. Historical `get` remains available. `observed_at` is when evidence was collected;
 it never sets or extends a business definition's validity period.
 
+For review event identity, retries and reader compatibility, follow the versioned
+review contract in [notebook](notebook.md#write-and-independently-review-explanations).
 The existing `notebook review --input review.json` accepts an exact definition ID
 in its legacy `document` field, plus `reviewer`, `verdict` and `reason`. A reviewer
 must differ from both original author and summarizer. Register actual independent

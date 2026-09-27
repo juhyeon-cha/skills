@@ -66,7 +66,13 @@ def validate(kind, value):
         shape(value, ('source', 'object', 'author', 'body', 'origin'))
         strings(value, ('source', 'object', 'author', 'body', 'origin'))
     elif kind == 'review':
-        shape(value, ('document', 'reviewer', 'verdict', 'reason'))
+        fields = ('document', 'reviewer', 'verdict', 'reason')
+        if 'version' in value:
+            shape(value, (*fields, 'version', 'review_id'))
+            require(type(value['version']) is int and value['version'] == 2, 'unsupported review version')
+            strings(value, ('review_id',))
+        else:
+            shape(value, fields)
         strings(value, ('document', 'reviewer', 'reason'))
         require(value['verdict'] in ('pass', 'revise', 'blocked'), 'invalid review verdict')
     else:
@@ -255,6 +261,10 @@ def append_record(db, kind, value):
     by_id = {r['id']: r for r in rows}
     if identity in by_id:
         return {'id': identity, 'kind': kind, 'created': False}
+    if kind == 'review' and value.get('version') == 2:
+        require(not any(r['kind'] == 'review' and r['value'].get('version') == 2
+                        and r['value']['review_id'] == value['review_id'] for r in rows),
+                'review_id already belongs to a different review event')
     if kind == 'observation':
         for r in rows:
             if r['kind'] == kind and (r['value']['source'], r['value']['object']) == (value['source'], value['object']):

@@ -160,6 +160,37 @@ class PersonalKnowledge(unittest.TestCase):
         self.assertEqual([i['record_id'] for i in result['items']], [first])
         self.submit('review', dict(document=first, reviewer='assistant', verdict='pass', reason='self review'), success=False)
 
+    def test_review_events_distinguish_reconsideration_from_retry(self):
+        evidence = self.observation()
+        personal = self.define(evidence=[evidence])['id']
+        document = self.submit('document', dict(key='guide', source=self.note['source'],
+            title='Products', audience='user', area='domain', purpose='Interpret examples',
+            product_version='fixture', author='writer', body='Synthetic explanation',
+            evidence=[evidence], previous=None))['id']
+        for target in (personal, document):
+            with self.subTest(target=target):
+                legacy = dict(document=target, reviewer='independent-fixture', verdict='pass', reason='Coherent')
+                first = self.submit('review', legacy)
+                blocked = self.submit('review', {**legacy, 'version': 2,
+                    'review_id': target + '-blocked', 'verdict': 'blocked'})
+                approved = {**legacy, 'version': 2, 'review_id': target + '-reconsidered'}
+                final = self.submit('review', approved)
+                self.assertTrue(final['created'])
+                self.assertFalse(self.submit('review', approved)['created'])
+                self.assertFalse(self.submit('review', legacy)['created'])
+                self.submit('review', {**approved, 'reason': 'Changed payload'}, success=False)
+                self.submit('review', {**approved, 'document': 'other'}, success=False)
+                selected = next(i for i in self.retrieve()['items'] if i['record_id'] == target)
+                self.assertEqual(selected['independent_review']['id'], final['id'])
+                self.assertEqual(selected['organizational_approval'], 'not_asserted')
+                backup = self.base / (target + '-history.json')
+                self.cli('backup', '--output', backup)
+                retained = {r['id'] for r in json.loads(backup.read_text())['records']}
+                self.assertTrue({r['id'] for r in (first, blocked, final)} <= retained)
+        for fields in ({'version': 1, 'review_id': 'invalid'}, {'version': 2},
+                       {'version': 2, 'review_id': ''}, {'review_id': 'unversioned'}):
+            self.submit('review', {**legacy, **fields}, success=False)
+
     def test_review_is_not_approval_and_evidence_changes(self):
         first = self.define()['id']
         self.review(first)
@@ -351,6 +382,7 @@ class PersonalKnowledge(unittest.TestCase):
     def test_capabilities_and_external_note_mode(self):
         capabilities = self.cli('capabilities', project=self.base / 'never-created')
         self.assertEqual(capabilities['retrieval_versions'], [1])
+        self.assertEqual(capabilities['review_versions'], [1, 2])
         self.assertFalse(capabilities['organizational_approval'])
         external = self.base / 'file-notebook'
         self.cli('init', '--source', self.note['source'], '--audience', 'user', '--notes', self.base / 'notes', project=external)
