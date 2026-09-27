@@ -127,6 +127,64 @@ class AutomationTests(unittest.TestCase):
         self.assertIn(str(SCRIPTS.parent / 'skills/review/SKILL.md'), reviewer['prompt'])
         self.assertEqual(self.auto('next')['phase'], 'completed')
 
+    def test_interrupted_initialization_preserves_claim_and_refuses_reinitialization(self):
+        import sqlite3
+        connect = sqlite3.connect
+        authority = json.loads((self.root / 'authority.json').read_text())
+        for stage in ('before_database', 'before_state_insert'):
+            with self.subTest(stage=stage):
+                docs = self.root / (stage + '-docs'); docs.mkdir()
+                (docs / 'guide.md').write_bytes((self.docs / 'guide.md').read_bytes())
+                project = self.root / (stage + '-project')
+                state = self.root / (stage + '-state')
+                self.command('knowledge.py', '--project', project, (
+                    'init', '--repo', self.repo, '--docs', docs, '--repository', 'fixture/service',
+                    '--baseline', self.baseline, '--path', 'service.py', '--spec', self.root / 'spec.json',
+                    '--audience', '호출자', '--purpose', '초기화 실패 복구 경계를 검증한다'))
+                if stage == 'before_database':
+                    failure = patch.object(automation.Store, 'document_hashes',
+                                           side_effect=OSError('Injected initialization interruption'))
+                else:
+                    class InterruptedConnection(sqlite3.Connection):
+                        def execute(self, sql, *args):
+                            if sql.startswith('INSERT INTO state'):
+                                raise sqlite3.OperationalError('Injected initialization interruption')
+                            return super().execute(sql, *args)
+
+                        def __exit__(self, *args):
+                            try:
+                                return super().__exit__(*args)
+                            finally:
+                                self.close()
+                    failure = patch.object(automation.sqlite3, 'connect',
+                                           side_effect=lambda path: connect(path, factory=InterruptedConnection))
+                with failure, self.assertRaisesRegex((OSError, sqlite3.Error), 'Injected initialization interruption'):
+                    automation.initialize(state, project, authority, 'HEAD')
+                owner = docs / '.knowledge-automation-owner.json'
+                self.assertEqual(json.loads(owner.read_text()),
+                                 {'automation': str(state.resolve()), 'project': str(project.resolve())})
+                database = state / 'automation.sqlite3'
+                self.assertEqual(database.exists(), stage == 'before_state_insert')
+                if database.exists():
+                    db = connect(database.as_uri() + '?mode=ro', uri=True)
+                    try:
+                        self.assertEqual(db.execute('SELECT COUNT(*) FROM state').fetchone()[0], 0)
+                    finally:
+                        db.close()
+                original = {p: p.read_bytes() for p in (*state.rglob('*'), *docs.rglob('*')) if p.is_file()}
+                init_args = ('init', '--project', project, '--authority', self.root / 'authority.json')
+                self.assertIn('EXISTS:', self.command('automation.py', '--state', state, init_args, ok=False)['error'])
+                other = self.root / (stage + '-other-state')
+                self.assertIn('OWNERSHIP:', self.command('automation.py', '--state', other, init_args, ok=False)['error'])
+                self.assertFalse(other.exists())
+                self.assertEqual(original, {p: p.read_bytes() for p in original})
+                self.command('automation.py', '--state', state, ('status',), ok=False)
+                self.assertEqual(original, {p: p.read_bytes() for p in original})
+        # A committed initialization can instead be inspected after response loss.
+        current = self.auto('status')
+        self.assertEqual(current['project'], str(self.project.resolve()))
+        self.assertEqual(current['authority'], authority)
+
     def test_code_duplicate_new_request_and_unchanged_effect(self):
         rev = self.commit(2)
         execution = self.complete(rev, 2)
