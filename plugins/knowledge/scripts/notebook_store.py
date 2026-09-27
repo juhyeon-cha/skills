@@ -1,7 +1,9 @@
 """SQLite locations and ownership. Configured stores own only knowledge_* objects."""
 from contextlib import contextmanager
 import json
+import os
 from pathlib import Path
+import tempfile
 import uuid
 
 APPLICATION = 0x4B4E4231
@@ -166,6 +168,31 @@ class Records:
                                     [(self.notebook, identity, ref) for ref in value['evidence']])
 
 
+def create_directory_store(file):
+    """Publish a complete empty DB without replacing or claiming an existing file."""
+    file.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix='.knowledge-init-', dir=file.parent) as directory:
+        staged = Path(directory) / 'observations.sqlite'
+        with staged.open('xb'):
+            pass
+        db = connect(staged, True)
+        try:
+            db.execute('BEGIN IMMEDIATE')
+            db.execute('CREATE TABLE records (seq INTEGER PRIMARY KEY, id TEXT UNIQUE NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL)')
+            db.execute(f'PRAGMA application_id={APPLICATION}')
+            db.execute('PRAGMA user_version=1')
+            db.commit()
+        except BaseException:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+        # link() is exclusive: a competing creator or an existing foreign file
+        # wins unchanged. Close SQLite before linking; only the final name is used
+        # for subsequent connections. Cleanup touches only this call's staging dir.
+        os.link(staged, file)
+
+
 @contextmanager
 def database(root, write=False, create=False):
     from observations import notebook_scope, records
@@ -174,19 +201,13 @@ def database(root, write=False, create=False):
     fresh = not file.exists()
     if fresh and config is None:
         require(write and create, 'notebook does not exist; import an observation first')
-        file.parent.mkdir(parents=True, exist_ok=True)
-        with file.open('xb'):
-            pass
+        create_directory_store(file)
     db = connect(file, write)
     try:
         db.execute('BEGIN IMMEDIATE' if write else 'BEGIN')
         if config:
             scope = scope_row(db, config, verify_schema(db))
         else:
-            if fresh:
-                db.execute('CREATE TABLE records (seq INTEGER PRIMARY KEY, id TEXT UNIQUE NOT NULL, kind TEXT NOT NULL, body TEXT NOT NULL)')
-                db.execute(f'PRAGMA application_id={APPLICATION}')
-                db.execute('PRAGMA user_version=1')
             require(db.execute('PRAGMA application_id').fetchone()[0] == APPLICATION and
                     db.execute('PRAGMA user_version').fetchone()[0] == 1,
                     'unsupported notebook database; preserve it and use a new directory')

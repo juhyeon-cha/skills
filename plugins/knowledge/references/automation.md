@@ -44,9 +44,42 @@ targeting the same root is refused, including a symlink alias. The per-state com
 cooperating processes. Direct `knowledge.py` callers, arbitrary editors, nested document roots,
 network filesystems and malicious same-user processes are outside this ownership boundary.
 Use disjoint document roots and stop other writers. Reviewed document byte conflicts still fail
-without overwriting third-party content. An interrupted initialization preserves its reservation;
-inspect it and recover deliberately rather than deleting it to take ownership. State relocation
-and migration are unsupported. Keep the original state, project and document paths.
+without overwriting third-party content. State relocation and migration are unsupported.
+Keep the original state, project and document paths.
+
+### Diagnose interrupted initialization
+
+Use this procedure when `init` fails or its response is lost. Initialization reserves
+the state directory and document ownership before committing `automation.sqlite3`.
+An existing directory makes another `init` fail with `EXISTS`; a surviving ownership
+marker also prevents a new state from claiming the same documents.
+
+1. Stop competing callers and preserve the state directory, project, documents,
+   ownership marker and original command/error. Keep any SQLite sidecar files with
+   their database. A copied database alone is not necessarily a consistent backup;
+   let the host's backup procedure preserve it. Do not remove or rewrite ownership
+   markers, create missing rows, or reuse the partial directory.
+2. Inspect whether the state directory, `.knowledge-automation-owner.json` in the
+   document root, and `automation.sqlite3` exist. Read the marker as data and compare
+   its `automation` and `project` paths with the original command. A missing,
+   malformed or different marker requires operator diagnosis; a DB file's existence
+   alone does not establish successful initialization.
+3. If the DB exists, run `automation.py --state /absolute/original-state status`.
+   This may create `command.lock`; it does not repair state. A failure, including a
+   database with a schema but no committed state row, leaves initialization
+   unresolved. Preserve the error and all originals for the operator. There is no
+   public repair or initialization-resume command for partial state.
+4. If `status` succeeds, compare its `project`, `settings`, `authority` and `ref`
+   with the original request, and verify the ownership marker still names that
+   state and project. Only a matching result supports continuing the existing
+   host loop after a lost response; `status` alone does not verify ownership.
+
+For unresolved partial state, remain stopped. Recovery requires either a trusted,
+consistent host backup restored at the original locations under explicit operator
+authorization, or a separately authorized fresh project with a reviewed baseline,
+disjoint document root and new automation directory. Preserve the failed originals.
+Neither path transfers the old claim or reconstructs lost event history. No cleanup,
+ownership reassignment or automatic retry is authorized by this procedure.
 
 ## Submit pinned requests
 

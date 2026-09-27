@@ -1,0 +1,35 @@
+[
+  {
+    "query": "10월 윤활유 판매량을 판매처별 제품별로 보고 현재 재고도 볼 거예요.",
+    "expected": "matched",
+    "reason": "term"
+  },
+  {
+    "query": "10월 윤활 오일 출고 실적과 재고를 거래처별로 보여줘",
+    "expected": "matched",
+    "reason": "confirmed_alias"
+  },
+  {
+    "query": "고객별 윤활 제품 판매 개수",
+    "expected": "ambiguous",
+    "reason": "related_term"
+  },
+  {
+    "query": "배터리 가용 재고",
+    "expected": "no_match",
+    "reason": null
+  },
+  {
+    "query": "미등록 표현만 사용",
+    "concepts": [
+      "lubricants"
+    ],
+    "expected": "matched",
+    "reason": "host_concept"
+  },
+  {
+    "query": "미등록 표현만 사용",
+    "expected": "no_match",
+    "reason": null
+  }
+]

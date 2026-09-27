@@ -105,6 +105,16 @@ verification path; no invented implementation event is required. Document initia
 does not establish semantic review. The final packet's independent document judgment covers the
 current baseline, and existing completed-run artifacts are also checked when present.
 
+For the same goal, member source and document identities, judgments take precedence
+in first-registration order. A later `revise` or `blocked` judgment stops fallback
+to an earlier pass, including when a member-only review lacks integration checks.
+A later pass restores only the checks covered by its packet: recovering a member
+alone does not restore an integration approval superseded by a negative judgment.
+Obtain a new passing whole-goal review for that recovery, then publish again.
+Exact receipt retries retain their original position and add no review event;
+earlier duplicate registrations are also treated as one original judgment. Original
+receipts and history remain intact. A genuinely new review uses a new host receipt.
+
 ## Predict, compare, and feed back
 
 Before execution, call `predict` with the goal, an `origin`, the predicted `affected` member IDs,

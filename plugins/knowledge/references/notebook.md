@@ -103,12 +103,37 @@ or `blocked`. Register a real independent judgment, not an invented review recor
 The reviewer must differ from the author. Identities are caller-attested, not
 authenticated. A pass requires current complete bound observations.
 
+For new review events, require `review_versions` containing `2` from
+`notebook capabilities`, then submit this versioned form through the same command:
+
+```json
+{"version":2,"review_id":"review-event-123","document":"EXACT_RECORD_ID","reviewer":"independent-reviewer","verdict":"pass","reason":"Reconsidered against the pinned evidence"}
+```
+
+The caller assigns a notebook-wide unique `review_id` for each actual judgment.
+Reusing that ID with identical content is an idempotent retry; different content
+is rejected. A new ID records a new judgment even when verdict and reason repeat.
+The latest newly appended review of the exact revision determines its review state;
+retrying an older event never moves it forward. Submission order is authoritative,
+so hosts must submit judgments in their intended order. These events do not prove
+reviewer identity or organizational approval.
+
+Unversioned inputs remain supported as legacy version 1 with content-based
+deduplication; they cannot express a repeated identical judgment as a new event.
+Existing history is preserved without a SQLite migration. Older readers reject
+version-2 review records: upgrade all readers before writing them or use a separate
+notebook. Backups containing them require a compatible reader too.
+
 `current` means reviewed against the latest imported complete evidence. It does
 not guarantee the live source is unchanged. A changed observation makes dependent
 explanations `stale`; incomplete/removed evidence makes them `evidence_pending`.
 An unreviewed revision remains `unreviewed`. Review requests remain `revise` or `blocked`.
 
 ## Preserve personal findings
+
+For business terminology without technical objects, corrections, scoped analytical
+retrieval or host capability detection, use [personal knowledge](personal-knowledge.md).
+The legacy object-bound note contract below remains unchanged.
 
 Use `notebook note --input NOTE.json` with nonempty `source`, `object`, `author`,
 `body` and `origin`. The source/object must already exist. Notes remain personal
@@ -198,7 +223,15 @@ This is local publication, not external sharing or semantic approval.
 
 ## Recovery
 
-The CLI appends records; semantic write failures roll back. A busy writer fails
+The CLI appends records; semantic write failures roll back. On the first directory
+store write, a complete empty DB is prepared privately and published with an
+exclusive filesystem hard link before recording data. Initialization failure leaves
+no final DB; a rejected first record leaves a valid empty notebook for a corrected retry.
+Existing empty or foreign DB files are still rejected rather than adopted.
+The directory store requires hard-link support on its local filesystem; unsupported
+publication fails without replacing an existing path. Configured stores keep their
+explicit initialization procedure.
+A busy writer fails
 immediately: wait and retry the idempotent input. Readers do not create a missing
 store. Unknown DB versions or symlink paths fail rather than migrate or overwrite.
 Configured-store initialization and history transfer follow [storage recovery](notebook-storage.md).

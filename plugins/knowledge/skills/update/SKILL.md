@@ -5,6 +5,10 @@ description: Update existing knowledge after code, document or user-intent chang
 
 # Update knowledge
 
+For personal terminology capture or correction, including before technical evidence
+exists, follow [personal knowledge](../../references/personal-knowledge.md). This notebook
+route requires no reviewed technical baseline.
+
 For a non-Git observation notebook, follow
 [notebook revisions](../../references/notebook.md#write-revise-and-review-an-explanation):
 import the new evidence, inspect affected explanations, preserve notes/history and

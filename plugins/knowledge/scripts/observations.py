@@ -59,10 +59,20 @@ def validate(kind, value):
                 len(set(value['evidence'])) == len(value['evidence']), 'evidence must be distinct observation IDs')
         require(value['previous'] is None or isinstance(value['previous'], str), 'invalid previous document ID')
     elif kind == 'note':
+        if 'version' in value:
+            from personal_knowledge import validate as validate_personal
+            validate_personal(value)
+            return
         shape(value, ('source', 'object', 'author', 'body', 'origin'))
         strings(value, ('source', 'object', 'author', 'body', 'origin'))
     elif kind == 'review':
-        shape(value, ('document', 'reviewer', 'verdict', 'reason'))
+        fields = ('document', 'reviewer', 'verdict', 'reason')
+        if 'version' in value:
+            shape(value, (*fields, 'version', 'review_id'))
+            require(type(value['version']) is int and value['version'] == 2, 'unsupported review version')
+            strings(value, ('review_id',))
+        else:
+            shape(value, fields)
         strings(value, ('document', 'reviewer', 'reason'))
         require(value['verdict'] in ('pass', 'revise', 'blocked'), 'invalid review verdict')
     else:
@@ -219,6 +229,10 @@ def append(root, kind, value):
     validate(kind, value)
     scope = check_scope(root, value.get('source'), value.get('audience'))
     identity = digest({'kind': kind, 'value': value})
+    personal = kind == 'note' and value.get('version') == 2
+    if personal:
+        require(scope is not None and 'notes' not in scope,
+                'personal definitions require an initialized notebook with database-managed notes')
     if kind == 'note' and scope and 'notes' in scope:
         with database(root) as db:
             rows = records(db)
@@ -232,7 +246,7 @@ def append(root, kind, value):
         with file.open('x', encoding='utf-8') as handle:
             handle.write(json.dumps(value, ensure_ascii=False, indent=2))
         return {'id': identity, 'kind': kind, 'created': True}
-    with database(root, True, create=kind == 'observation') as db:
+    with database(root, True, create=kind == 'observation' or personal) as db:
         return append_record(db, kind, value)
 
 
@@ -247,6 +261,10 @@ def append_record(db, kind, value):
     by_id = {r['id']: r for r in rows}
     if identity in by_id:
         return {'id': identity, 'kind': kind, 'created': False}
+    if kind == 'review' and value.get('version') == 2:
+        require(not any(r['kind'] == 'review' and r['value'].get('version') == 2
+                        and r['value']['review_id'] == value['review_id'] for r in rows),
+                'review_id already belongs to a different review event')
     if kind == 'observation':
         for r in rows:
             if r['kind'] == kind and (r['value']['source'], r['value']['object']) == (value['source'], value['object']):
@@ -264,11 +282,20 @@ def append_record(db, kind, value):
             require(ref in by_id and by_id[ref]['kind'] == 'observation'
                     and by_id[ref]['value']['source'] == value['source'], 'evidence source mismatch or missing observation')
     elif kind == 'note':
-        require((value['source'], value['object']) in latest_observations(rows), 'note needs a known source/object')
+        if value.get('version') == 2:
+            from personal_knowledge import validate_links
+            validate_links(value, rows, scope)
+        else:
+            require((value['source'], value['object']) in latest_observations(rows), 'note needs a known source/object')
     elif kind == 'review':
         doc = by_id.get(value['document'])
-        require(doc is not None and doc['kind'] == 'document', 'review needs an exact document ID')
-        require(doc['value']['author'] != value['reviewer'], 'independent reviewer must differ from author')
+        require(doc is not None and (doc['kind'] == 'document' or
+                doc['kind'] == 'note' and doc['value'].get('version') == 2),
+                'review needs an exact document or personal definition ID')
+        authors = {doc['value']['author']}
+        if doc['kind'] == 'note' and doc['value'].get('summary') is not None:
+            authors.add(doc['value']['summary']['author'])
+        require(value['reviewer'] not in authors, 'independent reviewer must differ from author and summarizer')
         if value['verdict'] == 'pass':
             state = document_state(doc, rows)
             require(state['status'] not in ('stale', 'evidence_pending'), 'changed or incomplete evidence cannot pass')
@@ -349,6 +376,9 @@ def inspect_notebook(root, source):
 
 def register_commands(parser):
     sub = parser.add_subparsers(dest='notebook_command', required=True)
+    sub.add_parser('capabilities')
+    sub.add_parser('define').add_argument('--input', type=Path, required=True)
+    sub.add_parser('retrieve').add_argument('--input', type=Path, required=True)
     sub.add_parser('inspect').add_argument('--source', required=True)
     init = sub.add_parser('init')
     init.add_argument('--attach', action='store_true', help='Add knowledge tables/notebook to the existing configured DB')
@@ -394,6 +424,17 @@ def register_commands(parser):
 
 def execute(args):
     command = args.notebook_command
+    if command == 'capabilities':
+        from personal_knowledge import capabilities
+        return capabilities()
+    if command == 'retrieve':
+        from personal_knowledge import retrieve
+        return retrieve(args.project, json.loads(args.input.read_text(encoding='utf-8')))
+    if command == 'define':
+        from personal_knowledge import validate as validate_personal
+        value = json.loads(args.input.read_text(encoding='utf-8'))
+        validate_personal(value)
+        return {'version': 1, **append(args.project, 'note', value), 'key': value['key'], 'revision': value['revision']}
     if command == 'inspect':
         return inspect_notebook(args.project, args.source)
     if command == 'init':

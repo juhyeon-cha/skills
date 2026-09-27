@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "key": "owner-lubricants",
+  "concept": "lubricants",
+  "source": "business:demo",
+  "audience": "user",
+  "object": null,
+  "author": "owner",
+  "body": "제가 말하는 윤활유는 L100과 L200이에요. 시제품은 빼주세요.",
+  "summary": {
+    "text": "윤활유는 L100/L200이며 시제품 제외",
+    "author": "assistant"
+  },
+  "origin": "user:conversation:example-1",
+  "scope": {
+    "user": "owner",
+    "context": {
+      "company": "demo"
+    }
+  },
+  "revision": 1,
+  "previous": null,
+  "recorded_at": "2026-09-27T09:00:00+09:00",
+  "term": "윤활유",
+  "aliases": [
+    "윤활 오일"
+  ],
+  "related_terms": [
+    "윤활 제품"
+  ],
+  "definition": "제품 L100 및 L200",
+  "exceptions": [
+    "시제품 제외"
+  ],
+  "evidence": [],
+  "valid_from": "2026-01-01",
+  "valid_to": null,
+  "lifecycle": "active",
+  "change": "correction"
+}

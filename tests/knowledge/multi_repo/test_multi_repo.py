@@ -114,13 +114,14 @@ class Fixture:
         with store.locked(initialize):
             return getattr(store, method)(value)
 
-    def review(self, members=None):
+    def review(self, members=None, verdict='pass'):
         selection = {'goal': 'contract'}
         if members:
             selection['repositories'] = members
         packet = self.call('review_packet', selection)
-        response = {'packet': packet['packet'], 'verdict': 'pass', 'findings': [],
-                    'implementation': 'pass', 'documents': 'pass'}
+        response = {'packet': packet['packet'], 'verdict': verdict,
+                    'findings': [] if verdict == 'pass' else ['Synthetic adverse judgment'],
+                    'implementation': 'pass', 'documents': 'pass' if verdict == 'pass' else 'fail'}
         stamp = datetime.now(timezone.utc).isoformat()
         receipt = {'goal': 'contract', 'packet': packet['packet'], 'author': 'synthetic-author',
                    'actor': 'synthetic-independent-reviewer', 'host_tool': 'synthetic-test-double',
@@ -137,6 +138,53 @@ class Fixture:
 
 
 class Contracts(unittest.TestCase):
+    def test_adverse_review_revokes_publication_and_receipt_replay_is_idempotent(self):
+        f = Fixture()
+        first, receipt = f.complete()
+        f.call('publish', {'goal': 'contract'})
+        _, adverse_receipt = f.review(verdict='blocked')
+        self.assertEqual(f.call('query', {'goal': 'contract'})['completion'], 'incomplete')
+        wiki = f.call('wiki', {'goal': 'contract'})
+        self.assertEqual(wiki['served'], 'unavailable_or_partial')
+        self.assertTrue(all('documents' not in m for m in wiki['members']))
+        store = Store(f.root / 'state', f.host_path, 'operator')
+        with store.locked():
+            history_before = copy.deepcopy(store.state)
+        self.assertEqual(f.call('attest', receipt), first)
+        with store.locked():
+            self.assertEqual(store.state, history_before)
+            # Preserve and correctly read duplicate registrations from old writers.
+            store.state['reviews'].append(first['review'])
+        self.assertEqual(f.call('query', {'goal': 'contract'})['completion'], 'incomplete')
+        f.review()
+        f.call('attest', adverse_receipt)
+        self.assertEqual(f.call('query', {'goal': 'contract'})['completion'], 'complete')
+        self.assertEqual(f.call('wiki', {'goal': 'contract'})['served'], 'unavailable_or_partial')
+        f.call('publish', {'goal': 'contract'})
+        self.assertEqual(f.call('wiki', {'goal': 'contract'})['served'], 'current')
+
+    def test_partial_adverse_review_blocks_old_integration_until_full_recovery(self):
+        f = Fixture()
+        f.complete()
+        f.call('publish', {'goal': 'contract'})
+        # New check identities do not erase an adverse judgment on unchanged
+        # goal/source/documents, and a partial packet lacks integration checks.
+        f.call('run_checks', {'goal': 'contract', 'checks': ['producer']})
+        f.review(['producer'], verdict='revise')
+        result = f.call('query', {'goal': 'contract'})
+        members = {m['repository']: m for m in result['members']}
+        self.assertEqual(members['producer']['validation'], 'pending_or_stale')
+        self.assertEqual(members['consumer']['validation'], 'verified')
+        self.assertEqual(result['completion'], 'incomplete')
+        f.review(['producer'])
+        result = f.call('query', {'goal': 'contract'})
+        self.assertTrue(all(m['validation'] == 'verified' for m in result['members']))
+        self.assertEqual(result['integration'], 'pending_or_stale')
+        self.assertEqual(result['completion'], 'incomplete')
+        self.assertEqual(f.call('wiki', {'goal': 'contract'})['served'], 'unavailable_or_partial')
+        f.review()
+        self.assertEqual(f.call('query', {'goal': 'contract'})['completion'], 'complete')
+
     def test_partial_then_complete_and_code_first(self):
         f = Fixture()
         f.update('producer', 'total')

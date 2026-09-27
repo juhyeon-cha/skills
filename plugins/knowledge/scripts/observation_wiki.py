@@ -77,6 +77,17 @@ def export(view, output, base_path="/"):
     notes = '# 추가한 메모와 이전 지식\n\n메모는 사용자 기록입니다. 검토된 사실이나 현재 동작으로 자동 승격하지 않습니다.\n'
     for row in view['notes']:
         value = row['value']
+        if value.get('version') == 2:
+            notes += '\n## 개인 정의 · 개정 ' + str(value['revision']) + '\n\n'
+            notes += '개인 주장의 이력입니다. 개정 연결과 적용 기간을 함께 읽으세요. '
+            notes += '현재 적용 가능성과 근거·검토 상태는 범위와 날짜를 지정한 조회에서 확인하세요.\n\n'
+            notes += '### 정의와 기록 정보\n\n' + literal(json.dumps({
+                'record_id': row['id'], 'assertion': 'personal',
+                'organizational_approval': 'not_asserted', 'applicability': 'not_evaluated',
+                'value': {key: field for key, field in value.items() if key != 'body'},
+            }, ensure_ascii=False, indent=2))
+            notes += '\n### 원문\n\n' + literal(value['body'])
+            continue
         notes += '\n## ' + row['id'][:12] + '\n\n' + literal(json.dumps({k: value[k] for k in ('object', 'author', 'origin')}, ensure_ascii=False))
         notes += '\n' + literal(value['body'])
     if not view['notes']:
