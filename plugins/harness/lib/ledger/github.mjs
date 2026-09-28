@@ -115,11 +115,10 @@ export async function githubLedger(argv, ctx) {
     if (!match) fail(`id 형식은 <repo>#<번호> 다: '${id}'`);
     return { repo: match[1], num: match[2], slug: `${owner}/${match[1]}` };
   };
-  const query = async (q, variables = {}, paginate = false) =>
+  const query = async (q, variables = {}) =>
     read([
       'api',
       'graphql',
-      ...(paginate ? ['--paginate', '--slurp'] : []),
       '-f',
       'query=' + q,
       ...Object.entries(variables).flatMap(([key, value]) => [
@@ -127,6 +126,27 @@ export async function githubLedger(argv, ctx) {
         `${key}=${value}`,
       ]),
     ]);
+  // `gh api graphql --paginate` auto-detects which page to advance by scanning the response
+  // for ANY object shaped like {hasNextPage, endCursor} — it does not know which one governs
+  // outer pagination. A query whose issues each carry their own
+  // `comments(first:100){...pageInfo}` has one such shape per issue *and* one for the issue
+  // list itself; gh followed whichever it found first, which here was a per-issue comments
+  // page reporting no more pages, so the whole scan stopped after the first 100 issues instead
+  // of walking every page. Every caller below walks the *named* pageInfo explicitly instead of
+  // trusting gh's heuristic.
+  const paginate = async (q, variables, extract) => {
+    let cursor,
+      nodes = [];
+    for (;;) {
+      const result = await query(q, cursor ? { ...variables, endCursor: cursor } : variables);
+      const { nodes: pageNodes, pageInfo } = extract(result);
+      nodes.push(...pageNodes);
+      if (!pageInfo?.hasNextPage) return nodes;
+      if (!pageInfo.endCursor || pageInfo.endCursor === cursor)
+        fail('pagination: cursor 가 없거나 반복된다');
+      cursor = pageInfo.endCursor;
+    }
+  };
   const issueQuery = async (id, selection) => {
     const { repo, num } = split(id);
     const result = await query(
@@ -191,15 +211,18 @@ export async function githubLedger(argv, ctx) {
   };
   const list = async (options) => {
     requireProject();
-    const membership = await query(
+    const membershipNodes = await paginate(
       'query($o:String!,$n:Int!,$endCursor:String){ user(login:$o){ projectV2(number:$n){ items(first:100, after:$endCursor){ nodes{ content{ ... on Issue { repository{name} } } } pageInfo{hasNextPage endCursor} } } } }',
       { o: owner, n: Number(project) },
-      true,
+      (result) => {
+        const items = result.data?.user?.projectV2?.items;
+        if (!items) fail(`Project ${project} 항목 조회 실패 — 응답에 items 가 없다`);
+        return { nodes: items.nodes ?? [], pageInfo: items.pageInfo };
+      },
     ).catch((error) => fail(`Project ${project} 항목 조회 실패 — ${error.message}`));
     const names = [
       ...new Set(
-        membership
-          .flatMap((page) => page.data?.user?.projectV2?.items?.nodes ?? [])
+        membershipNodes
           .map((item) => item.content?.repository?.name)
           .filter(Boolean),
       ),
@@ -214,12 +237,15 @@ export async function githubLedger(argv, ctx) {
     for (const name of names) {
       const states =
         options.all || csv(options.status).includes('closed') ? '[OPEN,CLOSED]' : '[OPEN]';
-      const pages = await query(
+      const nodes = await paginate(
         `query($o:String!,$r:String!,$endCursor:String){ repository(owner:$o,name:$r){ issues(first:100, after:$endCursor, states:${states}){ nodes{ ${fields} ${projectField} } pageInfo{hasNextPage endCursor} } } }`,
         { o: owner, r: name },
-        true,
+        (result) => {
+          const issues = result.data?.repository?.issues;
+          if (!issues) fail(`ledger-github: ${name} 의 이슈 조회 응답에 issues 가 없다`);
+          return { nodes: issues.nodes ?? [], pageInfo: issues.pageInfo };
+        },
       );
-      const nodes = pages.flatMap((page) => page.data.repository.issues.nodes);
       seen += nodes.length;
       const selected = nodes.filter((node) =>
         (node.projectItems?.nodes ?? []).some(
