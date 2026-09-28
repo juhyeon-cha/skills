@@ -99,7 +99,7 @@ try{
     const body='line1\n--json\n한글';await must(executeLedger(['note',task,'--stdin'],{root,cwd:root,env:{NOTION_TOKEN:'fixture'},input:Buffer.from(body),request,process:noProcess}));assert.ok(notes.get(task).includes(body));
     await must(executeLedger(['dep','add','--file','-'],{root,cwd:root,env:{NOTION_TOKEN:'fixture'},input:Buffer.from(JSON.stringify({from:task,to:epic})+'\n'),request,process:noProcess}));
   });
-  const ghCalls=[],nodes=new Map();let ghSerial=1,addFailure=false,membership=true,authFailure=false,patchFailure=false,truncate=false,commentPagination=false;
+  const ghCalls=[],nodes=new Map();let ghSerial=1,addFailure=false,membership=true,authFailure=false,patchFailure=false,truncate=false,commentPagination=false,issuePageSize=Infinity;
   const node=(number,title='issue')=>({number,id:'NODE'+number,databaseId:number,title,state:'OPEN',body:'description\n\n## Acceptance\n\ncriteria',repository:{name:'repo'},labels:{nodes:[{name:'repo:repo'},{name:'type:task'}]},comments:{nodes:[]},assignees:{nodes:[]},blockedBy:{totalCount:0,nodes:[]},projectItems:{nodes:[{project:{number:5}}]},parent:null,createdAt:'created',updatedAt:'updated',closedAt:null});nodes.set(1,node(1));
   const gh=async(command,options)=>{
     assert.equal(command.argv[0],'gh');const args=command.argv.slice(1);ghCalls.push({args,input:options.input?.toString()});const q=args.find(arg=>arg.startsWith('query='))?.slice(6),field=key=>args.find(arg=>arg.startsWith(key+'='))?.slice(key.length+1);
@@ -126,8 +126,15 @@ try{
       if(q){
         if(q.startsWith('mutation'))return result({data:{addSubIssue:{},createProjectV2Field:{}}});
         if(q.includes('fields(first:100)'))return result({data:{user:{projectV2:{id:'PROJECT',fields:{nodes:[{id:'FIELD',name:'Sprint',configuration:{duration:14,iterations:[],completedIterations:[]}}]}}}}});
-        if(q.includes('items(first:100'))return result([{data:{user:{projectV2:{items:{nodes:[{content:{repository:{name:'repo'}}}]}}}}}]);
-        if(q.includes('issues(first:100'))return result([{data:{repository:{issues:{nodes:[...nodes.values()].map(raw=>({...raw,blockedBy:truncate?{totalCount:51,nodes:[]}:raw.blockedBy,projectItems:{nodes:membership?[{project:{number:5}}]:[]}}))}}}}]);
+        if(q.includes('items(first:100'))return result({data:{user:{projectV2:{items:{nodes:[{content:{repository:{name:'repo'}}}],pageInfo:{hasNextPage:false,endCursor:null}}}}}});
+        if(q.includes('issues(first:100')){
+          const all=[...nodes.values()].map(raw=>({...raw,blockedBy:truncate?{totalCount:51,nodes:[]}:raw.blockedBy,projectItems:{nodes:membership?[{project:{number:5}}]:[]}}));
+          const size=issuePageSize===Infinity?all.length||1:issuePageSize;
+          const start=Number(field('endCursor')??0);
+          const page=all.slice(start,start+size);
+          const hasNextPage=start+size<all.length;
+          return result({data:{repository:{issues:{nodes:page,pageInfo:{hasNextPage,endCursor:hasNextPage?String(start+size):null}}}}});
+        }
         const raw=structuredClone(nodes.get(Number(field('n'))));if(!raw)return result({data:{repository:{issue:null}}});
         if(commentPagination) {
           const all=raw.comments.nodes;
@@ -167,6 +174,68 @@ try{
     await absent(g(['update','repo#1','--claim','--assignee','x']));await must(g(['update','repo#1','--assignee','']));patchFailure=true;await absent(g(['update','repo#1','--assignee','']));patchFailure=false;
     await must(g(['note','repo#1','note --json']));await must(g(['label','add','repo#1','extra']));await must(g(['label','remove','repo#1','extra']));await must(g(['update','repo#1','--status','open','--acceptance','updated']));await must(g(['dep','add','repo#1','repo#2']));await must(g(['close','repo#1','--reason','done']));
     authFailure=true;await absent(g(['show','repo#1','--json']));authFailure=false;await absent(g(['delete','repo#1']));
+  });
+  await check('GitHub list walks every issues page — a misleading per-issue comments pageInfo must not stop it',async()=>{
+    // The transport fixture checks explicit issue pagination with nested comment metadata.
+    for (let i=0;i<3;i++){const extra=node(++ghSerial);nodes.set(extra.number,extra);}
+    for (const raw of nodes.values()) raw.comments.pageInfo={hasNextPage:false,endCursor:null};
+    const before=nodes.size;
+    issuePageSize=1;
+    const rows=JSON.parse(await must(g(['list','--all','--json'])));
+    issuePageSize=Infinity;
+    assert.equal(rows.length,before,'a page size of 1 must still surface every issue, not just the first page');
+  });
+  await check('GitHub project discovery includes a repository found only on page two',async()=>{
+    const requests=[];
+    const transport=async(command)=>{
+      const args=command.argv.slice(1);
+      if(args[0]==='auth')return result('');
+      const q=args.find(arg=>arg.startsWith('query='))?.slice(6);
+      const after=args.find(arg=>arg.startsWith('endCursor='))?.slice(10);
+      assert.ok(!args.includes('--paginate'));
+      if(q.includes('items(first:100')){
+        requests.push(['items',after]);
+        return result({data:{user:{projectV2:{items:{nodes:[{content:{repository:{name:after?'second':'first'}}}],pageInfo:{hasNextPage:!after,endCursor:after?null:'items-next'}}}}}});
+      }
+      const repo=args.find(arg=>arg.startsWith('r='))?.slice(2);
+      requests.push([repo,after]);
+      const raw=node(after?2:1);raw.repository.name=repo;
+      raw.comments.pageInfo={hasNextPage:false,endCursor:null};
+      return result({data:{repository:{issues:{nodes:[raw],pageInfo:{hasNextPage:!after,endCursor:after?null:'issues-next'}}}}});
+    };
+    const rows=JSON.parse(await must(executeLedger(['list','--all','-n','0','--json'],{root,cwd:root,process:transport})));
+    assert.deepEqual(rows.map(row=>row.id).sort(),['first#1','first#2','second#1','second#2']);
+    assert.deepEqual(requests,[['items',undefined],['items','items-next'],['first',undefined],['first','issues-next'],['second',undefined],['second','issues-next']]);
+  });
+  await check('GitHub pagination rejects malformed connections and repeated cursors',async()=>{
+    const invalid=[
+      {nodes:[]},
+      {nodes:[],pageInfo:{}},
+      {nodes:[],pageInfo:{hasNextPage:'false'}},
+      {pageInfo:{hasNextPage:false}},
+      {nodes:{},pageInfo:{hasNextPage:false}},
+      {nodes:[],pageInfo:{hasNextPage:true,endCursor:null}},
+      {nodes:[],pageInfo:{hasNextPage:true,endCursor:42}},
+      'same-cursor','cycle',
+    ];
+    for(const target of ['items','issues'])for(const fixture of invalid){
+      let calls=0;
+      const transport=async(command)=>{
+        const q=command.argv.find(arg=>arg.startsWith('query='));
+        if(!q)return result('');
+        const isItems=q.includes('items(first:100');
+        let connection={nodes:[{content:{repository:{name:'repo'}}}],pageInfo:{hasNextPage:false}};
+        if((target==='items')===isItems){
+          calls++;
+          assert.ok(calls<=3,'the adapter must stop repeated cursors before a fourth request');
+          connection=typeof fixture==='string'?{nodes:[],pageInfo:{hasNextPage:true,endCursor:fixture==='cycle'&&calls===2?'B':'A'}}:fixture;
+        }
+        return result(isItems?{data:{user:{projectV2:{items:connection}}}}:{data:{repository:{issues:connection}}});
+      };
+      const failure=await absent(executeLedger(['list','--all','--json'],{root,cwd:root,process:transport}));
+      assert.match(failure.stderr,/pagination:/);
+      assert.equal(calls,fixture==='cycle'?3:fixture==='same-cursor'?2:1);
+    }
   });
   await check('GitHub mutable execution and summaries survive body/acceptance edits without comments', async()=>{
     const id='repo#1', count=nodes.get(1).comments.nodes.length;
@@ -241,5 +310,5 @@ try{
     assert.doesNotMatch(read.stderr,/함께 반영한다/);
     const pushed=await executeLedger(['sync-check','--push'],{root,cwd:root,process:transport});assert.equal(pushed.code,0,pushed.stderr);assert.match(pushed.stderr,/bd dolt push 로 함께 반영한다/);assert.equal(pushes,1);assert.equal(ahead,0);
   });
-  assert.equal(reached,15); console.log(`PASS ledger contracts ${reached}; offline transports, no remote writes`);
+  assert.equal(reached,18); console.log(`PASS ledger contracts ${reached}; offline transports, no remote writes`);
 }finally{await fs.rm(root,{recursive:true,force:true});}
