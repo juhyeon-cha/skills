@@ -420,9 +420,9 @@ case "$1 $2" in
       *"items(first"*)
         [ -z "${FAKE_GH_ITEMS_FAIL:-}" ] || { echo 'gh: Could not resolve to a ProjectV2' >&2; exit 1; }
         if [ -n "${FAKE_GH_NO_ITEMS:-}" ]; then
-          echo '[{"data":{"user":{"projectV2":{"items":{"nodes":[]}}}}}]'
+          echo '{"data":{"user":{"projectV2":{"items":{"nodes":[],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}'
         else
-          echo '[{"data":{"user":{"projectV2":{"items":{"nodes":[{"content":{"repository":{"name":"harness"}}},{"content":{"repository":{"name":"harness"}}},{"content":{}}]}}}}}]'
+          echo '{"data":{"user":{"projectV2":{"items":{"nodes":[{"content":{"repository":{"name":"harness"}}},{"content":{"repository":{"name":"harness"}}},{"content":{}}],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}}'
         fi ;;
       *"subIssues(first"*) printf '{"data":{"repository":{"issue":{"subIssues":{"nodes":[%s,%s]}}}}}' "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" '{"number":58,"repository":{"name":"harness"}}' "")" ;;
       # 레포 이슈 목록. FAKE_GH_RAILS 가 있으면 rails 전용 판으로 **갈아 끼운다** — 더하지 않는다.
@@ -430,16 +430,16 @@ case "$1 $2" in
       *"issues(first"*)
         case "${FAKE_GH_RAILS:-}" in
           # (a) 레일 둘이 각자 owner 를 갖는 정상 판.
-          ok) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+          ok) printf '{"data":{"repository":{"issues":{"nodes":[%s,%s],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}' \
                 "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 81 r2 '[{"login":"dongqdev"}]')" ;;
           # (b) 한 레일(r1)의 epic 둘이 서로 다른 사람을 가리킨다.
-          conflict) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+          conflict) printf '{"data":{"repository":{"issues":{"nodes":[%s,%s],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}' \
                 "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 82 r1 '[{"login":"dongqdev"}]')" ;;
           # (c) rail: 라벨은 있는데 assignee 가 없는 epic(83). 같은 판에 owner 를 가진 레일(r1)을
           #     함께 두어 "나머지 결과는 온전하다" 를 볼 수 있게 한다.
-          blank) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s]}}}}]' \
+          blank) printf '{"data":{"repository":{"issues":{"nodes":[%s,%s],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}' \
                 "$(rail_epic 80 r1 '[{"login":"juhyeon-cha"}]')" "$(rail_epic 83 r3 '[]')" ;;
-          *) printf '[{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s]}}}}]' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
+          *) printf '{"data":{"repository":{"issues":{"nodes":[%s,%s,%s,%s,%s],"pageInfo":{"hasNextPage":false,"endCursor":null}}}}}' "$(node 57 에픽 OPEN "$N57" null '본문\n\n## Acceptance\n\n조건 1')" "$(node 58 피처 OPEN "$N58" '{"number":57,"repository":{"name":"harness"}}' "")" "$(node 59 태스크 CLOSED "$N59" null "")" "$(node 70 프로젝트밖 OPEN "$N70" null "" "$PI70")" "$(node 71 프로젝트없음 OPEN "$N70" null "" "$PI71")" ;;
         esac ;;
       # 소속 재확인 (skills#212) — create 가 item-add 뒤에 이슈를 다시 읽는 자리다. 기본은 소속,
       # FAKE_GH_NOT_IN_PROJECT 는 빈 목록(정말 안 들어간 판). 아래 n= 분기들보다 **앞**에 둔다 —
@@ -652,7 +652,7 @@ step "경계: 프로젝트 밖 이슈(70·71)가 읽기에 0건이고 프로젝�
   bash -c 'printf "%s" "$1" | jq -e "(map(.id) | sort) == [\"harness#57\",\"harness#58\",\"harness#59\"]" >/dev/null' _ "$OUT"
 step "경계: 소속 판정에 gh project item-list 를 쓰지 않는다 (item-add 직후 안 나오는 목록이다)" \
   bash -c '! grep -q "^project item-list" "$1"' _ "$LOG"
-step "호출 수: 읽기 한 번에 레포 목록 1회 + 레포마다 GraphQL 1회다 (이슈마다 1회가 아니다 — projectItems 를 같은 질의에 얹는다)" \
+step "호출 수: 한 페이지 픽스처는 레포 목록 1회 + 레포마다 GraphQL 1회다 (이슈마다 1회가 아니다 — projectItems 를 같은 질의에 얹는다)" \
   bash -c '[ "$(grep -c "^api graphql" "$1")" -eq 2 ] && [ "$(grep -c "items(first" "$1")" -eq 1 ] && [ "$(grep -c "issues(first" "$1")" -eq 1 ]' _ "$LOG"
 grun show 'harness#70' --json
 step "경계 밖이어도 show 는 id 로 읽는다 (소속을 요구하지 않는다)" \

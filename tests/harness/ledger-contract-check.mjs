@@ -176,17 +176,66 @@ try{
     authFailure=true;await absent(g(['show','repo#1','--json']));authFailure=false;await absent(g(['delete','repo#1']));
   });
   await check('GitHub list walks every issues page — a misleading per-issue comments pageInfo must not stop it',async()=>{
-    // Regression for the bug `gh api graphql --paginate` cannot see: a response with a
-    // per-issue `comments{pageInfo}` *and* an outer `issues{pageInfo}` has two differently-shaped
-    // pageInfo objects, and gh's own pagination heuristic does not know which one governs the
-    // outer list — it happened to follow the (always-empty, hasNextPage:false) comments one here
-    // and stopped after page 1. This proves the fix walks the *named* issues.pageInfo instead.
+    // The transport fixture checks explicit issue pagination with nested comment metadata.
     for (let i=0;i<3;i++){const extra=node(++ghSerial);nodes.set(extra.number,extra);}
+    for (const raw of nodes.values()) raw.comments.pageInfo={hasNextPage:false,endCursor:null};
     const before=nodes.size;
     issuePageSize=1;
     const rows=JSON.parse(await must(g(['list','--all','--json'])));
     issuePageSize=Infinity;
     assert.equal(rows.length,before,'a page size of 1 must still surface every issue, not just the first page');
+  });
+  await check('GitHub project discovery includes a repository found only on page two',async()=>{
+    const requests=[];
+    const transport=async(command)=>{
+      const args=command.argv.slice(1);
+      if(args[0]==='auth')return result('');
+      const q=args.find(arg=>arg.startsWith('query='))?.slice(6);
+      const after=args.find(arg=>arg.startsWith('endCursor='))?.slice(10);
+      assert.ok(!args.includes('--paginate'));
+      if(q.includes('items(first:100')){
+        requests.push(['items',after]);
+        return result({data:{user:{projectV2:{items:{nodes:[{content:{repository:{name:after?'second':'first'}}}],pageInfo:{hasNextPage:!after,endCursor:after?null:'items-next'}}}}}});
+      }
+      const repo=args.find(arg=>arg.startsWith('r='))?.slice(2);
+      requests.push([repo,after]);
+      const raw=node(after?2:1);raw.repository.name=repo;
+      raw.comments.pageInfo={hasNextPage:false,endCursor:null};
+      return result({data:{repository:{issues:{nodes:[raw],pageInfo:{hasNextPage:!after,endCursor:after?null:'issues-next'}}}}});
+    };
+    const rows=JSON.parse(await must(executeLedger(['list','--all','-n','0','--json'],{root,cwd:root,process:transport})));
+    assert.deepEqual(rows.map(row=>row.id).sort(),['first#1','first#2','second#1','second#2']);
+    assert.deepEqual(requests,[['items',undefined],['items','items-next'],['first',undefined],['first','issues-next'],['second',undefined],['second','issues-next']]);
+  });
+  await check('GitHub pagination rejects malformed connections and repeated cursors',async()=>{
+    const invalid=[
+      {nodes:[]},
+      {nodes:[],pageInfo:{}},
+      {nodes:[],pageInfo:{hasNextPage:'false'}},
+      {pageInfo:{hasNextPage:false}},
+      {nodes:{},pageInfo:{hasNextPage:false}},
+      {nodes:[],pageInfo:{hasNextPage:true,endCursor:null}},
+      {nodes:[],pageInfo:{hasNextPage:true,endCursor:42}},
+      'same-cursor','cycle',
+    ];
+    for(const target of ['items','issues'])for(const fixture of invalid){
+      let calls=0;
+      const transport=async(command)=>{
+        const q=command.argv.find(arg=>arg.startsWith('query='));
+        if(!q)return result('');
+        const isItems=q.includes('items(first:100');
+        let connection={nodes:[{content:{repository:{name:'repo'}}}],pageInfo:{hasNextPage:false}};
+        if((target==='items')===isItems){
+          calls++;
+          assert.ok(calls<=3,'the adapter must stop repeated cursors before a fourth request');
+          connection=typeof fixture==='string'?{nodes:[],pageInfo:{hasNextPage:true,endCursor:fixture==='cycle'&&calls===2?'B':'A'}}:fixture;
+        }
+        return result(isItems?{data:{user:{projectV2:{items:connection}}}}:{data:{repository:{issues:connection}}});
+      };
+      const failure=await absent(executeLedger(['list','--all','--json'],{root,cwd:root,process:transport}));
+      assert.match(failure.stderr,/pagination:/);
+      assert.equal(calls,fixture==='cycle'?3:fixture==='same-cursor'?2:1);
+    }
   });
   await check('GitHub mutable execution and summaries survive body/acceptance edits without comments', async()=>{
     const id='repo#1', count=nodes.get(1).comments.nodes.length;
@@ -261,5 +310,5 @@ try{
     assert.doesNotMatch(read.stderr,/함께 반영한다/);
     const pushed=await executeLedger(['sync-check','--push'],{root,cwd:root,process:transport});assert.equal(pushed.code,0,pushed.stderr);assert.match(pushed.stderr,/bd dolt push 로 함께 반영한다/);assert.equal(pushes,1);assert.equal(ahead,0);
   });
-  assert.equal(reached,16); console.log(`PASS ledger contracts ${reached}; offline transports, no remote writes`);
+  assert.equal(reached,18); console.log(`PASS ledger contracts ${reached}; offline transports, no remote writes`);
 }finally{await fs.rm(root,{recursive:true,force:true});}

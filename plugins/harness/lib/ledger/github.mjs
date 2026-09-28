@@ -126,25 +126,21 @@ export async function githubLedger(argv, ctx) {
         `${key}=${value}`,
       ]),
     ]);
-  // `gh api graphql --paginate` auto-detects which page to advance by scanning the response
-  // for ANY object shaped like {hasNextPage, endCursor} — it does not know which one governs
-  // outer pagination. A query whose issues each carry their own
-  // `comments(first:100){...pageInfo}` has one such shape per issue *and* one for the issue
-  // list itself; gh followed whichever it found first, which here was a per-issue comments
-  // page reporting no more pages, so the whole scan stopped after the first 100 issues instead
-  // of walking every page. Every caller below walks the *named* pageInfo explicitly instead of
-  // trusting gh's heuristic.
+  // Follow the selected connection, independently of nested comments.pageInfo.
   const paginate = async (q, variables, extract) => {
-    let cursor,
-      nodes = [];
+    let cursor;
+    const nodes = [], cursors = new Set();
     for (;;) {
       const result = await query(q, cursor ? { ...variables, endCursor: cursor } : variables);
       const { nodes: pageNodes, pageInfo } = extract(result);
+      if (!Array.isArray(pageNodes) || typeof pageInfo?.hasNextPage !== 'boolean')
+        fail('pagination: nodes 또는 pageInfo 응답이 올바르지 않다');
       nodes.push(...pageNodes);
-      if (!pageInfo?.hasNextPage) return nodes;
-      if (!pageInfo.endCursor || pageInfo.endCursor === cursor)
+      if (!pageInfo.hasNextPage) return nodes;
+      if (typeof pageInfo.endCursor !== 'string' || !pageInfo.endCursor || cursors.has(pageInfo.endCursor))
         fail('pagination: cursor 가 없거나 반복된다');
       cursor = pageInfo.endCursor;
+      cursors.add(cursor);
     }
   };
   const issueQuery = async (id, selection) => {
@@ -217,7 +213,7 @@ export async function githubLedger(argv, ctx) {
       (result) => {
         const items = result.data?.user?.projectV2?.items;
         if (!items) fail(`Project ${project} 항목 조회 실패 — 응답에 items 가 없다`);
-        return { nodes: items.nodes ?? [], pageInfo: items.pageInfo };
+        return { nodes: items.nodes, pageInfo: items.pageInfo };
       },
     ).catch((error) => fail(`Project ${project} 항목 조회 실패 — ${error.message}`));
     const names = [
@@ -243,7 +239,7 @@ export async function githubLedger(argv, ctx) {
         (result) => {
           const issues = result.data?.repository?.issues;
           if (!issues) fail(`ledger-github: ${name} 의 이슈 조회 응답에 issues 가 없다`);
-          return { nodes: issues.nodes ?? [], pageInfo: issues.pageInfo };
+          return { nodes: issues.nodes, pageInfo: issues.pageInfo };
         },
       );
       seen += nodes.length;
